@@ -161,8 +161,13 @@
       const banner = document.getElementById('verifiedBanner');
       banner.textContent = 'Email verified! You can now sign in.';
       banner.classList.remove('hidden');
-    } else if (verified === '0') {
+       } else if (verified === '0') {
       showError('This verification link is invalid or has expired. Try signing in — you can resend a new link from here.', false);
+    }
+    if (params.get('expired') === '1') {
+      const banner = document.getElementById('verifiedBanner');
+      banner.textContent = 'You were signed out due to inactivity. Please sign in again.';
+      banner.classList.remove('hidden');
     }
 
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
@@ -182,11 +187,18 @@
         });
         const data = await res.json();
 
-        if (data.success) {
+                if (data.success) {
           window.location.href = data.redirect;
           return;
         }
-        showError(data.error || 'Invalid username or password.', !!data.needsVerification);
+        var message = data.error || 'Invalid username or password.';
+        if (/csrf/i.test(message)) {
+          // Should be caught and silently retried by csrf.js already — this
+          // is just a last-resort net so a raw security error never
+          // reaches the screen.
+          message = 'Something went wrong. Please try again.';
+        }
+        showError(message, !!data.needsVerification);
       } catch (err) {
         showError('Unable to reach the server. Please try again.', false);
       } finally {

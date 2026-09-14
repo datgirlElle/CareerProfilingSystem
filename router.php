@@ -16,6 +16,9 @@
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path = urldecode($path ?? '/');
 
+require_once __DIR__ . '/lib/SecurityHeaders.php';
+SecurityHeaders::send();
+
 // Root path: hand off to the built-in server's own default behavior,
 // which finds and executes index.php in the docroot — that script
 // already contains the real logic (redirect a logged-in user to their

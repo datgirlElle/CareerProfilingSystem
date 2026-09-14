@@ -2,4 +2,9 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 
-jsonResponse(['user' => Auth::currentUser(), 'csrfToken' => Csrf::token()]);
+$user = Auth::currentUser();
+$response = ['user' => $user, 'csrfToken' => Csrf::token()];
+if ($user !== null) {
+    $response['sessionTimeout'] = Auth::sessionTimeoutPolicy();
+}
+jsonResponse($response);
