@@ -59,6 +59,44 @@ if ($errors) {
 }
 
 $hash = password_hash($newPassword, PASSWORD_BCRYPT);
+
+// Staff accounts get a step-up email verification before the change takes
+// effect, gated by the same policy toggle that used to guard login
+// (Security Configuration's staff verification setting). Students aren't
+// included — same scoping reasoning as before: it's not who this policy
+// is meant to protect.
+$isStaff = in_array($user['role'], ['admin', 'counselor'], true);
+if ($isStaff && TwoFactor::isEnabled($pdo)) {
+    $emailStmt = $pdo->prepare('SELECT email FROM users WHERE id = ?');
+    $emailStmt->execute([$user['id']]);
+    $email = $emailStmt->fetchColumn();
+
+    if (!empty($email)) {
+        $sent = TwoFactor::issue($pdo, (int) $user['id'], $email, $user['username'], $plainCode);
+        if (!$sent) {
+            AuditLogger::log($user['id'], $user['role'], 'change_password_code_send_failed', 'user', (string) $user['id'], 'Could not send verification code');
+        }
+
+        // Hold the new hash pending verification — nothing is written to
+        // users.password_hash until api/verify-password-change.php
+        // confirms the code.
+        $_SESSION['pending_password_change'] = [
+            'userId' => (int) $user['id'],
+            'newPasswordHash' => $hash,
+        ];
+
+        AuditLogger::log($user['id'], $user['role'], 'change_password_pending', 'user', (string) $user['id'], 'Verification code sent, awaiting confirmation');
+        $response = ['success' => true, 'verificationRequired' => true];
+        if (!$sent && getenv('APP_ENV') === 'local') {
+            // Local dev has no real Brevo credentials — surface the code
+            // directly, same convention as forgot-password.php's
+            // debugResetLink, so the flow stays testable.
+            $response['debugCode'] = $plainCode;
+        }
+        jsonResponse($response);
+    }
+}
+
 $pdo->prepare('UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?')->execute([$hash, $user['id']]);
 
 AuditLogger::log($user['id'], $user['role'], 'change_password', 'user', (string) $user['id']);

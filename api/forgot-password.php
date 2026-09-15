@@ -3,6 +3,7 @@
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/Mailer.php';
 require_once __DIR__ . '/../lib/EmailTemplate.php';
+require_once __DIR__ . '/../lib/RateLimiter.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -22,6 +23,17 @@ $pdo = Database::get();
 // Always respond with the same generic success message, whether or not the
 // account exists, so this endpoint can't be used to enumerate accounts.
 $generic = ['success' => true, 'message' => 'If that account exists, a reset link has been sent to its email on file.'];
+
+// Rate limit BEFORE doing anything else, keyed to the identifier they
+// submitted. On hit, still return the same generic response — never a
+// different message or status code — so someone probing this endpoint
+// can't tell "no such account" apart from "rate limited" apart from
+// "email sent". 3 requests/hour is enough for someone who genuinely
+// forgot their password to retry a typo, not enough to flood an inbox or
+// burn through the Brevo daily quota.
+if (RateLimiter::tooMany('forgot-password:' . strtolower($identifier), 3, 60)) {
+    jsonResponse($generic);
+}
 
 $stmt = $pdo->prepare('SELECT id, role, username, email FROM users WHERE LOWER(username) = LOWER(?) AND is_active = TRUE');
 $stmt->execute([$identifier]);

@@ -5,6 +5,7 @@ require_once __DIR__ . '/../lib/Crypto.php';
 require_once __DIR__ . '/../lib/Auth.php';
 require_once __DIR__ . '/../lib/Rbac.php';
 require_once __DIR__ . '/../lib/AuditLogger.php';
+require_once __DIR__ . '/../lib/TwoFactor.php';
 require_once __DIR__ . '/../lib/Csrf.php';
 require_once __DIR__ . '/../lib/SecurityHeaders.php';
 

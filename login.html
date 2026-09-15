@@ -6,7 +6,7 @@
 <title>CareerPath Login</title>
 <link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="js/csrf.js"></script>
+    <script src="js/csrf.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -141,6 +141,7 @@
 
   (function() {
     const resendBtn = document.getElementById('resendVerificationBtn');
+    const loginForm = document.getElementById('loginForm');
 
     function showError(text, showResend) {
       const el = document.getElementById('loginError');
@@ -161,7 +162,7 @@
       const banner = document.getElementById('verifiedBanner');
       banner.textContent = 'Email verified! You can now sign in.';
       banner.classList.remove('hidden');
-       } else if (verified === '0') {
+    } else if (verified === '0') {
       showError('This verification link is invalid or has expired. Try signing in — you can resend a new link from here.', false);
     }
     if (params.get('expired') === '1') {
@@ -187,7 +188,7 @@
         });
         const data = await res.json();
 
-                if (data.success) {
+        if (data.success) {
           window.location.href = data.redirect;
           return;
         }
