@@ -2,10 +2,7 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 
-$user = Auth::requireLogin();
-if ($user['role'] !== 'admin' && $user['role'] !== 'counselor') {
-    jsonResponse(['error' => 'Forbidden'], 403);
-}
+$user = Rbac::requireRole('admin', 'counselor');
 $pdo = Database::get();
 
 // 'announcements' was added to lib/Rbac.php's MODULES and to

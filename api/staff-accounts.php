@@ -4,10 +4,7 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/Mailer.php';
 require_once __DIR__ . '/../lib/EmailTemplate.php';
 
-$user = Auth::requireLogin();
-if ($user['role'] !== 'admin') {
-    jsonResponse(['error' => 'Forbidden'], 403);
-}
+$user = Rbac::requireRole('admin');
 $pdo = Database::get();
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
