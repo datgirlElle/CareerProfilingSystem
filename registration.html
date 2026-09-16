@@ -84,10 +84,14 @@
               <img src="images/login/icon-user.svg" alt="" class="w-full h-full">
             </span>
             <input
+              id="schoolIdInput"
               type="text"
               name="school_id"
               placeholder="School ID"
               aria-label="School ID"
+              inputmode="numeric"
+              pattern="[0-9]{6,15}"
+              title="Numbers only"
               required
               class="w-full pl-10 pr-3 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
           </div>
@@ -255,6 +259,18 @@
     });
   })();
 
+  // Strip anything non-numeric as the user types, rather than only
+  // rejecting it after they hit submit — fewer surprises.
+  (function() {
+    const schoolIdInput = document.getElementById('schoolIdInput');
+    schoolIdInput.addEventListener('input', function() {
+      const digitsOnly = schoolIdInput.value.replace(/\D/g, '');
+      if (digitsOnly !== schoolIdInput.value) {
+        schoolIdInput.value = digitsOnly;
+      }
+    });
+  })();
+
   // Live feedback on blur, rather than only after a full form submit attempt.
   (function() {
     const emailInput = document.getElementById('emailInput');
@@ -328,6 +344,10 @@
 
       if (!firstName || !lastName || !schoolId || !email || !strand || !gradeLevel || !section || !password) {
         showMessage('Please fill out all fields.', true);
+        return;
+      }
+      if (!/^\d{6,15}$/.test(schoolId)) {
+        showMessage('School ID must contain numbers only.', true);
         return;
       }
       if (!privacyConsent) {

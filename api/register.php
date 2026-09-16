@@ -40,6 +40,9 @@ $privacyConsent = $body['privacyConsent'] ?? false;
 if ($schoolId === '' || $firstName === '' || $lastName === '' || $email === '' || $section === '' || $password === '') {
     jsonResponse(['success' => false, 'error' => 'All fields are required.'], 400);
 }
+if (!preg_match('/^\d{6,15}$/', $schoolId)) {
+    jsonResponse(['success' => false, 'error' => 'School ID must contain numbers only.'], 400);
+}
 // Never trust the client-side checkbox's "required" attribute alone —
 // a request built by hand (or a modified page) could omit it entirely.
 if ($privacyConsent !== true) {

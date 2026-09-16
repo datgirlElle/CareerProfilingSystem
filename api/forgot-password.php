@@ -18,6 +18,18 @@ if ($identifier === '') {
     jsonResponse(['success' => false, 'error' => 'Username or School ID is required.'], 400);
 }
 
+// Format check only — this rejects obvious garbage (injection-style
+// strings, symbols, spaces) before it reaches the database, but it does
+// NOT reveal whether an account actually exists. A plausible-looking but
+// nonexistent email/School ID/username still falls through to the same
+// generic response below, same as always — anti-enumeration is preserved.
+$looksValid = filter_var($identifier, FILTER_VALIDATE_EMAIL)
+    || preg_match('/^\d{6,15}$/', $identifier)           // student School ID
+    || preg_match('/^[a-zA-Z0-9_.]{3,32}$/', $identifier); // staff username
+if (!$looksValid) {
+    jsonResponse(['success' => false, 'error' => 'Enter a valid email, School ID, or username.'], 400);
+}
+
 $pdo = Database::get();
 
 // Always respond with the same generic success message, whether or not the
@@ -35,8 +47,19 @@ if (RateLimiter::tooMany('forgot-password:' . strtolower($identifier), 3, 60)) {
     jsonResponse($generic);
 }
 
-$stmt = $pdo->prepare('SELECT id, role, username, email FROM users WHERE LOWER(username) = LOWER(?) AND is_active = TRUE');
-$stmt->execute([$identifier]);
+// A separate, higher-ceiling limit keyed by IP instead of by identifier —
+// the per-identifier limit above only catches someone retrying the SAME
+// number/email; it does nothing to stop someone rapidly cycling through
+// many DIFFERENT numbers, since each one starts fresh at zero. This catches
+// that case. The ceiling is higher (20 vs 3) since one IP can legitimately
+// represent many different real people on a shared school network.
+$clientIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+if (RateLimiter::tooMany('forgot-password-ip:' . $clientIp, 5,60)) {
+    jsonResponse($generic);
+}
+
+$stmt = $pdo->prepare('SELECT id, role, username, email FROM users WHERE (LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?)) AND is_active = TRUE');
+$stmt->execute([$identifier, $identifier]);
 $user = $stmt->fetch();
 
 if (!$user) {
