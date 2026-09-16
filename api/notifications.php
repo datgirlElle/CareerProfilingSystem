@@ -50,14 +50,14 @@ if ($user['role'] === 'admin' || $user['role'] === 'counselor') {
 
     // Open counseling requests awaiting a response
     $stmt = $pdo->query(
-        "SELECT id, name, subject, sent_at FROM help_requests
+        "SELECT id, name_enc, subject_enc, sent_at FROM help_requests
          WHERE status = 'open' ORDER BY sent_at DESC LIMIT 5"
     );
     foreach ($stmt->fetchAll() as $row) {
-        $who = $row['name'] ?: 'A student';
+        $who = Crypto::dec($row['name_enc']) ?: 'A student';
         $items[] = [
             'type' => 'help_request',
-            'text' => "Counseling request — $who: " . ($row['subject'] ?: 'No subject'),
+            'text' => "Counseling request — $who: " . (Crypto::dec($row['subject_enc']) ?: 'No subject'),
             'link' => 'help-requests',
             'ts' => $row['sent_at'],
         ];
@@ -65,7 +65,7 @@ if ($user['role'] === 'admin' || $user['role'] === 'counselor') {
 } else {
     // Student: recent resolutions of things they submitted
     $stmt = $pdo->prepare(
-        "SELECT id, subject, resolved_at FROM help_requests
+        "SELECT id, subject_enc, resolved_at FROM help_requests
          WHERE student_id = ? AND status = 'resolved' AND resolved_at > NOW() - INTERVAL '14 days'
          ORDER BY resolved_at DESC LIMIT 5"
     );
@@ -73,7 +73,7 @@ if ($user['role'] === 'admin' || $user['role'] === 'counselor') {
     foreach ($stmt->fetchAll() as $row) {
         $items[] = [
             'type' => 'help_resolved',
-            'text' => 'Your counseling request "' . ($row['subject'] ?: 'General inquiry') . '" has been resolved.',
+            'text' => 'Your counseling request "' . (Crypto::dec($row['subject_enc']) ?: 'General inquiry') . '" has been resolved.',
             'link' => 'help-center',
             'ts' => $row['resolved_at'],
         ];

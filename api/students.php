@@ -126,10 +126,19 @@ $rows = $pdo->query(
 // from Help Center (results.html links there with a fixed subject line). This is
 // distinct from monitoring escalation, which is a counselor-initiated review of a
 // low-confidence recommendation, not the student asking for advising themselves.
-$counseledIds = array_flip($pdo->query(
-    "SELECT DISTINCT student_id FROM help_requests
-     WHERE subject = 'Request for Academic Advising' AND student_id IS NOT NULL"
-)->fetchAll(PDO::FETCH_COLUMN));
+//
+// subject is now encrypted (subject_enc), so it can't be matched with a plain
+// SQL WHERE clause anymore — encryption produces different ciphertext every
+// time, even for the same input, so this has to decrypt and compare in PHP.
+$counseledIds = [];
+$helpRequestRows = $pdo->query(
+    'SELECT student_id, subject_enc FROM help_requests WHERE student_id IS NOT NULL'
+)->fetchAll();
+foreach ($helpRequestRows as $hr) {
+    if (Crypto::dec($hr['subject_enc']) === 'Request for Academic Advising') {
+        $counseledIds[(int) $hr['student_id']] = true;
+    }
+}
 
 $labels = ['R' => 'Realistic', 'I' => 'Investigate', 'A' => 'Artistic', 'S' => 'Social', 'E' => 'Enterprising', 'C' => 'Conventional'];
 
