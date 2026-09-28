@@ -90,10 +90,17 @@ class AnalyticsReport
         $recCount = count($latestRecScores);
         $confidentCount = count(array_filter($latestRecScores, fn($s) => (float) $s >= $threshold));
 
-        // Always the full population breakdown, regardless of the strand/section filter.
-        $strandRows = $pdo->query('SELECT strand, COUNT(*) AS cnt FROM students GROUP BY strand ORDER BY cnt DESC')->fetchAll();
+        // The strand and section breakdowns follow the same Strand/Section
+        // filter as every other figure, so picking STEM never shows ABM bars.
+        [$distClause, $distParams] = $studentFilterClause();
+        $distClause = str_replace('s.', '', $distClause);
+        $strandStmt = $pdo->prepare('SELECT strand, COUNT(*) AS cnt FROM students' . $distClause . ' GROUP BY strand ORDER BY cnt DESC');
+        $strandStmt->execute($distParams);
+        $strandRows = $strandStmt->fetchAll();
         $topStrand = $strandRows[0] ?? null;
-        $sectionRows = $pdo->query('SELECT section, COUNT(*) AS cnt FROM students GROUP BY section ORDER BY cnt DESC')->fetchAll();
+        $sectionStmt = $pdo->prepare('SELECT section, COUNT(*) AS cnt FROM students' . $distClause . ' GROUP BY section ORDER BY cnt DESC');
+        $sectionStmt->execute($distParams);
+        $sectionRows = $sectionStmt->fetchAll();
 
         $riasecRow = (function () use ($pdo, $studentFilterClause) {
             [$clause, $params] = $studentFilterClause('AND');

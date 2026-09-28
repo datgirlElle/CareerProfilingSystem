@@ -181,13 +181,14 @@
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block text-xs font-medium text-slate-600 mb-1">Start Time</label>
-                <input type="time" id="fStartTime" required class="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+                <input type="time" id="fStartTime" required step="1800" class="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
               </div>
               <div>
                 <label class="block text-xs font-medium text-slate-600 mb-1">End Time</label>
-                <input type="time" id="fEndTime" required class="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+                <input type="time" id="fEndTime" required step="1800" class="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
               </div>
             </div>
+            <p id="createDateError" class="hidden text-xs text-[#ed1c24]"></p>
             <div>
               <label class="block text-xs font-medium text-slate-600 mb-1">Room</label>
               <input type="text" id="fRoom" required maxlength="50" placeholder="e.g. Room 301" class="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
@@ -478,6 +479,33 @@
     ICT: ['I1101', 'I1102'],
     HUMSS: ['H1102'],
   };
+  // No scheduling a session in the past, and no picking a start time that's
+  // already gone by for today. The school's own clock is Asia/Manila, and
+  // the API enforces the same rule server-side (see api/exam-schedules.php)
+  // — this is just so the picker itself doesn't invite the mistake.
+  const fExamDateEl = document.getElementById('fExamDate');
+  const fStartTimeEl = document.getElementById('fStartTime');
+  const fEndTimeEl = document.getElementById('fEndTime');
+  function todayStr() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function nextHalfHour() {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() < 30 ? 30 : 60, 0, 0);
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+  function applyDateGuard() {
+    if (fExamDateEl.value === todayStr()) {
+      fStartTimeEl.min = nextHalfHour();
+    } else {
+      fStartTimeEl.removeAttribute('min');
+    }
+  }
+  fExamDateEl.min = todayStr();
+  fExamDateEl.addEventListener('change', applyDateGuard);
+  applyDateGuard();
+
   const fStrandEl = document.getElementById('fStrand');
   const fSectionEl = document.getElementById('fSection');
   function updateSectionOptions() {
@@ -496,13 +524,28 @@
     e.preventDefault();
     const errorEl = document.getElementById('createError');
     const successEl = document.getElementById('createSuccess');
+    const dateErrorEl = document.getElementById('createDateError');
     errorEl.classList.add('hidden');
     successEl.classList.add('hidden');
+    dateErrorEl.classList.add('hidden');
+
+    const examDate = document.getElementById('fExamDate').value;
+    const startTime = document.getElementById('fStartTime').value;
+    if (examDate < todayStr()) {
+      dateErrorEl.textContent = 'Exam date can\'t be in the past.';
+      dateErrorEl.classList.remove('hidden');
+      return;
+    }
+    if (examDate === todayStr() && startTime < nextHalfHour()) {
+      dateErrorEl.textContent = 'Start time has already passed for today. Pick a later time.';
+      dateErrorEl.classList.remove('hidden');
+      return;
+    }
 
     const body = {
       type: 'create',
-      examDate: document.getElementById('fExamDate').value,
-      startTime: document.getElementById('fStartTime').value,
+      examDate: examDate,
+      startTime: startTime,
       endTime: document.getElementById('fEndTime').value,
       room: document.getElementById('fRoom').value.trim(),
       gradeLevel: document.getElementById('fGradeLevel').value,

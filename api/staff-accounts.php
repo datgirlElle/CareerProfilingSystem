@@ -37,7 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             jsonResponse(['success' => false, 'error' => 'Account not found.'], 404);
         }
         $newState = !$row['is_active'];
-        $pdo->prepare('UPDATE users SET is_active = ?, updated_at = NOW() WHERE id = ?')->execute([$newState, $id]);
+        // Same fix as api/students.php's toggleActive: bind an int, not a
+        // PHP bool — execute() stringifies false to '', which Postgres's
+        // boolean type rejects.
+        $pdo->prepare('UPDATE users SET is_active = ?, updated_at = NOW() WHERE id = ?')->execute([(int) $newState, $id]);
         AuditLogger::log($user['id'], 'admin', $newState ? 'activate_staff_account' : 'deactivate_staff_account', 'user', (string) $id);
         jsonResponse(['success' => true, 'isActive' => $newState]);
     }

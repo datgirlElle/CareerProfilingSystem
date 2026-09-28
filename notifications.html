@@ -135,8 +135,25 @@
         </div>
       </div>
 
-      <div id="notifFullList" class="hidden bg-white border border-[#e0e3e5] rounded-lg divide-y divide-[#e0e3e5]"></div>
+      <div id="notifSections" class="hidden flex flex-col gap-8">
 
+        <section id="annSection" class="hidden" aria-labelledby="annHeading">
+          <div class="flex items-center justify-between mb-2">
+            <h2 id="annHeading" class="text-xs font-semibold tracking-[1.2px] text-[#495e88] uppercase">Announcements</h2>
+            <button type="button" id="clearAnnBtn" class="text-xs font-medium text-[#ed1c24] hover:underline">Clear all</button>
+          </div>
+          <div id="annList" class="bg-white border border-[#e0e3e5] rounded-lg divide-y divide-[#e0e3e5]"></div>
+        </section>
+
+        <section id="updSection" class="hidden" aria-labelledby="updHeading">
+          <div class="flex items-center justify-between mb-2">
+            <h2 id="updHeading" class="text-xs font-semibold tracking-[1.2px] text-[#495e88] uppercase">Updates</h2>
+            <button type="button" id="clearUpdBtn" class="text-xs font-medium text-[#ed1c24] hover:underline">Clear all</button>
+          </div>
+          <div id="updList" class="bg-white border border-[#e0e3e5] rounded-lg divide-y divide-[#e0e3e5]"></div>
+        </section>
+
+      </div>
     </main>
 
       <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
@@ -200,32 +217,77 @@
       return days + ' day' + (days === 1 ? '' : 's') + ' ago';
     }
 
+    const TRASH = '<svg viewBox="0 -960 960 960" class="w-[18px] h-[18px]" fill="currentColor" aria-hidden="true"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>';
+
+    function rowHtml(n, isAnnouncement) {
+      return '<div class="notif-row flex items-start gap-3 px-5 py-4" data-key="' + escapeHtml(n.key || '') + '">' +
+        '<a href="' + escapeHtml(n.link) + '" class="min-w-0 flex-1 block hover:opacity-80">' +
+          '<p class="text-sm font-semibold text-[#191c1e]">' + escapeHtml(n.title || (isAnnouncement ? 'Announcement' : 'Update')) + '</p>' +
+          (n.text ? '<p class="text-sm text-[#5e3f3c] mt-0.5 break-words">' + escapeHtml(n.text) + '</p>' : '') +
+          '<p class="text-xs text-gray-400 mt-1">' + timeAgo(n.ts) + '</p>' +
+        '</a>' +
+        '<button type="button" class="delete-notif shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-gray-400 hover:text-[#ed1c24] hover:bg-red-50" aria-label="Delete this notification" title="Delete">' + TRASH + '</button>' +
+      '</div>';
+    }
+
+    function refreshSections() {
+      const ann = document.getElementById('annList').children.length;
+      const upd = document.getElementById('updList').children.length;
+      document.getElementById('annSection').classList.toggle('hidden', ann === 0);
+      document.getElementById('updSection').classList.toggle('hidden', upd === 0);
+      document.getElementById('notifSections').classList.toggle('hidden', ann + upd === 0);
+      document.getElementById('emptyState').classList.toggle('hidden', ann + upd !== 0);
+    }
+
+    async function deleteKeys(keys, rows) {
+      if (!keys.length) return;
+      const res = await fetch('api/notifications-dismiss.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys: keys })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        const errorEl = document.getElementById('listError');
+        errorEl.textContent = data.error || 'Could not delete. Please try again.';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      rows.forEach(function(r) { r.remove(); });
+      refreshSections();
+      if (window.ProfilePathNotifications) window.ProfilePathNotifications.reload();
+    }
+
+    document.getElementById('notifSections').addEventListener('click', function(e) {
+      const btn = e.target.closest('.delete-notif');
+      if (!btn) return;
+      const row = btn.closest('.notif-row');
+      btn.disabled = true;
+      deleteKeys([row.dataset.key], [row]).finally(function() { btn.disabled = false; });
+    });
+    [['clearAnnBtn', 'annList'], ['clearUpdBtn', 'updList']].forEach(function(pair) {
+      document.getElementById(pair[0]).addEventListener('click', function() {
+        const rows = Array.from(document.getElementById(pair[1]).querySelectorAll('.notif-row'));
+        deleteKeys(rows.map(function(r) { return r.dataset.key; }), rows);
+      });
+    });
+
     async function loadNotifications() {
       const loadingEl = document.getElementById('loadingState');
       const errorEl = document.getElementById('listError');
-      const emptyEl = document.getElementById('emptyState');
-      const listEl = document.getElementById('notifFullList');
       try {
         const res = await fetch('api/notifications.php?full=1');
         if (!res.ok) throw new Error('bad status');
         const data = await res.json();
         const items = data.items || [];
         loadingEl.classList.add('hidden');
-        emptyEl.classList.toggle('hidden', items.length > 0);
-        listEl.classList.toggle('hidden', items.length === 0);
-        listEl.innerHTML = items.map(function(item) {
-          return '<a href="' + escapeHtml(item.link) + '" class="block px-5 py-4 hover:bg-gray-50">' +
-            '<p class="text-sm text-[#191c1e]">' + escapeHtml(item.text) + '</p>' +
-            '<p class="text-xs text-[#5e3f3c] mt-1">' + timeAgo(item.ts) + '</p>' +
-            '</a>';
-        }).join('');
+        document.getElementById('annList').innerHTML = items.filter(function(n) { return n.type === 'announcement'; }).map(function(n) { return rowHtml(n, true); }).join('');
+        document.getElementById('updList').innerHTML = items.filter(function(n) { return n.type !== 'announcement'; }).map(function(n) { return rowHtml(n, false); }).join('');
+        refreshSections();
       } catch (e) {
         loadingEl.classList.add('hidden');
         errorEl.textContent = 'Could not load your notifications. Please refresh the page.';
         errorEl.classList.remove('hidden');
       }
     }
-
     loadNotifications();
 
     (function() {

@@ -183,6 +183,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
           </span>
           <p class="text-sm font-medium text-gray-800">Message sent</p>
+          <p id="messageSentQueue" class="hidden text-sm font-semibold text-[#495e88]"></p>
           <p class="text-sm text-gray-500">A counselor will get back to you soon.</p>
         </div>
       </div>
@@ -364,9 +365,15 @@
       });
       submitBtn.disabled = false;
       if (!res.ok) return;
+      const data = await res.json();
 
       document.getElementById('messageIdle').classList.add('hidden');
       const sent = document.getElementById('messageSent');
+      const queueEl = document.getElementById('messageSentQueue');
+      if (data.queueNumber) {
+        queueEl.textContent = 'You are #' + data.queueNumber + ' in the queue.';
+        queueEl.classList.remove('hidden');
+      }
       sent.classList.remove('hidden');
       sent.classList.add('step-anim');
     });

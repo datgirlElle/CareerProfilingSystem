@@ -174,6 +174,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($endTime <= $startTime) {
             jsonResponse(['success' => false, 'error' => 'End time must be after start time.'], 400);
         }
+        // The date picker's own min/guard is client-side only — enforce the
+        // same rule here (school time, see config/env.php's APP_TIMEZONE) so
+        // a hand-built request can't schedule an exam that's already passed.
+        $today = date('Y-m-d');
+        if ($examDate < $today) {
+            jsonResponse(['success' => false, 'error' => 'Exam date can\'t be in the past.'], 400);
+        }
+        if ($examDate === $today && $startTime < date('H:i')) {
+            jsonResponse(['success' => false, 'error' => 'Start time has already passed for today.'], 400);
+        }
         if ($room === '' || mb_strlen($room) > 50) {
             jsonResponse(['success' => false, 'error' => 'Room must be 1-50 characters.'], 400);
         }

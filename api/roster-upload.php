@@ -24,7 +24,12 @@ if ($handle === false) {
     jsonResponse(['success' => false, 'error' => 'Could not read the uploaded file.'], 400);
 }
 
-$header = fgetcsv($handle);
+// PHP 8.4 deprecated leaving $escape unset (it will default to "" in a
+// future version) and emits a notice on every call otherwise — printed
+// straight into the response body ahead of the JSON, which broke the
+// frontend's res.json() parse ("Unable to reach the server"). Pass it
+// explicitly to keep the historical backslash-escape behavior.
+$header = fgetcsv($handle, 0, ',', '"', '\\');
 if ($header === false) {
     fclose($handle);
     jsonResponse(['success' => false, 'error' => 'The CSV file is empty.'], 400);
@@ -57,7 +62,7 @@ $validStrands = ['STEM', 'ABM', 'ICT', 'HUMSS'];
 $rows = [];
 $errors = [];
 $lineNum = 1;
-while (($line = fgetcsv($handle)) !== false) {
+while (($line = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
     $lineNum++;
     if (count(array_filter($line, fn($v) => trim((string) $v) !== '')) === 0) {
         continue; // skip blank lines

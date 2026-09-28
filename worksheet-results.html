@@ -293,7 +293,9 @@
   const topLetters = topTypes.map(function(t) { return LABEL_TO_LETTER[t] || t[0]; });
   const statedProgram = recommendation.statedProgram;
 
-  document.getElementById('careerGoalText').textContent = statedProgram ? statedProgram.title : '—';
+  document.getElementById('careerGoalText').textContent = statedProgram
+    ? statedProgram.title + (statedProgram.isActive === false ? ' (no longer available)' : '')
+    : '—';
   document.getElementById('keySkillsList').innerHTML = (recommendation.electives || []).map(function(skill) {
     return '<span class="bg-[#f2f4f6] border border-[#e0e3e5] rounded-full px-3.5 py-1.5 text-xs text-[#191c1e]">' + skill + '</span>';
   }).join('') || '<span class="text-xs text-[#5e3f3c]">No electives selected.</span>';

@@ -43,7 +43,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     AuditLogger::log($user['id'], 'student', 'submit_help_request', 'help_request', (string) $id, $subject);
 
-    jsonResponse(['success' => true, 'id' => $id]);
+    // Simple FIFO queue number: how many open requests (including this one)
+    // were submitted at or before this one, oldest first. Not a booked time
+    // slot — just where the student stands in line.
+    $queueStmt = $pdo->prepare(
+        "SELECT COUNT(*) FROM help_requests
+         WHERE status = 'open' AND sent_at <= (SELECT sent_at FROM help_requests WHERE id = ?)"
+    );
+    $queueStmt->execute([$id]);
+    $queueNumber = (int) $queueStmt->fetchColumn();
+
+    jsonResponse(['success' => true, 'id' => $id, 'queueNumber' => $queueNumber]);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -62,6 +72,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
 
+    $fetchedRows = $stmt->fetchAll();
+
+    // Queue position among 'open' requests only, oldest first — the same
+    // FIFO count a student sees for their own request (see the POST branch).
+    $openIdsByAge = $pdo->query("SELECT id FROM help_requests WHERE status = 'open' ORDER BY sent_at ASC")
+        ->fetchAll(PDO::FETCH_COLUMN);
+    $queuePositions = array_flip($openIdsByAge);
+
     $rows = array_map(fn($r) => [
         'id' => (int) $r['id'],
         'schoolId' => $r['school_id_snapshot'],
@@ -71,9 +89,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         'sentAt' => $r['sent_at'],
         'status' => $r['status'],
         'resolvedAt' => $r['resolved_at'],
-    ], $stmt->fetchAll());
+        'queueNumber' => $r['status'] === 'open' ? $queuePositions[(int) $r['id']] + 1 : null,
+    ], $fetchedRows);
 
-    $openCount = (int) $pdo->query("SELECT COUNT(*) FROM help_requests WHERE status = 'open'")->fetchColumn();
+    $openCount = count($openIdsByAge);
 
     jsonResponse(['requests' => $rows, 'openCount' => $openCount]);
 }

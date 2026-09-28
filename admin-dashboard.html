@@ -229,7 +229,10 @@
       <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
 
         <div class="border-b border-gray-200 flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between px-4 sm:px-6 py-5 gap-3">
-          <h2 class="text-lg font-bold text-gray-900">Student Assessment Overview</h2>
+          <div>
+            <h2 class="text-lg font-bold text-gray-900">Student Assessment Overview</h2>
+            <a href="student-accounts" class="text-xs font-medium text-[#495e88] hover:underline">View account status &amp; activation &rarr;</a>
+          </div>
           <div class="flex flex-col sm:flex-row sm:items-center gap-3">
             <div class="relative w-full sm:w-64">
               <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" viewBox="0 -960 960 960" fill="#64748B"><path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>
@@ -289,7 +292,6 @@
               <tr>
                 <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">#</th>
                 <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Name</th>
-                <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">LRN</th>
                 <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Strand</th>
                 <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Section</th>
                 <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Assessment Status</th>
@@ -300,7 +302,7 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100" id="studentTbody">
-              <tr><td colspan="10" class="px-6 py-8 text-center text-sm text-gray-500">Loading…</td></tr>
+              <tr><td colspan="9" class="px-6 py-8 text-center text-sm text-gray-500">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -466,7 +468,6 @@
       '<td class="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">' + escapeHtml(s.name) +
         (s.isActive === false ? ' <span class="inline-flex items-center bg-gray-100 text-gray-500 text-[10px] font-semibold px-2 py-0.5 rounded-full align-middle ml-1">Inactive</span>' : '') +
       '</td>' +
-      '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(s.schoolId) + '</td>' +
       '<td class="px-6 py-4 text-sm text-gray-500">' + escapeHtml(s.strand) + '</td>' +
       '<td class="px-6 py-4 text-sm text-gray-500">' + escapeHtml(s.section) + '</td>' +
       '<td class="px-6 py-4 whitespace-nowrap">' + statusCell + '</td>' +
@@ -481,7 +482,7 @@
   }
 
   async function load() {
-    tbody.innerHTML = '<tr><td colspan="10" class="px-6 py-8 text-center text-sm text-gray-500">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="px-6 py-8 text-center text-sm text-gray-500">Loading…</td></tr>';
     const params = new URLSearchParams({
       all: '1', search: state.search, strand: state.strand, section: state.section, status: state.status, counseling: state.counseling,
     });

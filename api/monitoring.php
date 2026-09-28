@@ -168,6 +168,7 @@ $rowsByTab = [
 [$filteredRows] = applySearchAndLimit($rowsByTab[$tab] ?? [], $search, $limit);
 
 jsonResponse([
+    'threshold' => $threshold,
     'rows' => $filteredRows,
     'summary' => [
         'needsReview' => count($allNeedsReview),

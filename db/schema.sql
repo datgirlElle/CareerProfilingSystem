@@ -205,6 +205,9 @@ CREATE TABLE announcements (
     created_by      INT REFERENCES users(id),
     target_type     VARCHAR(10) NOT NULL CHECK (target_type IN ('all', 'specific')),
     publish_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- Set once its email batch has gone out (see api/announcements.php's
+    -- emailAnnouncement()); NULL until then, so it's never sent twice.
+    emailed_at      TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -284,4 +287,13 @@ CREATE TABLE counseling_notes (
     note_enc        TEXT NOT NULL,
     author_id       INT REFERENCES users(id),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Notifications are computed live; this remembers the ones a student deleted
+-- (item_key comes from api/notifications.php, e.g. 'ann:12').
+CREATE TABLE notification_dismissals (
+    user_id      INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    item_key     VARCHAR(100) NOT NULL,
+    dismissed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, item_key)
 );

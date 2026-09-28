@@ -597,6 +597,22 @@
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  // One colour per strand; each section takes its strand's colour (lighter for
+  // later sections of the same strand) so the two charts read together.
+  const STRAND_COLORS = { STEM: '#19427b', ABM: '#db7020', ICT: '#1b8a47', HUMSS: '#673ab7' };
+  function sectionColor(section, sectionsByStrand) {
+    for (const strand of Object.keys(sectionsByStrand || {})) {
+      const idx = sectionsByStrand[strand].indexOf(section);
+      if (idx !== -1) {
+        const hex = STRAND_COLORS[strand] || '#64748b';
+        const alpha = [1, 0.7, 0.5, 0.35][idx] || 0.35;
+        const n = parseInt(hex.slice(1), 16);
+        return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + alpha + ')';
+      }
+    }
+    return '#64748b';
+  }
+
   let strandChartInstance = null;
   let riasecChartInstance = null;
   let sectionChartInstance = null;
@@ -643,7 +659,7 @@
       type: 'bar',
       data: {
         labels: data.strandDistribution.map(s => s.strand),
-        datasets: [{ data: data.strandDistribution.map(s => s.count), backgroundColor: '#19427b', borderRadius: 4 }]
+        datasets: [{ data: data.strandDistribution.map(s => s.count), backgroundColor: data.strandDistribution.map(s => STRAND_COLORS[s.strand] || '#64748b'), borderRadius: 4 }]
       },
       options: {
         plugins: { legend: { display: false } },
@@ -687,7 +703,7 @@
       type: 'bar',
       data: {
         labels: data.sectionDistribution.map(s => s.section),
-        datasets: [{ data: data.sectionDistribution.map(s => s.count), backgroundColor: '#673ab7', borderRadius: 4 }]
+        datasets: [{ data: data.sectionDistribution.map(s => s.count), backgroundColor: data.sectionDistribution.map(s => sectionColor(s.section, data.sectionsByStrand)), borderRadius: 4 }]
       },
       options: {
         plugins: { legend: { display: false } },
@@ -735,8 +751,20 @@
 
   function updateExportLink(data) {
     const ay = data.assessmentStats && data.assessmentStats.academicYear ? data.assessmentStats.academicYear : '';
+    const btn = document.getElementById('exportCsvBtn');
+    if (!ay) {
+      // api/analytics-export.php 400s without an academic year, and since
+      // this is a plain link (not a fetch), that used to just dump raw JSON
+      // in the browser with no explanation. Disable it instead.
+      btn.removeAttribute('href');
+      btn.classList.add('opacity-50', 'cursor-not-allowed');
+      btn.title = 'Set the current Academic Year in Security Configuration first.';
+      return;
+    }
+    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+    btn.title = '';
     const params = new URLSearchParams({ academicYear: ay, strand: data.strand || '', section: data.section || '' });
-    document.getElementById('exportCsvBtn').href = 'api/analytics-export.php?' + params.toString();
+    btn.href = 'api/analytics-export.php?' + params.toString();
   }
 
   document.getElementById('uploadRosterBtn').addEventListener('click', () => {

@@ -78,7 +78,7 @@ $programs = [];
 if ($neededIds) {
     $placeholders = implode(',', array_fill(0, count($neededIds), '?'));
     $programStmt = $pdo->prepare(
-        "SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, c.code AS college_code, c.name AS college_name
+        "SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, p.status, c.code AS college_code, c.name AS college_name
          FROM programs p JOIN colleges c ON c.id = p.college_id WHERE p.id IN ($placeholders)"
     );
     $programStmt->execute($neededIds);
@@ -90,6 +90,10 @@ if ($neededIds) {
             'description' => $r['description_enc'] !== null ? Crypto::dec($r['description_enc']) : '',
             'collegeCode' => $r['college_code'],
             'collegeName' => $r['college_name'],
+            // The program row is never hard-deleted (see api/programs.php),
+            // so a student's existing result still resolves correctly even
+            // after staff deactivate it — this just lets the UI flag it.
+            'isActive' => $r['status'] === 'Active',
         ];
     }
 }

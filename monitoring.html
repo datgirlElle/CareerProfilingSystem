@@ -163,7 +163,53 @@
         <div>
           <h1 class="text-[30px] font-bold text-slate-900">Monitoring</h1>
           <p class="text-sm text-slate-500 mt-1">Monitoring of assessments, recommendations, and counseling activities.</p>
-          <p class="text-xs text-slate-500 mt-2 max-w-2xl">Students are flagged when their top career match score falls below the confidence threshold set in Security Configuration. These cases may be reviewed during counseling.</p>
+          <div class="mt-4 bg-white border border-slate-200 rounded-xl p-5 max-w-5xl">
+            <p class="text-sm font-semibold text-slate-800">How a student gets flagged</p>
+            <ol class="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <li class="flex gap-3">
+                <span class="shrink-0 w-6 h-6 rounded-full bg-[#001c43] text-white text-xs font-semibold flex items-center justify-center">1</span>
+                <div>
+                  <p class="text-sm font-medium text-slate-800">Takes the assessment</p>
+                  <p class="text-xs text-slate-500 mt-0.5">The student completes the RIASEC career interest assessment.</p>
+                </div>
+              </li>
+              <li class="flex gap-3">
+                <span class="shrink-0 w-6 h-6 rounded-full bg-[#001c43] text-white text-xs font-semibold flex items-center justify-center">2</span>
+                <div>
+                  <p class="text-sm font-medium text-slate-800">Submits the worksheet</p>
+                  <p class="text-xs text-slate-500 mt-0.5">They pick the program they are interested in and their electives.</p>
+                </div>
+              </li>
+              <li class="flex gap-3">
+                <span class="shrink-0 w-6 h-6 rounded-full bg-[#001c43] text-white text-xs font-semibold flex items-center justify-center">3</span>
+                <div>
+                  <p class="text-sm font-medium text-slate-800">System checks the match</p>
+                  <p class="text-xs text-slate-500 mt-0.5">If the student's best program match is below <span id="flowThreshold" class="font-semibold text-slate-700">50%</span>, they are flagged automatically. The cut-off is set in Security Configuration.</p>
+                </div>
+              </li>
+              <li class="flex gap-3">
+                <span class="shrink-0 w-6 h-6 rounded-full bg-[#ed1c24] text-white text-xs font-semibold flex items-center justify-center">4</span>
+                <div>
+                  <p class="text-sm font-medium text-slate-800">Counselor reviews</p>
+                  <p class="text-xs text-slate-500 mt-0.5">The student waits under Needs Review until a counselor picks one of the three actions below.</p>
+                </div>
+              </li>
+            </ol>
+            <div class="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <p class="text-xs font-semibold text-slate-800">Approve Recommendation</p>
+                <p class="text-xs text-slate-500 mt-0.5">The system's result stands. The flag closes and the student is notified that a counselor reviewed their assessment.</p>
+              </div>
+              <div>
+                <p class="text-xs font-semibold text-slate-800">Escalate to Counselor</p>
+                <p class="text-xs text-slate-500 mt-0.5">The student needs a follow-up. They move to the Counseling Queue.</p>
+              </div>
+              <div>
+                <p class="text-xs font-semibold text-slate-800">Dismiss Flag</p>
+                <p class="text-xs text-slate-500 mt-0.5">No action needed. The flag closes and the student is not notified.</p>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="bg-white border border-slate-100 rounded-lg shadow-sm flex items-center px-4 py-2.5">
           <button type="button" id="refreshBtn" class="w-3.5 h-3.5">
@@ -454,6 +500,7 @@
     document.getElementById('cardCompleted').textContent = data.summary.completedToday;
     document.getElementById('cardPending').textContent = data.summary.pending;
     document.getElementById('cardCounseling').textContent = data.summary.counseling;
+    if (typeof data.threshold === 'number') document.getElementById('flowThreshold').textContent = Math.round(data.threshold * 100) + '%';
     document.getElementById('flaggedCount').textContent = data.summary.needsReview;
 
     flaggedTableBody.innerHTML = data.rows.length

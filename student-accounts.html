@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Announcements — Career Profiling System</title>
+<title>Student Accounts — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
 <link rel="stylesheet" href="css/tailwind.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,7 +33,7 @@
     </div>
     <nav class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto">
       <p class="px-6 pt-2 pb-2 text-xs font-semibold tracking-wide text-white/60 uppercase">Main Menu</p>
-      <a href="admin-dashboard" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+      <a href="admin-dashboard" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-[#ed1c24] bg-[#495e88] text-[#ed1c24] text-sm">
         <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M40-160v-112q0-34 17.5-62.5T104-378q62-31 126-46.5T360-440q66 0 130 15.5T616-378q29 15 46.5 43.5T680-272v112H40Zm720 0v-120q0-44-24.5-84.5T666-434q51 6 96 20.5t84 35.5q36 20 55 44.5t19 53.5v120H760ZM247-527q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47Zm466 0q-47 47-113 47-11 0-28-2.5t-28-5.5q27-32 41.5-71t14.5-81q0-42-14.5-81T544-792q14-5 28-6.5t28-1.5q66 0 113 47t47 113q0 66-47 113ZM120-240h480v-32q0-11-5.5-20T580-306q-54-27-109-40.5T360-360q-56 0-111 13.5T140-306q-9 5-14.5 14t-5.5 20v32Zm296.5-343.5Q440-607 440-640t-23.5-56.5Q393-720 360-720t-56.5 23.5Q280-673 280-640t23.5 56.5Q327-560 360-560t56.5-23.5ZM360-240Zm0-400Z"/></svg>
         Student Information
       </a>
@@ -49,7 +49,7 @@
         <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M120-120v-80l80-80v160h-80Zm160 0v-240l80-80v320h-80Zm160 0v-320l80 81v239h-80Zm160 0v-239l80-80v319h-80Zm160 0v-400l80-80v480h-80ZM120-327v-113l280-280 160 160 280-280v113L560-447 400-607 120-327Z"/></svg>
         Monitoring
       </a>
-      <a href="announcements" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-[#ed1c24] bg-[#495e88] text-[#ed1c24] text-sm">
+      <a href="announcements" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
         <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M720-440v-80h160v80H720Zm48 280-128-96 48-64 128 96-48 64Zm-80-480-48-64 128-96 48 64-128 96ZM200-200v-160h-40q-33 0-56.5-23.5T80-440v-80q0-33 23.5-56.5T160-600h160l200-120v480L320-360h-40v160h-80Zm240-182v-196l-98 58H160v80h182l98 58Zm120 36v-268q27 24 43.5 58.5T620-480q0 41-16.5 75.5T560-346ZM300-480Z"/></svg>
         Announcements
       </a>
@@ -110,12 +110,6 @@
       </button>
       <div class="flex items-center gap-6">
 
-        <!-- Academic Year badge -->
-        <div id="ayBadge" class="hidden sm:flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-full px-3 py-1">
-          <span class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">AY</span>
-          <span id="ayBadgeValue" class="text-xs font-semibold text-slate-700">—</span>
-        </div>
-
         <!-- Notifications -->
         <div class="relative">
           <button type="button" id="notifBtn" data-shared-toggle class="relative w-5 h-5">
@@ -158,65 +152,43 @@
     <!-- Page Content -->
     <main id="main-content" class="flex-1 p-4 sm:p-8 overflow-auto">
 
-      <div class="mb-6">
-        <h1 class="text-2xl font-bold text-slate-900">Announcements</h1>
-        <p class="text-sm text-slate-500 mt-1">Send updates to students — everyone, or a specific list.</p>
+      <div class="mb-6 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Student Accounts</h1>
+          <p class="text-sm text-gray-500 mt-1">Login and activation status, separate from the Student Assessment Overview.</p>
+        </div>
+        <div class="relative w-full sm:w-64">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" viewBox="0 -960 960 960" fill="#64748B"><path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>
+          <input type="text" id="accountSearch" placeholder="Search by name or LRN..." aria-label="Search by name or LRN" class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+        </div>
       </div>
 
-      <div id="readOnlyNotice" class="hidden bg-amber-50 border border-amber-100 rounded-md px-4 py-3 text-sm text-amber-800 mb-6">
-        You have view-only access to Announcements. Contact an Administrator to send one.
-      </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-
-        <!-- Create form -->
-        <div id="createCard" class="lg:col-span-1 bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-          <h2 class="text-base font-semibold text-slate-900 mb-4">New Announcement</h2>
-          <form id="createForm" class="flex flex-col gap-4">
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Title</label>
-              <input type="text" id="annTitle" required maxlength="255" class="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Message</label>
-              <textarea id="annBody" required rows="4" class="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></textarea>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Publish Date &amp; Time</label>
-              <input type="datetime-local" id="annPublishAt" class="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
-              <p class="text-xs text-slate-500 mt-1">Leave blank to publish immediately. Past dates/times can't be picked.</p>
-              <p id="publishAtError" class="hidden text-xs text-[#ed1c24] mt-1"></p>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-2">Audience</label>
-              <div class="flex gap-2 mb-3">
-                <label class="flex-1"><input type="radio" name="target" value="all" checked class="peer hidden"><span class="block text-center border border-slate-300 rounded-md py-2 text-sm cursor-pointer peer-checked:bg-[#ed1c24] peer-checked:text-white peer-checked:border-[#ed1c24]" id="targetAllLabel">@everyone</span></label>
-                <label class="flex-1"><input type="radio" name="target" value="specific" class="peer hidden"><span class="block text-center border border-slate-300 rounded-md py-2 text-sm cursor-pointer peer-checked:bg-[#ed1c24] peer-checked:text-white peer-checked:border-[#ed1c24]" id="targetSpecificLabel">Specific Students</span></label>
-              </div>
-              <div id="studentPicker" class="hidden">
-                <div id="selectedChips" class="flex flex-wrap gap-1.5 mb-2"></div>
-                <div class="relative">
-                  <input type="text" id="studentSearchInput" placeholder="Search by name or LRN…" autocomplete="off" class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
-                  <div id="studentCheckList" class="hidden absolute left-0 right-0 top-full mt-1 z-20 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-auto divide-y divide-slate-100"></div>
-                </div>
-                <p class="text-xs text-slate-500 mt-1"><span id="selectedCount">0</span> selected</p>
-              </div>
-            </div>
-            <p id="createError" class="hidden text-sm text-[#ed1c24] bg-red-50 border border-red-100 rounded-md px-3.5 py-2.5"></p>
-            <p id="createSuccess" class="hidden text-sm text-green-700 bg-green-50 border border-green-100 rounded-md px-3.5 py-2.5"></p>
-            <button type="submit" class="bg-[#ed1c24] text-white text-sm font-medium rounded-md px-5 py-2.5 hover:opacity-90">Send Announcement</button>
-          </form>
+      <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <p id="noResults" class="hidden px-6 py-6 text-sm text-gray-500 text-center">No accounts match your search.</p>
+        <div class="overflow-auto max-h-[65vh]">
+          <table class="w-full text-left border-collapse">
+            <thead class="bg-gray-50 border-b border-gray-200 sticky top-0 z-[1]">
+              <tr>
+                <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Name</th>
+                <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">LRN (Username)</th>
+                <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Strand / Section</th>
+                <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Email</th>
+                <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Registered</th>
+                <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Status</th>
+                <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100" id="accountsTbody">
+              <tr><td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">Loading…</td></tr>
+            </tbody>
+          </table>
         </div>
-
-        <!-- Announcements list -->
-        <div class="lg:col-span-2 flex flex-col gap-4" id="announcementsList">
-          <p class="text-sm text-slate-400 text-center py-8 bg-white border border-slate-200 rounded-xl shadow-sm">Loading…</p>
+        <div class="border-t border-gray-200 px-6 py-4">
+          <p class="text-sm text-gray-500" id="summaryText">Loading…</p>
         </div>
-
       </div>
 
     </main>
-
       <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
         <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
         <span>&middot;</span>
@@ -227,17 +199,6 @@
   </div>
 </div>
 
-<div id="logoutConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
-    <h3 class="text-lg font-semibold text-black">Log Out?</h3>
-    <p class="text-sm text-gray-500">Are you sure you want to log out?</p>
-    <div class="flex justify-end gap-2 pt-1">
-      <button type="button" id="logoutCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
-      <button type="button" id="logoutConfirmBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Log Out</button>
-    </div>
-  </div>
-</div>
-
 <div id="toastContainer" class="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 pointer-events-none"></div>
 <div id="genericConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
   <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
@@ -245,6 +206,17 @@
     <div class="flex justify-end gap-2 pt-1">
       <button type="button" id="genericConfirmCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
       <button type="button" id="genericConfirmOkBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div id="logoutConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
+    <h3 class="text-lg font-semibold text-black">Log Out?</h3>
+    <p class="text-sm text-gray-500">Are you sure you want to log out?</p>
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" id="logoutCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+      <button type="button" id="logoutConfirmBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Log Out</button>
     </div>
   </div>
 </div>
@@ -283,7 +255,6 @@
     });
   }
 
-
 (async function() {
   const sessionData = await (await fetch('api/session.php')).json();
   const currentUser = sessionData.user;
@@ -299,12 +270,6 @@
   const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
   document.getElementById('headerUserName').textContent = currentUser.username;
   document.getElementById('headerUserRole').textContent = roleLabels[currentUser.role] || currentUser.role;
-
-  const isAdmin = currentUser.role === 'admin';
-  if (!isAdmin) {
-    document.getElementById('createCard').classList.add('hidden');
-    document.getElementById('readOnlyNotice').classList.remove('hidden');
-  }
 
   const logoutModal = document.getElementById('logoutConfirmModal');
   function openLogoutModal(e) {
@@ -346,226 +311,97 @@
     profileBtn.addEventListener('click', (e) => { e.stopPropagation(); profilePanel.classList.toggle('hidden'); });
     document.addEventListener('click', () => profilePanel.classList.add('hidden'));
     window.addEventListener('scroll', () => profilePanel.classList.add('hidden'), { passive: true });
+    profilePanel.addEventListener('click', (e) => e.stopPropagation());
   })();
 
+  (function() {
+    var el = document.getElementById('ayBadgeValue');
+    if (!el) return;
+    fetch('api/security-config.php').then(function(r) { return r.json(); }).then(function(data) {
+      if (data && data.academicYear && data.academicYear.current) {
+        el.textContent = data.academicYear.current;
+      } else {
+        document.getElementById('ayBadge').classList.add('hidden');
+      }
+    }).catch(function() {});
+  })();
   function escapeHtml(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
-  // Always render in school time (Asia/Manila), whatever the viewer's device
-  // clock is set to. Postgres may send "+08" without minutes, which some
-  // browsers can't parse, so pad it to "+08:00" first.
-  function formatDateTime(iso) {
+  function formatDate(iso) {
+    if (!iso) return '—';
     const d = new Date(String(iso).replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00'));
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }) + ' ' +
-      d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila' });
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' });
   }
 
-  // ---- Announcements list ----
-  async function loadAnnouncements() {
-    const list = document.getElementById('announcementsList');
-    const data = await (await fetch('api/announcements.php')).json();
-    if (!data.announcements || !data.announcements.length) {
-      list.innerHTML = '<p class="text-sm text-slate-400 text-center py-8 bg-white border border-slate-200 rounded-xl shadow-sm">No announcements yet.</p>';
-      return;
-    }
-    list.innerHTML = data.announcements.map(function(a) {
-      const statusBadge = a.isPublished
-        ? '<span class="bg-green-50 border border-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">Published</span>'
-        : '<span class="bg-amber-50 border border-amber-100 text-amber-700 text-xs font-medium px-2.5 py-1 rounded-full">Scheduled</span>';
-      const audience = a.targetType === 'all' ? '@everyone' : (a.recipientCount || 0) + ' student(s)';
-      const deleteBtn = isAdmin
-        ? '<button type="button" class="delete-btn text-xs font-medium text-[#ed1c24] hover:underline" data-id="' + a.id + '">Delete</button>'
-        : '';
-      return '<div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex flex-col gap-2">' +
-        '<div class="flex items-start justify-between gap-4 flex-wrap">' +
-          '<div><h3 class="text-base font-semibold text-slate-900">' + escapeHtml(a.title) + '</h3>' +
-          '<p class="text-xs text-slate-500 mt-0.5">' + formatDateTime(a.publishAt) + ' &middot; ' + escapeHtml(audience) +
-          (a.createdByUsername ? ' &middot; by ' + escapeHtml(a.createdByUsername) : '') + '</p></div>' +
-          statusBadge +
-        '</div>' +
-        '<p class="text-sm text-slate-700 leading-relaxed">' + escapeHtml(a.body) + '</p>' +
-        (deleteBtn ? '<div class="flex justify-end">' + deleteBtn + '</div>' : '') +
-      '</div>';
-    }).join('');
+  const tbody = document.getElementById('accountsTbody');
+  const noResults = document.getElementById('noResults');
+  const searchInput = document.getElementById('accountSearch');
+  let debounceHandle = null;
 
-    list.querySelectorAll('.delete-btn').forEach(function(btn) {
+  function statusBadge(isActive) {
+    return isActive
+      ? '<span class="inline-flex items-center gap-1.5 bg-[#f0fdf4] border border-[#bbf7d0] text-emerald-600 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">Active</span>'
+      : '<span class="inline-flex items-center gap-1.5 bg-gray-100 border border-gray-200 text-gray-500 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">Deactivated</span>';
+  }
+
+  function renderRow(a) {
+    return '<tr>' +
+      '<td class="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">' + escapeHtml(a.name) + '</td>' +
+      '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(a.username) + '</td>' +
+      '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(a.strand) + ' / ' + escapeHtml(a.section) + '</td>' +
+      '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + (a.email ? escapeHtml(a.email) : '—') + '</td>' +
+      '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + formatDate(a.createdAt) + '</td>' +
+      '<td class="px-6 py-4 whitespace-nowrap">' + statusBadge(a.isActive) + '</td>' +
+      '<td class="px-6 py-4 text-center whitespace-nowrap">' +
+        '<button type="button" class="toggle-active-btn text-xs font-semibold rounded-md px-3 py-1.5 border ' +
+          (a.isActive ? 'text-[#ed1c24] border-[#ed1c24] hover:bg-red-50' : 'text-emerald-600 border-emerald-300 hover:bg-emerald-50') + '" ' +
+          'data-id="' + a.userId + '" data-active="' + (a.isActive ? '1' : '0') + '" data-name="' + escapeHtml(a.name) + '">' +
+          (a.isActive ? 'Deactivate' : 'Activate') +
+        '</button>' +
+      '</td>' +
+    '</tr>';
+  }
+
+  async function load() {
+    tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">Loading…</td></tr>';
+    const params = new URLSearchParams({ accounts: '1', search: searchInput.value.trim() });
+    const data = await (await fetch('api/students.php?' + params.toString())).json();
+    const accounts = data.accounts || [];
+    noResults.classList.toggle('hidden', accounts.length !== 0);
+    tbody.innerHTML = accounts.length ? accounts.map(renderRow).join('') : '';
+    document.getElementById('summaryText').textContent =
+      accounts.length + ' account' + (accounts.length === 1 ? '' : 's') + (searchInput.value.trim() ? ' matching your search' : ' total');
+    tbody.querySelectorAll('.toggle-active-btn').forEach(function(btn) {
       btn.addEventListener('click', async function() {
-        if (!(await showConfirm('Delete this announcement? This cannot be undone.'))) return;
+        const willDeactivate = btn.dataset.active === '1';
+        const ok = await showConfirm(
+          (willDeactivate ? 'Deactivate' : 'Activate') + ' "' + btn.dataset.name + '"? ' +
+          (willDeactivate ? 'They will no longer be able to sign in. You can reactivate later.' : 'They will be able to sign in again.')
+        );
+        if (!ok) return;
         btn.disabled = true;
-        await fetch('api/announcements.php', {
+        const res = await fetch('api/students.php', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'delete', id: Number(btn.dataset.id) })
+          body: JSON.stringify({ type: 'toggleActive', userId: Number(btn.dataset.id) })
         });
-        await loadAnnouncements();
+        const result = await res.json();
+        btn.disabled = false;
+        if (!result.success) { showToast(result.error || 'Failed to update account.', true); return; }
+        await load();
       });
     });
   }
 
-  if (!isAdmin) {
-    await loadAnnouncements();
-    return;
-  }
-
-  // ---- Create form (admin only) ----
-  const selectedStudentIds = new Set();
-  let allStudents = [];
-
-  // No scheduling an announcement in the past. datetime-local's own "min"
-  // stops the picker from offering an earlier value; kept fresh so the
-  // limit doesn't go stale on a form left open a while. Server enforces the
-  // same rule (see api/announcements.php) since this is client-side only.
-  const publishAtInput = document.getElementById('annPublishAt');
-  function nowLocalForInput() {
-    const d = new Date();
-    d.setSeconds(0, 0);
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().slice(0, 16);
-  }
-  function refreshPublishAtMin() { publishAtInput.min = nowLocalForInput(); }
-  refreshPublishAtMin();
-  publishAtInput.addEventListener('focus', refreshPublishAtMin);
-  setInterval(refreshPublishAtMin, 60000);
-
-  document.querySelectorAll('input[name="target"]').forEach(function(radio) {
-    radio.addEventListener('change', function() {
-      document.getElementById('studentPicker').classList.toggle('hidden', radio.value !== 'specific' || !radio.checked);
-    });
+  searchInput.addEventListener('input', function() {
+    clearTimeout(debounceHandle);
+    debounceHandle = setTimeout(load, 300);
   });
 
-  const searchInput = document.getElementById('studentSearchInput');
-  const resultsBox = document.getElementById('studentCheckList');
-  const chipsBox = document.getElementById('selectedChips');
-
-  function renderChips() {
-    chipsBox.innerHTML = Array.from(selectedStudentIds).map(function(id) {
-      const s = allStudents.find(function(x) { return x.userId === id; });
-      if (!s) return '';
-      return '<span class="inline-flex items-center gap-1 bg-slate-100 border border-slate-200 text-slate-700 text-xs rounded-full pl-2.5 pr-1.5 py-1">' +
-        escapeHtml(s.name) +
-        '<button type="button" class="chip-remove text-slate-400 hover:text-[#ed1c24] text-sm leading-none px-0.5" data-id="' + id + '" aria-label="Remove ' + escapeHtml(s.name) + '">&times;</button>' +
-      '</span>';
-    }).join('');
-    document.getElementById('selectedCount').textContent = selectedStudentIds.size;
-  }
-
-  function closeResults() { resultsBox.classList.add('hidden'); }
-
-  // Shows matches for the typed text. Students already chosen stay in the
-  // chips row, so the list only offers ones still available to add.
-  function renderStudentList(filterText) {
-    const needle = (filterText || '').trim().toLowerCase();
-    const matches = allStudents.filter(function(s) {
-      if (selectedStudentIds.has(s.userId)) return false;
-      return !needle || s.name.toLowerCase().includes(needle) || String(s.schoolId).toLowerCase().includes(needle);
-    });
-    resultsBox.innerHTML = matches.length
-      ? matches.map(function(s) {
-          return '<button type="button" class="student-option w-full text-left px-3 py-2 text-sm hover:bg-slate-50" data-id="' + s.userId + '">' +
-            escapeHtml(s.name) + ' <span class="text-xs text-slate-400">(' + escapeHtml(s.schoolId) + ')</span></button>';
-        }).join('')
-      : '<p class="text-xs text-slate-400 text-center py-4">No matching students.</p>';
-    resultsBox.classList.remove('hidden');
-  }
-
-  async function loadStudentsForPicker() {
-    const data = await (await fetch('api/students.php?all=1')).json();
-    allStudents = data.students || [];
-    renderChips();
-  }
-
-  searchInput.addEventListener('focus', function() { renderStudentList(searchInput.value); });
-  searchInput.addEventListener('click', function() { renderStudentList(searchInput.value); });
-  searchInput.addEventListener('input', function() { renderStudentList(searchInput.value); });
-  resultsBox.addEventListener('mousedown', function(e) { e.preventDefault(); });
-  resultsBox.addEventListener('click', function(e) {
-    const opt = e.target.closest('.student-option');
-    if (!opt) return;
-    const id = Number(opt.dataset.id);
-    const s = allStudents.find(function(x) { return x.userId === id; });
-    selectedStudentIds.add(id);
-    renderChips();
-    searchInput.value = s ? s.name : '';
-    closeResults();
-  });
-  chipsBox.addEventListener('click', function(e) {
-    const btn = e.target.closest('.chip-remove');
-    if (!btn) return;
-    selectedStudentIds.delete(Number(btn.dataset.id));
-    renderChips();
-  });
-  document.addEventListener('click', function(e) {
-    if (!e.target.closest('#studentPicker')) closeResults();
-  });
-
-  document.getElementById('createForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const errorEl = document.getElementById('createError');
-    const successEl = document.getElementById('createSuccess');
-    const dateErrorEl = document.getElementById('publishAtError');
-    errorEl.classList.add('hidden');
-    successEl.classList.add('hidden');
-    dateErrorEl.classList.add('hidden');
-
-    if (publishAtInput.value && publishAtInput.value < nowLocalForInput()) {
-      dateErrorEl.textContent = 'Publish date/time can\'t be in the past.';
-      dateErrorEl.classList.remove('hidden');
-      return;
-    }
-
-    const targetType = document.querySelector('input[name="target"]:checked').value;
-    const body = {
-      type: 'create',
-      title: document.getElementById('annTitle').value.trim(),
-      body: document.getElementById('annBody').value.trim(),
-      targetType: targetType,
-      publishAt: document.getElementById('annPublishAt').value,
-      studentIds: targetType === 'specific' ? Array.from(selectedStudentIds) : [],
-    };
-
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    submitBtn.disabled = true;
-    const res = await fetch('api/announcements.php', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    submitBtn.disabled = false;
-
-    if (!data.success) {
-      errorEl.textContent = data.error || 'Failed to send announcement.';
-      errorEl.classList.remove('hidden');
-      return;
-    }
-
-    successEl.textContent = 'Announcement sent.';
-    successEl.classList.remove('hidden');
-    e.target.reset();
-    selectedStudentIds.clear();
-    renderChips();
-    searchInput.value = '';
-    closeResults();
-    document.getElementById('studentPicker').classList.add('hidden');
-    await loadAnnouncements();
-  });
-
-  await loadStudentsForPicker();
-  await loadAnnouncements();
+  await load();
 })();
 </script>
-
 <script src="js/motion.js" defer></script>
 <script src="js/notifications.js" defer></script>
-<script>
-(function() {
-  var el = document.getElementById('ayBadgeValue');
-  if (!el) return;
-  fetch('api/security-config.php').then(function(r) { return r.json(); }).then(function(data) {
-    if (data && data.academicYear && data.academicYear.current) {
-      el.textContent = data.academicYear.current;
-    } else {
-      document.getElementById('ayBadge').classList.add('hidden');
-    }
-  }).catch(function() {});
-})();
-</script>
 </body>
 </html>

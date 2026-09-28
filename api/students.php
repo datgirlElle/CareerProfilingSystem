@@ -20,7 +20,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             jsonResponse(['success' => false, 'error' => 'Student account not found.'], 404);
         }
         $newState = !$row['is_active'];
-        $pdo->prepare('UPDATE users SET is_active = ?, updated_at = NOW() WHERE id = ?')->execute([$newState, $targetId]);
+        // PDOStatement::execute() stringifies a bound PHP bool — false
+        // becomes '' (not '0'), which Postgres's boolean type rejects
+        // outright ("invalid input syntax for type boolean"). Bind an int
+        // instead; Postgres accepts 0/1 for boolean.
+        $pdo->prepare('UPDATE users SET is_active = ?, updated_at = NOW() WHERE id = ?')->execute([(int) $newState, $targetId]);
         // login.php already rejects any user (any role) with is_active =
         // false, so deactivating here immediately blocks sign-in -- no
         // separate enforcement needed.
@@ -128,6 +132,40 @@ if ($schoolIdLookup !== '') {
         'registeredAt' => $row['registered_at'],
         'attempts' => $attempts,
     ]]);
+}
+
+// ?accounts=1: the Student Accounts page (login/activation status only, no
+// assessment/counseling data) — a separate view from the Student Assessment
+// Overview above, per the split the counselors asked for.
+if (isset($_GET['accounts'])) {
+    $search = trim((string) ($_GET['search'] ?? ''));
+    $rows = $pdo->query(
+        'SELECT u.id AS user_id, u.username, u.email, u.is_active, u.created_at,
+                s.first_name_enc, s.last_name_enc, s.strand, s.section
+         FROM users u
+         JOIN students s ON s.user_id = u.id
+         ORDER BY u.created_at DESC'
+    )->fetchAll();
+
+    $accounts = array_map(fn($r) => [
+        'userId' => (int) $r['user_id'],
+        'username' => $r['username'],
+        'name' => Crypto::dec($r['last_name_enc']) . ', ' . Crypto::dec($r['first_name_enc']),
+        'strand' => $r['strand'],
+        'section' => $r['section'],
+        'email' => $r['email'],
+        'isActive' => (bool) $r['is_active'],
+        'createdAt' => $r['created_at'],
+    ], $rows);
+
+    if ($search !== '') {
+        $needle = mb_strtolower($search);
+        $accounts = array_values(array_filter($accounts, fn($a) =>
+            str_contains(mb_strtolower($a['name']), $needle) || str_contains(mb_strtolower($a['username']), $needle)
+        ));
+    }
+
+    jsonResponse(['accounts' => $accounts, 'total' => count($accounts)]);
 }
 
 $page = max(1, (int) ($_GET['page'] ?? 1));

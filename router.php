@@ -41,6 +41,7 @@ const PROTECTED_PAGES = [
     'retake-requests' => ['admin', 'counselor'],
     'security-configuration' => ['admin', 'counselor'],
     'student-profile' => ['admin', 'counselor'],
+    'student-accounts' => ['admin', 'counselor'],
     'staff-accounts' => ['admin'],
     'assessment' => ['student'],
     'assessment-instructions' => ['student'],

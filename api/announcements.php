@@ -1,9 +1,69 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/Mailer.php';
+require_once __DIR__ . '/../lib/EmailTemplate.php';
 
 $user = Rbac::requireAccess('announcements', 'limited');
 $pdo = Database::get();
+
+/**
+ * Emails an announcement to its recipients and marks it emailed, atomically
+ * claiming the row first (`emailed_at IS NULL` in the WHERE) so two staff
+ * members loading this page at the same moment — or the immediate-send path
+ * racing the lazy scheduled-send check below — can never send it twice.
+ */
+function emailAnnouncement(PDO $pdo, int $announcementId, string $title, string $bodyText, string $targetType): void
+{
+    $claim = $pdo->prepare('UPDATE announcements SET emailed_at = NOW() WHERE id = ? AND emailed_at IS NULL');
+    $claim->execute([$announcementId]);
+    if ($claim->rowCount() === 0) {
+        return; // already sent (or sent by a concurrent request)
+    }
+
+    if ($targetType === 'all') {
+        $recipients = $pdo->query(
+            "SELECT u.email, s.first_name_enc FROM students s
+             JOIN users u ON u.id = s.user_id
+             WHERE u.is_active = TRUE AND u.email IS NOT NULL"
+        )->fetchAll();
+    } else {
+        $stmt = $pdo->prepare(
+            "SELECT u.email, s.first_name_enc FROM announcement_recipients ar
+             JOIN students s ON s.user_id = ar.student_id
+             JOIN users u ON u.id = s.user_id
+             WHERE ar.announcement_id = ? AND u.is_active = TRUE AND u.email IS NOT NULL"
+        );
+        $stmt->execute([$announcementId]);
+        $recipients = $stmt->fetchAll();
+    }
+    if (!$recipients) {
+        return;
+    }
+
+    $safeTitle = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
+    $safeBody = nl2br(htmlspecialchars($bodyText, ENT_QUOTES, 'UTF-8'));
+    $appUrl = rtrim((string) getenv('APP_URL'), '/');
+
+    // A school-wide announcement can mean sending to every registered
+    // student, well past a single request's usual runtime — there's no
+    // background job queue in this project, so this raises the limit for
+    // just this request rather than risk it being killed mid-batch.
+    set_time_limit(300);
+
+    foreach ($recipients as $r) {
+        $firstName = Crypto::dec($r['first_name_enc']);
+        $bodyHtml = EmailTemplate::render(
+            $safeTitle,
+            "<p style=\"margin:0 0 12px 0;\">Hi $firstName,</p><p style=\"margin:0;\">$safeBody</p>",
+            'View in ProfilePath',
+            $appUrl !== '' ? $appUrl . '/assessment' : '#',
+            'You are receiving this because you have a ProfilePath account.'
+        );
+        $bodyTextPlain = "Hi $firstName,\n\n$bodyText";
+        Mailer::send($r['email'], $firstName, $title, $bodyHtml, $bodyTextPlain);
+    }
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if ($user['role'] === 'student') {
@@ -21,6 +81,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         );
         $stmt->execute([(int) $user['id']]);
     } else {
+        // A scheduled announcement (publish_at in the future when created)
+        // has no background job to email it the moment it comes due — the
+        // closest this project has to a scheduler is: check for it here,
+        // the one place staff are looking at announcements, whenever this
+        // page loads.
+        $dueUnemailed = $pdo->query(
+            "SELECT id, title, body_enc, target_type FROM announcements
+             WHERE publish_at <= NOW() AND emailed_at IS NULL"
+        )->fetchAll();
+        foreach ($dueUnemailed as $a) {
+            emailAnnouncement($pdo, (int) $a['id'], $a['title'], Crypto::dec($a['body_enc']), $a['target_type']);
+        }
+
         // Admin/counselor management view: everything, including unpublished
         // (scheduled) announcements.
         $stmt = $pdo->query(
@@ -100,6 +173,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($ts === false) {
                 jsonResponse(['success' => false, 'error' => 'Invalid publish date/time.'], 400);
             }
+            // The picker's own "min" is client-side only — enforce the same
+            // rule here (school time, see config/env.php's APP_TIMEZONE). A
+            // small grace window absorbs normal request latency around the
+            // exact minute the form was submitted, rather than rejecting a
+            // value that was valid when the user picked it.
+            if ($ts < time() - 60) {
+                jsonResponse(['success' => false, 'error' => 'Publish date/time can\'t be in the past.'], 400);
+            }
             $publishAt = date('Y-m-d H:i:sP', $ts);
         }
 
@@ -131,6 +212,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user['id'], $user['role'], 'create_announcement', 'announcement', (string) $announcementId,
             "\"$title\" -> " . ($targetType === 'all' ? 'everyone' : count($studentIds) . ' student(s)')
         );
+
+        // Only an announcement published right now emails immediately; a
+        // future publishAt is picked up by the lazy check in the GET branch
+        // above once it's actually due.
+        $isImmediate = $publishAt === null || strtotime($publishAt) <= time();
+        if ($isImmediate) {
+            emailAnnouncement($pdo, $announcementId, $title, $bodyText, $targetType);
+        }
+
         jsonResponse(['success' => true, 'id' => $announcementId]);
     }
 
