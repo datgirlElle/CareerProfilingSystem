@@ -62,15 +62,15 @@ if ($isStaff) {
 
     // Open counseling requests awaiting a response
     $stmt = $pdo->query(
-        "SELECT id, name, subject, sent_at FROM help_requests
+        "SELECT id, name_enc, subject_enc, sent_at FROM help_requests
          WHERE status = 'open' ORDER BY sent_at DESC LIMIT $each"
     );
     foreach ($stmt->fetchAll() as $row) {
-        $who = $row['name'] ?: 'A student';
+        $who = Crypto::dec($row['name_enc']) ?: 'A student';
         $items[] = [
             'type' => 'help_request',
             'title' => 'New counseling request',
-            'text' => "$who: " . ($row['subject'] ?: 'No subject'),
+            'text' => "$who: " . (Crypto::dec($row['subject_enc']) ?: 'No subject'),
             'link' => 'help-requests',
             'ts' => $row['sent_at'],
         ];
@@ -84,7 +84,7 @@ if ($isStaff) {
 
     // Student: recent resolutions of things they submitted
     $stmt = $pdo->prepare(
-        "SELECT id, subject, resolved_at FROM help_requests
+        "SELECT id, subject_enc, resolved_at FROM help_requests
          WHERE student_id = ? AND status = 'resolved' AND resolved_at > NOW() - INTERVAL '$days days'
            AND resolved_at >= ?
          ORDER BY resolved_at DESC LIMIT $each"
@@ -95,7 +95,7 @@ if ($isStaff) {
             'key' => 'help:' . $row['id'],
             'type' => 'help_resolved',
             'title' => 'Counseling request resolved',
-            'text' => 'Your counseling request "' . ($row['subject'] ?: 'General inquiry') . '" has been resolved.',
+            'text' => 'Your counseling request "' . (Crypto::dec($row['subject_enc']) ?: 'General inquiry') . '" has been resolved.',
             'link' => 'help-center',
             'ts' => $row['resolved_at'],
         ];

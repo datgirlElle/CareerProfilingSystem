@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="js/csrf.js"></script>
 <title>Assessment Instructions — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -336,6 +337,35 @@
   modal.addEventListener('click', function(e) { if (e.target.id === 'accessCodeModal') closeModal(); });
   document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal(); });
 
+  const submitBtnLabel = submitBtn.textContent;
+  let cooldownTimer = null;
+
+  function formatCooldown(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return m + ':' + String(s).padStart(2, '0');
+  }
+
+  function startCooldown(seconds) {
+    if (cooldownTimer) {
+      clearInterval(cooldownTimer);
+    }
+    let remaining = seconds;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Try again in ' + formatCooldown(remaining);
+    cooldownTimer = setInterval(function() {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(cooldownTimer);
+        cooldownTimer = null;
+        submitBtn.disabled = false;
+        submitBtn.textContent = submitBtnLabel;
+        return;
+      }
+      submitBtn.textContent = 'Try again in ' + formatCooldown(remaining);
+    }, 1000);
+  }
+
   async function submitCode() {
     const code = input.value.trim();
     if (!code) {
@@ -354,7 +384,14 @@
       if (!data.success) {
         errorEl.textContent = data.error || 'Incorrect access code.';
         errorEl.classList.remove('hidden');
-        submitBtn.disabled = false;
+        if (res.status === 429) {
+          // This is the server's actual rate limit, not just a wrong
+          // code — match its real 5-minute window so the button doesn't
+          // claim to be ready before the server actually is.
+          startCooldown(5 * 60);
+        } else {
+          submitBtn.disabled = false;
+        }
         return;
       }
       window.location.href = 'riasec-assessment';

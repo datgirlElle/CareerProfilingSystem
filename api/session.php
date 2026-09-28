@@ -17,4 +17,8 @@ if ($user !== null && $user['role'] === 'student') {
     }
 }
 
-jsonResponse(['user' => $user]);
+$response = ['user' => $user, 'csrfToken' => Csrf::token()];
+if ($user !== null) {
+    $response['sessionTimeout'] = Auth::sessionTimeoutPolicy();
+}
+jsonResponse($response);

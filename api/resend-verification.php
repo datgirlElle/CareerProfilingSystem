@@ -3,6 +3,7 @@
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/Mailer.php';
 require_once __DIR__ . '/../lib/EmailTemplate.php';
+require_once __DIR__ . '/../lib/RateLimiter.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -19,6 +20,12 @@ $pdo = Database::get();
 // Always the same generic response, whether or not the account exists or
 // is already verified — same anti-enumeration reasoning as forgot-password.php.
 $generic = ['success' => true, 'message' => 'If that account needs verification, a new link has been sent to its email on file.'];
+
+// Same reasoning as forgot-password.php's limit — checked before any real
+// work, and the response stays identical either way.
+if (RateLimiter::tooMany('resend-verification:' . strtolower($username), 3, 60)) {
+    jsonResponse($generic);
+}
 
 $stmt = $pdo->prepare(
     "SELECT u.id, u.email, s.first_name_enc FROM users u

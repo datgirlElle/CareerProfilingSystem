@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="js/csrf.js"></script>
 <title>My Profile — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -215,6 +216,30 @@
             <a href="admin-dashboard" class="border border-gray-300 text-gray-700 text-sm font-medium rounded-md px-5 py-2.5 hover:bg-gray-50">Cancel</a>
           </div>
         </form>
+
+        <!-- Password-change verification panel — hidden until change-password.php
+             responds with verificationRequired (staff-only, gated by the
+             Security Configuration policy). -->
+        <div id="passwordVerifyPanel" class="hidden lg:col-span-2 bg-white border border-gray-200 rounded-xl shadow-sm p-6 flex flex-col gap-4">
+          <h2 class="text-base font-semibold text-gray-900">Verify It's You</h2>
+          <p class="text-sm text-gray-600">Enter the 6-digit code we emailed you to confirm this password change. It expires in 5 minutes.</p>
+          <div id="passwordVerifyError" class="hidden bg-red-50 border border-red-200 text-red-700 text-sm rounded-md px-4 py-2.5"></div>
+          <div id="passwordVerifyDebug" class="hidden bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-md px-4 py-2.5"></div>
+          <input
+            id="passwordVerifyCode"
+            type="text"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="6"
+            placeholder="000000"
+            aria-label="6-digit code"
+            class="w-full max-w-[220px] text-center tracking-[0.5em] text-lg py-3 border border-gray-300 rounded-md placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+          <div class="flex items-center gap-3 pt-1">
+            <button type="button" id="passwordVerifyBtn" class="bg-[#ed1c24] text-white text-sm font-medium rounded-md px-5 py-2.5 hover:opacity-90">Verify &amp; Save</button>
+            <button type="button" id="passwordVerifyResendBtn" class="text-[#ed1c24] text-sm font-medium hover:underline">Resend code</button>
+            <button type="button" id="passwordVerifyCancelBtn" class="text-gray-500 text-sm hover:underline">Cancel</button>
+          </div>
+        </div>
       </div>
 
     </main>
@@ -405,12 +430,99 @@
       return;
     }
 
+    if (data.verificationRequired) {
+      document.getElementById('profileForm').classList.add('hidden');
+      const panel = document.getElementById('passwordVerifyPanel');
+      panel.classList.remove('hidden');
+      const debugEl = document.getElementById('passwordVerifyDebug');
+      if (data.debugCode) {
+        debugEl.textContent = 'Local dev (no email provider configured) — your code is: ' + data.debugCode;
+        debugEl.classList.remove('hidden');
+      } else {
+        debugEl.classList.add('hidden');
+      }
+      document.getElementById('passwordVerifyCode').focus();
+      return;
+    }
+
     document.getElementById('currentPassword').value = '';
     document.getElementById('newPassword').value = '';
     document.getElementById('confirmPassword').value = '';
     msg.classList.remove('hidden');
     setTimeout(() => msg.classList.add('hidden'), 3000);
   });
+
+  (function() {
+    const panel = document.getElementById('passwordVerifyPanel');
+    const verifyError = document.getElementById('passwordVerifyError');
+    const verifyCode = document.getElementById('passwordVerifyCode');
+    const verifyBtn = document.getElementById('passwordVerifyBtn');
+    const resendBtn2 = document.getElementById('passwordVerifyResendBtn');
+    const cancelBtn = document.getElementById('passwordVerifyCancelBtn');
+
+    function showVerifyError(text) {
+      verifyError.textContent = text;
+      verifyError.classList.remove('hidden');
+    }
+    function backToForm() {
+      panel.classList.add('hidden');
+      document.getElementById('profileForm').classList.remove('hidden');
+      document.getElementById('currentPassword').value = '';
+      document.getElementById('newPassword').value = '';
+      document.getElementById('confirmPassword').value = '';
+      verifyCode.value = '';
+      verifyError.classList.add('hidden');
+    }
+
+    verifyBtn.addEventListener('click', async function() {
+      verifyError.classList.add('hidden');
+      verifyBtn.disabled = true;
+      const res = await fetch('api/verify-password-change.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: verifyCode.value.trim() })
+      });
+      const data = await res.json();
+      verifyBtn.disabled = false;
+
+      if (!data.success) {
+        showVerifyError(data.error || 'Incorrect code. Please try again.');
+        if (data.expired) {
+          setTimeout(backToForm, 1500);
+        }
+        return;
+      }
+
+      backToForm();
+      const msg = document.getElementById('saveMessage');
+      msg.classList.remove('hidden');
+      setTimeout(() => msg.classList.add('hidden'), 3000);
+    });
+
+    resendBtn2.addEventListener('click', async function() {
+      resendBtn2.disabled = true;
+      resendBtn2.textContent = 'Sending…';
+      try {
+        const res = await fetch('api/resend-password-change-code.php', { method: 'POST' });
+        const data = await res.json();
+        if (data.debugCode) {
+          const debugEl = document.getElementById('passwordVerifyDebug');
+          debugEl.textContent = 'Local dev (no email provider configured) — your code is: ' + data.debugCode;
+          debugEl.classList.remove('hidden');
+        }
+        resendBtn2.textContent = 'Sent — check your inbox';
+        setTimeout(function() {
+          resendBtn2.textContent = 'Resend code';
+          resendBtn2.disabled = false;
+        }, 3000);
+      } catch (err) {
+        resendBtn2.textContent = 'Resend code';
+        resendBtn2.disabled = false;
+      }
+    });
+
+    cancelBtn.addEventListener('click', backToForm);
+  })();
 })();
 </script>
 

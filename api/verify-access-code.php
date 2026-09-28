@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/RateLimiter.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -9,6 +10,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $user = Auth::requireLogin();
 if ($user['role'] !== 'student') {
     jsonResponse(['success' => false, 'error' => 'Only students take the RIASEC assessment.'], 403);
+}
+
+// 3 attempts per 5 minutes, keyed per-student — matches the scale of the
+// login lockout policy. A genuine student mistyping a code a couple times
+// is unaffected; a script grinding through the ~16.7 million possible
+// 6-character codes is not.
+if (RateLimiter::tooMany('access-code:' . $user['id'], 3, 5)) {
+    AuditLogger::log($user['id'], 'student', 'access_code_throttled', 'assessment', null, 'Too many attempts, temporarily blocked');
+    jsonResponse(['success' => false, 'error' => 'Too many incorrect attempts. Please wait a few minutes and try again.'], 429);
 }
 
 $body = readJsonBody();

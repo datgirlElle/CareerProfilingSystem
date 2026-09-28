@@ -44,4 +44,23 @@ class Rbac
         }
         return $user;
     }
+
+    /**
+     * Requires the logged-in user's role to be one of $roles — for
+     * endpoints gated by a simple "must be this role" rule rather than the
+     * module access-level matrix above (e.g. Staff Accounts, Security
+     * Configuration). Sends 403 and exits otherwise. Returns the current
+     * user array on success.
+     */
+    public static function requireRole(string ...$roles): array
+    {
+        $user = Auth::requireLogin();
+        if (!in_array($user['role'], $roles, true)) {
+            http_response_code(403);
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'Forbidden']);
+            exit;
+        }
+        return $user;
+    }
 }

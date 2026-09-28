@@ -223,14 +223,37 @@ CREATE TABLE help_requests (
     id                  SERIAL PRIMARY KEY,
     student_id          INT REFERENCES students(user_id) ON DELETE SET NULL,
     school_id_snapshot  VARCHAR(50),
-    name                VARCHAR(255),
-    subject             VARCHAR(255),
+    name_enc            TEXT,
+    subject_enc         TEXT,
     message_enc         TEXT,
     sent_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     status              VARCHAR(10) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'resolved')),
     resolved_by         INT REFERENCES users(id),
     resolved_at         TIMESTAMPTZ
 );
+
+-- Generic sliding-window rate limiter (lib/RateLimiter.php), reused by
+-- forgot-password, RIASEC access-code verification, and any future
+-- endpoint that needs simple abuse throttling.
+CREATE TABLE rate_limit_hits (
+    id          SERIAL PRIMARY KEY,
+    rate_key    VARCHAR(255) NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_rate_limit_hits_key_time ON rate_limit_hits(rate_key, created_at);
+
+-- Email one-time codes (lib/TwoFactor.php) for the staff password-change
+-- step-up verification, gated by the 'twoFactor' security policy toggle.
+CREATE TABLE two_factor_codes (
+    id          SERIAL PRIMARY KEY,
+    user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    code_hash   VARCHAR(255) NOT NULL,
+    expires_at  TIMESTAMPTZ NOT NULL,
+    used_at     TIMESTAMPTZ,
+    attempts    INT NOT NULL DEFAULT 0,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_two_factor_codes_user_id ON two_factor_codes(user_id);
 
 -- A schedule = one exam session (date/time/room) targeting whichever
 -- grade level/strand/section it names (NULL on any of those three = "all"

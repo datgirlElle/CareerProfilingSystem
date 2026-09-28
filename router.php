@@ -14,6 +14,9 @@
  */
 
 require_once __DIR__ . '/lib/Auth.php';
+require_once __DIR__ . '/lib/SecurityHeaders.php';
+
+SecurityHeaders::send();
 
 // Pages that require an authenticated session with a specific role. Each of
 // these pages also redirects client-side once its own JS runs (checking

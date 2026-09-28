@@ -10,8 +10,33 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $user = Rbac::requireAccess('rac', 'full');
 $pdo = Database::get();
 
-if (!isset($_FILES['roster']) || $_FILES['roster']['error'] !== UPLOAD_ERR_OK) {
+if (!isset($_FILES['roster'])) {
     jsonResponse(['success' => false, 'error' => 'No CSV file was uploaded.'], 400);
+}
+// PHP itself already rejects anything over upload_max_filesize/post_max_size
+// before this script runs, and reports it the same way as "no file" — give
+// the real reason when that's what happened, rather than the generic message.
+if (in_array($_FILES['roster']['error'], [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
+    jsonResponse(['success' => false, 'error' => 'File is too large. Roster CSVs should be under 2MB.'], 400);
+}
+if ($_FILES['roster']['error'] !== UPLOAD_ERR_OK) {
+    jsonResponse(['success' => false, 'error' => 'No CSV file was uploaded.'], 400);
+}
+
+// A roster is at most a few thousand rows of plain text — anything past a
+// couple MB is either the wrong file or someone testing what happens with
+// a huge upload. Reject early rather than let fgetcsv() churn through it.
+// (PHP's own upload_max_filesize above already catches most of this —
+// this is the backstop for a deployment with a higher ini limit.)
+const MAX_ROSTER_BYTES = 2 * 1024 * 1024; // 2MB
+if ($_FILES['roster']['size'] > MAX_ROSTER_BYTES) {
+    jsonResponse(['success' => false, 'error' => 'File is too large. Roster CSVs should be under 2MB.'], 400);
+}
+
+$originalName = (string) ($_FILES['roster']['name'] ?? '');
+$extension = strtolower((string) pathinfo($originalName, PATHINFO_EXTENSION));
+if ($extension !== 'csv') {
+    jsonResponse(['success' => false, 'error' => 'Please upload a .csv file.'], 400);
 }
 
 $currentAy = (string) $pdo->query("SELECT value FROM security_policies WHERE key = 'academicYear.current'")->fetchColumn();
