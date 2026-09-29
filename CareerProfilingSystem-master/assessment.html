@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Assessments — Career Profiling System</title>
+<link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
+<link rel="stylesheet" href="css/tailwind.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body{ font-family:'Inter', sans-serif; }
+</style>
+<link rel="stylesheet" href="css/motion.css">
+</head>
+<body class="bg-[#f8f9fb]">
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<div class="flex min-h-screen">
+
+  <!-- Mobile sidebar backdrop -->
+  <div id="sidebarBackdrop" class="hidden fixed inset-0 bg-black/40 z-30 md:hidden"></div>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="w-[260px] shrink-0 bg-[#001c43] flex flex-col fixed inset-y-0 left-0 z-40 -translate-x-full transition-transform duration-200 md:sticky md:top-0 md:translate-x-0 h-screen">
+
+    <!-- Logo Area -->
+    <div class="flex items-center gap-3 px-6 py-8">
+      <img src="images/admin/logo-profilepath.svg" alt="ProfilePath logo" class="w-[64px]">
+      <div>
+        <p class="text-lg font-bold leading-none"><span class="text-white">Profile</span><span class="text-[#ed1c24]">Path</span></p>
+        <p class="text-sm text-white/60 mt-1">Student Portal</p>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="flex-1 flex flex-col gap-0.5 py-4 overflow-auto">
+      <a href="assessment" class="flex items-center gap-3.5 h-[50px] pl-6 border-l-[3px] border-[#ed1c24] bg-[#495e88] text-[#ed1c24] text-sm">
+        <svg class="w-[15px] h-[15px] shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h168q13-36 43.5-58t68.5-22q38 0 68.5 22t43.5 58h168q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm80-80h280v-80H280v80Zm0-160h400v-80H280v80Zm0-160h400v-80H280v80Zm221.5-198.5Q510-807 510-820t-8.5-21.5Q493-850 480-850t-21.5 8.5Q450-833 450-820t8.5 21.5Q467-790 480-790t21.5-8.5ZM200-200v-560 560Z"/></svg>
+        Assessments
+      </a>
+      <a href="results" class="flex items-center gap-3.5 h-[50px] pl-6 border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+        <svg class="w-[15px] h-[15px] shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M120-160q-33 0-56.5-23.5T40-240q0-33 23.5-56.5T120-320h10.5q4.5 0 9.5 2l182-182q-2-5-2-9.5V-520q0-33 23.5-56.5T400-600q33 0 56.5 23.5T480-520q0 2-2 20l102 102q5-2 9.5-2h21q4.5 0 9.5 2l142-142q-2-5-2-9.5V-560q0-33 23.5-56.5T840-640q33 0 56.5 23.5T920-560q0 33-23.5 56.5T840-480h-10.5q-4.5 0-9.5-2L678-340q2 5 2 9.5v10.5q0 33-23.5 56.5T600-240q-33 0-56.5-23.5T520-320v-10.5q0-4.5 2-9.5L420-442q-5 2-9.5 2H400q-2 0-20-2L198-260q2 5 2 9.5v10.5q0 33-23.5 56.5T120-160Zm40-401-25-54-54-25 54-25 25-54 25 54 54 25-54 25-25 54Zm440-39-38-82-82-38 82-38 38-82 38 82 82 38-82 38-38 82Z"/></svg>
+        Career Results
+      </a>
+      <a href="saved-careers" class="flex items-center gap-3.5 h-[50px] pl-6 border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+        <svg class="w-[15px] h-[15px] shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120v-640q0-33 23.5-56.5T280-840h400q33 0 56.5 23.5T760-760v640L480-240 200-120Zm80-122 200-86 200 86v-518H280v518Zm0-518h400-400Z"/></svg>
+        Saved Careers
+      </a>
+      <a href="student-settings" class="flex items-center gap-3.5 h-[50px] pl-6 border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+        <svg class="w-[15px] h-[15px] shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="m370-80-16-128q-13-5-24.5-12T307-235l-119 50L78-375l103-78q-1-7-1-13.5v-27q0-6.5 1-13.5L78-585l110-190 119 50q11-8 23-15t24-12l16-128h220l16 128q13 5 24.5 12t22.5 15l119-50 110 190-103 78q1 7 1 13.5v27q0 6.5-2 13.5l103 78-110 190-118-50q-11 8-23 15t-24 12L590-80H370Zm70-80h79l14-106q31-8 57.5-23.5T639-327l99 41 39-68-86-65q5-14 7-29.5t2-31.5q0-16-2-31.5t-7-29.5l86-65-39-68-99 42q-22-23-48.5-38.5T533-694l-13-106h-79l-14 106q-31 8-57.5 23.5T321-633l-99-41-39 68 86 64q-5 15-7 30t-2 32q0 16 2 31t7 30l-86 65 39 68 99-42q22 23 48.5 38.5T427-266l13 106Zm42-180q58 0 99-41t41-99q0-58-41-99t-99-41q-59 0-99.5 41T342-480q0 58 40.5 99t99.5 41Zm-2-140Z"/></svg>
+        Settings
+      </a>
+    </nav>
+
+    <!-- Bottom Links -->
+    <div class="border-t border-white/5 pt-[25px] pb-6 flex flex-col gap-0.5">
+      <a href="help-center" class="flex items-center gap-3.5 h-[50px] pl-6 text-white/85 text-sm hover:bg-white/5">
+        <svg class="w-[15px] h-[15px] shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M513.5-254.5Q528-269 528-290t-14.5-35.5Q499-340 478-340t-35.5 14.5Q428-311 428-290t14.5 35.5Q457-240 478-240t35.5-14.5ZM442-394h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>
+        Help Center
+      </a>
+      <a href="#" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 text-white/85 text-sm hover:bg-white/5">
+        <svg class="w-[15px] h-[15px] shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>
+        Logout
+      </a>
+    </div>
+
+    <div class="bg-white px-6 py-3 flex items-center justify-center gap-3">
+      <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="h-8 w-auto">
+      <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="h-7 w-auto">
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    <!-- Top Header -->
+    <header class="h-16 shrink-0 flex items-center justify-between gap-6 px-6 bg-white sticky top-0 z-10">
+      <button type="button" id="menuToggle" class="relative z-50 w-10 h-10 -m-2 flex items-center justify-center text-[#001a40] md:invisible">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <div class="flex items-center gap-6">
+      <div class="relative">
+        <button type="button" id="notifBtn" class="relative w-[14.7px] h-[18.3px]">
+          <svg class="w-full h-full" viewBox="0 -960 960 960" fill="#64748B"><path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"/></svg>
+          <span id="notifBadge" class="hidden absolute -top-2 -right-2 min-w-[13px] h-[13px] px-[3px] rounded-full bg-[#ed1c24] text-white text-[8px] leading-none font-bold flex items-center justify-center"></span>
+        </button>
+        <div id="notifPanel" class="hidden fixed left-4 right-4 top-20 z-50 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+16px)] sm:w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+          <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+            <p class="text-sm font-semibold text-gray-900">Notifications</p>
+            <span id="notifCountLabel" class="text-xs text-gray-500">Loading…</span>
+          </div>
+          <ul id="notifList" class="max-h-80 overflow-auto divide-y divide-gray-100">
+            <li class="px-4 py-6 text-center text-sm text-gray-500">Loading…</li>
+          </ul>
+          <a href="notifications" class="block text-center text-sm font-medium text-[#ed1c24] px-4 py-3 border-t border-gray-100 hover:bg-gray-50">View all notifications</a>
+        </div>
+      </div>
+      <div class="relative border-l border-slate-200 pl-[25px]">
+        <button type="button" id="profileBtn" class="flex items-center gap-4">
+          <div class="text-right">
+            <p class="text-[15px] font-semibold text-[#001a40]" id="headerName">Student</p>
+            <p class="text-base text-slate-500" id="headerSub">—</p>
+          </div>
+          <span id="headerAvatarWrap" class="w-10 h-10 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center overflow-hidden">
+            <svg class="w-[21.7px] h-[21.7px]" viewBox="0 -960 960 960" fill="#64748B"><path d="M367-527q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Zm80-80h480v-32q0-11-5.5-20T700-306q-54-27-109-40.5T480-360q-56 0-111 13.5T260-306q-9 5-14.5 14t-5.5 20v32Zm296.5-343.5Q560-607 560-640t-23.5-56.5Q513-720 480-720t-56.5 23.5Q400-673 400-640t23.5 56.5Q447-560 480-560t56.5-23.5ZM480-640Zm0 400Z"/></svg>
+          </span>
+        </button>
+        <div id="profilePanel" class="hidden absolute right-0 top-[calc(100%+16px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
+          <div class="px-4 py-3 border-b border-gray-100">
+            <p class="text-sm font-semibold text-gray-900" id="profilePanelName">Student</p>
+            <p class="text-xs text-gray-500" id="profilePanelMeta">—</p>
+          </div>
+          <a href="student-settings" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">My Profile</a>
+          <a href="#" id="profileLogout" class="block px-4 py-3 text-sm text-[#ed1c24] font-medium hover:bg-gray-50 border-t border-gray-100">Logout</a>
+        </div>
+      </div>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <main id="main-content" class="flex-1 px-9 py-10 max-w-[1152px]">
+
+      <div class="mb-10">
+        <h1 class="text-[32px] font-bold text-[#001a40] tracking-tight">My Assessments</h1>
+        <p class="text-base text-slate-500 mt-2">Overview of your career profiling tasks.</p>
+      </div>
+
+      <div id="examSchedulePanel" class="hidden bg-white border border-slate-200 rounded-lg shadow-[0px_2px_15px_0px_rgba(0,26,64,0.04)] p-[25px] mb-6">
+        <p class="text-[11px] font-semibold tracking-[1.2px] text-[#495e88] uppercase mb-3">My Exam Schedule</p>
+        <div id="examSchedulePanelList" class="flex flex-col gap-3"></div>
+      </div>
+
+      <div id="announcementsPanel" class="hidden bg-white border border-slate-200 rounded-lg shadow-[0px_2px_15px_0px_rgba(0,26,64,0.04)] p-[25px] mb-6">
+        <p class="text-[11px] font-semibold tracking-[1.2px] text-[#495e88] uppercase mb-3">Announcements</p>
+        <div id="announcementsPanelList" class="flex flex-col gap-3"></div>
+      </div>
+
+      <div class="flex flex-col gap-6">
+
+        <!-- RIASEC Card -->
+        <div class="bg-white border border-slate-200 rounded-lg shadow-[0px_2px_15px_0px_rgba(0,26,64,0.04)] p-[33px] flex items-center justify-between gap-8 flex-wrap">
+          <div class="flex-1 min-w-[280px] flex flex-col gap-3">
+            <h2 class="text-lg font-semibold text-[#001a40]">RIASEC Career Interest Assessment</h2>
+            <p class="text-base text-slate-500 max-w-[672px] leading-[26px]">A career interest inventory based on Holland's RIASEC theory. This must be completed first before the worksheet is unlocked.</p>
+            <div class="pt-3">
+              <span id="riasecStatusPill" class="inline-flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-full px-3.5 py-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                <span class="text-base text-orange-500" id="riasecStatusText">Ready to take</span>
+              </span>
+            </div>
+          </div>
+          <div class="border-l border-slate-100 pl-10 shrink-0">
+            <a href="assessment-instructions" id="riasecActionBtn" class="inline-block bg-[#ed1c24] text-white text-[15px] font-semibold rounded-md px-8 py-3.5 shadow-sm hover:opacity-90">Take Assessment</a>
+          </div>
+        </div>
+
+        <!-- Career Worksheet Card -->
+        <div id="worksheetCard" class="bg-white/60 border border-slate-200 rounded-lg shadow-[0px_2px_15px_0px_rgba(0,26,64,0.04)] p-[33px] flex items-center justify-between gap-8 flex-wrap opacity-90">
+          <div class="flex-1 min-w-[280px] flex flex-col gap-3">
+            <div class="flex items-center gap-2">
+              <h2 class="text-lg font-semibold text-[#001a40]">Career Worksheet</h2>
+              <svg id="worksheetTitleLock" class="w-3 h-4" viewBox="0 -960 960 960" fill="#64748B"><path d="M240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h40v-80q0-83 58.5-141.5T480-920q83 0 141.5 58.5T680-720v80h40q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Zm0-80h480v-400H240v400Zm296.5-143.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM360-640h240v-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80ZM240-160v-400 400Z"/></svg>
+            </div>
+            <p class="text-base text-slate-500 max-w-[672px] leading-[26px]">Write down the career you are considering and choose electives aligned to your strand and your RIASEC results.</p>
+            <div class="pt-3">
+              <span id="worksheetStatusPill" class="inline-flex items-center gap-2 bg-slate-100 border border-slate-200 rounded-full px-3.5 py-1.5">
+                <svg class="w-2.5 h-3.5" viewBox="0 -960 960 960" fill="#64748B"><path d="M240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h40v-80q0-83 58.5-141.5T480-920q83 0 141.5 58.5T680-720v80h40q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Zm0-80h480v-400H240v400Zm296.5-143.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM360-640h240v-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80ZM240-160v-400 400Z"/></svg>
+                <span class="text-base text-slate-500" id="worksheetStatusText">Locked</span>
+              </span>
+            </div>
+          </div>
+          <div class="border-l border-slate-100 pl-10 shrink-0">
+            <a href="career-worksheet" id="worksheetActionBtn" class="inline-block bg-slate-200 text-slate-400 text-[15px] font-semibold rounded-md px-8 py-3.5 pointer-events-none">Start Worksheet</a>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+        <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
+        <span>&middot;</span>
+        <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
+        <span>&middot;</span>
+        <a href="accessibility" class="hover:text-gray-600 hover:underline">Accessibility</a>
+      </footer>
+  </div>
+</div>
+
+<div id="logoutConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
+    <h3 class="text-lg font-semibold text-black">Log Out?</h3>
+    <p class="text-sm text-gray-500">Are you sure you want to log out?</p>
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" id="logoutCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+      <button type="button" id="logoutConfirmBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Log Out</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  (async function() {
+    const sessionData = await (await fetch('api/session.php')).json();
+    const currentUser = sessionData.user;
+    if (!currentUser || currentUser.role !== 'student') {
+      window.location.replace('login');
+      return;
+    }
+
+    if (currentUser.avatarUrl) {
+      document.getElementById('headerAvatarWrap').innerHTML = '<img src="' + currentUser.avatarUrl + '" alt="" class="w-full h-full object-cover">';
+    }
+
+    document.getElementById('headerName').textContent = currentUser.firstName + ' ' + currentUser.lastName;
+    document.getElementById('headerSub').textContent = 'Grade ' + currentUser.gradeLevel + ' - ' + currentUser.strand;
+    document.getElementById('profilePanelName').textContent = currentUser.firstName + ' ' + currentUser.lastName;
+    document.getElementById('profilePanelMeta').textContent = 'Grade ' + currentUser.gradeLevel + ' - ' + currentUser.strand;
+
+    (function() {
+      const sidebar = document.getElementById('sidebar');
+      const menuToggle = document.getElementById('menuToggle');
+      const backdrop = document.getElementById('sidebarBackdrop');
+      function openSidebar() { sidebar.classList.remove('-translate-x-full'); backdrop.classList.remove('hidden'); menuToggle.classList.add('invisible'); }
+      function closeSidebar() { sidebar.classList.add('-translate-x-full'); backdrop.classList.add('hidden'); menuToggle.classList.remove('invisible'); }
+      menuToggle.addEventListener('click', () => {
+        sidebar.classList.contains('-translate-x-full') ? openSidebar() : closeSidebar();
+      });
+      backdrop.addEventListener('click', closeSidebar);
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSidebar(); });
+    })();
+
+    const logoutModal = document.getElementById('logoutConfirmModal');
+    function openLogoutModal(e) {
+      e.preventDefault();
+      logoutModal.classList.remove('hidden');
+      setTimeout(function() { logoutModal.classList.add('is-open'); }, 16);
+    }
+    function closeLogoutModal() {
+      logoutModal.classList.remove('is-open');
+      setTimeout(function() { logoutModal.classList.add('hidden'); }, 260);
+    }
+    function performLogout() {
+      fetch('api/logout.php', { method: 'POST' }).finally(function() {
+        window.location.href = 'login';
+      });
+    }
+    document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
+    document.getElementById('profileLogout').addEventListener('click', openLogoutModal);
+    document.getElementById('logoutCancelBtn').addEventListener('click', closeLogoutModal);
+    document.getElementById('logoutConfirmBtn').addEventListener('click', performLogout);
+    logoutModal.addEventListener('click', function(e) { if (e.target.id === 'logoutConfirmModal') closeLogoutModal(); });
+
+    const notifBtn = document.getElementById('notifBtn');
+    const notifPanel = document.getElementById('notifPanel');
+    const profileBtn = document.getElementById('profileBtn');
+    const profilePanel = document.getElementById('profilePanel');
+    function toggleDropdown(panel, other) {
+      other.classList.add('hidden');
+      panel.classList.toggle('hidden');
+    }
+    notifBtn.addEventListener('click', function(e) { e.stopPropagation(); toggleDropdown(notifPanel, profilePanel); });
+    profileBtn.addEventListener('click', function(e) { e.stopPropagation(); toggleDropdown(profilePanel, notifPanel); });
+    document.addEventListener('click', function() { notifPanel.classList.add('hidden'); profilePanel.classList.add('hidden'); });
+
+  // Close open dropdown panels on scroll — they were anchored under their
+  // trigger button, and letting them sit still while the page scrolls away
+  // from that anchor looks broken, so just dismiss them instead.
+  window.addEventListener('scroll', () => {
+    document.getElementById('notifPanel')?.classList.add('hidden');
+    document.getElementById('profilePanel')?.classList.add('hidden');
+  }, { passive: true });
+    notifPanel.addEventListener('click', function(e) { e.stopPropagation(); });
+    profilePanel.addEventListener('click', function(e) { e.stopPropagation(); });
+
+    const assessmentStatusData = await (await fetch('api/assessment-status.php')).json();
+    const assessment = assessmentStatusData.completed ? assessmentStatusData : null;
+
+    (async function renderExamSchedule() {
+      let data;
+      try {
+        data = await (await fetch('api/exam-schedules.php?mine=1')).json();
+      } catch (e) {
+        return;
+      }
+      const items = (data.schedules || []).slice(0, 3);
+      if (!items.length) return;
+      function escapeHtml(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+      document.getElementById('examSchedulePanelList').innerHTML = items.map(function(s) {
+        const date = new Date(s.examDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+        const label = s.scheduleType === 'retake' ? '<span class="text-amber-600 font-medium">Retake Exam</span>' : 'Career Interest Assessment';
+        return '<div class="border-l-[3px] border-[#19427b] pl-4 py-1">' +
+          '<p class="text-sm font-semibold text-[#001a40]">' + date + ' &middot; ' + escapeHtml(s.startTime) + '&ndash;' + escapeHtml(s.endTime) + '</p>' +
+          '<p class="text-sm text-slate-600 mt-1">Room ' + escapeHtml(s.room) + ' &mdash; ' + label + '</p>' +
+        '</div>';
+      }).join('');
+      document.getElementById('examSchedulePanel').classList.remove('hidden');
+    })();
+
+    (async function renderAnnouncements() {
+      let data;
+      try {
+        data = await (await fetch('api/announcements.php')).json();
+      } catch (e) {
+        return;
+      }
+      const items = (data.announcements || []).slice(0, 3);
+      if (!items.length) return;
+      function escapeHtml(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+      document.getElementById('announcementsPanelList').innerHTML = items.map(function(a) {
+        const date = new Date(a.publishAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        return '<div class="border-l-[3px] border-[#ed1c24] pl-4 py-1">' +
+          '<p class="text-sm font-semibold text-[#001a40]">' + escapeHtml(a.title) + '</p>' +
+          '<p class="text-xs text-slate-500 mt-0.5">' + date + '</p>' +
+          '<p class="text-sm text-slate-600 mt-1 leading-relaxed">' + escapeHtml(a.body) + '</p>' +
+        '</div>';
+      }).join('');
+      document.getElementById('announcementsPanel').classList.remove('hidden');
+    })();
+
+    if (assessment && assessment.completed) {
+      const pill = document.getElementById('riasecStatusPill');
+      const statusText = document.getElementById('riasecStatusText');
+      const btn = document.getElementById('riasecActionBtn');
+
+      if (assessmentStatusData.retakeAvailable) {
+        // A counselor/admin has granted this student a retake (see
+        // retake_grants) — route through the same
+        // assessment-instructions.html -> access-code -> riasec-assessment.html
+        // flow as a first attempt; nothing here bypasses that gate.
+        pill.className = 'inline-flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-full px-3.5 py-1.5';
+        pill.querySelector('span:first-child').className = 'w-1.5 h-1.5 rounded-full bg-amber-500';
+        statusText.textContent = 'Retake Available';
+        statusText.className = 'text-base text-amber-600';
+
+        btn.textContent = 'Retake Assessment';
+        btn.setAttribute('href', 'assessment-instructions');
+        btn.className = 'inline-block bg-[#ed1c24] text-white text-[15px] font-semibold rounded-md px-8 py-3.5 shadow-sm hover:opacity-90';
+      } else {
+        pill.className = 'inline-flex items-center gap-2 bg-green-50 border border-green-100 rounded-full px-3.5 py-1.5';
+        pill.querySelector('span:first-child').className = 'w-1.5 h-1.5 rounded-full bg-green-600';
+        statusText.textContent = 'Completed';
+        statusText.className = 'text-base text-green-600';
+
+        btn.textContent = 'View Results';
+        btn.setAttribute('href', 'results?view=riasec');
+        btn.className = 'inline-block bg-white border border-[#ed1c24] text-[#ed1c24] text-[15px] font-semibold rounded-md px-8 py-3.5 shadow-sm hover:bg-red-50';
+      }
+
+      const wCard = document.getElementById('worksheetCard');
+      wCard.className = 'bg-white border border-slate-200 rounded-lg shadow-[0px_2px_15px_0px_rgba(0,26,64,0.04)] p-[33px] flex items-center justify-between gap-8 flex-wrap';
+      document.getElementById('worksheetTitleLock').classList.add('hidden');
+
+      const wPill = document.getElementById('worksheetStatusPill');
+      const wBtn = document.getElementById('worksheetActionBtn');
+      const recommendation = await (await fetch('api/recommendations.php')).json();
+
+      if (recommendation.hasRecommendation) {
+        wPill.className = 'inline-flex items-center gap-2 bg-green-50 border border-green-100 rounded-full px-3.5 py-1.5';
+        wPill.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-600"></span><span class="text-base text-green-600">Completed</span>';
+        wBtn.textContent = 'View Worksheet Results';
+        wBtn.setAttribute('href', 'worksheet-results');
+        wBtn.className = 'inline-block bg-white border border-[#ed1c24] text-[#ed1c24] text-[15px] font-semibold rounded-md px-8 py-3.5 shadow-sm hover:bg-red-50';
+      } else {
+        wPill.className = 'inline-flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-full px-3.5 py-1.5';
+        wPill.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span><span class="text-base text-orange-500">Ready to take</span>';
+        wBtn.textContent = 'Start Worksheet';
+        wBtn.setAttribute('href', 'career-worksheet');
+        wBtn.className = 'inline-block bg-[#ed1c24] text-white text-[15px] font-semibold rounded-md px-8 py-3.5 shadow-sm hover:opacity-90';
+      }
+    }
+  })();
+</script>
+
+<script src="js/motion.js" defer></script>
+<script src="js/notifications.js" defer></script>
+</body>
+</html>

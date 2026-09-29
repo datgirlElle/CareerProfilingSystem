@@ -1,0 +1,26 @@
+# OS junk
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Editor junk
+*.swp
+*.swo
+*~
+
+# Environment / secrets (if added later)
+.env
+.env.local
+
+# Note: vendor/ is intentionally NOT ignored — packagist.org is unreachable from the
+# dev sandbox, so third-party PHP libraries (PHPMailer) are vendored directly instead
+# of pulled via Composer. Commit vendor/ as-is.
+
+# Logs
+*.log
+
+# Standalone Tailwind CLI binary used to (re)generate css/tailwind.css locally —
+# not needed at runtime or in the Docker image, and too large to commit.
+# Re-download from https://github.com/tailwindlabs/tailwindcss/releases if needed:
+#   tailwindcss -i css/tailwind-src.css -o css/tailwind.css --minify
+build-tools/

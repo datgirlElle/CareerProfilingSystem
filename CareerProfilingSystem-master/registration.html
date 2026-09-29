@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create Account — Career Profiling System</title>
+<link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
+<link rel="stylesheet" href="css/tailwind.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body{ font-family:'Inter', sans-serif; }
+  select{ appearance:none; -webkit-appearance:none; }
+</style>
+<link rel="stylesheet" href="css/motion.css">
+</head>
+<body class="min-h-screen">
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<div class="relative flex flex-col items-start justify-center min-h-screen overflow-hidden">
+
+  <!-- Background photo + triangle accents (matches login page) -->
+  <div class="absolute inset-0">
+    <img src="images/login/campus-bg.png" alt="" class="absolute inset-0 w-full h-full object-cover">
+    <div class="absolute inset-0 bg-white/70"></div>
+    <div class="absolute bottom-0 left-0 w-[500px] h-[400px] pointer-events-none select-none" style="background:#081E3C; clip-path: polygon(0% 0%, 100% 100%, 0% 100%);"></div>
+    <img src="images/login/red-triangle.svg" alt="" class="absolute bottom-0 right-0 w-[640px] pointer-events-none select-none">
+  </div>
+
+  <div class="relative flex w-full min-h-screen">
+
+    <!-- Left: Branding -->
+    <div class="hidden md:flex flex-1 relative overflow-hidden">
+      <div class="relative mt-16 mb-auto max-w-md px-8" data-reveal="left">
+        <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling — Mapúa MCL" class="w-[280px] mb-4">
+        <h1 class="text-[#001c43] text-3xl font-medium leading-tight">Career Profiling System</h1>
+        <div class="w-16 h-1 bg-[#ed1c24] mt-4 mb-4"></div>
+        <p class="text-[#001c43] text-lg leading-relaxed">
+          Empowering students. Guiding futures.
+          Data-driven insights for informed career decisions.
+        </p>
+      </div>
+    </div>
+
+    <!-- Right: Registration Card -->
+    <div class="flex flex-1 items-center justify-center p-8 py-12">
+      <div id="main-content" class="w-full max-w-[520px] bg-white border border-gray-100 rounded-xl shadow-2xl p-10 flex flex-col gap-6" data-reveal="scale" style="transition-delay:120ms">
+
+        <!-- Header -->
+        <div class="flex flex-col items-center gap-1">
+          <img src="images/login/mmcl-crest.png" alt="Mapúa MCL crest" class="w-[140px] mb-2">
+          <h2 class="text-[#001c43] text-2xl font-bold text-center">Create Your Account</h2>
+          <p class="text-gray-500 text-sm text-center">
+            Sign up to get started with <span class="text-[#ed1c24] font-semibold">Career Profiling System</span>.
+          </p>
+        </div>
+
+        <!-- Form -->
+        <form id="registerForm" class="flex flex-col gap-5">
+
+          <p id="formMessage" class="hidden text-sm rounded-md px-3.5 py-2.5"></p>
+
+          <div class="grid grid-cols-2 gap-4">
+            <input
+              type="text"
+              name="first_name"
+              placeholder="First Name"
+              aria-label="First Name"
+              required
+              class="w-full px-3.5 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+            <input
+              type="text"
+              name="last_name"
+              placeholder="Last Name"
+              aria-label="Last Name"
+              required
+              class="w-full px-3.5 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+          </div>
+
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-4">
+              <img src="images/login/icon-user.svg" alt="" class="w-full h-full">
+            </span>
+            <input
+              type="text"
+              name="school_id"
+              inputmode="numeric"
+              maxlength="12"
+              autocomplete="off"
+              placeholder="LRN (10–12 digits)"
+              aria-label="LRN"
+              required
+              class="w-full pl-10 pr-3 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+          </div>
+
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-4">
+              <img src="images/login/icon-mail.svg" alt="" class="w-full h-full">
+            </span>
+            <input
+              id="emailInput"
+              type="email"
+              name="email"
+              placeholder="Email Address"
+              aria-label="Email Address"
+              required
+              class="w-full pl-10 pr-3 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+            <p id="emailHint" class="hidden text-xs text-[#ed1c24] mt-1.5" aria-live="polite">Please enter a valid email address.</p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 items-start">
+            <div class="relative">
+              <select
+                id="strandSelect"
+                name="strand"
+                aria-label="Strand"
+                required
+                class="w-full px-3.5 py-3.5 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent bg-white">
+                <option value="">Select Strand</option>
+                <option value="STEM">STEM</option>
+                <option value="ABM">ABM</option>
+                <option value="ICT">ICT</option>
+                <option value="HUMSS">HUMSS</option>
+              </select>
+              <img src="images/login/icon-arrow-right.svg" alt="" class="absolute right-4 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rotate-90 pointer-events-none opacity-50">
+            </div>
+
+            <div class="flex gap-2 h-[52px]">
+              <input type="radio" id="grade11" name="grade_level" value="11" required class="hidden peer/g11">
+              <label for="grade11" class="grade-btn flex-1 flex items-center justify-center border border-gray-300 rounded-md text-sm text-gray-600 cursor-pointer peer-checked/g11:bg-[#ed1c24] peer-checked/g11:text-white peer-checked/g11:border-[#ed1c24] font-medium">Grade 11</label>
+              <input type="radio" id="grade12" name="grade_level" value="12" class="hidden peer/g12">
+              <label for="grade12" class="grade-btn flex-1 flex items-center justify-center border border-gray-300 rounded-md text-sm text-gray-600 cursor-pointer peer-checked/g12:bg-[#ed1c24] peer-checked/g12:text-white peer-checked/g12:border-[#ed1c24] font-medium">Grade 12</label>
+            </div>
+          </div>
+
+          <div class="relative">
+            <select
+              id="sectionSelect"
+              name="section"
+              aria-label="Section"
+              required
+              disabled
+              class="w-full px-3.5 py-3.5 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent bg-white disabled:bg-gray-50 disabled:text-gray-400">
+              <option value="">Select Strand first</option>
+            </select>
+            <img src="images/login/icon-arrow-right.svg" alt="" class="absolute right-4 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rotate-90 pointer-events-none opacity-50">
+          </div>
+
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-4">
+              <img src="images/login/icon-lock.svg" alt="" class="w-full h-full">
+            </span>
+            <input
+              id="password"
+              type="password"
+              name="password"
+              placeholder="Password"
+              aria-label="Password"
+              required
+              class="w-full pl-10 pr-10 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+            <button type="button" id="togglePassword" class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-4">
+              <img id="togglePasswordIcon" src="images/login/icon-eye.svg" alt="Show password" class="w-full h-full">
+            </button>
+          </div>
+
+          <label class="flex items-start gap-2.5 text-xs text-gray-500 leading-relaxed cursor-pointer">
+            <input type="checkbox" id="policyAgreeCheckbox" name="policy_agree" required class="mt-0.5 w-4 h-4 shrink-0 rounded border-gray-300 text-[#ed1c24] focus:ring-[#ed1c24] focus:ring-offset-0">
+            <span>
+              I agree to the <a href="terms" class="text-[#ed1c24] hover:underline">Terms of Use</a> and confirm that my personal information (name, LRN, and assessment results) will be encrypted and used only for career profiling and guidance purposes at MMCL, consistent with the <a href="privacy" class="text-[#ed1c24] hover:underline">Data Privacy Policy</a>.
+            </span>
+          </label>
+
+          <button type="submit" class="w-full py-3.5 rounded-md bg-[#ed1c24] text-white text-sm font-medium shadow hover:opacity-90 transition">
+            Create Account
+          </button>
+        </form>
+
+        <!-- Footer -->
+        <p class="text-sm text-gray-500 text-center">
+          Already have an account? <a href="login" class="text-[#ed1c24] font-semibold hover:underline">Sign in</a>
+        </p>
+        <p class="text-xs text-gray-400 text-center">
+          <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
+          <span class="mx-1.5">&middot;</span>
+          <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
+          <span class="mx-1.5">&middot;</span>
+          <a href="accessibility" class="hover:text-gray-600 hover:underline">Accessibility</a>
+        </p>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Success modal — shown instead of the inline message bar after a
+     successful registration, since the inline bar was easy to miss and
+     led people to click "Create Account" again, which then failed as a
+     duplicate. Same modal-backdrop/modal-card convention used across the
+     app (see assessment-instructions.html's access-code modal). -->
+<div id="successModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4 text-center items-center">
+    <div class="w-14 h-14 rounded-full bg-green-50 flex items-center justify-center">
+      <svg viewBox="0 0 24 24" fill="none" class="w-7 h-7 text-green-600">
+        <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h3 class="text-lg font-semibold text-[#001c43]">Account Created!</h3>
+    <p id="successMessage" class="text-sm text-gray-500 leading-relaxed"></p>
+    <div id="successVerifyLinkBox" class="hidden w-full bg-amber-50 border border-amber-100 rounded-md px-3.5 py-2.5 text-left break-all">
+      <p class="text-xs text-amber-800">The verification email couldn't be delivered. Use this link directly: <a id="successVerifyLinkAnchor" href="#" class="font-semibold underline"></a></p>
+    </div>
+    <a href="login" class="w-full py-3 rounded-md bg-[#ed1c24] text-white text-sm font-medium shadow hover:opacity-90 transition text-center">
+      Go to Sign In
+    </a>
+    <button type="button" id="successModalClose" class="text-xs text-gray-400 hover:text-gray-600 hover:underline">
+      Register another account
+    </button>
+  </div>
+</div>
+
+<script>
+  document.getElementById('togglePassword').addEventListener('click', function () {
+    const input = document.getElementById('password');
+    const icon = document.getElementById('togglePasswordIcon');
+    const willShow = input.type === 'password';
+    input.type = willShow ? 'text' : 'password';
+    icon.src = willShow ? 'images/login/icon-eye-open.svg' : 'images/login/icon-eye.svg';
+    icon.alt = willShow ? 'Hide password' : 'Show password';
+  });
+
+  // Section is a fixed list of real section codes, one strand each — the
+  // dropdown is cascading (disabled/empty until a Strand is picked) rather
+  // than free text, matching the server-side SECTIONS_BY_STRAND allow-list
+  // in api/register.php.
+  (function() {
+    const SECTIONS_BY_STRAND = {
+      STEM: ['S1114', 'S1109'],
+      ABM: ['A1101', 'A1102'],
+      ICT: ['I1101', 'I1102'],
+      HUMSS: ['H1102'],
+    };
+    const strandSelect = document.getElementById('strandSelect');
+    const sectionSelect = document.getElementById('sectionSelect');
+    strandSelect.addEventListener('change', function() {
+      const sections = SECTIONS_BY_STRAND[strandSelect.value] || [];
+      sectionSelect.innerHTML = '';
+      if (!sections.length) {
+        sectionSelect.disabled = true;
+        sectionSelect.appendChild(new Option('Select Strand first', ''));
+        return;
+      }
+      sectionSelect.disabled = false;
+      sectionSelect.appendChild(new Option('Select Section', ''));
+      sections.forEach(code => sectionSelect.appendChild(new Option(code, code)));
+    });
+  })();
+
+  // Live feedback on blur, rather than only after a full form submit attempt.
+  (function() {
+    const emailInput = document.getElementById('emailInput');
+    const emailHint = document.getElementById('emailHint');
+    emailInput.addEventListener('blur', function() {
+      const invalid = emailInput.value !== '' && !emailInput.checkValidity();
+      emailHint.classList.toggle('hidden', !invalid);
+      emailInput.classList.toggle('border-[#ed1c24]', invalid);
+      emailInput.classList.toggle('border-gray-300', !invalid);
+    });
+    emailInput.addEventListener('input', function() {
+      if (emailInput.checkValidity() || emailInput.value === '') {
+        emailHint.classList.add('hidden');
+        emailInput.classList.remove('border-[#ed1c24]');
+        emailInput.classList.add('border-gray-300');
+      }
+    });
+  })();
+
+  (function() {
+    function showMessage(text, isError) {
+      const msg = document.getElementById('formMessage');
+      msg.textContent = text;
+      msg.className = 'text-sm rounded-md px-3.5 py-2.5 ' + (isError
+        ? 'text-[#ed1c24] bg-red-50 border border-red-100'
+        : 'text-green-700 bg-green-50 border border-green-100');
+      void msg.offsetWidth;
+      msg.classList.add('alert-anim');
+    }
+
+    // Success confirmation moved to a modal (rather than the same inline
+    // bar used for errors) — the inline bar was easy to miss, which led
+    // people to click "Create Account" again and hit a "already exists"
+    // error, confused about whether the first attempt had worked.
+    const successModal = document.getElementById('successModal');
+    function openSuccessModal(email, verifyLink) {
+      document.getElementById('successMessage').textContent =
+        'We\'ve sent a verification link to ' + email + '. Click it before you can sign in.';
+      const linkBox = document.getElementById('successVerifyLinkBox');
+      if (verifyLink) {
+        const anchor = document.getElementById('successVerifyLinkAnchor');
+        anchor.href = verifyLink;
+        anchor.textContent = verifyLink;
+        linkBox.classList.remove('hidden');
+      } else {
+        linkBox.classList.add('hidden');
+      }
+      successModal.classList.remove('hidden');
+      setTimeout(function() { successModal.classList.add('is-open'); }, 16);
+    }
+    function closeSuccessModal() {
+      successModal.classList.remove('is-open');
+      setTimeout(function() { successModal.classList.add('hidden'); }, 260);
+    }
+    document.getElementById('successModalClose').addEventListener('click', closeSuccessModal);
+    successModal.addEventListener('click', function(e) { if (e.target.id === 'successModal') closeSuccessModal(); });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && !successModal.classList.contains('hidden')) closeSuccessModal(); });
+
+    document.getElementById('registerForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const form = e.target;
+      const firstName = form.first_name.value.trim();
+      const lastName = form.last_name.value.trim();
+      const schoolId = form.school_id.value.trim();
+      const email = form.email.value.trim();
+      const strand = form.strand.value;
+      const gradeLevel = form.querySelector('input[name="grade_level"]:checked');
+      const section = form.section.value.trim();
+      const password = form.password.value;
+      const privacyConsent = document.getElementById('policyAgreeCheckbox').checked;
+
+      if (!firstName || !lastName || !schoolId || !email || !strand || !gradeLevel || !section || !password) {
+        showMessage('Please fill out all fields.', true);
+        return;
+      }
+      if (!/^[0-9]{10,12}$/.test(schoolId)) {
+        showMessage('LRN must be 10 to 12 digits (numbers only, no spaces or symbols).', true);
+        return;
+      }
+      if (!privacyConsent) {
+        showMessage('You must agree to the Data Privacy Policy to create an account.', true);
+        return;
+      }
+
+      // Sending the verification email happens inline in this same
+      // request, so it can take a few real seconds — without a visible
+      // "in progress" state, a disabled-but-otherwise-unchanged button
+      // looks the same as nothing happening at all, which is exactly what
+      // led to repeated submit clicks before.
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const submitBtnDefaultHtml = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="inline-flex items-center justify-center gap-2">'
+        + '<svg class="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>'
+        + 'Creating Account…</span>';
+
+      try {
+        const res = await fetch('api/register.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            firstName, lastName, schoolId, email, strand,
+            gradeLevel: gradeLevel.value,
+            section,
+            password,
+            privacyConsent
+          })
+        });
+        const data = await res.json();
+
+        if (!data.success) {
+          showMessage(data.error || 'Registration failed. Please try again.', true);
+          return;
+        }
+
+        openSuccessModal(email, data.verifyLink || null);
+        form.reset();
+      } catch (err) {
+        showMessage('Unable to reach the server. Please try again.', true);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = submitBtnDefaultHtml;
+      }
+    });
+  })();
+</script>
+
+<script src="js/motion.js" defer></script>
+</body>
+</html>
