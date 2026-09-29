@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$student) {
             jsonResponse(['success' => false, 'error' => 'Student account not found.'], 404);
         }
-        if (!in_array($section, SECTIONS_BY_STRAND[$student['strand']] ?? [], true)) {
+        if (!Sections::isValid($pdo, $student['strand'], $section)) {
             jsonResponse(['success' => false, 'error' => 'Invalid section for this student\'s strand.'], 400);
         }
         if ($student['section'] !== $section) {
@@ -123,7 +123,16 @@ if ($schoolIdLookup !== '') {
         'strand' => $row['strand'],
         'gradeLevel' => $row['grade_level'],
         'section' => $row['section'],
-        'allowedSections' => SECTIONS_BY_STRAND[$row['strand']] ?? [],
+        'allowedSections' => (function () use ($pdo, $row) {
+            $sections = Sections::byStrand($pdo)[$row['strand']] ?? [];
+            // Keep the student's current section selectable even if it's
+            // since been deactivated — otherwise the dropdown silently
+            // wouldn't offer their own existing value.
+            if ($row['section'] && !in_array($row['section'], $sections, true)) {
+                $sections[] = $row['section'];
+            }
+            return $sections;
+        })(),
         'academicYear' => $row['academic_year'],
         'isActive' => (bool) $row['is_active'],
         'status' => $hasAssessment ? 'Completed' : 'Pending',

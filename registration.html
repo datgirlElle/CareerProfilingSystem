@@ -231,21 +231,25 @@
     icon.alt = willShow ? 'Hide password' : 'Show password';
   });
 
-  // Section is a fixed list of real section codes, one strand each — the
-  // dropdown is cascading (disabled/empty until a Strand is picked) rather
-  // than free text, matching the server-side SECTIONS_BY_STRAND allow-list
-  // in api/register.php.
-  (function() {
-    const SECTIONS_BY_STRAND = {
-      STEM: ['S1114', 'S1109'],
-      ABM: ['A1101', 'A1102'],
-      ICT: ['I1101', 'I1102'],
-      HUMSS: ['H1102'],
-    };
+  // Section is an admin-managed list (Security Configuration's Section
+  // Management, api/sections.php), one strand each — the dropdown is
+  // cascading (disabled/empty until a Strand is picked) rather than free
+  // text, matching the server-side Sections::isValid() allow-list in
+  // api/register.php.
+  (async function() {
+    let sectionsByStrand = {};
+    try {
+      const res = await fetch('api/sections.php');
+      const data = await res.json();
+      sectionsByStrand = data.sectionsByStrand || {};
+    } catch (err) {
+      // Leave sectionsByStrand empty — the dropdown just stays on "Select
+      // Strand first" for every strand, same as a strand with no sections.
+    }
     const strandSelect = document.getElementById('strandSelect');
     const sectionSelect = document.getElementById('sectionSelect');
     strandSelect.addEventListener('change', function() {
-      const sections = SECTIONS_BY_STRAND[strandSelect.value] || [];
+      const sections = sectionsByStrand[strandSelect.value] || [];
       sectionSelect.innerHTML = '';
       if (!sections.length) {
         sectionSelect.disabled = true;

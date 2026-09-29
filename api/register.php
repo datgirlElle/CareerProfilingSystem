@@ -16,6 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
 }
 
+$pdo = Database::get();
+
 $body = readJsonBody();
 $schoolId = trim((string) ($body['schoolId'] ?? ''));
 $firstName = trim((string) ($body['firstName'] ?? ''));
@@ -50,11 +52,9 @@ if (!in_array($strand, ['STEM', 'ABM', 'ICT', 'HUMSS'], true)) {
 if (!in_array($gradeLevel, ['11', '12'], true)) {
     jsonResponse(['success' => false, 'error' => 'Invalid grade level.'], 400);
 }
-if (!in_array($section, SECTIONS_BY_STRAND[$strand], true)) {
+if (!Sections::isValid($pdo, $strand, $section)) {
     jsonResponse(['success' => false, 'error' => 'Invalid section for the selected strand.'], 400);
 }
-
-$pdo = Database::get();
 
 function passwordPolicy(PDO $pdo): array
 {

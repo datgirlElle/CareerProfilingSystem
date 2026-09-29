@@ -467,19 +467,19 @@
     });
   }
 
-  // Section is a fixed list of real section codes, one strand each --
-  // cascading off the Strand select rather than free text, so a schedule
-  // can never target a section that doesn't actually exist (a typo here
-  // used to mean the schedule silently matched zero students, since the
-  // access-code gate compares against the exact stored value). "All" (no
-  // strand picked) forces Section back to "All" too, since every section
-  // belongs to exactly one strand.
-  const SECTIONS_BY_STRAND = {
-    STEM: ['S1114', 'S1109'],
-    ABM: ['A1101', 'A1102'],
-    ICT: ['I1101', 'I1102'],
-    HUMSS: ['H1102'],
-  };
+  // Section is an admin-managed list (Security Configuration's Section
+  // Management, api/sections.php), one strand each -- cascading off the
+  // Strand select rather than free text, so a schedule can never target a
+  // section that doesn't actually exist (a typo here used to mean the
+  // schedule silently matched zero students, since the access-code gate
+  // compares against the exact stored value). "All" (no strand picked)
+  // forces Section back to "All" too, since every section belongs to
+  // exactly one strand.
+  let SECTIONS_BY_STRAND = {};
+  fetch('api/sections.php').then(r => r.json()).then(data => {
+    SECTIONS_BY_STRAND = data.sectionsByStrand || {};
+    updateSectionOptions();
+  }).catch(() => {});
   // No scheduling a session in the past, and no picking a start time that's
   // already gone by for today. The school's own clock is Asia/Manila, and
   // the API enforces the same rule server-side (see api/exam-schedules.php)

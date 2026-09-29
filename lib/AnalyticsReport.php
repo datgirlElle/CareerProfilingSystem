@@ -178,7 +178,9 @@ class AnalyticsReport
             'section' => $section,
             'totalStudents' => $totalStudents,
             'expectedTotal' => $expectedTotal,
-            'sectionsByStrand' => SECTIONS_BY_STRAND,
+            // Not active-only — a filter dropdown should still offer a
+            // since-deactivated section so past terms' data stays filterable.
+            'sectionsByStrand' => Sections::byStrand($pdo, false),
             // All three rates below are expressed against the same denominator —
             // the expected student total (see above) — rather than each other's
             // narrower subpopulation (e.g. worksheet completion against only

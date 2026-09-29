@@ -266,6 +266,21 @@
             </div>
           </div>
 
+          <!-- Section Management -->
+          <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="border-b border-slate-200 flex items-center gap-3 px-5 py-5">
+              <img src="images/security/icon-people.svg" alt="" class="w-4 h-4">
+              <div>
+                <h2 class="text-base font-semibold text-slate-900">Section Management</h2>
+                <p class="text-xs text-slate-500">Sections offered per strand, used at registration, exam scheduling, and student records. Deactivating one keeps existing students' data intact but stops it being offered for new registrations.</p>
+              </div>
+            </div>
+            <div class="p-5 flex flex-col gap-4" id="sectionsContainer">
+              <p class="text-xs text-slate-400">Loading…</p>
+            </div>
+            <p id="sectionsStatus" class="hidden text-xs px-5 pb-4" aria-live="polite"></p>
+          </div>
+
           <!-- System Customization -->
           <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
             <div class="border-b border-slate-200 flex items-center gap-3 px-5 py-5">
@@ -571,6 +586,7 @@
     ];
     const ROLES = ['admin', 'counselor', 'student'];
     const LEVEL_LABEL = { full: 'Full Access', limited: 'Limited Access', none: 'No Access' };
+    const SECTION_STRANDS = ['STEM', 'ABM', 'ICT', 'HUMSS'];
 
     let state = null;
 
@@ -595,6 +611,85 @@
           el.classList.add('opacity-60', 'cursor-not-allowed');
         });
       }
+    }
+
+    let sectionsData = [];
+    function showSectionsStatus(text, isError) {
+      const el = document.getElementById('sectionsStatus');
+      el.textContent = text;
+      el.className = 'text-xs px-5 pb-4' + (isError ? ' text-[#ed1c24]' : ' text-green-600');
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 3000);
+    }
+    async function loadSections() {
+      const res = await fetch('api/sections.php?all=1');
+      const data = await res.json();
+      sectionsData = data.sections || [];
+      renderSections();
+    }
+    function renderSections() {
+      const container = document.getElementById('sectionsContainer');
+      const disabledAttr = isAdmin ? '' : ' disabled';
+      const disabledCls = isAdmin ? '' : ' opacity-60 cursor-not-allowed';
+      container.innerHTML = SECTION_STRANDS.map(function(strand) {
+        const items = sectionsData.filter(s => s.strand === strand);
+        const pills = items.length ? items.map(function(s) {
+          const styleCls = s.isActive
+            ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+            : 'bg-slate-100 border-slate-200 text-slate-400 line-through';
+          return '<button type="button" class="section-pill border rounded-full px-3 py-1.5 text-xs font-medium ' + styleCls + disabledCls + '" data-id="' + s.id + '"' + disabledAttr + ' title="' + (s.isActive ? 'Click to deactivate' : 'Click to reactivate') + '">' + s.code + '</button>';
+        }).join('') : '<p class="text-xs text-slate-400">No sections yet.</p>';
+        return '<div class="border border-slate-200 rounded-lg p-[17px] flex flex-col gap-3">' +
+          '<p class="text-sm font-semibold text-slate-800">' + strand + '</p>' +
+          '<div class="flex flex-wrap gap-2">' + pills + '</div>' +
+          '<div class="flex items-center gap-2">' +
+            '<input type="text" maxlength="20" class="add-section-input flex-1 border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#ed1c24]' + disabledCls + '" placeholder="New section code, e.g. S1115" data-strand="' + strand + '"' + disabledAttr + '>' +
+            '<button type="button" class="add-section-btn px-4 py-2 text-xs font-semibold text-white bg-[#0f2a6b] rounded-md hover:opacity-90 shrink-0' + disabledCls + '" data-strand="' + strand + '"' + disabledAttr + '>Add</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      if (!isAdmin) return;
+
+      container.querySelectorAll('.section-pill').forEach(function(btn) {
+        btn.addEventListener('click', async function() {
+          btn.disabled = true;
+          const res = await fetch('api/sections.php', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'toggleActive', id: parseInt(btn.dataset.id, 10) })
+          });
+          const data = await res.json();
+          if (data.success) {
+            showSectionsStatus(data.isActive ? 'Section reactivated.' : 'Section deactivated.', false);
+            await loadSections();
+          } else {
+            showSectionsStatus(data.error || 'Failed to update section.', true);
+            btn.disabled = false;
+          }
+        });
+      });
+      container.querySelectorAll('.add-section-btn').forEach(function(btn) {
+        btn.addEventListener('click', async function() {
+          const strand = btn.dataset.strand;
+          const input = container.querySelector('.add-section-input[data-strand="' + strand + '"]');
+          const code = input.value.trim();
+          if (!code) return;
+          btn.disabled = true;
+          const res = await fetch('api/sections.php', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'create', strand: strand, code: code })
+          });
+          const data = await res.json();
+          btn.disabled = false;
+          if (data.success) {
+            input.value = '';
+            showSectionsStatus('Section added.', false);
+            await loadSections();
+          } else {
+            showSectionsStatus(data.error || 'Failed to add section.', true);
+          }
+        });
+      });
     }
 
     function renderSystemCustomization() {
@@ -982,6 +1077,7 @@
     }
 
     await loadState();
+    await loadSections();
   })();
 })();
 </script>

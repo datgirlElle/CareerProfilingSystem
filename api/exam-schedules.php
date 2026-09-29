@@ -198,7 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // to exactly one strand).
         $section = trim((string) ($body['section'] ?? ''));
         if ($section !== '') {
-            if ($strand === null || !in_array($section, SECTIONS_BY_STRAND[$strand] ?? [], true)) {
+            if ($strand === null || !Sections::isValid($pdo, $strand, $section)) {
                 jsonResponse(['success' => false, 'error' => 'Invalid section for the selected strand.'], 400);
             }
         } else {

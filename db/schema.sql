@@ -50,6 +50,22 @@ CREATE TABLE colleges (
     name    VARCHAR(255) NOT NULL
 );
 
+-- Admin-manageable section list, one strand each (see lib/Sections.php,
+-- the server-side source of truth for every place a section is accepted:
+-- registration, exam scheduling, staff section-corrections). Deactivated
+-- rather than deleted when a section stops being offered, so a student
+-- already registered under it keeps valid historical data — it just stops
+-- being offered for new registrations/schedules.
+CREATE TABLE sections (
+    id          SERIAL PRIMARY KEY,
+    strand      VARCHAR(10) NOT NULL CHECK (strand IN ('STEM', 'ABM', 'ICT', 'HUMSS')),
+    code        VARCHAR(20) NOT NULL,
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by  INT REFERENCES users(id),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX idx_sections_strand_code ON sections (strand, LOWER(code));
+
 CREATE TABLE students (
     user_id         INT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     school_id       VARCHAR(50) NOT NULL UNIQUE,
