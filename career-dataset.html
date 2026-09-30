@@ -336,6 +336,10 @@
         <input type="text" id="editHollandCode" required maxlength="3" placeholder="e.g. RIC" class="border border-slate-300 rounded-md px-3 py-2 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
         <p class="text-xs text-slate-500">Letter order matters — the 1st letter is weighted highest in career matching.</p>
       </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-xs font-medium text-slate-600">Related SHS Strands <span class="text-slate-400">(used in career matching)</span></label>
+        <div id="editStrands" class="flex flex-wrap gap-x-4 gap-y-2"></div>
+      </div>
       <div class="flex flex-col gap-1">
         <label class="text-xs font-medium text-slate-600">Description <span class="text-slate-400">(optional, shown to students on their Career Results page)</span></label>
         <textarea id="editDescription" rows="3" maxlength="1000" placeholder="A short description of what this program covers and where it leads." class="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></textarea>
@@ -658,6 +662,14 @@
   const editHollandCode = document.getElementById('editHollandCode');
   const editDescription = document.getElementById('editDescription');
   const editStatus = document.getElementById('editStatus');
+  const editStrands = document.getElementById('editStrands');
+  let strandOptions = [];
+
+  function renderStrandCheckboxes(selected) {
+    editStrands.innerHTML = strandOptions.map(s =>
+      `<label class="inline-flex items-center gap-1.5 text-sm text-slate-700"><input type="checkbox" class="edit-strand-cb accent-[#ed1c24]" value="${escapeHtml(s)}"${selected.includes(s) ? ' checked' : ''}>${escapeHtml(s)}</label>`
+    ).join('');
+  }
 
   function openEditModal(id) {
     const program = programs.find(p => String(p.id) === String(id));
@@ -668,6 +680,7 @@
     editHollandCode.value = program.hollandCode;
     editDescription.value = program.description || '';
     editStatus.value = program.status;
+    renderStrandCheckboxes(program.relatedStrands || []);
     editModal.classList.remove('hidden');
   }
 
@@ -694,7 +707,8 @@
       body: JSON.stringify({
         id: id, title: editTitle.value.trim(), collegeId: Number(editDepartment.value),
         hollandCode: hollandCode, status: editStatus.value,
-        description: editDescription.value.trim()
+        description: editDescription.value.trim(),
+        relatedStrands: Array.from(editStrands.querySelectorAll('.edit-strand-cb:checked')).map(cb => cb.value)
       })
     });
     const data = await res.json();
@@ -723,6 +737,7 @@
     const data = await (await fetch('api/programs.php?all=1&meta=1')).json();
     programs = data.programs;
     colleges = data.colleges;
+    strandOptions = data.strands || [];
     collegeColor = {};
     colleges.forEach((c, i) => { collegeColor[c.code] = COLLEGE_COLORS[i % COLLEGE_COLORS.length]; });
 

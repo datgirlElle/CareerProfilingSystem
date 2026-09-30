@@ -1,6 +1,8 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/CBFEngine.php';
+require_once __DIR__ . '/../lib/CBFData.php';
 
 $pdo = Database::get();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -12,7 +14,7 @@ if ($method === 'GET') {
         Rbac::requireAccess('career', 'limited');
     }
 
-    $sql = 'SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, p.status, p.college_id, c.code AS college_code, c.name AS college_name
+    $sql = 'SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, p.related_strands, p.status, p.college_id, c.code AS college_code, c.name AS college_name
             FROM programs p JOIN colleges c ON c.id = p.college_id';
     if (!$includeInactive) {
         $sql .= " WHERE p.status = 'Active'";
@@ -25,6 +27,7 @@ if ($method === 'GET') {
         'title' => Crypto::dec($r['title_enc']),
         'hollandCode' => Crypto::dec($r['holland_code_enc']),
         'description' => $r['description_enc'] !== null ? Crypto::dec($r['description_enc']) : '',
+        'relatedStrands' => CBFData::parseTextArray($r['related_strands']),
         'status' => $r['status'],
         'collegeId' => (int) $r['college_id'],
         'collegeCode' => $r['college_code'],
@@ -39,6 +42,12 @@ if ($method === 'GET') {
             'code' => $r['code'],
             'name' => $r['name'],
         ], $pdo->query('SELECT id, code, name FROM colleges ORDER BY code')->fetchAll());
+        // Feature vocabularies from config/cbf.php, so the admin forms and the
+        // Career Worksheet use exactly the lists the CBF engine compares on.
+        $cbfConfig = CBFEngine::config();
+        $response['strands'] = $cbfConfig['strands'];
+        $response['electiveClusters'] = $cbfConfig['elective_clusters'];
+        $response['collegeElectives'] = $cbfConfig['college_electives'];
     }
 
     if (isset($_GET['stats'])) {
@@ -84,13 +93,25 @@ function readProgramInput(array $body): array
         jsonResponse(['success' => false, 'error' => 'A college is required.'], 400);
     }
 
-    return [$title, $hollandCode, $description, $collegeId, $status];
+    // Optional; null = "not sent" (PUT then keeps the stored value).
+    $relatedStrands = null;
+    if (array_key_exists('relatedStrands', $body)) {
+        $relatedStrands = $body['relatedStrands'];
+        $allowed = CBFEngine::config()['strands'];
+        if (!is_array($relatedStrands) || array_filter($relatedStrands, fn($s) => !is_string($s) || !in_array($s, $allowed, true))) {
+            jsonResponse(['success' => false, 'error' => 'Related strands must be from: ' . implode(', ', $allowed) . '.'], 400);
+        }
+        // Stored in the configured strand order, without duplicates.
+        $relatedStrands = array_values(array_intersect($allowed, $relatedStrands));
+    }
+
+    return [$title, $hollandCode, $description, $collegeId, $status, $relatedStrands];
 }
 
 if ($method === 'POST') {
     $user = Rbac::requireAccess('career', 'full');
     $body = readJsonBody();
-    [$title, $hollandCode, $description, $collegeId, $status] = readProgramInput($body);
+    [$title, $hollandCode, $description, $collegeId, $status, $relatedStrands] = readProgramInput($body);
 
     $exists = $pdo->prepare('SELECT id FROM colleges WHERE id = ?');
     $exists->execute([$collegeId]);
@@ -99,9 +120,12 @@ if ($method === 'POST') {
     }
 
     $insert = $pdo->prepare(
-        'INSERT INTO programs (college_id, title_enc, holland_code_enc, description_enc, status) VALUES (?, ?, ?, ?, ?) RETURNING id'
+        'INSERT INTO programs (college_id, title_enc, holland_code_enc, description_enc, related_strands, status) VALUES (?, ?, ?, ?, ?, ?) RETURNING id'
     );
-    $insert->execute([$collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null, $status]);
+    $insert->execute([
+        $collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null,
+        CBFData::textArrayLiteral($relatedStrands ?? []), $status,
+    ]);
     $id = (int) $insert->fetchColumn();
 
     AuditLogger::log($user['id'], $user['role'], 'create_program', 'program', (string) $id, $title);
@@ -123,7 +147,7 @@ if ($method === 'PUT') {
         jsonResponse(['success' => false, 'error' => 'Program not found.'], 404);
     }
 
-    [$title, $hollandCode, $description, $collegeId, $status] = readProgramInput($body);
+    [$title, $hollandCode, $description, $collegeId, $status, $relatedStrands] = readProgramInput($body);
 
     $collegeCheck = $pdo->prepare('SELECT id FROM colleges WHERE id = ?');
     $collegeCheck->execute([$collegeId]);
@@ -132,9 +156,13 @@ if ($method === 'PUT') {
     }
 
     $update = $pdo->prepare(
-        'UPDATE programs SET college_id = ?, title_enc = ?, holland_code_enc = ?, description_enc = ?, status = ?, updated_at = NOW() WHERE id = ?'
+        'UPDATE programs SET college_id = ?, title_enc = ?, holland_code_enc = ?, description_enc = ?,
+            related_strands = COALESCE(?::text[], related_strands), status = ?, updated_at = NOW() WHERE id = ?'
     );
-    $update->execute([$collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null, $status, $id]);
+    $update->execute([
+        $collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null,
+        $relatedStrands !== null ? CBFData::textArrayLiteral($relatedStrands) : null, $status, $id,
+    ]);
 
     AuditLogger::log($user['id'], $user['role'], 'update_program', 'program', (string) $id, $title);
 

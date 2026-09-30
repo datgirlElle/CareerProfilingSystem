@@ -69,6 +69,8 @@ CREATE TABLE programs (
     title_enc           TEXT NOT NULL,
     holland_code_enc    TEXT NOT NULL,
     description_enc     TEXT,
+    -- SHS strands aligned with this program (CBF "strand" feature); '{}' = not specified.
+    related_strands     TEXT[] NOT NULL DEFAULT '{}',
     status              VARCHAR(10) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Inactive')),
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()

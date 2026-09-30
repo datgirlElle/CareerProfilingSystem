@@ -319,9 +319,14 @@
 
   const goalTitle = statedProgram ? statedProgram.title : 'your stated program';
   const cosinePct = statedProgram ? Math.round(statedProgram.cosine * 100) : 0;
-  const analysis = isAligned
-    ? 'Your RIASEC profile is a ' + cosinePct + '% cosine match with "' + goalTitle + '," which is why it lands in your own top-3 career recommendations. The electives you chose reinforce the skills this path typically calls for.'
-    : 'Your RIASEC profile is only a ' + cosinePct + '% cosine match with "' + goalTitle + ',"  so it did not make your own top-3 recommendation list based purely on interest fit. That doesn\'t rule it out — consider discussing this with a counselor to explore how your strengths could still support this goal.';
+  // Newer snapshots compare the whole profile (RIASEC + strand + electives)
+  // and carry an explanation of what matched; older ones were RIASEC-only.
+  const explanation = statedProgram && statedProgram.explanation;
+  const profileLabel = explanation ? 'Your profile' : 'Your RIASEC profile';
+  const analysis = (isAligned
+    ? profileLabel + ' is a ' + cosinePct + '% cosine match with "' + goalTitle + '," which is why it lands in your own top-3 career recommendations.' + (explanation ? '' : ' The electives you chose reinforce the skills this path typically calls for.')
+    : profileLabel + ' is only a ' + cosinePct + '% cosine match with "' + goalTitle + ',"  so it did not make your own top-3 recommendation list based ' + (explanation ? 'on profile fit' : 'purely on interest fit') + '. That doesn\'t rule it out — consider discussing this with a counselor to explore how your strengths could still support this goal.')
+    + (explanation ? ' ' + explanation : '');
   document.getElementById('analysisText').textContent = analysis;
 })();
 </script>

@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/CBFData.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     jsonResponse(['error' => 'Method not allowed'], 405);
@@ -31,22 +32,13 @@ if (!$row) {
     jsonResponse(['hasRecommendation' => false]);
 }
 
-function parsePgTextArray(?string $raw): array
-{
-    if ($raw === null || $raw === '{}') {
-        return [];
-    }
-    preg_match_all('/"((?:[^"\\\\]|\\\\.)*)"/', $raw, $m);
-    return array_map(fn($s) => str_replace(['\\"', '\\\\'], ['"', '\\'], $s), $m[1]);
-}
-
 $electives = [];
 if ($row['source_worksheet_id'] !== null) {
     $wsStmt = $pdo->prepare('SELECT electives FROM worksheets WHERE id = ?');
     $wsStmt->execute([(int) $row['source_worksheet_id']]);
     $wsRow = $wsStmt->fetch();
     if ($wsRow) {
-        $electives = parsePgTextArray($wsRow['electives']);
+        $electives = CBFData::parseTextArray($wsRow['electives']);
     }
 }
 
@@ -108,6 +100,10 @@ function enrichEntry(array $scoreEntry, array $programs): ?array
         'cosine' => (float) $scoreEntry['cosine'],
         'score' => (float) $scoreEntry['score'],
         'matchPercent' => (int) round($scoreEntry['score'] * 100),
+        // Present on snapshots computed by the multi-attribute CBF engine;
+        // null on older RIASEC-only snapshots, where the UI keeps its old text.
+        'matchingFactors' => $scoreEntry['matches'] ?? null,
+        'explanation' => $scoreEntry['explanation'] ?? null,
     ];
 }
 

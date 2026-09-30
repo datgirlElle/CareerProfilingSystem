@@ -203,6 +203,11 @@
           <p class="text-xs text-slate-500">Letter order matters — the 1st letter (R, I, A, S, E, or C) is weighted highest in career matching.</p>
         </div>
 
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-medium text-slate-600">Related SHS Strands <span class="text-slate-400">(the strands MMCL aligns with this program; used in career matching)</span></label>
+          <div id="strandsInput" class="flex flex-wrap gap-x-4 gap-y-2"></div>
+        </div>
+
         <div class="flex flex-col gap-1">
           <label class="text-xs font-medium text-slate-600">Description <span class="text-slate-400">(optional, shown to students on their Career Results page)</span></label>
           <textarea id="descriptionInput" rows="3" maxlength="1000" placeholder="A short description of what this program covers and where it leads." class="border border-slate-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></textarea>
@@ -316,6 +321,9 @@
       opt.textContent = c.code + ' — ' + c.name;
       collegeSelect.appendChild(opt);
     });
+    document.getElementById('strandsInput').innerHTML = (data.strands || []).map(function(s) {
+      return '<label class="inline-flex items-center gap-1.5 text-sm text-slate-700"><input type="checkbox" class="strand-cb accent-[#ed1c24]" value="' + s + '">' + s + '</label>';
+    }).join('');
     if (!(data.colleges || []).length) showError('No colleges are set up yet, so a program can’t be added.');
   } catch (e) {
     showError('Could not load the college list. Please refresh the page.');
@@ -336,6 +344,7 @@
           status: document.getElementById('statusInput').value,
           hollandCode: document.getElementById('hollandCodeInput').value.trim(),
           description: document.getElementById('descriptionInput').value.trim(),
+          relatedStrands: Array.from(document.querySelectorAll('#strandsInput .strand-cb:checked')).map(function(cb) { return cb.value; }),
         })
       });
       const data = await res.json();

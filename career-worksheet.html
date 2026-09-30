@@ -269,43 +269,12 @@
       return '<div class="flex flex-col gap-1"><p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase">Dimension ' + (i + 1) + '</p><p class="text-base font-semibold text-[#191c1e]">' + label + '</p></div>';
     }).join('');
 
-  // Real MMCL SHS elective clusters
-  const CLUSTERS = {
-    'Arts, Social Sciences and Humanities Cluster': [
-      'Introduction to the Philosophy of the Human Person', 'Creative Writing', 'Citizenship and Civic Engagement',
-      'Creative Industries (Music, Dance, Theater)', 'Creative Industries (Visual, Media and Traditional Art)', 'The Social Sciences in Theory and Practice'
-    ],
-    'Business and Entrepreneurship Cluster': [
-      'Introduction to Organization and Management', 'Basic Accounting', 'Business Finance and Income Taxation',
-      'Contemporary Marketing and Business Economics', 'Entrepreneurship'
-    ],
-    'Information and Communication Technology Cluster': [
-      'Animation', 'Contact Center Services', 'Computer Programming (JAVA)'
-    ],
-    'Sports, Health, and Wellness Cluster': [
-      'Physical Education (Sports and Dance)'
-    ],
-    'Field Experience': [
-      'Research Methods', 'Design and Innovation'
-    ],
-    'Science, Technology, Engineering and Mathematics Cluster': [
-      'Biology 1-2', 'Chemistry 1-2', 'Physics 1-2', 'Pre-Calculus 1-2', 'Trigonometry 1-2', 'Earth and Space Science 1-2'
-    ]
-  };
-
-  // College -> recommended electives (drawn from the clusters above). The program a
-  // student picks belongs to exactly one college, so electives are keyed off that
-  // college rather than free-text keyword matching against a job title.
-  const COLLEGE_ELECTIVES = {
-    CAS:   ['Creative Writing', 'Creative Industries (Visual, Media and Traditional Art)', 'Creative Industries (Music, Dance, Theater)', 'Animation'],
-    CCIS:  ['Computer Programming (JAVA)', 'Design and Innovation', 'Research Methods', 'Contact Center Services'],
-    CHS:   ['Biology 1-2', 'Chemistry 1-2', 'Research Methods', 'Physical Education (Sports and Dance)'],
-    CN:    ['Biology 1-2', 'Chemistry 1-2', 'Physical Education (Sports and Dance)', 'Research Methods'],
-    ETYCB: ['Introduction to Organization and Management', 'Basic Accounting', 'Business Finance and Income Taxation', 'Contemporary Marketing and Business Economics', 'Entrepreneurship'],
-    MITL:  ['Physics 1-2', 'Pre-Calculus 1-2', 'Trigonometry 1-2', 'Design and Innovation', 'Research Methods'],
-    MIA:   ['Physics 1-2', 'Trigonometry 1-2', 'Earth and Space Science 1-2', 'Research Methods'],
-    CMET:  ['Physics 1-2', 'Earth and Space Science 1-2', 'Trigonometry 1-2', 'Research Methods']
-  };
+  // Elective clusters and the college -> electives mapping come from
+  // config/cbf.php (via api/programs.php?meta), the same lists the CBF
+  // recommendation engine uses when it compares electives with programs.
+  const programsData = await (await fetch('api/programs.php?meta=1')).json();
+  const CLUSTERS = programsData.electiveClusters || {};
+  const COLLEGE_ELECTIVES = programsData.collegeElectives || {};
 
   function clusterOf(electiveName) {
     for (const cluster in CLUSTERS) {
@@ -378,7 +347,6 @@
       : 'bg-gray-200 text-gray-400 text-sm font-semibold rounded-md px-8 py-3.5 cursor-not-allowed transition-opacity';
   }
 
-  const programsData = await (await fetch('api/programs.php?meta=1')).json();
   const collegeName = {};
   programsData.colleges.forEach(function(c) { collegeName[c.code] = c.name; });
   const byCollege = {};

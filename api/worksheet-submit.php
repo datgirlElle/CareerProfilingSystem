@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/CBFEngine.php';
+require_once __DIR__ . '/../lib/CBFData.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -43,28 +44,20 @@ if (!$assessment) {
     jsonResponse(['success' => false, 'error' => 'Complete the RIASEC assessment before submitting the worksheet.'], 400);
 }
 
-$scores = [
-    'R' => (int) $assessment['score_r'], 'I' => (int) $assessment['score_i'], 'A' => (int) $assessment['score_a'],
-    'S' => (int) $assessment['score_s'], 'E' => (int) $assessment['score_e'], 'C' => (int) $assessment['score_c'],
-];
+// Student profile = strand + latest RIASEC scores + the electives being submitted now.
+$profile = CBFData::studentProfile($pdo, $studentId, $electives);
+$activePrograms = CBFData::activePrograms($pdo);
 
-$activePrograms = array_map(fn($r) => [
-    'id' => (int) $r['id'],
-    'hollandCode' => Crypto::dec($r['holland_code_enc']),
-], $pdo->query("SELECT id, holland_code_enc FROM programs WHERE status = 'Active'")->fetchAll());
-
-$recommendation = CBFEngine::recommend($scores, $activePrograms, $programId);
+$recommendation = CBFEngine::recommend($profile, $activePrograms, $programId);
 $topProgramId = (int) $recommendation['top3'][0]['id'];
 $topScore = (float) $recommendation['top3'][0]['score'];
 
+// Snapshot of every program's result. blocks/matches/explanation make the
+// recommendation explainable later without recomputing it.
 $scoresForStorage = array_map(fn($s) => [
     'programId' => $s['id'], 'cosine' => $s['cosine'], 'indicator' => $s['indicator'], 'score' => $s['score'],
+    'blocks' => $s['blocks'], 'matches' => $s['matches'], 'explanation' => $s['explanation'],
 ], $recommendation['all']);
-
-function pgTextArrayLiteral(array $values): string
-{
-    return '{' . implode(',', array_map(fn($v) => '"' . addcslashes($v, '\\"') . '"', $values)) . '}';
-}
 
 $pdo->beginTransaction();
 try {
@@ -79,7 +72,7 @@ try {
          RETURNING id'
     );
     $worksheetInsert->execute([
-        $studentId, $attemptNumber, $programId, pgTextArrayLiteral($electives), $assessment['top_types'],
+        $studentId, $attemptNumber, $programId, CBFData::textArrayLiteral($electives), $assessment['top_types'],
     ]);
     $worksheetId = (int) $worksheetInsert->fetchColumn();
 

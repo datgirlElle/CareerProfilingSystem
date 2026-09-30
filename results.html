@@ -564,7 +564,9 @@
       // don't have one yet. The full match-score breakdown is still just a
       // click away via "View Program Details".
       if (p.description) return p.description;
-      return 'This program is a ' + p.matchPercent + '% match to your RIASEC profile, based on its Holland Code (' + p.hollandCode + ') and your assessment results.';
+      return p.explanation
+        ? 'This program is a ' + p.matchPercent + '% match to your profile (RIASEC results, strand, and chosen electives).'
+        : 'This program is a ' + p.matchPercent + '% match to your RIASEC profile, based on its Holland Code (' + p.hollandCode + ') and your assessment results.';
     }
 
     // No per-program images/icons exist in the data (or schema) — this maps
@@ -607,6 +609,7 @@
           '<span class="bg-[rgba(187,0,19,0.1)] border border-[rgba(187,0,19,0.2)] text-[#bb0013] text-xs font-semibold rounded-full px-3.5 py-1.5 shrink-0">' + p.matchPercent + '% Match</span>' +
         '</div>' +
         '<p class="text-sm text-[#191c1e] leading-relaxed max-w-[700px]">' + describeProgram(p) + '</p>' +
+        (p.explanation ? '<p class="text-xs text-[#5e3f3c] leading-relaxed max-w-[700px]">' + p.explanation + '</p>' : '') +
         '<div class="bg-[#f2f4f6] border border-[#e0e3e5] rounded p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">' +
           '<div><p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-2">Holland Code</p><p class="text-xs text-[#191c1e]">' + p.hollandCode + '</p></div>' +
           '<div><p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-2">College</p><p class="text-xs text-[#191c1e]">' + p.collegeCode + ' — ' + p.collegeName + '</p></div>' +
@@ -636,13 +639,15 @@
       if (detailsBtn) {
         const program = allPrograms[Number(detailsBtn.dataset.id)];
         document.getElementById('detailsModalTitle').textContent = program.title + (program.isActive === false ? ' — No longer available' : '');
-        const overview = program.description
-          ? program.description
-          : 'This program is a ' + program.matchPercent + '% match to your RIASEC profile, based on its Holland Code (' + program.hollandCode + ') and your assessment results.';
+        const overview = describeProgram(program);
+        // Snapshots from the multi-attribute engine carry an explanation;
+        // older RIASEC-only snapshots keep the original wording.
+        const similarityLabel = program.explanation ? 'profile similarity' : 'RIASEC similarity';
         document.getElementById('detailsModalBody').innerHTML =
           '<p>' + overview + '</p>' +
+          (program.explanation ? '<p class="text-sm text-[#191c1e] mt-3">' + program.explanation + '</p>' : '') +
           '<p class="text-xs text-[#5e3f3c] mt-3">' + program.collegeCode + ' — ' + program.collegeName + ' &middot; Holland Code: ' + program.hollandCode + '</p>' +
-          '<p class="text-xs text-slate-400 mt-3 pt-3 border-t border-gray-100">Final Match Score = 0.70 × RIASEC similarity (' + Math.round(program.cosine * 100) + '%) + 0.30 × stated-interest indicator (' +
+          '<p class="text-xs text-slate-400 mt-3 pt-3 border-t border-gray-100">Final Match Score = 0.70 × ' + similarityLabel + ' (' + Math.round(program.cosine * 100) + '%) + 0.30 × stated-interest indicator (' +
           (recommendation.statedProgramId === program.id ? '1, since you stated this program on your worksheet' : '0') + ') = ' + program.matchPercent + '%.</p>';
         openDetailsModal();
         return;
