@@ -465,6 +465,12 @@
   function escapeHtml(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
+  // Masks everything but the last 4 digits (e.g. "123456789012" -> "••••••••9012")
+  // so staff lists don't expose the full LRN at a glance.
+  function maskLrn(lrn) {
+    const s = String(lrn || '');
+    return s.length > 4 ? '•'.repeat(s.length - 4) + s.slice(-4) : s;
+  }
 
   const priorityClass = {
     High: 'bg-red-50 border-red-100 text-[#ed1c24]',
@@ -481,7 +487,7 @@
 
   function renderRow(r) {
     return '<tr data-flag-id="' + r.flagId + '">' +
-      '<td class="px-6 py-3"><p class="text-sm text-slate-900">' + escapeHtml(r.name) + '</p><p class="text-xs text-slate-500">' + escapeHtml(r.schoolId) + '</p></td>' +
+      '<td class="px-6 py-3"><p class="text-sm text-slate-900">' + escapeHtml(r.name) + '</p><p class="text-xs text-slate-500">' + escapeHtml(maskLrn(r.schoolId)) + '</p></td>' +
       '<td class="px-6 py-3 text-sm text-slate-900">' + escapeHtml(r.strand) + '</td>' +
       '<td class="px-6 py-3 text-sm text-slate-600">' + escapeHtml(r.career) + '</td>' +
       '<td class="px-6 py-3 text-sm font-bold ' + matchClass(r.match) + '">' + escapeHtml(r.match) + '</td>' +
@@ -526,7 +532,7 @@
   function openReviewModal(r) {
     currentFlagId = r.flagId;
     document.getElementById('reviewStudentName').textContent = r.name;
-    document.getElementById('reviewStudentId').textContent = r.schoolId;
+    document.getElementById('reviewStudentId').textContent = maskLrn(r.schoolId);
     document.getElementById('reviewStrand').textContent = r.strand;
     document.getElementById('reviewMatch').textContent = r.match;
     document.getElementById('reviewCareer').textContent = r.career;

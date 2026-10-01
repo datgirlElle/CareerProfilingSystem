@@ -293,20 +293,6 @@
   </div>
 </div>
 
-<!-- Delete Confirm Modal -->
-<div id="deleteCareerModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm">
-    <div class="px-6 py-5">
-      <h3 class="text-lg font-bold text-slate-900">Deactivate Career</h3>
-      <p id="deleteCareerText" class="text-sm text-slate-600 mt-2">Are you sure you want to deactivate this career?</p>
-    </div>
-    <div class="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3">
-      <button type="button" id="deleteCareerCancel" class="px-3.5 py-2 text-sm font-medium text-slate-600 border border-slate-300 rounded-md hover:bg-slate-50">Cancel</button>
-      <button type="button" id="deleteCareerConfirm" class="bg-[#ed1c24] text-white text-sm font-medium rounded-md px-3.5 py-2 hover:bg-red-600">Deactivate</button>
-    </div>
-  </div>
-</div>
-
 <!-- Edit Career Modal -->
 <div id="editCareerModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
   <div class="bg-white rounded-xl shadow-xl w-full max-w-md">
@@ -532,7 +518,7 @@
         <td class="px-6 py-4"><span class="inline-block ${status.bg} ${status.text} text-xs font-medium px-3 py-1 rounded-full">${escapeHtml(program.status)}</span></td>
         <td class="px-6 py-4"><div class="flex items-center gap-3">
           <button type="button" class="edit-career-btn" data-id="${program.id}"><img src="images/admin/icon-row-edit.svg" alt="Edit" class="w-3.5 h-3.5"></button>
-          <button type="button" class="delete-career-btn" data-id="${program.id}" data-title="${escapeHtml(program.title)}"><img src="images/admin/icon-row-delete.svg" alt="Deactivate" class="w-1 h-3"></button>
+          <button type="button" class="toggle-active-career-btn text-xs font-semibold rounded-md px-2.5 py-1 border whitespace-nowrap ${program.status === 'Active' ? 'text-[#ed1c24] border-[#ed1c24] hover:bg-red-50' : 'text-emerald-600 border-emerald-300 hover:bg-emerald-50'}" data-id="${program.id}" data-active="${program.status === 'Active' ? '1' : '0'}" data-title="${escapeHtml(program.title)}">${program.status === 'Active' ? 'Deactivate' : 'Reactivate'}</button>
         </div></td>
       </tr>`;
   }
@@ -618,37 +604,30 @@
     tbody.querySelectorAll('.edit-career-btn').forEach(btn => {
       btn.addEventListener('click', () => openEditModal(btn.dataset.id));
     });
-    tbody.querySelectorAll('.delete-career-btn').forEach(btn => {
-      btn.addEventListener('click', () => openDeleteModal(btn.dataset.id, btn.dataset.title));
+    // Single toggle button, same pattern as Student/Staff Accounts: label
+    // and confirm text flip based on the program's current status, so a
+    // program that's already Inactive gets offered "Reactivate" instead of
+    // a confusing re-"Deactivate".
+    tbody.querySelectorAll('.toggle-active-career-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const willDeactivate = btn.dataset.active === '1';
+        const ok = await showConfirm(
+          (willDeactivate ? 'Deactivate' : 'Reactivate') + ` "${btn.dataset.title}"? ` +
+          (willDeactivate ? 'It will no longer be offered as a career match, but can be re-activated later.' : 'It will be offered as a career match again.')
+        );
+        if (!ok) return;
+        btn.disabled = true;
+        const res = await fetch('api/programs.php', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'toggleActive', id: Number(btn.dataset.id) })
+        });
+        const data = await res.json();
+        btn.disabled = false;
+        if (!data.success) { showToast(data.error || 'Failed to update career.', true); return; }
+        await loadData();
+      });
     });
   }
-
-  // ---- Delete (soft: sets status to Inactive) modal ----
-  const deleteModal = document.getElementById('deleteCareerModal');
-  const deleteCareerText = document.getElementById('deleteCareerText');
-  const deleteCareerCancel = document.getElementById('deleteCareerCancel');
-  const deleteCareerConfirm = document.getElementById('deleteCareerConfirm');
-  let pendingDeleteId = null;
-
-  function openDeleteModal(id, title) {
-    pendingDeleteId = id;
-    deleteCareerText.textContent = `Deactivate "${title}"? It will no longer be offered as a career match, but can be re-activated later.`;
-    deleteModal.classList.remove('hidden');
-  }
-  function closeDeleteModal() {
-    deleteModal.classList.add('hidden');
-    pendingDeleteId = null;
-  }
-  deleteCareerCancel.addEventListener('click', closeDeleteModal);
-  deleteModal.addEventListener('click', (e) => { if (e.target === deleteModal) closeDeleteModal(); });
-  deleteCareerConfirm.addEventListener('click', async () => {
-    if (pendingDeleteId == null) return;
-    await fetch('api/programs.php', {
-      method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: Number(pendingDeleteId) })
-    });
-    await loadData();
-    closeDeleteModal();
-  });
 
   // ---- Edit modal ----
   const editModal = document.getElementById('editCareerModal');

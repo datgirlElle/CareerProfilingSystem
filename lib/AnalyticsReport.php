@@ -126,32 +126,42 @@ class AnalyticsReport
             return $stmt->fetchAll();
         })();
 
-        // Assessment Statistics: expected (from the admin-uploaded roster for the
-        // current Academic Year) vs. actually completed, matching the same
-        // strand/section filters.
+        // Assessment Statistics / the "Y" in every "X of Y total students"
+        // figure: how many students are EXPECTED for the current Academic
+        // Year — the union of who's actually registered and who's on the
+        // uploaded roster but hasn't registered yet, deduplicated by
+        // school_id (a UNION, not UNION ALL, does the dedup). A roster
+        // upload used to REPLACE this count outright rather than add to it,
+        // so a small or stale roster could show something like "2 of 1" once
+        // more students registered than the roster had ever listed.
         $currentAy = (string) $pdo->query("SELECT value FROM security_policies WHERE key = 'academicYear.current'")->fetchColumn();
         $expectedCount = (int) (function () use ($pdo, $currentAy, $hasStrand, $strand, $hasSection, $section) {
-            $conds = ['academic_year = ?'];
-            $params = [$currentAy];
-            if ($hasStrand) { $conds[] = 'strand = ?'; $params[] = $strand; }
-            if ($hasSection) { $conds[] = 'section = ?'; $params[] = $section; }
-            $stmt = $pdo->prepare('SELECT COUNT(*) FROM assessment_roster WHERE ' . implode(' AND ', $conds));
-            $stmt->execute($params);
+            $studentConds = ['academic_year = ?'];
+            $studentParams = [$currentAy];
+            $rosterConds = ['academic_year = ?'];
+            $rosterParams = [$currentAy];
+            if ($hasStrand) {
+                $studentConds[] = 'strand = ?'; $studentParams[] = $strand;
+                $rosterConds[] = 'strand = ?'; $rosterParams[] = $strand;
+            }
+            if ($hasSection) {
+                $studentConds[] = 'section = ?'; $studentParams[] = $section;
+                $rosterConds[] = 'section = ?'; $rosterParams[] = $section;
+            }
+            $sql = 'SELECT COUNT(*) FROM (
+                        SELECT school_id FROM students WHERE ' . implode(' AND ', $studentConds) . '
+                        UNION
+                        SELECT school_id FROM assessment_roster WHERE ' . implode(' AND ', $rosterConds) . '
+                    ) combined';
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute(array_merge($studentParams, $rosterParams));
             return $stmt->fetchColumn();
         })();
         $expectedSectionsStmt = $pdo->prepare('SELECT DISTINCT section FROM assessment_roster WHERE academic_year = ? ORDER BY section');
         $expectedSectionsStmt->execute([$currentAy]);
         $expectedSections = $expectedSectionsStmt->fetchAll(PDO::FETCH_COLUMN);
 
-        // The "Y" in every "X of Y total students" figure: how many students
-        // are EXPECTED, not how many happened to register or finish. That is the
-        // roster uploaded for the current Academic Year (same strand/section
-        // filters as everything else). Only when no roster has been uploaded
-        // at all do we fall back to registered students.
-        $rosterTotalStmt = $pdo->prepare('SELECT COUNT(*) FROM assessment_roster WHERE academic_year = ?');
-        $rosterTotalStmt->execute([$currentAy]);
-        $hasRoster = (int) $rosterTotalStmt->fetchColumn() > 0;
-        $expectedTotal = $hasRoster ? $expectedCount : $totalStudents;
+        $expectedTotal = $expectedCount;
 
         $programIds = array_map(fn($r) => (int) $r['top_program_id'], $careerCounts);
         $titles = [];

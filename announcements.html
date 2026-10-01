@@ -352,6 +352,14 @@
   function escapeHtml(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
+  // Masks everything but the last 4 digits (e.g. "123456789012" -> "••••••••9012")
+  // so staff lists don't expose the full LRN at a glance. The recipient
+  // search filter still matches against the real schoolId — only the
+  // displayed text here is masked.
+  function maskLrn(lrn) {
+    const s = String(lrn || '');
+    return s.length > 4 ? '•'.repeat(s.length - 4) + s.slice(-4) : s;
+  }
   // Always render in school time (Asia/Manila), whatever the viewer's device
   // clock is set to. Postgres may send "+08" without minutes, which some
   // browsers can't parse, so pad it to "+08:00" first.
@@ -462,7 +470,7 @@
     resultsBox.innerHTML = matches.length
       ? matches.map(function(s) {
           return '<button type="button" class="student-option w-full text-left px-3 py-2 text-sm hover:bg-slate-50" data-id="' + s.userId + '">' +
-            escapeHtml(s.name) + ' <span class="text-xs text-slate-400">(' + escapeHtml(s.schoolId) + ')</span></button>';
+            escapeHtml(s.name) + ' <span class="text-xs text-slate-400">(' + escapeHtml(maskLrn(s.schoolId)) + ')</span></button>';
         }).join('')
       : '<p class="text-xs text-slate-400 text-center py-4">No matching students.</p>';
     resultsBox.classList.remove('hidden');

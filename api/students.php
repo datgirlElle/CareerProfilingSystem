@@ -240,6 +240,38 @@ $students = array_map(function ($r) use ($counseledIds) {
     ];
 }, $rows);
 
+// Students on the current Academic Year's uploaded roster who haven't
+// registered an account yet — shown here (userId: null, status "Not
+// Registered", no assessment/counseling data) so the overview reflects a
+// roster upload, not just who happened to sign up. A roster row whose
+// school_id already matches a registered student is skipped entirely;
+// the real account's live data always wins over the one-time CSV snapshot.
+$currentAy = (string) $pdo->query("SELECT value FROM security_policies WHERE key = 'academicYear.current'")->fetchColumn();
+if ($currentAy !== '') {
+    $registeredSchoolIds = array_column($rows, 'school_id');
+    $rosterStmt = $pdo->prepare('SELECT school_id, name_enc, strand, section FROM assessment_roster WHERE academic_year = ?');
+    $rosterStmt->execute([$currentAy]);
+    foreach ($rosterStmt->fetchAll() as $rr) {
+        if (in_array($rr['school_id'], $registeredSchoolIds, true)) {
+            continue;
+        }
+        $students[] = [
+            'userId' => null,
+            'schoolId' => $rr['school_id'],
+            'name' => Crypto::dec($rr['name_enc']),
+            'strand' => $rr['strand'],
+            'gradeLevel' => null,
+            'section' => $rr['section'],
+            'isActive' => null,
+            'status' => 'Not Registered',
+            'riasec' => '',
+            'counseling' => '',
+            'registeredAt' => null,
+            'assessmentDate' => null,
+        ];
+    }
+}
+
 $totalStudents = count($students);
 $completedCount = count(array_filter($students, fn($s) => $s['status'] === 'Completed'));
 $pendingCount = $totalStudents - $completedCount;

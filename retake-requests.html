@@ -346,6 +346,12 @@
   function escapeHtml(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
+  // Masks everything but the last 4 digits (e.g. "123456789012" -> "••••••••9012")
+  // so staff lists don't expose the full LRN at a glance.
+  function maskLrn(lrn) {
+    const s = String(lrn || '');
+    return s.length > 4 ? '•'.repeat(s.length - 4) + s.slice(-4) : s;
+  }
   function formatDate(iso) {
     if (!iso) return '—';
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -374,7 +380,7 @@
       : '';
     return '<div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex flex-col gap-3">' +
       '<div class="flex items-start justify-between gap-4 flex-wrap">' +
-        '<div><h3 class="text-base font-semibold text-slate-900">' + escapeHtml(g.studentName) + ' (' + escapeHtml(g.schoolId) + ')</h3>' +
+        '<div><h3 class="text-base font-semibold text-slate-900">' + escapeHtml(g.studentName) + ' (' + escapeHtml(maskLrn(g.schoolId)) + ')</h3>' +
         '<p class="text-xs text-slate-500 mt-0.5">Original attempt #' + g.originalAttemptNumber + ' — ' + formatDate(g.originalCompletedAt) + ' &middot; Granted ' + formatDate(g.grantedAt) + '</p></div>' +
         statusBadge +
       '</div>' +
@@ -436,7 +442,7 @@
       const data = await (await fetch('api/students.php?all=1')).json();
       const completed = (data.students || []).filter(s => s.status === 'Completed');
       studentSelect.innerHTML = completed.length
-        ? completed.map(s => `<option value="${s.userId}">${escapeHtml(s.schoolId + ' — ' + s.name)}</option>`).join('')
+        ? completed.map(s => `<option value="${s.userId}">${escapeHtml(maskLrn(s.schoolId) + ' — ' + s.name)}</option>`).join('')
         : '<option value="">No students have completed the assessment yet</option>';
     } catch (err) {
       studentSelect.innerHTML = '<option value="">Failed to load students</option>';

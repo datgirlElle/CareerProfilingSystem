@@ -90,6 +90,24 @@ function readProgramInput(array $body): array
 if ($method === 'POST') {
     $user = Rbac::requireAccess('career', 'full');
     $body = readJsonBody();
+
+    if (($body['type'] ?? '') === 'toggleActive') {
+        $id = (int) ($body['id'] ?? 0);
+        $stmt = $pdo->prepare('SELECT status FROM programs WHERE id = ?');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            jsonResponse(['success' => false, 'error' => 'Program not found.'], 404);
+        }
+        $newStatus = $row['status'] === 'Active' ? 'Inactive' : 'Active';
+        $pdo->prepare('UPDATE programs SET status = ?, updated_at = NOW() WHERE id = ?')->execute([$newStatus, $id]);
+        AuditLogger::log(
+            $user['id'], $user['role'], $newStatus === 'Active' ? 'activate_program' : 'deactivate_program',
+            'program', (string) $id
+        );
+        jsonResponse(['success' => true, 'status' => $newStatus]);
+    }
+
     [$title, $hollandCode, $description, $collegeId, $status] = readProgramInput($body);
 
     $exists = $pdo->prepare('SELECT id FROM colleges WHERE id = ?');
@@ -137,27 +155,6 @@ if ($method === 'PUT') {
     $update->execute([$collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null, $status, $id]);
 
     AuditLogger::log($user['id'], $user['role'], 'update_program', 'program', (string) $id, $title);
-
-    jsonResponse(['success' => true]);
-}
-
-if ($method === 'DELETE') {
-    // Soft-delete only: programs are referenced by worksheets/recommendations/saved_programs,
-    // so removing one from circulation means marking it Inactive, not a hard DELETE.
-    $user = Rbac::requireAccess('career', 'full');
-    $body = readJsonBody();
-    $id = (int) ($body['id'] ?? 0);
-    if ($id <= 0) {
-        jsonResponse(['success' => false, 'error' => 'Missing program id.'], 400);
-    }
-
-    $update = $pdo->prepare("UPDATE programs SET status = 'Inactive', updated_at = NOW() WHERE id = ?");
-    $update->execute([$id]);
-    if ($update->rowCount() === 0) {
-        jsonResponse(['success' => false, 'error' => 'Program not found.'], 404);
-    }
-
-    AuditLogger::log($user['id'], $user['role'], 'deactivate_program', 'program', (string) $id);
 
     jsonResponse(['success' => true]);
 }

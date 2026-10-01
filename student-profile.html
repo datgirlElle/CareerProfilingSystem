@@ -304,6 +304,12 @@
   if (currentUser.avatarUrl) {
     headerAvatarWrap.innerHTML = `<img src="${currentUser.avatarUrl}" alt="" class="w-full h-full object-cover">`;
   }
+  // Masks everything but the last 4 digits (e.g. "123456789012" -> "••••••••9012")
+  // so this view doesn't expose a student's full LRN at a glance.
+  function maskLrn(lrn) {
+    const s = String(lrn || '');
+    return s.length > 4 ? '•'.repeat(s.length - 4) + s.slice(-4) : s;
+  }
   const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
   document.getElementById('headerUserName').textContent = currentUser.username;
   document.getElementById('headerUserRole').textContent = roleLabels[currentUser.role] || currentUser.role;
@@ -489,8 +495,8 @@
       document.getElementById('studentName').textContent = s.name;
       document.getElementById('avatarName').textContent = s.name;
       document.getElementById('avatarStrand').textContent = s.strand;
-      document.getElementById('studentId').textContent = 'LRN: ' + s.schoolId;
-      document.getElementById('schoolIdField').value = s.schoolId;
+      document.getElementById('studentId').textContent = 'LRN: ' + maskLrn(s.schoolId);
+      document.getElementById('schoolIdField').value = maskLrn(s.schoolId);
       document.getElementById('gradeLevelField').value = 'Grade ' + s.gradeLevel;
       document.getElementById('strandField').value = s.strand;
       document.getElementById('sectionField').value = s.section;
