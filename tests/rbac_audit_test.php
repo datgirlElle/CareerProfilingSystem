@@ -31,6 +31,7 @@ $expected = [
     'announcements'   => ['admin' => 'full', 'counselor' => 'limited', 'student' => 'limited'],
     'examinations'    => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'counselingNotes' => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
+    'sections'        => ['admin' => 'full', 'counselor' => 'limited', 'student' => 'none'],
 ];
 
 foreach ($expected as $module => $roles) {

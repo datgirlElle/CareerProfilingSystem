@@ -13,6 +13,8 @@ $rbac = [
     'announcements'   => ['admin' => 'full', 'counselor' => 'limited', 'student' => 'limited'],
     'examinations'    => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'counselingNotes' => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
+    // limited = add sections; full = add and deactivate/reactivate them.
+    'sections'        => ['admin' => 'full', 'counselor' => 'limited', 'student' => 'none'],
 ];
 
 $rbacStmt = $pdo->prepare(

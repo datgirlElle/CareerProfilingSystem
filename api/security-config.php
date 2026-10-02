@@ -10,7 +10,7 @@ $pdo = Database::get();
 // match — meaning loadRbac() silently omitted that row and any RBAC change
 // posted for it was silently dropped by the in_array() guard below. Fixed
 // here alongside adding 'examinations' the same way.
-const RBAC_MODULES = ['career', 'rac', 'recommendations', 'counselor', 'monitoring', 'announcements', 'examinations', 'counselingNotes'];
+const RBAC_MODULES = ['career', 'rac', 'recommendations', 'counselor', 'monitoring', 'announcements', 'examinations', 'counselingNotes', 'sections'];
 const RBAC_ROLES = ['admin', 'counselor', 'student'];
 const RBAC_LEVELS = ['full', 'limited', 'none'];
 
@@ -88,7 +88,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     )->fetchColumn();
     $pendingFlags = (int) $pdo->query("SELECT COUNT(*) FROM monitoring_flags WHERE status = 'pending'")->fetchColumn();
     $encryptedRecords = (int) $pdo->query(
-        'SELECT (SELECT COUNT(*) FROM students) + (SELECT COUNT(*) FROM programs) + (SELECT COUNT(*) FROM assessment_questions)'
+        'SELECT (SELECT COUNT(*) FROM students) + (SELECT COUNT(*) FROM programs) + (SELECT COUNT(*) FROM assessment_questions)
+              + (SELECT COUNT(*) FROM help_requests) + (SELECT COUNT(*) FROM counseling_notes)'
     )->fetchColumn();
 
     jsonResponse([

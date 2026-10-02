@@ -255,7 +255,7 @@
 
               <div class="border border-slate-200 rounded-lg p-[17px] flex flex-col gap-3">
                 <p class="text-sm font-semibold text-slate-800">Assessment Access Code</p>
-                <p class="text-xs text-slate-500">Students enter this code once before starting the RIASEC assessment. Regenerating it immediately invalidates the old code.</p>
+                <p class="text-xs text-slate-500">The fallback code students enter before starting the RIASEC assessment. It is only used for students whose strand and section have no exam schedule; when a schedule covers them, that schedule's own code is used instead. Regenerating it immediately invalidates the old code.</p>
                 <div class="flex items-center gap-3">
                   <span id="accessCodeDisplay" class="flex-1 bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-sm font-mono tracking-[2px] text-slate-800 text-center">—</span>
                   <button type="button" id="accessCodeRegenerate" class="px-4 py-2 text-xs font-semibold text-[#ed1c24] border border-[#ed1c24] rounded-md hover:bg-red-50 shrink-0">Regenerate</button>
@@ -333,8 +333,8 @@
               <div class="border border-slate-200 rounded-lg p-[17px] flex flex-col gap-4">
                 <div class="flex items-start justify-between">
                   <div class="flex flex-col gap-1.5">
-                    <p class="text-sm font-semibold text-slate-800">Two-Factor Authentication for Staff</p>
-                    <p class="text-xs text-slate-500">Require 2FA for added account security.</p>
+                    <p class="text-sm font-semibold text-slate-800">Email Verification for Staff Password Changes</p>
+                    <p class="text-xs text-slate-500">Confirm password changes with a code sent by email.</p>
                     <span class="bg-green-50 border border-green-200 text-green-700 text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded w-fit">Recommended</span>
                   </div>
                   <button type="button" id="toggle2fa" class="w-11 h-6 rounded-full relative shrink-0" aria-pressed="true">
@@ -342,10 +342,10 @@
                   </button>
                 </div>
                 <div class="flex flex-col gap-2 pl-0">
-                  <p class="text-xs text-slate-500">Required for Guidance Counselor and Administrator accounts.</p>
+                  <p class="text-xs text-slate-500">When on, Guidance Counselors and Administrators must enter a 6-digit code emailed to them before a new password takes effect. The code expires after 5 minutes.</p>
                   <div class="flex items-center gap-2">
                     <img src="images/security/icon-shield-small.svg" alt="" class="w-4 h-3">
-                    <p class="text-xs text-slate-500">Enforced for privileged roles</p>
+                    <p class="text-xs text-slate-500">Applies to password changes, not sign-in</p>
                   </div>
                 </div>
               </div>
@@ -378,6 +378,61 @@
               <div class="bg-blue-50 border border-blue-100 rounded-lg p-3.5 flex items-start gap-3">
                 <img src="images/security/icon-info.svg" alt="" class="w-4 h-4 mt-0.5 shrink-0">
                 <p class="text-xs text-blue-800 leading-relaxed">Security settings help protect sensitive student data and ensure compliance with data privacy policies.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Built-in Protections (display only: these are always on and have no settings) -->
+          <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="border-b border-slate-200 flex items-center gap-3 px-5 py-5">
+              <img src="images/security/icon-shield-small.svg" alt="" class="w-4 h-3">
+              <div>
+                <h2 class="text-base font-semibold text-slate-900">Built-in Protections</h2>
+                <p class="text-xs text-slate-500">Safeguards that are always on. They have no settings to change.</p>
+              </div>
+            </div>
+            <div class="p-5 flex flex-col gap-4">
+              <div class="border border-slate-200 rounded-lg p-[17px] flex items-start justify-between gap-3">
+                <div class="flex flex-col gap-1.5">
+                  <p class="text-sm font-semibold text-slate-800">Assessment Access Code Limit</p>
+                  <p class="text-xs text-slate-500">A student who enters a wrong code 3 times within 5 minutes is blocked and must wait before trying again.</p>
+                </div>
+                <span class="bg-green-50 border border-green-200 text-green-700 text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded w-fit shrink-0">Active</span>
+              </div>
+              <div class="border border-slate-200 rounded-lg p-[17px] flex items-start justify-between gap-3">
+                <div class="flex flex-col gap-1.5">
+                  <p class="text-sm font-semibold text-slate-800">Password Reset Limits</p>
+                  <p class="text-xs text-slate-500">At most 3 reset requests per hour for one account and 20 per hour from one network address. The reply never reveals whether an account exists.</p>
+                </div>
+                <span class="bg-green-50 border border-green-200 text-green-700 text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded w-fit shrink-0">Active</span>
+              </div>
+              <div class="border border-slate-200 rounded-lg p-[17px] flex items-start justify-between gap-3">
+                <div class="flex flex-col gap-1.5">
+                  <p class="text-sm font-semibold text-slate-800">Request Forgery Protection</p>
+                  <p class="text-xs text-slate-500">Every action that changes data must carry a valid session token, so another site cannot trigger it on a user's behalf.</p>
+                </div>
+                <span class="bg-green-50 border border-green-200 text-green-700 text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded w-fit shrink-0">Active</span>
+              </div>
+              <div class="border border-slate-200 rounded-lg p-[17px] flex items-start justify-between gap-3">
+                <div class="flex flex-col gap-1.5">
+                  <p class="text-sm font-semibold text-slate-800">Browser Security Headers</p>
+                  <p class="text-xs text-slate-500">A content security policy, clickjacking protection, and HTTPS-only transport are sent with every response.</p>
+                </div>
+                <span class="bg-green-50 border border-green-200 text-green-700 text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded w-fit shrink-0">Active</span>
+              </div>
+              <div class="border border-slate-200 rounded-lg p-[17px] flex items-start justify-between gap-3">
+                <div class="flex flex-col gap-1.5">
+                  <p class="text-sm font-semibold text-slate-800">Roster Upload Checks</p>
+                  <p class="text-xs text-slate-500">Only CSV files up to 2 MB are accepted, and every LRN is validated before anything is saved.</p>
+                </div>
+                <span class="bg-green-50 border border-green-200 text-green-700 text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded w-fit shrink-0">Active</span>
+              </div>
+              <div class="border border-slate-200 rounded-lg p-[17px] flex items-start justify-between gap-3">
+                <div class="flex flex-col gap-1.5">
+                  <p class="text-sm font-semibold text-slate-800">Encrypted Storage</p>
+                  <p class="text-xs text-slate-500">Student names, counseling requests and notes, announcements, and program data are encrypted at rest.</p>
+                </div>
+                <span class="bg-green-50 border border-green-200 text-green-700 text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded w-fit shrink-0">Active</span>
               </div>
             </div>
           </div>
@@ -582,7 +637,8 @@
       { id: 'monitoring', label: 'Student Monitoring', desc: 'View student progress and status', icon: 'images/security/icon-module-monitoring.svg', iconClass: 'w-4 h-4 mt-0.5' },
       { id: 'announcements', label: 'Announcements', desc: 'Send updates to students', icon: 'images/security/icon-module-announcements.svg', iconClass: 'w-4 h-4 mt-0.5' },
       { id: 'examinations', label: 'Examination Management', desc: 'Exam schedules, rooms, retakes', icon: 'images/security/icon-module-examinations.svg', iconClass: 'w-4 h-4 mt-0.5' },
-      { id: 'counselingNotes', label: 'Counseling Notes', desc: 'Session notes on student profiles', icon: 'images/security/icon-module-counseling-notes.svg', iconClass: 'w-3.5 h-4 mt-0.5' }
+      { id: 'counselingNotes', label: 'Counseling Notes', desc: 'Session notes on student profiles', icon: 'images/security/icon-module-counseling-notes.svg', iconClass: 'w-3.5 h-4 mt-0.5' },
+      { id: 'sections', label: 'Section Management', desc: 'Limited: add sections. Full: also deactivate them', icon: 'images/security/icon-people.svg', iconClass: 'w-4 h-4 mt-0.5' }
     ];
     const ROLES = ['admin', 'counselor', 'student'];
     const LEVEL_LABEL = { full: 'Full Access', limited: 'Limited Access', none: 'No Access' };
@@ -600,6 +656,8 @@
       renderPrincipalContact();
       renderOverview();
       renderLastUpdated();
+      // An RBAC edit can change what this role may do to sections.
+      if (sectionsData.length) renderSections();
     }
 
     function renderAssessmentPeriod() {
@@ -621,37 +679,51 @@
       el.classList.remove('hidden');
       setTimeout(() => el.classList.add('hidden'), 3000);
     }
+    // Limited = can add sections; Full = can also deactivate/reactivate.
+    // Comes from the 'sections' row of the permission table above.
+    function sectionsLevel() {
+      return (state && state.rbac && state.rbac.sections && state.rbac.sections[currentUser.role]) || 'none';
+    }
     async function loadSections() {
       const res = await fetch('api/sections.php?all=1');
+      if (!res.ok) {
+        sectionsData = [];
+        document.getElementById('sectionsContainer').innerHTML =
+          '<p class="text-xs text-slate-500">You do not have access to Section Management.</p>';
+        return;
+      }
       const data = await res.json();
       sectionsData = data.sections || [];
       renderSections();
     }
     function renderSections() {
       const container = document.getElementById('sectionsContainer');
-      const disabledAttr = isAdmin ? '' : ' disabled';
-      const disabledCls = isAdmin ? '' : ' opacity-60 cursor-not-allowed';
+      const level = sectionsLevel();
+      const canAdd = level === 'limited' || level === 'full';
+      const canToggle = level === 'full';
+      const addDisabledAttr = canAdd ? '' : ' disabled';
+      const addDisabledCls = canAdd ? '' : ' opacity-60 cursor-not-allowed';
+      const disabledAttr = canToggle ? '' : ' disabled';
+      const disabledCls = canToggle ? '' : ' opacity-60 cursor-not-allowed';
       container.innerHTML = SECTION_STRANDS.map(function(strand) {
         const items = sectionsData.filter(s => s.strand === strand);
         const pills = items.length ? items.map(function(s) {
           const styleCls = s.isActive
             ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
             : 'bg-slate-100 border-slate-200 text-slate-400 line-through';
-          return '<button type="button" class="section-pill border rounded-full px-3 py-1.5 text-xs font-medium ' + styleCls + disabledCls + '" data-id="' + s.id + '"' + disabledAttr + ' title="' + (s.isActive ? 'Click to deactivate' : 'Click to reactivate') + '">' + s.code + '</button>';
+          return '<button type="button" class="section-pill border rounded-full px-3 py-1.5 text-xs font-medium ' + styleCls + disabledCls + '" data-id="' + s.id + '"' + disabledAttr + ' title="' + (canToggle ? (s.isActive ? 'Click to deactivate' : 'Click to reactivate') : (s.isActive ? 'Active' : 'Inactive')) + '">' + s.code + '</button>';
         }).join('') : '<p class="text-xs text-slate-400">No sections yet.</p>';
         return '<div class="border border-slate-200 rounded-lg p-[17px] flex flex-col gap-3">' +
           '<p class="text-sm font-semibold text-slate-800">' + strand + '</p>' +
           '<div class="flex flex-wrap gap-2">' + pills + '</div>' +
           '<div class="flex items-center gap-2">' +
-            '<input type="text" maxlength="20" class="add-section-input flex-1 border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#ed1c24]' + disabledCls + '" placeholder="New section code, e.g. S1115" data-strand="' + strand + '"' + disabledAttr + '>' +
-            '<button type="button" class="add-section-btn px-4 py-2 text-xs font-semibold text-white bg-[#0f2a6b] rounded-md hover:opacity-90 shrink-0' + disabledCls + '" data-strand="' + strand + '"' + disabledAttr + '>Add</button>' +
+            '<input type="text" maxlength="20" class="add-section-input flex-1 border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#ed1c24]' + addDisabledCls + '" placeholder="New section code, e.g. S1115" data-strand="' + strand + '"' + addDisabledAttr + '>' +
+            '<button type="button" class="add-section-btn px-4 py-2 text-xs font-semibold text-white bg-[#0f2a6b] rounded-md hover:opacity-90 shrink-0' + addDisabledCls + '" data-strand="' + strand + '"' + addDisabledAttr + '>Add</button>' +
           '</div>' +
         '</div>';
       }).join('');
 
-      if (!isAdmin) return;
-
-      container.querySelectorAll('.section-pill').forEach(function(btn) {
+      if (canToggle) container.querySelectorAll('.section-pill').forEach(function(btn) {
         btn.addEventListener('click', async function() {
           btn.disabled = true;
           const res = await fetch('api/sections.php', {
