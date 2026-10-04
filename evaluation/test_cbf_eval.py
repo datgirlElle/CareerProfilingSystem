@@ -131,19 +131,22 @@ class Evaluation(unittest.TestCase):
             path = os.path.join(d, "students.csv")
             rows = [student(f"S{i}", [0.5] * 6, c) for i, c in
                     enumerate(["BS Nursing"] * 4 + ["BS Marketing"] * 3 + ["BS Biology"])]
-            with open(path, "w", newline="") as f:
+            with open(path, "w", newline="", encoding="utf-8") as f:
                 w = csv.DictWriter(f, ["StudentID", *m.DIMENSIONS, "ActualCourse"])
                 w.writeheader()
                 w.writerows(rows)
 
             class A: students, scale, test_fraction, seed = path, "unit", 0.3, 1
             m.cmd_split(A)
-            test_ids = {r["StudentID"] for r in csv.DictReader(open(os.path.join(d, "test.csv")))}
-            train_ids = {r["StudentID"] for r in csv.DictReader(open(os.path.join(d, "train.csv")))}
+            def ids(name):
+                with open(os.path.join(d, name), newline="", encoding="utf-8") as f:
+                    return {r["StudentID"] for r in csv.DictReader(f)}
+            test_ids, train_ids = ids("test.csv"), ids("train.csv")
             self.assertFalse(test_ids & train_ids)                 # no student in both
             self.assertEqual(len(test_ids | train_ids), 8)
             self.assertIn("S7", train_ids)                         # single-student class stays in train
-            arff = open(os.path.join(d, "train.arff")).read()
+            with open(os.path.join(d, "train.arff"), encoding="utf-8") as f:
+                arff = f.read()
             self.assertNotIn("StudentID", arff)                    # ID is never a WEKA attribute
             self.assertEqual(arff.count("@ATTRIBUTE"), 7)          # R..C + class only
 
