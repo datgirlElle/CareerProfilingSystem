@@ -305,7 +305,7 @@
   document.getElementById('topInterestArea').textContent = INTEREST_AREA[topLetters[0]] || '—';
 
   // "Aligned" is a real, computed fact: does the program the student stated on the
-  // worksheet actually land in their own top-3 CBF recommendation (0.70*cosine + 0.30*indicator)?
+  // worksheet actually land in their own top-N CBF recommendation?
   const isAligned = recommendation.statedOutsideTop3 === null;
 
   const badge = document.getElementById('alignBadge');
@@ -322,10 +322,12 @@
   // Newer snapshots compare the whole profile (RIASEC + strand + electives)
   // and carry an explanation of what matched; older ones were RIASEC-only.
   const explanation = statedProgram && statedProgram.explanation;
-  const profileLabel = explanation ? 'Your profile' : 'Your RIASEC profile';
+  // Only the interim multi-attribute snapshots (explanation, no formula) used more than RIASEC.
+  const multiAttribute = explanation && !statedProgram.formula;
+  const profileLabel = multiAttribute ? 'Your profile' : 'Your RIASEC profile';
   const analysis = (isAligned
     ? profileLabel + ' is a ' + cosinePct + '% cosine match with "' + goalTitle + '," which is why it lands in your own top-3 career recommendations.' + (explanation ? '' : ' The electives you chose reinforce the skills this path typically calls for.')
-    : profileLabel + ' is only a ' + cosinePct + '% cosine match with "' + goalTitle + ',"  so it did not make your own top-3 recommendation list based ' + (explanation ? 'on profile fit' : 'purely on interest fit') + '. That doesn\'t rule it out — consider discussing this with a counselor to explore how your strengths could still support this goal.')
+    : profileLabel + ' is only a ' + cosinePct + '% cosine match with "' + goalTitle + ',"  so it did not make your own top-3 recommendation list based ' + (multiAttribute ? 'on profile fit' : 'purely on interest fit') + '. That doesn\'t rule it out — consider discussing this with a counselor to explore how your strengths could still support this goal.')
     + (explanation ? ' ' + explanation : '');
   document.getElementById('analysisText').textContent = analysis;
 })();

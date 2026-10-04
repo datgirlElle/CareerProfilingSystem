@@ -4,18 +4,20 @@
  * Content-Based Filtering (CBF) recommendation engine using Cosine Similarity.
  *
  * Process (one call to recommend() runs all of it):
- *   1. Student profile   — RIASEC scores, SHS strand, worksheet electives
- *   2. Feature extraction — each attribute group becomes one "block" of numbers
- *                           (studentFeatures / programFeatures)
- *   3. Weighting          — each block is scaled to unit length, then by
- *                           sqrt(weight), and the blocks are joined into ONE
- *                           vector (weightedVector)
- *   4. Cosine similarity  — cos(A, B) = (A · B) / (||A|| × ||B||)
- *                           between the student vector and every program vector
- *   5. Final Match Score  — 0.70 × cosine + 0.30 × stated-program indicator
- *                           (thesis Chapter 3 formula, see config/cbf.php)
- *   6. Ranking            — programs sorted by Final Match Score, highest first
- *   7. Explanation        — which strand / RIASEC types / electives actually matched
+ *   1. Student profile   — the six RIASEC scores from the student's assessment
+ *   2. Student vector    — [R, I, A, S, E, C] scaled to 0-1 (studentFeatures)
+ *   3. Course vectors    — each course's final Holland code encoded by letter
+ *                           rank: 1st = 1.00, 2nd = 0.67, 3rd = 0.33, absent = 0
+ *                           (programFeatures / hollandCodeToVector)
+ *   4. Cosine similarity  — cos(S, C) = (S · C) / (||S|| × ||C||) between the
+ *                           student vector and EVERY course vector
+ *   5. Ranking            — all courses sorted by similarity, highest first; the
+ *                           first N (config top_n) are the recommendations
+ *   6. Explanation        — which of the student's top RIASEC types the course shares
+ *
+ * Weights, encoding, scaling and N all live in config/cbf.php. The engine also
+ * supports optional strand/elective blocks and a stated-program bonus; the
+ * current methodology sets those to 0 so the ranking is pure RIASEC cosine.
  *
  * Why unit-length blocks scaled by sqrt(weight)? Because then, when both sides
  * have every block filled in, the cosine of the joined vectors is exactly
@@ -107,11 +109,17 @@ class CBFEngine
     {
         $config ??= self::config();
 
+        // Raw totals (10..50) -> 0-1 scale. Dividing by the maximum does not
+        // change cosine values; subtracting the floor does (see config/cbf.php).
         $riasec = array_fill(0, 6, 0);
         if (!empty($profile['riasec'])) {
             $riasec = self::scoresToVector($profile['riasec']);
+            $max = $config['riasec_max'];
             if ($config['riasec_subtract_floor']) {
-                $riasec = array_map(fn($v) => max(0, $v - $config['riasec_floor']), $riasec);
+                $floor = $config['riasec_floor'];
+                $riasec = array_map(fn($v) => max(0, $v - $floor) / (float) ($max - $floor), $riasec);
+            } else {
+                $riasec = array_map(fn($v) => $v / (float) $max, $riasec);
             }
         }
 
@@ -278,7 +286,7 @@ class CBFEngine
     }
 
     /** Plain-language sentence built only from the features that really matched. */
-    public static function explain(array $matches): string
+    public static function explain(array $matches, ?array $config = null): string
     {
         $join = function (array $items): string {
             if (count($items) <= 1) {
@@ -299,7 +307,13 @@ class CBFEngine
         }
 
         if (!$parts) {
-            return 'This program shares none of your top RIASEC types, strand, or chosen electives, so its match is low.';
+            // Name only the criteria that are actually used (weight > 0).
+            $labels = ['riasec' => 'top RIASEC types', 'strand' => 'strand', 'electives' => 'chosen electives'];
+            $active = array_values(array_intersect_key($labels, self::normalizedWeights($config)));
+            $list = count($active) > 1
+                ? implode(', ', array_slice($active, 0, -1)) . ', or ' . end($active)
+                : implode('', $active);
+            return 'This program shares none of your ' . $list . ', so its match is low.';
         }
         // Groups are separated with an Oxford comma, since the groups themselves contain "and".
         $sentence = count($parts) > 2
@@ -336,7 +350,7 @@ class CBFEngine
                 'score' => round($wSimilarity * $comparison['cosine'] + $wStated * $indicator, 4),
                 'blocks' => $comparison['blocks'],
                 'matches' => $matches,
-                'explanation' => self::explain($matches),
+                'explanation' => self::explain($matches, $config),
             ];
         }, $programs);
 
@@ -344,7 +358,8 @@ class CBFEngine
         // cosine, then the lower program id, so the order is always reproducible.
         usort($scored, fn($a, $b) => [$b['score'], $b['cosine'], $a['id']] <=> [$a['score'], $a['cosine'], $b['id']]);
 
-        $top3 = array_slice($scored, 0, 3);
+        // 'top3' holds the Top-N recommendations (N = config top_n, 3 by default).
+        $top3 = array_slice($scored, 0, $config['top_n'] ?? 3);
         $statedInTop3 = $statedProgramId !== null && in_array($statedProgramId, array_column($top3, 'id'), true);
 
         $statedEntry = null;

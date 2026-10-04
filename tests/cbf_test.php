@@ -34,25 +34,26 @@ $cfg = array_merge($base, [
 $ccis = $base['college_electives']['CCIS'];
 $cas = $base['college_electives']['CAS'];
 
-echo "=== hollandCodeToVector: rank-weighted letters, order R,I,A,S,E,C ===\n";
-check('RIC -> [3,2,0,0,0,1]', CBFEngine::hollandCodeToVector('RIC') === [3, 2, 0, 0, 0, 1]);
-check('SEC -> [0,0,0,3,2,1]', CBFEngine::hollandCodeToVector('SEC') === [0, 0, 0, 3, 2, 1]);
-check('AES -> [0,0,3,1,2,0]', CBFEngine::hollandCodeToVector('AES') === [0, 0, 3, 1, 2, 0]);
+echo "=== hollandCodeToVector: rank-preserving 1.00/0.67/0.33, order R,I,A,S,E,C ===\n";
+check('IRC -> [0.67,1,0,0,0,0.33]', CBFEngine::hollandCodeToVector('IRC') === [0.67, 1.00, 0, 0, 0, 0.33]);
+check('RIC -> [1,0.67,0,0,0,0.33]', CBFEngine::hollandCodeToVector('RIC') === [1.00, 0.67, 0, 0, 0, 0.33]);
+check('AES -> [0,0,1,0.33,0.67,0]', CBFEngine::hollandCodeToVector('AES') === [0, 0, 1.00, 0.33, 0.67, 0]);
+check('legacy 3/2/1 still available when passed explicitly', CBFEngine::hollandCodeToVector('SEC', [3, 2, 1]) === [0, 0, 0, 3, 2, 1]);
 
 echo "\n=== cosineSimilarity: hand-computed known vectors ===\n";
-// Student scored 50 on Realistic and 0 elsewhere. Program A = "RIC" -> [3,2,0,0,0,1].
-// dot = 50*3 = 150; |studentVec| = 50; |programVec| = sqrt(9+4+1) = sqrt(14).
-// cosine = 150 / (50 * sqrt(14)) = 3 / sqrt(14) = 0.801783725...
+// Student scored 50 on Realistic and 0 elsewhere. Program "RIC" -> [1,0.67,0,0,0,0.33].
+// dot = 50*1 = 50; |studentVec| = 50; |programVec| = sqrt(1 + 0.67^2 + 0.33^2) = 1.24816...
+// cosine = 50 / (50 * 1.24816) = 0.80118...
 $studentVec = CBFEngine::scoresToVector(['R' => 50, 'I' => 0, 'A' => 0, 'S' => 0, 'E' => 0, 'C' => 0]);
 $programVecRIC = CBFEngine::hollandCodeToVector('RIC');
 $cosineRIC = CBFEngine::cosineSimilarity($studentVec, $programVecRIC);
-check('pure-Realistic student vs RIC program ~= 0.8018', approx($cosineRIC, 3 / sqrt(14)));
+check('pure-Realistic student vs RIC program ~= 0.8012', approx($cosineRIC, 1 / sqrt(1 + 0.67 ** 2 + 0.33 ** 2)));
 check('pure-Realistic student vs SEC program == 0', CBFEngine::cosineSimilarity($studentVec, CBFEngine::hollandCodeToVector('SEC')) === 0.0);
 check('identical vectors cosine == 1', approx(CBFEngine::cosineSimilarity($programVecRIC, $programVecRIC), 1.0));
 check('zero vector cosine == 0 (no div-by-zero)', CBFEngine::cosineSimilarity([0, 0, 0, 0, 0, 0], $programVecRIC) === 0.0);
 check('works for any vector length', approx(CBFEngine::cosineSimilarity([1, 0, 1, 0], [1, 0, 0, 0]), 1 / sqrt(2)));
 
-echo "\n=== RIASEC-only profiles behave exactly like the original engine ===\n";
+echo "\n=== Stated-program bonus formula (0.70/0.30, configurable) ===\n";
 // No strand/electives on either side -> those blocks are all zero, so the overall
 // cosine equals the RIASEC cosine and Final = 0.70*cosine + 0.30*indicator.
 $programs = [
@@ -62,7 +63,7 @@ $programs = [
     ['id' => 4, 'hollandCode' => 'RSA'],
 ];
 $pureR = ['riasec' => ['R' => 50, 'I' => 0, 'A' => 0, 'S' => 0, 'E' => 0, 'C' => 0]];
-$rPrimaryCosine = 3 / sqrt(14); // shared by programs 1, 3, and 4
+$rPrimaryCosine = 1 / sqrt(1 + 0.67 ** 2 + 0.33 ** 2); // shared by programs 1, 3, and 4
 
 $result = CBFEngine::recommend($pureR, $programs, 1, $cfg);
 check('stated program (id=1) final score == 0.70*cosine + 0.30', $result['top3'][0]['id'] === 1 && approx($result['top3'][0]['score'], round(0.70 * $rPrimaryCosine + 0.30, 4)));
@@ -173,7 +174,39 @@ check('weight 0 block is not reported as a match', $r['all'][0]['matches']['stra
 check('weights are rescaled to sum to 1', approx(array_sum(CBFEngine::normalizedWeights(array_merge($cfg, ['weights' => ['riasec' => 6, 'strand' => 3, 'electives' => 1]]))), 1.0));
 
 $floorCfg = array_merge($cfg, ['riasec_subtract_floor' => true]);
-check('riasec_subtract_floor: 10..50 -> 0..40', CBFEngine::studentFeatures(['riasec' => ['R' => 10, 'I' => 50, 'A' => 25, 'S' => 10, 'E' => 10, 'C' => 10]], $floorCfg)['riasec'] === [0, 40, 15, 0, 0, 0]);
+$scores = ['R' => 10, 'I' => 50, 'A' => 25, 'S' => 10, 'E' => 10, 'C' => 10];
+check('default scaling: score / 50 -> 0..1', CBFEngine::studentFeatures(['riasec' => $scores], $cfg)['riasec'] === [0.2, 1.0, 0.5, 0.2, 0.2, 0.2]);
+check('riasec_subtract_floor: (score - 10) / 40 -> 0..1', CBFEngine::studentFeatures(['riasec' => $scores], $floorCfg)['riasec'] === [0.0, 1.0, 0.375, 0.0, 0.0, 0.0]);
+check('dividing by 50 does not change cosine', approx(
+    CBFEngine::cosineSimilarity(CBFEngine::studentFeatures(['riasec' => $scores], $cfg)['riasec'], $programVecRIC),
+    CBFEngine::cosineSimilarity(CBFEngine::scoresToVector($scores), $programVecRIC)));
+
+echo "\n=== Production configuration (config/cbf.php) matches the methodology ===\n";
+$prod = CBFEngine::config();
+check('only the RIASEC block is used', CBFEngine::normalizedWeights($prod) === ['riasec' => 1.0]);
+check('ranking is by cosine alone (no stated-program bonus)', $prod['final_score'] == ['similarity' => 1.0, 'stated_program' => 0.0]);
+check('encoding is 1.00/0.67/0.33', $prod['holland_rank_weights'] === [1.00, 0.67, 0.33]);
+check('Top-N = 3', $prod['top_n'] === 3);
+
+// S001 example from evaluation/METHODOLOGY.md (scores already on a 0-1 scale -> x50 = raw totals).
+$s001 = ['riasec' => ['R' => 36, 'I' => 45.5, 'A' => 20, 'S' => 17.5, 'E' => 30, 'C' => 39], 'strand' => 'STEM', 'electives' => ['Animation']];
+$catalog = [
+    ['id' => 1, 'hollandCode' => 'IRC', 'relatedStrands' => [], 'collegeCode' => 'CCIS'],
+    ['id' => 2, 'hollandCode' => 'RIC', 'relatedStrands' => ['STEM'], 'collegeCode' => 'MITL'],
+    ['id' => 3, 'hollandCode' => 'AES', 'relatedStrands' => [], 'collegeCode' => 'CAS'],
+    ['id' => 4, 'hollandCode' => 'ICR', 'relatedStrands' => [], 'collegeCode' => 'MITL'],
+    ['id' => 5, 'hollandCode' => 'SEA', 'relatedStrands' => [], 'collegeCode' => 'ETYCB'],
+];
+$r = CBFEngine::recommend($s001, $catalog, 3);
+$byId = array_column($r['all'], null, 'id');
+check('S001: ICR 0.8303, IRC 0.8202, RIC 0.7890, AES 0.4561, SEA 0.4395 (METHODOLOGY.md §13)',
+    $byId[4]['cosine'] === 0.8303 && $byId[1]['cosine'] === 0.8202 && $byId[2]['cosine'] === 0.789
+    && $byId[3]['cosine'] === 0.4561 && $byId[5]['cosine'] === 0.4395);
+check('score == cosine for every course, including the stated one', array_reduce($r['all'], fn($ok, $e) => $ok && $e['score'] === $e['cosine'], true));
+check('ranked by cosine: ICR, IRC, RIC', array_column($r['top3'], 'id') === [4, 1, 2]);
+check('stated low-fit program (AES) is NOT pushed into the Top-N', $r['statedOutsideTop3']['id'] === 3);
+check('low-match explanation names only RIASEC', CBFEngine::explain(['strand' => [], 'riasec' => [], 'electives' => []]) === 'This program shares none of your top RIASEC types, so its match is low.');
+check('strand and electives do not affect the ranking', $byId[2]['blocks'] === ['riasec' => $byId[2]['blocks']['riasec']]);
 
 echo "\n=== Postgres text[] parsing ===\n";
 check('bare and quoted elements are both read', CBFData::parseTextArray('{Animation,"Biology 1-2",Entrepreneurship}') === ['Animation', 'Biology 1-2', 'Entrepreneurship']);

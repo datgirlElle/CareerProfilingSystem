@@ -67,7 +67,8 @@ CREATE TABLE programs (
     id                  SERIAL PRIMARY KEY,
     college_id          INT NOT NULL REFERENCES colleges(id),
     title_enc           TEXT NOT NULL,
-    holland_code_enc    TEXT NOT NULL,
+    holland_code_enc    TEXT NOT NULL,      -- final (validator-revised) code; used by the CBF
+    original_holland_code_enc TEXT,         -- code before validator revision; audit only
     description_enc     TEXT,
     -- SHS strands aligned with this program (CBF "strand" feature); '{}' = not specified.
     related_strands     TEXT[] NOT NULL DEFAULT '{}',

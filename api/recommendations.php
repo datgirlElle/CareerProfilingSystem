@@ -44,7 +44,7 @@ if ($row['source_worksheet_id'] !== null) {
 
 $scores = json_decode($row['scores'], true);
 usort($scores, fn($a, $b) => $b['score'] <=> $a['score']);
-$top3Scores = array_slice($scores, 0, 3);
+$top3Scores = array_slice($scores, 0, CBFEngine::config()['top_n'] ?? 3);
 
 $statedProgramId = $row['stated_program_id'] !== null ? (int) $row['stated_program_id'] : null;
 $top3Ids = array_column($top3Scores, 'programId');
@@ -104,6 +104,9 @@ function enrichEntry(array $scoreEntry, array $programs): ?array
         // null on older RIASEC-only snapshots, where the UI keeps its old text.
         'matchingFactors' => $scoreEntry['matches'] ?? null,
         'explanation' => $scoreEntry['explanation'] ?? null,
+        // Final-score weights used for this snapshot; null on older snapshots,
+        // which all used 0.70 x cosine + 0.30 x stated-program indicator.
+        'formula' => $scoreEntry['formula'] ?? null,
     ];
 }
 

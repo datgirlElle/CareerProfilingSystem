@@ -53,10 +53,12 @@ $topProgramId = (int) $recommendation['top3'][0]['id'];
 $topScore = (float) $recommendation['top3'][0]['score'];
 
 // Snapshot of every program's result. blocks/matches/explanation make the
-// recommendation explainable later without recomputing it.
+// recommendation explainable later without recomputing it; formula records the
+// final-score weights in force when it was computed (they are configurable).
+$formula = CBFEngine::config()['final_score'];
 $scoresForStorage = array_map(fn($s) => [
     'programId' => $s['id'], 'cosine' => $s['cosine'], 'indicator' => $s['indicator'], 'score' => $s['score'],
-    'blocks' => $s['blocks'], 'matches' => $s['matches'], 'explanation' => $s['explanation'],
+    'blocks' => $s['blocks'], 'matches' => $s['matches'], 'explanation' => $s['explanation'], 'formula' => $formula,
 ], $recommendation['all']);
 
 $pdo->beginTransaction();

@@ -64,9 +64,8 @@ to make design decisions.
 
   Fill `OriginalHollandCode` from the validator's signed revision sheet. Final codes are
   unaffected.
-- The live web database still holds the two pre-revision codes (Tourism = EAS,
-  Computer Engineering = RIC). Update them in *Career Data Set* so the app matches the
-  evaluated model (§12).
+- The live web database is updated by `php db/migrate_final_holland_codes.php`, which applies the
+  final codes and stores the originals in `programs.original_holland_code_enc` (§12).
 - Course names differ slightly from the database. The database has "BS Multimedia Arts" and
   "BS Business Administration Major in …"; this file has "B Multimedia Arts" and "BSBA Major in …".
   Use one naming convention when exporting `ActualCourse`.
@@ -359,14 +358,18 @@ test students** at **matching output levels**:
 1. Confirm with the adviser: the tree algorithm, the source of `ActualCourse`, the student
    scale (`raw50` is recommended as primary), and K (3 is recommended).
 2. Resolve the two conflicting `OriginalHollandCode` entries (§2).
-3. Update the live database codes to the final ones (Tourism → SEA, Computer Engineering → ICR)
-   in Career Data Set, and keep the originals in `course_profiles.csv`.
-4. Align the web app with the evaluated model:
-   - In `config/cbf.php`, set `holland_rank_weights` to `[1.00, 0.67, 0.33]`. The current
-     `[3, 2, 1]` is already equivalent up to rounding.
-   - Set `weights` to RIASEC only.
-   - Document the 0.30 stated-program bonus as an application feature that is **not** part of
-     the evaluated CBF.
+3. ✅ **Done in the app:** final codes are applied by `php db/migrate_final_holland_codes.php`
+   (Tourism → SEA, Computer Engineering → ICR). The originals are kept in
+   `programs.original_holland_code_enc`. The shared list is in `db/program_codes.php`.
+4. ✅ **Done in the app:** `config/cbf.php` now matches the evaluated model.
+   - Encoding `[1.00, 0.67, 0.33]`.
+   - RIASEC-only weights.
+   - Ranking by cosine alone, with no stated-program bonus.
+   - Scores scaled by /50.
+   - Top-N = 3.
+
+   Verified: `lib/CBFEngine.php` and `cbf_eval.py` agree on 1,000 random students × 32 courses
+   (maximum difference 0.00005, from rounding).
 5. Collect data → `student_profiles.csv` (pseudonymised, with consent).
 6. `python3 cbf_eval.py split --students student_profiles.csv`
 7. `python3 cbf_eval.py weights --students train.csv --k 3` → choose the encoding (§10).

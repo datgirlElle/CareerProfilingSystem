@@ -564,9 +564,24 @@
       // don't have one yet. The full match-score breakdown is still just a
       // click away via "View Program Details".
       if (p.description) return p.description;
-      return p.explanation
+      // Only the interim multi-attribute snapshots (explanation but no formula)
+      // also compared strand and electives.
+      return (p.explanation && !p.formula)
         ? 'This program is a ' + p.matchPercent + '% match to your profile (RIASEC results, strand, and chosen electives).'
         : 'This program is a ' + p.matchPercent + '% match to your RIASEC profile, based on its Holland Code (' + p.hollandCode + ') and your assessment results.';
+    }
+
+    // How this snapshot's score was computed. New snapshots record their
+    // formula; older ones all used 0.70 x similarity + 0.30 x stated indicator.
+    function scoreFormulaText(program) {
+      const cosinePct = Math.round(program.cosine * 100);
+      const f = program.formula || { similarity: 0.70, stated_program: 0.30 };
+      if (!f.stated_program) {
+        return 'Match Score = cosine similarity between your six RIASEC scores and this program\'s Holland Code = ' + cosinePct + '%.';
+      }
+      const label = program.formula ? 'RIASEC similarity' : (program.explanation ? 'profile similarity' : 'RIASEC similarity');
+      return 'Final Match Score = ' + f.similarity.toFixed(2) + ' × ' + label + ' (' + cosinePct + '%) + ' + f.stated_program.toFixed(2) + ' × stated-interest indicator (' +
+        (recommendation.statedProgramId === program.id ? '1, since you stated this program on your worksheet' : '0') + ') = ' + program.matchPercent + '%.';
     }
 
     // No per-program images/icons exist in the data (or schema) — this maps
@@ -640,15 +655,11 @@
         const program = allPrograms[Number(detailsBtn.dataset.id)];
         document.getElementById('detailsModalTitle').textContent = program.title + (program.isActive === false ? ' — No longer available' : '');
         const overview = describeProgram(program);
-        // Snapshots from the multi-attribute engine carry an explanation;
-        // older RIASEC-only snapshots keep the original wording.
-        const similarityLabel = program.explanation ? 'profile similarity' : 'RIASEC similarity';
         document.getElementById('detailsModalBody').innerHTML =
           '<p>' + overview + '</p>' +
           (program.explanation ? '<p class="text-sm text-[#191c1e] mt-3">' + program.explanation + '</p>' : '') +
           '<p class="text-xs text-[#5e3f3c] mt-3">' + program.collegeCode + ' — ' + program.collegeName + ' &middot; Holland Code: ' + program.hollandCode + '</p>' +
-          '<p class="text-xs text-slate-400 mt-3 pt-3 border-t border-gray-100">Final Match Score = 0.70 × ' + similarityLabel + ' (' + Math.round(program.cosine * 100) + '%) + 0.30 × stated-interest indicator (' +
-          (recommendation.statedProgramId === program.id ? '1, since you stated this program on your worksheet' : '0') + ') = ' + program.matchPercent + '%.</p>';
+          '<p class="text-xs text-slate-400 mt-3 pt-3 border-t border-gray-100">' + scoreFormulaText(program) + '</p>';
         openDetailsModal();
         return;
       }

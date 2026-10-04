@@ -14,7 +14,7 @@ if ($method === 'GET') {
         Rbac::requireAccess('career', 'limited');
     }
 
-    $sql = 'SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, p.related_strands, p.status, p.college_id, c.code AS college_code, c.name AS college_name
+    $sql = 'SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, p.original_holland_code_enc, p.related_strands, p.status, p.college_id, c.code AS college_code, c.name AS college_name
             FROM programs p JOIN colleges c ON c.id = p.college_id';
     if (!$includeInactive) {
         $sql .= " WHERE p.status = 'Active'";
@@ -26,6 +26,8 @@ if ($method === 'GET') {
         'id' => (int) $r['id'],
         'title' => Crypto::dec($r['title_enc']),
         'hollandCode' => Crypto::dec($r['holland_code_enc']),
+        // Code before the validator's revision, kept for audit (null = none recorded).
+        'originalHollandCode' => $r['original_holland_code_enc'] !== null ? Crypto::dec($r['original_holland_code_enc']) : null,
         'description' => $r['description_enc'] !== null ? Crypto::dec($r['description_enc']) : '',
         'relatedStrands' => CBFData::parseTextArray($r['related_strands']),
         'status' => $r['status'],

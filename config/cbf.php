@@ -18,33 +18,46 @@ return [
     // Only the ratios matter (the engine rescales them to sum to 1). A weight
     // of 0 removes that block from the vectors entirely.
     //
-    // PENDING THESIS DECISION: equal weights = every attribute group counts
-    // the same (the plain, unweighted form of block-normalised cosine
-    // similarity). Replace with the values documented in Chapter 3 once final.
+    // Methodology: the CBF compares the student's six RIASEC scores with each
+    // course's Holland code ONLY (same features as the WEKA comparison model).
+    // Strand and electives are still collected but do not affect the ranking.
     'weights' => [
         'riasec'    => 1.0,
-        'strand'    => 1.0,
-        'electives' => 1.0,
+        'strand'    => 0.0,
+        'electives' => 0.0,
     ],
 
     // Final Match Score = similarity * cosine + stated_program * indicator,
     // where indicator = 1 for the program the student stated on the Career
-    // Worksheet (0 otherwise). 0.70 / 0.30 is the existing Chapter 3 formula.
+    // Worksheet (0 otherwise).
+    //
+    // Methodology: courses are ranked by cosine similarity alone, so the
+    // stated program gets no bonus (it is still shown to the student for
+    // comparison). The earlier formula was 0.70 / 0.30.
     'final_score' => [
-        'similarity'     => 0.70,
-        'stated_program' => 0.30,
+        'similarity'     => 1.0,
+        'stated_program' => 0.0,
     ],
 
-    // PENDING THESIS DECISION: each RIASEC dimension has 10 items answered
-    // 1-5, so every score is at least 10. When true, that floor is subtracted
-    // (score 10..50 -> 0..40) so a dimension the student rated all-"1" counts
-    // as 0 interest instead of 10. false = original raw-score behaviour.
+    // Number of recommended courses returned to the student (Top-N).
+    'top_n' => 3,
+
+    // Student scores -> 0-1 scale. Each RIASEC dimension has 10 items answered
+    // 1-5, so a raw total is 10..50.
+    //   false: score / riasec_max           (10..50 -> 0.20..1.00). Cosine values
+    //          are identical to using the raw totals.
+    //   true : (score - floor) / (max - floor) (10..50 -> 0..1). This changes
+    //          cosine values; it is a sensitivity option for the thesis.
     'riasec_subtract_floor' => false,
     'riasec_floor'          => 10,
+    'riasec_max'            => 50,
 
-    // A program's 3-letter Holland code -> RIASEC vector: 1st letter = 3,
-    // 2nd = 2, 3rd = 1, absent letters = 0 (the project's existing rule).
-    'holland_rank_weights' => [3, 2, 1],
+    // A course's 3-letter Holland code -> RIASEC vector: 1st letter = 1.00,
+    // 2nd = 0.67, 3rd = 0.33, absent = 0 (e.g. IRC -> [0.67, 1, 0, 0, 0, 0.33]).
+    // This is a rank-preserving ENGINEERING encoding that keeps the order of the
+    // code's letters; the values are design choices, not intensities defined by
+    // Holland's theory. Alternatives are compared in evaluation/ (cbf_eval.py weights).
+    'holland_rank_weights' => [1.00, 0.67, 0.33],
 
     // SHS strands offered (same list as the students.strand CHECK constraint).
     'strands' => ['STEM', 'ABM', 'ICT', 'HUMSS'],
