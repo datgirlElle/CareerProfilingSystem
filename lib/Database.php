@@ -8,11 +8,11 @@ class Database
     public static function get(): PDO
     {
         if (self::$connection === null) {
-            $host = getenv('DB_HOST');
-            $port = getenv('DB_PORT');
-            $name = getenv('DB_NAME');
-            $user = getenv('DB_USER');
-            $password = getenv('DB_PASSWORD');
+            $host = envValue('DB_HOST');
+            $port = envValue('DB_PORT');
+            $name = envValue('DB_NAME');
+            $user = envValue('DB_USER');
+            $password = envValue('DB_PASSWORD');
 
             if (!$host || !$name || !$user) {
                 throw new RuntimeException(

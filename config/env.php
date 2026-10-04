@@ -42,6 +42,19 @@ function loadEnv(string $path): void
 
 loadEnv(__DIR__ . '/../.env');
 
+/**
+ * Read a setting loaded from .env or from the real environment (e.g. Render).
+ * Checks $_ENV first: on Windows thread-safe PHP builds (XAMPP), values set
+ * with putenv() are not always visible to getenv().
+ */
+function envValue(string $key): string|false
+{
+    if (isset($_ENV[$key]) && $_ENV[$key] !== '') {
+        return $_ENV[$key];
+    }
+    return getenv($key);
+}
+
 // The school operates in Philippine time. Without this PHP falls back to UTC
 // (the Docker image default), so a "today 3 PM" value from a datetime-local
 // input was read as 3 PM UTC = 11 PM Manila and could land on tomorrow.

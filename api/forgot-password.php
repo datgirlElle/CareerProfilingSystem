@@ -62,7 +62,7 @@ $insert = $pdo->prepare(
 );
 $insert->execute([$user['id'], $tokenHash]);
 
-$resetLink = rtrim((string) getenv('APP_URL'), '/') . '/forgot-password?token=' . $rawToken;
+$resetLink = rtrim((string) envValue('APP_URL'), '/') . '/forgot-password?token=' . $rawToken;
 $safeFirstName = htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8');
 
 $bodyHtml = EmailTemplate::render(
@@ -80,7 +80,7 @@ $sent = Mailer::send($email, $firstName, 'Reset your ProfilePath password', $bod
 AuditLogger::log($user['id'], $user['role'], 'request_password_reset', 'user', (string) $user['id']);
 
 $response = $generic;
-if (!$sent && getenv('APP_ENV') === 'local') {
+if (!$sent && envValue('APP_ENV') === 'local') {
     // Local dev has no real Brevo credentials — surface the link directly so the flow stays testable.
     $response['debugResetLink'] = $resetLink;
 }
