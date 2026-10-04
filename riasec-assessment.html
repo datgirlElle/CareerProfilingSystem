@@ -389,8 +389,30 @@
       currentIndex = newIndex;
       renderQuestion();
       card.classList.remove('is-swapping');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      keepQuestionInView(card);
     }, 200);
+  }
+
+  // The new question lands in the same card, so the page should only move when
+  // the card isn't fully on screen. (It used to jump to the very top of the
+  // page after every Next, which pushed the answer options and the Next button
+  // below the fold on shorter screens and forced a scroll back down for every
+  // single question.) The sticky top bar is 64px tall.
+  function keepQuestionInView(card) {
+    const TOP_BAR = 64;
+    const MARGIN = 16;
+    const rect = card.getBoundingClientRect();
+    const fullyVisible = rect.top >= TOP_BAR + MARGIN && rect.bottom <= window.innerHeight - MARGIN;
+    if (fullyVisible) return;
+    // Taller than the screen: line the top up under the bar. Otherwise nudge the
+    // minimum needed to bring the whole card (options and Next button) into view.
+    let delta;
+    if (rect.height > window.innerHeight - TOP_BAR - 2 * MARGIN || rect.top < TOP_BAR + MARGIN) {
+      delta = rect.top - (TOP_BAR + MARGIN);
+    } else {
+      delta = rect.bottom - (window.innerHeight - MARGIN);
+    }
+    window.scrollBy({ top: delta, behavior: 'smooth' });
   }
 
   function renderQuestion() {

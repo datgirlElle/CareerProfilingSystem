@@ -2,6 +2,8 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/CBFEngine.php';
+require_once __DIR__ . '/../lib/Careers.php';
+require_once __DIR__ . '/../lib/CareerMatcher.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -13,11 +15,11 @@ if ($user['role'] !== 'student') {
 }
 
 $body = readJsonBody();
-$programId = (int) ($body['programId'] ?? 0);
+$career = CareerMatcher::sanitize((string) ($body['career'] ?? ''));
 $electives = $body['electives'] ?? [];
 
-if ($programId <= 0) {
-    jsonResponse(['success' => false, 'error' => 'Please select the program you are considering.'], 400);
+if ($career === null) {
+    jsonResponse(['success' => false, 'error' => 'Please type the career you want to take (letters and numbers only, up to 80 characters).'], 400);
 }
 if (!is_array($electives) || count($electives) === 0) {
     jsonResponse(['success' => false, 'error' => 'Please select at least one elective.'], 400);
@@ -26,12 +28,6 @@ $electives = array_values(array_map('strval', $electives));
 
 $pdo = Database::get();
 $studentId = (int) $user['id'];
-
-$programCheck = $pdo->prepare("SELECT id FROM programs WHERE id = ? AND status = 'Active'");
-$programCheck->execute([$programId]);
-if (!$programCheck->fetch()) {
-    jsonResponse(['success' => false, 'error' => 'Selected program is not available.'], 400);
-}
 
 $assessmentStmt = $pdo->prepare(
     'SELECT id, attempt_number, score_r, score_i, score_a, score_s, score_e, score_c, top_types
@@ -48,10 +44,12 @@ $scores = [
     'S' => (int) $assessment['score_s'], 'E' => (int) $assessment['score_e'], 'C' => (int) $assessment['score_c'],
 ];
 
-$activePrograms = array_map(fn($r) => [
-    'id' => (int) $r['id'],
-    'hollandCode' => Crypto::dec($r['holland_code_enc']),
-], $pdo->query("SELECT id, holland_code_enc FROM programs WHERE status = 'Active'")->fetchAll());
+$allPrograms = CareerMatcher::loadPrograms($pdo);
+$activePrograms = array_map(fn($p) => ['id' => $p['id'], 'hollandCode' => $p['hollandCode']], $allPrograms);
+
+// Link the typed career to a program (null if nothing is close enough: then
+// there is no worksheet bonus and the recommendation is interest-fit only).
+$programId = CareerMatcher::resolve($career, $allPrograms, $scores);
 
 $recommendation = CBFEngine::recommend($scores, $activePrograms, $programId);
 $topProgramId = (int) $recommendation['top3'][0]['id'];
@@ -61,25 +59,20 @@ $scoresForStorage = array_map(fn($s) => [
     'programId' => $s['id'], 'cosine' => $s['cosine'], 'indicator' => $s['indicator'], 'score' => $s['score'],
 ], $recommendation['all']);
 
-function pgTextArrayLiteral(array $values): string
-{
-    return '{' . implode(',', array_map(fn($v) => '"' . addcslashes($v, '\\"') . '"', $values)) . '}';
-}
-
 $pdo->beginTransaction();
 try {
     $attemptNumber = (int) $assessment['attempt_number'];
 
     $worksheetInsert = $pdo->prepare(
-        'INSERT INTO worksheets (student_id, attempt_number, stated_program_id, electives, top_types)
-         VALUES (?, ?, ?, ?, ?)
+        'INSERT INTO worksheets (student_id, attempt_number, stated_program_id, stated_career, electives, top_types)
+         VALUES (?, ?, ?, ?, ?, ?)
          ON CONFLICT (student_id, attempt_number) DO UPDATE
-         SET stated_program_id = EXCLUDED.stated_program_id, electives = EXCLUDED.electives,
-             top_types = EXCLUDED.top_types, submitted_at = NOW()
+         SET stated_program_id = EXCLUDED.stated_program_id, stated_career = EXCLUDED.stated_career,
+             electives = EXCLUDED.electives, top_types = EXCLUDED.top_types, submitted_at = NOW()
          RETURNING id'
     );
     $worksheetInsert->execute([
-        $studentId, $attemptNumber, $programId, pgTextArrayLiteral($electives), $assessment['top_types'],
+        $studentId, $attemptNumber, $programId, $career, Careers::toLiteral($electives), $assessment['top_types'],
     ]);
     $worksheetId = (int) $worksheetInsert->fetchColumn();
 

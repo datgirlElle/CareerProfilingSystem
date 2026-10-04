@@ -85,6 +85,10 @@ CREATE TABLE programs (
     title_enc           TEXT NOT NULL,
     holland_code_enc    TEXT NOT NULL,
     description_enc     TEXT,
+    -- Careers this program leads to, shown to students on Career Results and
+    -- offered on the Career Worksheet. Plain reference data (like colleges),
+    -- not student data, so it is not encrypted and can be loaded with SQL.
+    careers             TEXT[] NOT NULL DEFAULT '{}',
     status              VARCHAR(10) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Inactive')),
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -122,7 +126,10 @@ CREATE TABLE worksheets (
     id                  SERIAL PRIMARY KEY,
     student_id          INT NOT NULL REFERENCES students(user_id) ON DELETE CASCADE,
     attempt_number      INT NOT NULL,
-    stated_program_id   INT NOT NULL REFERENCES programs(id),
+    -- NULL when the career the student typed couldn't be linked to a program
+    -- (see lib/CareerMatcher.php).
+    stated_program_id   INT REFERENCES programs(id),
+    stated_career       VARCHAR(120),
     electives           TEXT[] NOT NULL DEFAULT '{}',
     top_types           JSONB NOT NULL,
     submitted_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),

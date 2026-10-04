@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/Careers.php';
 
 $pdo = Database::get();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -12,7 +13,7 @@ if ($method === 'GET') {
         Rbac::requireAccess('career', 'limited');
     }
 
-    $sql = 'SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, p.status, p.college_id, c.code AS college_code, c.name AS college_name
+    $sql = 'SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, p.careers, p.status, p.college_id, c.code AS college_code, c.name AS college_name
             FROM programs p JOIN colleges c ON c.id = p.college_id';
     if (!$includeInactive) {
         $sql .= " WHERE p.status = 'Active'";
@@ -25,6 +26,10 @@ if ($method === 'GET') {
         'title' => Crypto::dec($r['title_enc']),
         'hollandCode' => Crypto::dec($r['holland_code_enc']),
         'description' => $r['description_enc'] !== null ? Crypto::dec($r['description_enc']) : '',
+        // Raw list staff maintain (may be empty); `careerOptions` is what a
+        // student can actually pick: that list, or the program title if empty.
+        'careers' => Careers::parse($r['careers']),
+        'careerOptions' => Careers::effective(Careers::parse($r['careers']), Crypto::dec($r['title_enc'])),
         'status' => $r['status'],
         'collegeId' => (int) $r['college_id'],
         'collegeCode' => $r['college_code'],
@@ -83,8 +88,18 @@ function readProgramInput(array $body): array
     if ($collegeId <= 0) {
         jsonResponse(['success' => false, 'error' => 'A college is required.'], 400);
     }
+    // null = the caller didn't send a careers list at all (PUT then leaves the
+    // stored list untouched rather than wiping it).
+    $careers = null;
+    try {
+        if (array_key_exists('careers', $body)) {
+            $careers = Careers::normalize($body['careers']);
+        }
+    } catch (InvalidArgumentException $e) {
+        jsonResponse(['success' => false, 'error' => $e->getMessage()], 400);
+    }
 
-    return [$title, $hollandCode, $description, $collegeId, $status];
+    return [$title, $hollandCode, $description, $collegeId, $status, $careers];
 }
 
 if ($method === 'POST') {
@@ -108,7 +123,7 @@ if ($method === 'POST') {
         jsonResponse(['success' => true, 'status' => $newStatus]);
     }
 
-    [$title, $hollandCode, $description, $collegeId, $status] = readProgramInput($body);
+    [$title, $hollandCode, $description, $collegeId, $status, $careers] = readProgramInput($body);
 
     $exists = $pdo->prepare('SELECT id FROM colleges WHERE id = ?');
     $exists->execute([$collegeId]);
@@ -117,9 +132,9 @@ if ($method === 'POST') {
     }
 
     $insert = $pdo->prepare(
-        'INSERT INTO programs (college_id, title_enc, holland_code_enc, description_enc, status) VALUES (?, ?, ?, ?, ?) RETURNING id'
+        'INSERT INTO programs (college_id, title_enc, holland_code_enc, description_enc, careers, status) VALUES (?, ?, ?, ?, ?, ?) RETURNING id'
     );
-    $insert->execute([$collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null, $status]);
+    $insert->execute([$collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null, Careers::toLiteral($careers ?? []), $status]);
     $id = (int) $insert->fetchColumn();
 
     AuditLogger::log($user['id'], $user['role'], 'create_program', 'program', (string) $id, $title);
@@ -141,7 +156,7 @@ if ($method === 'PUT') {
         jsonResponse(['success' => false, 'error' => 'Program not found.'], 404);
     }
 
-    [$title, $hollandCode, $description, $collegeId, $status] = readProgramInput($body);
+    [$title, $hollandCode, $description, $collegeId, $status, $careers] = readProgramInput($body);
 
     $collegeCheck = $pdo->prepare('SELECT id FROM colleges WHERE id = ?');
     $collegeCheck->execute([$collegeId]);
@@ -150,9 +165,9 @@ if ($method === 'PUT') {
     }
 
     $update = $pdo->prepare(
-        'UPDATE programs SET college_id = ?, title_enc = ?, holland_code_enc = ?, description_enc = ?, status = ?, updated_at = NOW() WHERE id = ?'
+        'UPDATE programs SET college_id = ?, title_enc = ?, holland_code_enc = ?, description_enc = ?, careers = COALESCE(?::text[], careers), status = ?, updated_at = NOW() WHERE id = ?'
     );
-    $update->execute([$collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null, $status, $id]);
+    $update->execute([$collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null, $careers !== null ? Careers::toLiteral($careers) : null, $status, $id]);
 
     AuditLogger::log($user['id'], $user['role'], 'update_program', 'program', (string) $id, $title);
 

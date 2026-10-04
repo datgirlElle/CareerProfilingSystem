@@ -71,6 +71,7 @@ config/     .env loader
    php db/migrate_add_assessment_roster.php
    php db/migrate_add_examinations.php
    php db/migrate_add_counseling_notes.php
+   php db/migrate_add_program_careers.php
    ```
 
 4. **Seed reference data and a default admin account:**
@@ -78,6 +79,7 @@ config/     .env loader
    ```bash
    php db/seed_colleges.php
    php db/seed_programs.php
+   php db/backfill_program_careers.php
    php db/seed_questions.php
    php db/seed_security_defaults.php
    php db/seed_admin.php

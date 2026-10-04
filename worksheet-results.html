@@ -121,7 +121,7 @@
         </a>
         <div>
           <h1 class="text-[32px] font-bold text-[#191c1e] tracking-tight">Worksheet Results</h1>
-          <p class="text-sm text-[#5e3f3c] mt-1">How your chosen career goal and electives line up with your RIASEC profile.</p>
+          <p class="text-sm text-[#5e3f3c] mt-1">How the career you want to take and your chosen electives line up with your RIASEC profile.</p>
         </div>
       </div>
 
@@ -131,10 +131,13 @@
         <div class="lg:col-span-5">
           <div class="bg-white border border-[#e0e3e5] rounded-lg px-[17px] pt-[17px] pb-[39px]">
             <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-4">Your Worksheet</h2>
-            <p class="text-xs text-[#5e3f3c] mb-4">The career goal you set out at the start of your worksheet.</p>
+            <p class="text-xs text-[#5e3f3c] mb-4">The career you chose to take on your worksheet.</p>
 
-            <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">Chosen Career Goal</p>
+            <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">Career I Want to Take</p>
             <p class="text-base font-semibold text-[#191c1e] mb-4" id="careerGoalText">—</p>
+
+            <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">MMCL Program</p>
+            <p class="text-sm font-medium text-[#191c1e] mb-4" id="careerProgramText">—</p>
 
             <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-2">Electives</p>
             <div class="flex flex-wrap gap-2" id="keySkillsList"></div>
@@ -147,7 +150,7 @@
             <div class="flex items-start justify-between border-b border-[#e0e3e5] pb-2 gap-4 flex-wrap">
               <div>
                 <h2 class="text-xl font-semibold text-[#191c1e]">Alignment with RIASEC Results</h2>
-                <p class="text-xs text-[#5e3f3c] mt-1">How your chosen goal matches with your assessed personality traits.</p>
+                <p class="text-xs text-[#5e3f3c] mt-1">Which RIASEC dimensions of your chosen career match your assessed traits.</p>
               </div>
               <span id="alignBadge" class="inline-flex items-center gap-2 rounded px-4 py-2"></span>
             </div>
@@ -163,6 +166,11 @@
                 <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">Top Interest Area</p>
                 <p class="text-sm font-medium text-[#191c1e]" id="topInterestArea">—</p>
               </div>
+            </div>
+            <div>
+              <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">Dimension Match</p>
+              <p class="text-xs text-[#5e3f3c] mb-3" id="dimensionSummary">—</p>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="dimensionMatch"></div>
             </div>
             <div class="bg-[#f2f4f6] border border-[#e0e3e5] rounded p-3">
               <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-2">Analysis</p>
@@ -294,11 +302,16 @@
   const topLetters = topTypes.map(function(t) { return LABEL_TO_LETTER[t] || t[0]; });
   const statedProgram = recommendation.statedProgram;
 
-  document.getElementById('careerGoalText').textContent = statedProgram
-    ? statedProgram.title + (statedProgram.isActive === false ? ' (no longer available)' : '')
-    : '—';
+  // Worksheets submitted before careers existed have no stated career, so
+  // fall back to the program title they chose.
+  const statedCareer = recommendation.statedCareer || (statedProgram ? statedProgram.title : null);
+  document.getElementById('careerGoalText').textContent = statedCareer || '—';
+  document.getElementById('careerProgramText').textContent = statedProgram
+    ? statedProgram.title + ' — ' + statedProgram.collegeName + (statedProgram.isActive === false ? ' (no longer available)' : '')
+    : 'Not linked to an MMCL program';
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   document.getElementById('keySkillsList').innerHTML = (recommendation.electives || []).map(function(skill) {
-    return '<span class="bg-[#f2f4f6] border border-[#e0e3e5] rounded-full px-3.5 py-1.5 text-xs text-[#191c1e]">' + skill + '</span>';
+    return '<span class="bg-[#f2f4f6] border border-[#e0e3e5] rounded-full px-3.5 py-1.5 text-xs text-[#191c1e]">' + esc(skill) + '</span>';
   }).join('') || '<span class="text-xs text-[#5e3f3c]">No electives selected.</span>';
 
   document.getElementById('profileCode').textContent = topLetters.join(' - ');
@@ -307,10 +320,14 @@
 
   // "Aligned" is a real, computed fact: does the program the student stated on the
   // worksheet actually land in their own top-3 CBF recommendation (0.70*cosine + 0.30*indicator)?
-  const isAligned = recommendation.statedOutsideTop3 === null;
+  const isAligned = !!statedProgram && recommendation.statedOutsideTop3 === null;
 
   const badge = document.getElementById('alignBadge');
-  if (isAligned) {
+  if (!statedProgram) {
+    // The typed career couldn't be linked to a program, so there is nothing to compare.
+    badge.className = 'inline-flex items-center gap-2 bg-slate-100 border border-slate-200 rounded px-4 py-2';
+    badge.innerHTML = '<span class="text-xs font-bold text-slate-600 uppercase tracking-wide">Not Linked</span>';
+  } else if (isAligned) {
     badge.className = 'inline-flex items-center gap-2 bg-[#ecfdf5] border border-[#a7f3d0] rounded px-4 py-2';
     badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg><span class="text-xs font-bold text-[#047857] uppercase tracking-wide">Aligned</span>';
   } else {
@@ -318,11 +335,45 @@
     badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.007M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span class="text-xs font-bold text-orange-700 uppercase tracking-wide">Worth a Second Look</span>';
   }
 
-  const goalTitle = statedProgram ? statedProgram.title : 'your stated program';
+  // Letter-by-letter match: each RIASEC dimension in the chosen career's
+  // program code, checked against the student's own top three.
+  const LETTER_TO_LABEL = { R: 'Realistic', I: 'Investigative', A: 'Artistic', S: 'Social', E: 'Enterprising', C: 'Conventional' };
+  const programLetters = statedProgram ? statedProgram.hollandCode.split('') : [];
+  const matchedLetters = programLetters.filter(function(l) { return topLetters.indexOf(l) !== -1; });
+
+  document.getElementById('dimensionSummary').textContent = !statedProgram
+    ? 'We could not link "' + (statedCareer || 'your career') + '" to a specific MMCL program, so there is no dimension-by-dimension comparison for it.'
+    : programLetters.length
+    ? matchedLetters.length + ' of ' + programLetters.length + ' dimensions of ' + statedProgram.title + ' (' + statedProgram.hollandCode.split('').join(' - ') + ') are among your top three.'
+    : '—';
+  document.getElementById('dimensionMatch').innerHTML = programLetters.map(function(letter, i) {
+    const rank = topLetters.indexOf(letter);
+    const matched = rank !== -1;
+    const box = matched ? 'bg-[#ecfdf5] border-[#a7f3d0]' : 'bg-[#f2f4f6] border-[#e0e3e5]';
+    const mark = matched
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2.5" class="w-4 h-4 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" class="w-4 h-4 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6L6 18"/></svg>';
+    return '<div class="border rounded p-3 ' + box + '">' +
+      '<div class="flex items-center justify-between gap-2">' +
+        '<p class="text-lg font-bold ' + (matched ? 'text-[#047857]' : 'text-[#5e3f3c]') + '">' + letter + '</p>' + mark +
+      '</div>' +
+      '<p class="text-xs font-semibold text-[#191c1e] mt-1">' + LETTER_TO_LABEL[letter] + '</p>' +
+      '<p class="text-[11px] text-[#5e3f3c] mt-0.5">' + (matched ? 'Matches your #' + (rank + 1) + ' dimension' : 'Not in your top 3') + '</p>' +
+    '</div>';
+  }).join('');
+
+  const goalTitle = statedCareer || 'your chosen career';
+  const programTitle = statedProgram ? statedProgram.title : 'its program';
   const cosinePct = statedProgram ? Math.round(statedProgram.cosine * 100) : 0;
-  const analysis = isAligned
-    ? 'Your RIASEC profile is a ' + cosinePct + '% cosine match with "' + goalTitle + '," which is why it lands in your own top-3 career recommendations. The electives you chose reinforce the skills this path typically calls for.'
-    : 'Your RIASEC profile is only a ' + cosinePct + '% cosine match with "' + goalTitle + ',"  so it did not make your own top-3 recommendation list based purely on interest fit. That doesn\'t rule it out — consider discussing this with a counselor to explore how your strengths could still support this goal.';
+  const matchedNames = matchedLetters.map(function(l) { return LETTER_TO_LABEL[l]; });
+  const matchSentence = matchedNames.length
+    ? 'Your ' + matchedNames.join(' and ') + ' ' + (matchedNames.length === 1 ? 'dimension lines' : 'dimensions line') + ' up with ' + programTitle + ', the MMCL program for "' + goalTitle + '."'
+    : 'None of your top three dimensions appear in the code for ' + programTitle + ', the MMCL program for "' + goalTitle + '."';
+  const analysis = !statedProgram
+    ? 'Your career, "' + goalTitle + '," does not closely match any careers or programs we have listed, so it did not affect your results. The programs that best fit your RIASEC profile (' + topLetters.join(' - ') + ') are on your Career Results page. Consider discussing "' + goalTitle + '" with a counselor to explore which program could lead to it.'
+    : isAligned
+    ? matchSentence + ' Overall your RIASEC profile has a cosine match of ' + cosinePct + '%, which is why it lands in your own top-3 program recommendations. The electives you chose reinforce the skills this path typically calls for.'
+    : matchSentence + ' Overall your RIASEC profile has a cosine match of only ' + cosinePct + '%, so it did not make your own top-3 program list based purely on interest fit. That doesn\'t rule it out — consider discussing this with a counselor to explore how your strengths could still support this goal.';
   document.getElementById('analysisText').textContent = analysis;
 })();
 </script>

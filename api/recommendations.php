@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/Careers.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     jsonResponse(['error' => 'Method not allowed'], 405);
@@ -41,12 +42,14 @@ function parsePgTextArray(?string $raw): array
 }
 
 $electives = [];
+$statedCareer = null;
 if ($row['source_worksheet_id'] !== null) {
-    $wsStmt = $pdo->prepare('SELECT electives FROM worksheets WHERE id = ?');
+    $wsStmt = $pdo->prepare('SELECT electives, stated_career FROM worksheets WHERE id = ?');
     $wsStmt->execute([(int) $row['source_worksheet_id']]);
     $wsRow = $wsStmt->fetch();
     if ($wsRow) {
         $electives = parsePgTextArray($wsRow['electives']);
+        $statedCareer = $wsRow['stated_career'];
     }
 }
 
@@ -78,16 +81,19 @@ $programs = [];
 if ($neededIds) {
     $placeholders = implode(',', array_fill(0, count($neededIds), '?'));
     $programStmt = $pdo->prepare(
-        "SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, p.status, c.code AS college_code, c.name AS college_name
+        "SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, p.careers, p.status, c.code AS college_code, c.name AS college_name
          FROM programs p JOIN colleges c ON c.id = p.college_id WHERE p.id IN ($placeholders)"
     );
     $programStmt->execute($neededIds);
     foreach ($programStmt->fetchAll() as $r) {
+        $title = Crypto::dec($r['title_enc']);
         $programs[(int) $r['id']] = [
             'id' => (int) $r['id'],
-            'title' => Crypto::dec($r['title_enc']),
+            'title' => $title,
             'hollandCode' => Crypto::dec($r['holland_code_enc']),
             'description' => $r['description_enc'] !== null ? Crypto::dec($r['description_enc']) : '',
+            // Careers that fit this program (its title if staff haven't listed any).
+            'careers' => Careers::effective(Careers::parse($r['careers']), $title),
             'collegeCode' => $r['college_code'],
             'collegeName' => $r['college_name'],
             // The program row is never hard-deleted (see api/programs.php),
@@ -125,6 +131,7 @@ jsonResponse([
     'hasRecommendation' => true,
     'computedAt' => $row['computed_at'],
     'statedProgramId' => $statedProgramId,
+    'statedCareer' => $statedCareer,
     'statedProgram' => $statedProgramScore !== null ? enrichEntry($statedProgramScore, $programs) : null,
     'electives' => $electives,
     'topProgramId' => (int) $row['top_program_id'],

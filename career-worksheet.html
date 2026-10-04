@@ -121,7 +121,7 @@
         </a>
         <div>
           <h1 class="text-[32px] font-bold text-[#191c1e] tracking-tight">Career Worksheet</h1>
-          <p class="text-sm text-[#5e3f3c] mt-1">Write down the career you are considering and choose electives aligned to your strand and your RIASEC results.</p>
+          <p class="text-sm text-[#5e3f3c] mt-1">Type the career you want to take, as you answered on the worksheet from your guidance counselor, then pick the electives that support it.</p>
         </div>
       </div>
 
@@ -134,22 +134,22 @@
           <div class="flex flex-wrap gap-x-10 gap-y-4 mt-5" id="topCodeRow"></div>
         </div>
 
-        <!-- Career of Interest -->
+        <!-- Career I want to take -->
         <div class="bg-white border border-[#e0e3e5] rounded-lg p-6">
-          <h2 class="text-xl font-semibold text-[#191c1e] mb-1">Program of Interest</h2>
-          <p class="text-xs text-[#5e3f3c] mb-4">Choose the MMCL program you are currently considering, even if you are not yet certain.</p>
-          <select id="careerGoal" class="w-full max-w-[420px] border border-gray-300 rounded-md px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent bg-white">
-            <option value="">Select a program…</option>
-          </select>
+          <h2 class="text-xl font-semibold text-[#191c1e] mb-1">Career I Want to Take</h2>
+          <p class="text-xs text-[#5e3f3c] mb-4">Type the career you want to pursue, as you answered on the worksheet from your guidance counselor, even if you are not yet certain. Suggestions appear as you type, but you can write your own.</p>
+          <input type="text" id="careerGoal" list="careerSuggestions" maxlength="80" autocomplete="off" aria-label="Career I want to take" placeholder="e.g. Software Engineer" class="w-full max-w-[520px] border border-gray-300 rounded-md px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent bg-white">
+          <datalist id="careerSuggestions"></datalist>
+          <p id="careerProgramNote" class="hidden text-xs text-[#5e3f3c] mt-3 max-w-[520px]"></p>
         </div>
 
         <!-- Elective Selection -->
         <div class="bg-white border border-[#e0e3e5] rounded-lg p-6">
           <h2 class="text-xl font-semibold text-[#191c1e] mb-1">Elective Selection</h2>
-          <p class="text-xs text-[#5e3f3c] mb-6" id="electivesHint">Select the electives available to your strand that best support the program you chose above.</p>
+          <p class="text-xs text-[#5e3f3c] mb-6" id="electivesHint">Select the electives available to your strand that best support the career you chose above.</p>
 
           <div id="electivesEmpty" class="text-center py-8 text-sm text-[#5e3f3c] border border-dashed border-gray-300 rounded-lg">
-            Select a program above to see the electives that best support it.
+            Type a career above to see the electives that best support it.
           </div>
 
           <div id="electiveGroups" class="content-swap hidden flex flex-col gap-6"></div>
@@ -157,7 +157,7 @@
           <div class="flex justify-end mt-8">
             <button type="button" id="submitWorksheetBtn" disabled class="bg-gray-200 text-gray-400 text-sm font-semibold rounded-md px-8 py-3.5 cursor-not-allowed transition-opacity">Submit Worksheet</button>
           </div>
-          <p id="worksheetError" class="hidden text-sm text-[#ed1c24] text-right mt-2">Please select a program and at least one elective.</p>
+          <p id="worksheetError" class="hidden text-sm text-[#ed1c24] text-right mt-2">Please type a career and select at least one elective.</p>
         </div>
 
       </div>
@@ -318,9 +318,17 @@
   const electivesEmpty = document.getElementById('electivesEmpty');
   const electiveGroups = document.getElementById('electiveGroups');
 
-  function renderElectives(collegeCode) {
-    if (!collegeCode) {
-      electivesEmpty.textContent = 'Select a program above to see the electives that best support it.';
+  // key: '' = nothing typed yet, a college code = that college's electives,
+  // 'ALL' = the typed career couldn't be linked to a program, so every
+  // elective is offered. Re-rendering only when the key changes keeps the
+  // student's ticked electives while they keep typing.
+  let electiveKey = null;
+  function renderElectives(key) {
+    if (key === electiveKey) return;
+    electiveKey = key;
+
+    if (!key) {
+      electivesEmpty.textContent = 'Type a career above to see the electives that best support it.';
       electivesEmpty.classList.remove('hidden');
       electiveGroups.classList.add('hidden');
       electiveGroups.innerHTML = '';
@@ -328,7 +336,9 @@
       return;
     }
 
-    const matches = COLLEGE_ELECTIVES[collegeCode] || [];
+    const matches = key === 'ALL'
+      ? Object.keys(CLUSTERS).reduce(function(all, c) { return all.concat(CLUSTERS[c]); }, [])
+      : (COLLEGE_ELECTIVES[key] || []);
     electivesEmpty.classList.add('hidden');
     electiveGroups.classList.remove('hidden');
     electiveGroups.classList.add('is-swapping');
@@ -363,51 +373,82 @@
     }).join('');
   }
 
-  const careerGoalSelect = document.getElementById('careerGoal');
+  const careerInput = document.getElementById('careerGoal');
   const submitBtn = document.getElementById('submitWorksheetBtn');
-  let programsById = {};
 
   function checkedElectives() {
     return Array.from(document.querySelectorAll('.elective-check:checked')).map(function(c) { return c.dataset.label; });
   }
 
+  function typedCareer() {
+    return careerInput.value.replace(/\s+/g, ' ').trim();
+  }
+
   function updateSubmitState() {
-    const ready = careerGoalSelect.value !== '' && checkedElectives().length > 0;
+    const ready = typedCareer().length >= 2 && checkedElectives().length > 0;
     submitBtn.disabled = !ready;
     submitBtn.className = ready
       ? 'bg-[#ed1c24] text-white text-sm font-semibold rounded-md px-8 py-3.5 hover:opacity-90 transition-opacity'
       : 'bg-gray-200 text-gray-400 text-sm font-semibold rounded-md px-8 py-3.5 cursor-not-allowed transition-opacity';
   }
 
-  const programsData = await (await fetch('api/programs.php?meta=1')).json();
-  const collegeName = {};
-  programsData.colleges.forEach(function(c) { collegeName[c.code] = c.name; });
-  const byCollege = {};
+  // The student types their own career. Careers from the program lists are
+  // offered as suggestions (native datalist), nothing more: any text is fine.
+  const programsData = await (await fetch('api/programs.php')).json();
+  const suggestions = {};
   programsData.programs.forEach(function(p) {
-    programsById[p.id] = p;
-    if (!byCollege[p.collegeCode]) byCollege[p.collegeCode] = [];
-    byCollege[p.collegeCode].push(p);
+    (p.careerOptions || [p.title]).forEach(function(career) { suggestions[career] = true; });
   });
-  careerGoalSelect.innerHTML = '<option value="">Select a program…</option>' +
-    Object.keys(byCollege).sort().map(function(code) {
-      return '<optgroup label="' + (collegeName[code] || code) + '">' +
-        byCollege[code].map(function(p) { return '<option value="' + p.id + '">' + p.title + '</option>'; }).join('') +
-        '</optgroup>';
-    }).join('');
+  document.getElementById('careerSuggestions').innerHTML = Object.keys(suggestions).sort().map(function(career) {
+    return '<option value="' + career.replace(/"/g, '&quot;') + '"></option>';
+  }).join('');
 
-  careerGoalSelect.addEventListener('change', function() {
-    const program = programsById[careerGoalSelect.value];
-    renderElectives(program ? program.collegeCode : '');
+  // As they type, ask the server which MMCL program the text would link to
+  // (the same matching worksheet-submit.php re-runs on submit).
+  const careerProgramNote = document.getElementById('careerProgramNote');
+  let matchTimer = null;
+  let matchRequest = 0;
+
+  async function previewMatch() {
+    const career = typedCareer();
+    const request = ++matchRequest;
+    if (career.length < 2) {
+      careerProgramNote.classList.add('hidden');
+      renderElectives('');
+      return;
+    }
+    let data;
+    try {
+      data = await (await fetch('api/career-match.php?q=' + encodeURIComponent(career))).json();
+    } catch (e) {
+      return;
+    }
+    if (request !== matchRequest) return; // a newer keystroke superseded this answer
+    if (data.matched) {
+      careerProgramNote.textContent = 'Closest MMCL program for this career: ' + data.program.title + ' — ' + data.program.collegeName + '.';
+      careerProgramNote.classList.remove('hidden');
+      renderElectives(data.program.collegeCode);
+    } else {
+      careerProgramNote.textContent = 'We could not link this career to an MMCL program yet. You can still submit it. Your results will show the programs that best fit your RIASEC profile, and every elective is listed below.';
+      careerProgramNote.classList.remove('hidden');
+      renderElectives('ALL');
+    }
+  }
+
+  careerInput.addEventListener('input', function() {
+    updateSubmitState();
+    clearTimeout(matchTimer);
+    matchTimer = setTimeout(previewMatch, 350);
   });
   document.addEventListener('change', function(e) {
     if (e.target.classList.contains('elective-check')) updateSubmitState();
   });
 
   submitBtn.addEventListener('click', async function() {
-    const programId = Number(careerGoalSelect.value);
+    const career = typedCareer();
     const electives = checkedElectives();
     const errEl = document.getElementById('worksheetError');
-    if (!programId || !electives.length) {
+    if (career.length < 2 || !electives.length) {
       errEl.classList.remove('hidden');
       return;
     }
@@ -417,7 +458,7 @@
     const res = await fetch('api/worksheet-submit.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ programId: programId, electives: electives })
+      body: JSON.stringify({ career: career, electives: electives })
     });
     const data = await res.json();
     if (!res.ok || !data.success) {

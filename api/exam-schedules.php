@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/Sections.php';
+require_once __DIR__ . '/../lib/ExamSchedule.php';
 
 $pdo = Database::get();
 $validStrands = ['STEM', 'ABM', 'ICT', 'HUMSS'];
@@ -70,9 +71,10 @@ function scheduleRow(array $s): array
         'accessCode' => $s['access_code'],
         'notes' => $s['notes_enc'] !== null ? Crypto::dec($s['notes_enc']) : '',
         'scheduleType' => $s['schedule_type'],
-        // Archived = the exam date has already passed (school time). Nothing is
+        // Archived = the exam's end time has already passed (school time). Its
+        // access code stops working too (api/verify-access-code.php). Nothing is
         // ever deleted for this; the row simply moves out of the active list.
-        'isArchived' => $s['exam_date'] < date('Y-m-d'),
+        'isArchived' => ExamSchedule::hasEnded($s['exam_date'], $s['end_time']),
     ];
 }
 
@@ -95,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['mine'])) {
         "SELECT id, academic_year, exam_date, start_time, end_time, room, grade_level, strand, section, access_code, notes_enc, schedule_type
          FROM exam_schedules
          WHERE academic_year = ?
-           AND exam_date >= CURRENT_DATE
+           AND NOT " . ExamSchedule::endedSql() . "
            AND (grade_level IS NULL OR grade_level = ?)
            AND (strand IS NULL OR strand = ?)
            AND (section IS NULL OR section = ?)
@@ -123,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // Active list by default; ?archived=1 shows the past ones. Past exams
     // stay in the table (audit logs and historical reports still need them).
     $showArchived = isset($_GET['archived']);
-    $dateCondition = $showArchived ? 'exam_date < CURRENT_DATE' : 'exam_date >= CURRENT_DATE';
+    $dateCondition = $showArchived ? ExamSchedule::endedSql() : 'NOT ' . ExamSchedule::endedSql();
     $orderBy = $showArchived ? 'exam_date DESC, start_time DESC' : 'exam_date, start_time';
     $stmt = $pdo->prepare(
         "SELECT id, academic_year, exam_date, start_time, end_time, room, grade_level, strand, section, access_code, notes_enc, schedule_type
@@ -132,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $stmt->execute([$academicYear]);
     $rows = $stmt->fetchAll();
 
-    $archivedStmt = $pdo->prepare('SELECT COUNT(*) FROM exam_schedules WHERE academic_year = ? AND exam_date < CURRENT_DATE');
+    $archivedStmt = $pdo->prepare('SELECT COUNT(*) FROM exam_schedules WHERE academic_year = ? AND ' . ExamSchedule::endedSql());
     $archivedStmt->execute([$academicYear]);
     $archivedCount = (int) $archivedStmt->fetchColumn();
 
@@ -227,6 +229,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($type === 'regenerateCode') {
         $id = (int) ($body['id'] ?? 0);
+        // An exam that has already ended is archived; a fresh code for it would
+        // be useless (its codes no longer work), so don't hand one out.
+        $existing = $pdo->prepare('SELECT exam_date, end_time FROM exam_schedules WHERE id = ?');
+        $existing->execute([$id]);
+        $row = $existing->fetch();
+        if ($row && ExamSchedule::hasEnded($row['exam_date'], $row['end_time'])) {
+            jsonResponse(['success' => false, 'error' => 'This exam has already ended and is archived. Create a new schedule instead.'], 409);
+        }
         $accessCode = strtoupper(bin2hex(random_bytes(3)));
         $stmt = $pdo->prepare('UPDATE exam_schedules SET access_code = ?, updated_at = NOW() WHERE id = ?');
         $stmt->execute([$accessCode, $id]);

@@ -123,6 +123,19 @@
     <!-- Page Content -->
     <main id="main-content" class="flex-1 px-9 py-10 max-w-[1152px]">
 
+      <!-- Announcements: shown here only (the Assessments page), above the page title -->
+      <section class="mb-10" aria-labelledby="announcementsHeading">
+        <div class="mb-6">
+          <h2 id="announcementsHeading" class="text-[32px] font-bold text-[#001a40] tracking-tight">Announcements</h2>
+          <p class="text-base text-slate-500 mt-2">Updates from the Guidance Office.</p>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-lg shadow-[0px_2px_15px_0px_rgba(0,26,64,0.04)] p-[25px]">
+          <div id="announcementsPanelList" class="flex flex-col gap-3">
+            <p id="announcementsEmpty" class="text-sm text-slate-500">No announcements right now.</p>
+          </div>
+        </div>
+      </section>
+
       <div class="mb-10">
         <h1 class="text-[32px] font-bold text-[#001a40] tracking-tight">My Assessments</h1>
         <p class="text-base text-slate-500 mt-2">Overview of your career profiling tasks.</p>
@@ -131,11 +144,6 @@
       <div id="examSchedulePanel" class="hidden bg-white border border-slate-200 rounded-lg shadow-[0px_2px_15px_0px_rgba(0,26,64,0.04)] p-[25px] mb-6">
         <p class="text-[11px] font-semibold tracking-[1.2px] text-[#495e88] uppercase mb-3">My Exam Schedule</p>
         <div id="examSchedulePanelList" class="flex flex-col gap-3"></div>
-      </div>
-
-      <div id="announcementsPanel" class="hidden bg-white border border-slate-200 rounded-lg shadow-[0px_2px_15px_0px_rgba(0,26,64,0.04)] p-[25px] mb-6">
-        <p class="text-[11px] font-semibold tracking-[1.2px] text-[#495e88] uppercase mb-3">Announcements</p>
-        <div id="announcementsPanelList" class="flex flex-col gap-3"></div>
       </div>
 
       <div class="flex flex-col gap-6">
@@ -322,7 +330,6 @@
           '<p class="text-sm text-slate-600 mt-1 leading-relaxed">' + escapeHtml(a.body) + '</p>' +
         '</div>';
       }).join('');
-      document.getElementById('announcementsPanel').classList.remove('hidden');
     })();
 
     if (assessment && assessment.completed) {

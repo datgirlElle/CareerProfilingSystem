@@ -116,11 +116,6 @@
 
     <main id="main-content" class="flex-1 px-9 py-10 max-w-[1152px]">
 
-      <div id="announcementsPanel" class="hidden bg-white border border-slate-200 rounded-lg shadow-[0px_2px_15px_0px_rgba(0,26,64,0.04)] p-[25px] mb-6">
-        <p class="text-[11px] font-semibold tracking-[1.2px] text-[#495e88] uppercase mb-3">Announcements</p>
-        <div id="announcementsPanelList" class="flex flex-col gap-3"></div>
-      </div>
-
       <!-- Empty state: no assessment yet -->
       <div id="emptyState" class="hidden bg-white border border-slate-200 rounded-xl shadow-sm p-12 max-w-md flex flex-col items-center text-center gap-4">
         <span class="w-16 h-16 rounded-xl bg-[#dbeafe] flex items-center justify-center">
@@ -203,7 +198,7 @@
             </a>
             <div>
               <h1 class="text-[32px] font-bold text-[#191c1e] tracking-tight">Career Results</h1>
-              <p class="text-sm text-[#5e3f3c] mt-1">Based on your RIASEC profile, these careers strongly align with your interests and skills.</p>
+              <p class="text-sm text-[#5e3f3c] mt-1">Based on your RIASEC assessment and career worksheet, these are the MMCL programs you match and the careers that fit them.</p>
             </div>
           </div>
           <div class="text-right shrink-0">
@@ -212,6 +207,8 @@
           </div>
         </div>
 
+        <p id="cr-statedNote" class="hidden bg-[#f2f4f6] border border-[#e0e3e5] rounded-lg px-4 py-3 text-xs text-[#5e3f3c] mb-6"></p>
+
         <div class="bg-white border border-[#e0e3e5] rounded-lg p-5 mb-6">
           <p class="text-[11px] font-semibold tracking-[1.2px] text-[#495e88] uppercase mb-3">Your Top 3 Interest Areas</p>
           <div id="cr-topTypes" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
@@ -219,13 +216,13 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <div class="lg:col-span-8">
-            <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-4">Top Matches</h2>
+            <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-4">Top MMCL Program Matches</h2>
             <div id="cr-topMatches" class="flex flex-col gap-4"></div>
           </div>
           <div class="lg:col-span-4 flex flex-col gap-4">
             <div class="bg-white border border-[#e0e3e5] rounded shadow-sm p-[17px]">
-              <h3 class="text-xl font-semibold text-[#191c1e] mb-1">Suggested Paths</h3>
-              <p class="text-xs text-[#5e3f3c] mb-3">Other career tracks that align with your secondary traits.</p>
+              <h3 class="text-xl font-semibold text-[#191c1e] mb-1">Suggested Programs</h3>
+              <p class="text-xs text-[#5e3f3c] mb-3">Other MMCL programs that align with your secondary traits.</p>
               <div id="cr-suggested" class="flex flex-col gap-1"></div>
             </div>
             <div class="bg-[#f2f4f6] border border-[#e0e3e5] rounded p-[17px]">
@@ -304,29 +301,6 @@
     });
     backdrop.addEventListener('click', closeSidebar);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSidebar(); });
-  })();
-
-  (async function renderAnnouncements() {
-    let data;
-    try {
-      data = await (await fetch('api/announcements.php')).json();
-    } catch (e) {
-      return;
-    }
-    const items = (data.announcements || []).slice(0, 3);
-    if (!items.length) return;
-    function escapeHtml(str) {
-      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-    document.getElementById('announcementsPanelList').innerHTML = items.map(function(a) {
-      const date = new Date(a.publishAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      return '<div class="border-l-[3px] border-[#ed1c24] pl-4 py-1">' +
-        '<p class="text-sm font-semibold text-[#001a40]">' + escapeHtml(a.title) + '</p>' +
-        '<p class="text-xs text-slate-500 mt-0.5">' + date + '</p>' +
-        '<p class="text-sm text-slate-600 mt-1 leading-relaxed">' + escapeHtml(a.body) + '</p>' +
-      '</div>';
-    }).join('');
-    document.getElementById('announcementsPanel').classList.remove('hidden');
   })();
 
   const logoutModal = document.getElementById('logoutConfirmModal');
@@ -548,6 +522,14 @@
       '</div>';
     }).join('');
 
+    // A career the student typed that couldn't be linked to a program: say so,
+    // instead of leaving them wondering why it isn't highlighted anywhere.
+    if (recommendation.statedCareer && !recommendation.statedProgramId) {
+      const note = document.getElementById('cr-statedNote');
+      note.textContent = 'You wrote "' + recommendation.statedCareer + '" as the career you want to take. It didn\'t closely match any program we have listed, so these matches are based on your RIASEC results. A counselor can help you find a program that leads to it.';
+      note.classList.remove('hidden');
+    }
+
     const savedData = await (await fetch('api/saved-programs.php')).json();
     let savedIds = savedData.programIds || [];
     function isSaved(id) { return savedIds.indexOf(id) !== -1; }
@@ -592,6 +574,31 @@
       return '<svg viewBox="0 -960 960 960" fill="currentColor" class="' + sizeClass + '"><path d="' + path + '"/></svg>';
     }
 
+    // "Careers that fit" for a program: every career it leads to, with the one
+    // the student chose on their worksheet (if it belongs here) highlighted.
+    const statedCareerKey = (recommendation.statedCareer || '').toLowerCase();
+    function careerChipsHtml(p) {
+      const careers = p.careers || [];
+      if (!careers.length) return '';
+      // The student types their own career, so it may not match a listed one
+      // word for word ("nurse" vs "Registered Nurse"): when this program is the
+      // one it was linked to but no listed career equals it, show it as typed.
+      const isStatedProgram = recommendation.statedProgramId === p.id;
+      const listedMatch = careers.some(function(c) { return c.toLowerCase() === statedCareerKey; });
+      const typedChip = (isStatedProgram && !listedMatch && recommendation.statedCareer)
+        ? '<span class="inline-flex items-center gap-1.5 bg-[#ecfdf5] border border-[#a7f3d0] text-[#047857] text-xs font-semibold rounded-full px-3 py-1.5">' +
+            String(recommendation.statedCareer).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+            ' <span class="text-[10px] uppercase tracking-wide">Your choice</span></span>'
+        : '';
+      return '<div><p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-2">Careers That Fit</p>' +
+        '<div class="flex flex-wrap gap-2">' + typedChip + careers.map(function(c) {
+          const chosen = recommendation.statedProgramId === p.id && c.toLowerCase() === statedCareerKey;
+          return chosen
+            ? '<span class="inline-flex items-center gap-1.5 bg-[#ecfdf5] border border-[#a7f3d0] text-[#047857] text-xs font-semibold rounded-full px-3 py-1.5">' + c + ' <span class="text-[10px] uppercase tracking-wide">Your choice</span></span>'
+            : '<span class="bg-[#f2f4f6] border border-[#e0e3e5] text-[#191c1e] text-xs rounded-full px-3 py-1.5">' + c + '</span>';
+        }).join('') + '</div></div>';
+    }
+
     const allPrograms = {};
     recommendation.top3.forEach(function(p) { allPrograms[p.id] = p; });
     if (recommendation.statedOutsideTop3) allPrograms[recommendation.statedOutsideTop3.id] = recommendation.statedOutsideTop3;
@@ -610,6 +617,7 @@
           '<span class="bg-[rgba(187,0,19,0.1)] border border-[rgba(187,0,19,0.2)] text-[#bb0013] text-xs font-semibold rounded-full px-3.5 py-1.5 shrink-0">' + p.matchPercent + '% Match</span>' +
         '</div>' +
         '<p class="text-sm text-[#191c1e] leading-relaxed max-w-[700px]">' + describeProgram(p) + '</p>' +
+        careerChipsHtml(p) +
         '<div class="bg-[#f2f4f6] border border-[#e0e3e5] rounded p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">' +
           '<div><p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-2">Holland Code</p><p class="text-xs text-[#191c1e]">' + p.hollandCode + '</p></div>' +
           '<div><p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-2">College</p><p class="text-xs text-[#191c1e]">' + p.collegeCode + ' — ' + p.collegeName + '</p></div>' +
@@ -628,7 +636,7 @@
       return '<div class="flex items-center justify-between gap-3 py-2.5">' +
         '<div class="flex items-center gap-3">' +
           '<span class="w-8 h-8 rounded-xl flex items-center justify-center text-[#495e88]" style="background:' + ICON_BG[i % ICON_BG.length] + '">' + collegeIconSvg(p.collegeCode, 'w-4 h-4') + '</span>' +
-          '<div><p class="text-sm font-semibold text-[#495e88]">' + p.title + note + inactiveNote + '</p><p class="text-xs text-[#5e3f3c]">' + p.collegeCode + '</p></div>' +
+          '<div><p class="text-sm font-semibold text-[#495e88]">' + p.title + note + inactiveNote + '</p><p class="text-xs text-[#5e3f3c]">' + p.collegeCode + ((p.careers || []).length ? ' &middot; ' + p.careers.slice(0, 2).join(', ') : '') + '</p></div>' +
         '</div>' +
         '<span class="text-xs font-semibold text-[#495e88] shrink-0">' + p.matchPercent + '%</span>' +
       '</div>';
@@ -644,9 +652,10 @@
           : 'This program is a ' + program.matchPercent + '% match to your RIASEC profile, based on its Holland Code (' + program.hollandCode + ') and your assessment results.';
         document.getElementById('detailsModalBody').innerHTML =
           '<p>' + overview + '</p>' +
+          ((program.careers || []).length ? '<p class="text-xs text-[#5e3f3c] mt-3"><span class="font-semibold">Careers that fit:</span> ' + program.careers.join(', ') + '</p>' : '') +
           '<p class="text-xs text-[#5e3f3c] mt-3">' + program.collegeCode + ' — ' + program.collegeName + ' &middot; Holland Code: ' + program.hollandCode + '</p>' +
           '<p class="text-xs text-slate-400 mt-3 pt-3 border-t border-gray-100">Final Match Score = 0.70 × RIASEC similarity (' + Math.round(program.cosine * 100) + '%) + 0.30 × stated-interest indicator (' +
-          (recommendation.statedProgramId === program.id ? '1, since you stated this program on your worksheet' : '0') + ') = ' + program.matchPercent + '%.</p>';
+          (recommendation.statedProgramId === program.id ? '1, since the career you chose on your worksheet leads to this program' : '0') + ') = ' + program.matchPercent + '%.</p>';
         openDetailsModal();
         return;
       }
