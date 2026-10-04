@@ -17,7 +17,9 @@ function readJsonBody(): array
     return is_array($data) ? $data : [];
 }
 
-function jsonResponse(array $data, int $statusCode = 200): never
+// Always ends the request (exit). Declared `void` rather than `never` so the
+// app also runs on PHP 8.0 (e.g. XAMPP's bundled PHP); `never` needs 8.1+.
+function jsonResponse(array $data, int $statusCode = 200): void
 {
     http_response_code($statusCode);
     echo json_encode($data);
