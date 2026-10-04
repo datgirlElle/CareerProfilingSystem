@@ -14,6 +14,14 @@ class Database
             $user = getenv('DB_USER');
             $password = getenv('DB_PASSWORD');
 
+            if (!$host || !$name || !$user) {
+                throw new RuntimeException(
+                    'Database settings are missing. Create a file named ".env" (not ".env.txt") in '
+                    . realpath(__DIR__ . '/..') . ' with DB_HOST, DB_PORT, DB_NAME, DB_USER and DB_PASSWORD '
+                    . '(copy .env.example), then restart the PHP server.'
+                );
+            }
+
             $dsn = "pgsql:host=$host;port=$port;dbname=$name";
             self::$connection = new PDO($dsn, $user, $password, [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
