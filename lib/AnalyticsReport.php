@@ -163,6 +163,50 @@ class AnalyticsReport
 
         $expectedTotal = $expectedCount;
 
+        // Expected vs completed per section, for the Assessment Statistics bar
+        // graph. Both sides use exactly the populations behind the two big
+        // numbers above it, so the bars add up to them: "expected" is the same
+        // registered-plus-roster union (a student on both counts once, under the
+        // section of their real account), and "completed" is the same set of
+        // students with a latest assessment, just grouped by section.
+        $assessmentBySection = (function () use ($pdo, $currentAy, $hasStrand, $strand, $hasSection, $section, $studentFilterClause) {
+            $conds = ['academic_year = ?'];
+            $params = [$currentAy];
+            if ($hasStrand) { $conds[] = 'strand = ?'; $params[] = $strand; }
+            if ($hasSection) { $conds[] = 'section = ?'; $params[] = $section; }
+            $where = implode(' AND ', $conds);
+
+            $expectedBySection = [];
+            $seen = [];
+            foreach (['students', 'assessment_roster'] as $table) { // account first: its section wins over a roster row's
+                $stmt = $pdo->prepare("SELECT school_id, section FROM $table WHERE $where");
+                $stmt->execute($params);
+                foreach ($stmt->fetchAll() as $r) {
+                    if (isset($seen[$r['school_id']])) {
+                        continue;
+                    }
+                    $seen[$r['school_id']] = true;
+                    $expectedBySection[$r['section']] = ($expectedBySection[$r['section']] ?? 0) + 1;
+                }
+            }
+
+            [$clause, $filterParams] = $studentFilterClause('AND');
+            $stmt = $pdo->prepare(
+                'SELECT s.section, COUNT(*) AS cnt FROM assessments a JOIN students s ON s.user_id = a.student_id
+                 WHERE a.is_latest = TRUE' . $clause . ' GROUP BY s.section'
+            );
+            $stmt->execute($filterParams);
+            $completedBySection = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+            $sections = array_unique(array_merge(array_keys($expectedBySection), array_keys($completedBySection)));
+            natcasesort($sections);
+            return array_values(array_map(fn($sec) => [
+                'section' => (string) $sec,
+                'expected' => $expectedBySection[$sec] ?? 0,
+                'completed' => (int) ($completedBySection[$sec] ?? 0),
+            ], $sections));
+        })();
+
         $programIds = array_map(fn($r) => (int) $r['top_program_id'], $careerCounts);
         $titles = [];
         if ($programIds) {
@@ -219,6 +263,7 @@ class AnalyticsReport
                 'expectedCount' => $expectedCount,
                 'completedCount' => $assessedCount,
                 'expectedSections' => $expectedSections,
+                'bySection' => $assessmentBySection,
             ],
             'completionByYear' => self::completionByYear($pdo),
         ];

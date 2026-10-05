@@ -209,12 +209,18 @@ $rows = $pdo->query(
 // SQL WHERE clause anymore — encryption produces different ciphertext every
 // time, even for the same input, so this has to decrypt and compare in PHP.
 $counseledIds = [];
+$firstAdvisingAt = []; // student_id => timestamp of their earliest advising request (for the monthly trend)
 $helpRequestRows = $pdo->query(
-    'SELECT student_id, subject_enc FROM help_requests WHERE student_id IS NOT NULL'
+    'SELECT student_id, subject_enc, sent_at FROM help_requests WHERE student_id IS NOT NULL'
 )->fetchAll();
 foreach ($helpRequestRows as $hr) {
     if (Crypto::dec($hr['subject_enc']) === 'Request for Academic Advising') {
-        $counseledIds[(int) $hr['student_id']] = true;
+        $sid = (int) $hr['student_id'];
+        $counseledIds[$sid] = true;
+        $sentTs = strtotime((string) $hr['sent_at']);
+        if (!isset($firstAdvisingAt[$sid]) || $sentTs < $firstAdvisingAt[$sid]) {
+            $firstAdvisingAt[$sid] = $sentTs;
+        }
     }
 }
 
@@ -277,6 +283,56 @@ $completedCount = count(array_filter($students, fn($s) => $s['status'] === 'Comp
 $pendingCount = $totalStudents - $completedCount;
 $counselingCount = count(array_filter($students, fn($s) => $s['counseling'] === 'Availed'));
 
+// Month-by-month trend for the summary cards: the last 6 calendar months,
+// oldest first, the current month last. Registered accounts only — roster-only
+// students have no registration date, so they never appear in a month.
+//   students   = accounts created that month
+//   completed  = assessments finished that month (each student's latest attempt)
+//   pending    = accounts created that month that are still pending
+//   counseling = students whose first advising request was that month
+//                (same "availed" rule as the card: only students with a completed assessment)
+$tz = new DateTimeZone(date_default_timezone_get());
+$monthStart = new DateTimeImmutable('first day of this month 00:00:00', $tz);
+$trendMonths = [];
+$trendIndex = [];
+for ($i = 5; $i >= 0; $i--) {
+    $m = $monthStart->modify("-$i months");
+    $trendIndex[$m->format('Y-m')] = count($trendMonths);
+    $trendMonths[] = ['key' => $m->format('Y-m'), 'label' => $m->format('M Y')];
+}
+$trends = [
+    'months' => $trendMonths,
+    'students' => array_fill(0, 6, 0),
+    'completed' => array_fill(0, 6, 0),
+    'pending' => array_fill(0, 6, 0),
+    'counseling' => array_fill(0, 6, 0),
+];
+$bucket = function (?string $timestamp) use ($tz, $trendIndex): ?int {
+    if ($timestamp === null || $timestamp === '') {
+        return null;
+    }
+    $key = (new DateTimeImmutable($timestamp))->setTimezone($tz)->format('Y-m');
+    return $trendIndex[$key] ?? null;
+};
+foreach ($students as $s) {
+    if ($s['userId'] === null) {
+        continue;
+    }
+    if (($i = $bucket($s['registeredAt'])) !== null) {
+        $trends['students'][$i]++;
+        if ($s['status'] === 'Pending') {
+            $trends['pending'][$i]++;
+        }
+    }
+    if ($s['status'] === 'Completed' && ($i = $bucket($s['assessmentDate'])) !== null) {
+        $trends['completed'][$i]++;
+    }
+    if ($s['counseling'] === 'Availed' && isset($firstAdvisingAt[$s['userId']])
+        && ($i = $bucket(date('c', $firstAdvisingAt[$s['userId']]))) !== null) {
+        $trends['counseling'][$i]++;
+    }
+}
+
 $filtered = $students;
 if ($search !== '') {
     $needle = mb_strtolower($search);
@@ -315,4 +371,5 @@ jsonResponse([
         'pendingCount' => $pendingCount,
         'counselingCount' => $counselingCount,
     ],
+    'trends' => $trends,
 ]);

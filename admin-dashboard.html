@@ -178,6 +178,13 @@
               <p class="text-3xl font-bold text-gray-900" id="cardTotalStudents">—</p>
             </div>
           </div>
+          <div class="flex items-end justify-between pt-4" style="gap:12px">
+            <div class="flex flex-col" style="gap:2px;min-width:0">
+              <span class="text-xs font-semibold" id="cardTotalAdded" style="color:#2563eb">—</span>
+            </div>
+            <svg id="sparkTotal" class="shrink-0" style="width:84px;height:32px" viewBox="0 0 96 36" role="img" aria-label="Students added per month, last 6 months"></svg>
+          </div>
+          <p class="text-xs text-gray-500 pt-2" id="cardTotalDelta"></p>
         </div>
 
         <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-6 flex flex-col justify-between">
@@ -190,9 +197,14 @@
               <p class="text-3xl font-bold text-gray-900" id="cardCompleted">—</p>
             </div>
           </div>
-          <div class="flex items-end justify-between pt-4">
-            <span class="text-sm font-medium text-emerald-500" id="cardCompletedPct">—</span>
+          <div class="flex items-end justify-between pt-4" style="gap:12px">
+            <div class="flex flex-col" style="gap:2px;min-width:0">
+              <span class="text-sm font-medium text-emerald-500" id="cardCompletedPct">—</span>
+              <span class="text-xs font-semibold" id="cardCompletedAdded" style="color:#059669">—</span>
+            </div>
+            <svg id="sparkCompleted" class="shrink-0" style="width:84px;height:32px" viewBox="0 0 96 36" role="img" aria-label="Assessments completed per month, last 6 months"></svg>
           </div>
+          <p class="text-xs text-gray-500 pt-2" id="cardCompletedDelta"></p>
         </div>
 
         <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-6 flex flex-col justify-between">
@@ -205,9 +217,14 @@
               <p class="text-3xl font-bold text-gray-900" id="cardPending">—</p>
             </div>
           </div>
-          <div class="flex items-end justify-between pt-4">
-            <span class="text-sm font-medium text-amber-500" id="cardPendingPct">—</span>
+          <div class="flex items-end justify-between pt-4" style="gap:12px">
+            <div class="flex flex-col" style="gap:2px;min-width:0">
+              <span class="text-sm font-medium text-amber-500" id="cardPendingPct">—</span>
+              <span class="text-xs font-semibold" id="cardPendingAdded" style="color:#d97706">—</span>
+            </div>
+            <svg id="sparkPending" class="shrink-0" style="width:84px;height:32px" viewBox="0 0 96 36" role="img" aria-label="New pending students per month, last 6 months"></svg>
           </div>
+          <p class="text-xs text-gray-500 pt-2" id="cardPendingDelta"></p>
         </div>
 
         <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-6 flex flex-col justify-between">
@@ -220,9 +237,14 @@
               <p class="text-3xl font-bold text-gray-900" id="cardCounseling">—</p>
             </div>
           </div>
-          <div class="flex items-end justify-between pt-4">
-            <span class="text-sm font-medium text-purple-500" id="cardCounselingPct">—</span>
+          <div class="flex items-end justify-between pt-4" style="gap:12px">
+            <div class="flex flex-col" style="gap:2px;min-width:0">
+              <span class="text-sm font-medium text-purple-500" id="cardCounselingPct">—</span>
+              <span class="text-xs font-semibold" id="cardCounselingAdded" style="color:#9333ea">—</span>
+            </div>
+            <svg id="sparkCounseling" class="shrink-0" style="width:84px;height:32px" viewBox="0 0 96 36" role="img" aria-label="Students who availed counseling per month, last 6 months"></svg>
           </div>
+          <p class="text-xs text-gray-500 pt-2" id="cardCounselingDelta"></p>
         </div>
       </div>
 
@@ -488,6 +510,78 @@
     '</tr>';
   }
 
+  // ---- Summary-card trends: last 6 months, oldest first, current month last ----
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  function svgEl(name, attrs) {
+    const el = document.createElementNS(SVG_NS, name);
+    Object.keys(attrs).forEach((k) => el.setAttribute(k, attrs[k]));
+    return el;
+  }
+
+  function drawSparkline(svg, values, labels, color, noun) {
+    svg.innerHTML = '';
+    const W = 96, H = 36, PAD = 4;
+    const max = Math.max.apply(null, values.concat([1]));
+    const x = (i) => PAD + i * (W - 2 * PAD) / (values.length - 1);
+    const y = (v) => H - PAD - (v / max) * (H - 2 * PAD);
+    const pts = values.map((v, i) => [x(i), y(v)]);
+    const line = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+    svg.appendChild(svgEl('path', { d: line + ' L' + pts[pts.length - 1][0].toFixed(1) + ' ' + (H - PAD) + ' L' + pts[0][0].toFixed(1) + ' ' + (H - PAD) + ' Z', fill: color, 'fill-opacity': '0.12' }));
+    svg.appendChild(svgEl('path', { d: line, fill: 'none', stroke: color, 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+    pts.forEach((p, i) => {
+      const last = i === pts.length - 1;
+      const dot = svgEl('circle', { cx: p[0].toFixed(1), cy: p[1].toFixed(1), r: last ? '3' : '6', fill: last ? color : 'transparent' });
+      const tip = document.createElementNS(SVG_NS, 'title');
+      tip.textContent = labels[i] + ': ' + values[i] + ' ' + noun; // hover shows that month's count
+      dot.appendChild(tip);
+      svg.appendChild(dot);
+    });
+  }
+
+  // "+N this month" and the change against last month. Direction colors flip when
+  // more is the worse outcome (pending assessments).
+  function describeMonth(values, moreIsBetter) {
+    const now = values[values.length - 1];
+    const prev = values[values.length - 2];
+    let delta = '', color = '#6b7280';
+    if (prev === 0 && now === 0) {
+      delta = 'No change vs last month';
+    } else if (prev === 0) {
+      delta = '▲ up from 0 last month';
+      color = moreIsBetter ? '#059669' : '#e11d48';
+    } else {
+      const pct = Math.round(Math.abs(now - prev) / prev * 100);
+      if (now === prev) {
+        delta = 'Same as last month';
+      } else {
+        const up = now > prev;
+        delta = (up ? '▲ ' : '▼ ') + pct + '% vs last month';
+        color = (up === moreIsBetter) ? '#059669' : '#e11d48';
+      }
+    }
+    return { added: '+' + now.toLocaleString() + ' this month', delta: delta, color: color };
+  }
+
+  function renderTrends(trends) {
+    if (!trends) return;
+    const labels = trends.months.map((m) => m.label);
+    [
+      { key: 'students', spark: 'sparkTotal', added: 'cardTotalAdded', delta: 'cardTotalDelta', color: '#2563eb', noun: 'added', better: true },
+      { key: 'completed', spark: 'sparkCompleted', added: 'cardCompletedAdded', delta: 'cardCompletedDelta', color: '#059669', noun: 'completed', better: true },
+      { key: 'pending', spark: 'sparkPending', added: 'cardPendingAdded', delta: 'cardPendingDelta', color: '#d97706', noun: 'new pending', better: false },
+      { key: 'counseling', spark: 'sparkCounseling', added: 'cardCounselingAdded', delta: 'cardCounselingDelta', color: '#9333ea', noun: 'availed', better: true },
+    ].forEach((c) => {
+      const values = trends[c.key];
+      const d = describeMonth(values, c.better);
+      document.getElementById(c.added).textContent = d.added;
+      const deltaEl = document.getElementById(c.delta);
+      deltaEl.textContent = d.delta;
+      deltaEl.style.color = d.color;
+      drawSparkline(document.getElementById(c.spark), values, labels, c.color, c.noun);
+    });
+  }
+
   async function load() {
     tbody.innerHTML = '<tr><td colspan="9" class="px-6 py-8 text-center text-sm text-gray-500">Loading…</td></tr>';
     const params = new URLSearchParams({
@@ -503,6 +597,7 @@
     document.getElementById('cardCompletedPct').textContent = pct(data.summary.completedCount);
     document.getElementById('cardPendingPct').textContent = pct(data.summary.pendingCount);
     document.getElementById('cardCounselingPct').textContent = pct(data.summary.counselingCount);
+    renderTrends(data.trends);
 
     noResults.classList.toggle('hidden', data.students.length !== 0);
     tbody.innerHTML = data.students.length

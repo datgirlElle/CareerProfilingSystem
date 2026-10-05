@@ -307,9 +307,10 @@
 
       <!-- Charts Row -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex flex-col">
           <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-4">Students by Strand</p>
-          <canvas id="strandChart" height="220"></canvas>
+          <!-- Fills whatever height the card gets from its neighbour (the RIASEC card is taller), so no blank space is left under the pie -->
+          <div style="position:relative;flex:1 1 auto;min-height:240px"><canvas id="strandChart"></canvas></div>
           <div class="border-t border-slate-100 pt-4 mt-4">
             <p class="text-sm text-slate-500">Total Students: <span id="strandChartTotal">0</span></p>
           </div>
@@ -342,41 +343,28 @@
               <p id="statsCompleted" class="text-3xl font-bold text-[#1b8a47]">—</p>
             </div>
           </div>
-          <div class="w-full h-1.5 rounded-full bg-slate-100 mb-3">
-            <div id="statsBar" class="h-1.5 rounded-full bg-[#1b8a47]" style="width:0%"></div>
-          </div>
-          <p class="text-xs text-slate-500">Sections in roster: <span id="statsSections">—</span></p>
+          <canvas id="statsChart" height="170"></canvas>
+          <p id="statsChartEmpty" class="hidden text-sm text-slate-400 text-center py-6">No sections to show yet.</p>
           <p id="statsNoRoster" class="hidden text-xs text-amber-600 mt-2">No roster uploaded yet for this Academic Year — upload one above to see expected counts.</p>
         </div>
       </div>
 
       <!-- Assessment Completion by Academic Year -->
       <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 mb-6">
-        <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-1">Assessment Completion by Academic Year</p>
-        <p class="text-xs text-slate-500 mb-4">Completion rate across every Academic Year on record, not just the current one.</p>
+        <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-4">Assessment Completion by Academic Year</p>
         <canvas id="yearChart" height="180"></canvas>
-        <p id="yearChartEmpty" class="hidden text-sm text-slate-400 text-center py-6">No Academic Year data yet.</p>
-      </div>
+        <p id="yearChartEmpty" class="hidden text-sm text-slate-400 text-center py-6">No Academic Year data yet.</p>      </div>
 
       <!-- Recommended Careers Table -->
       <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div class="border-b border-slate-200 px-5 py-5">
           <p class="text-[11px] font-semibold tracking-wide text-slate-800 uppercase">Top 5 Recommended Careers (Institution-Wide)</p>
         </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse min-w-[900px]">
-            <thead class="bg-slate-50/50">
-              <tr>
-                <th class="px-5 py-3 text-xs font-semibold text-slate-500">#</th>
-                <th class="px-5 py-3 text-xs font-semibold text-slate-500">Program</th>
-                <th class="px-5 py-3 text-xs font-semibold text-slate-500">Students Matched</th>
-                <th class="px-5 py-3 text-xs font-semibold text-slate-500">% of Recommendations</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100" id="topCareersBody">
-              <tr><td colspan="4" class="px-5 py-8 text-center text-sm text-slate-400">Loading…</td></tr>
-            </tbody>
-          </table>
+        <div class="px-5 py-5">
+          <div style="position:relative;height:280px">
+            <canvas id="topCareersChart" aria-label="Top 5 recommended programs by number of students matched"></canvas>
+          </div>
+          <p id="topCareersEmpty" class="hidden px-5 py-8 text-center text-sm text-slate-500">No recommendations computed yet.</p>
         </div>
         <div class="border-t border-slate-200 flex items-center justify-between px-4 py-4">
           <p class="text-sm text-slate-500" id="topCareersSummary">Loading…</p>
@@ -618,6 +606,8 @@
   let riasecChartInstance = null;
   let sectionChartInstance = null;
   let yearChartInstance = null;
+  let statsChartInstance = null;
+  let careersChartInstance = null;
 
   async function load(strand, section) {
     section = section || '';
@@ -656,15 +646,22 @@
 
     document.getElementById('strandChartTotal').textContent = data.totalStudents;
     if (strandChartInstance) strandChartInstance.destroy();
+    // Four parts of one whole -> a pie: each slice is that strand's share of the
+    // students shown. The share is in the legend text, so it reads without hovering.
+    const strandTotal = data.strandDistribution.reduce((sum, s) => sum + s.count, 0);
+    const strandShare = (n) => strandTotal > 0 ? Math.round(n / strandTotal * 100) : 0;
     strandChartInstance = new Chart(document.getElementById('strandChart').getContext('2d'), {
-      type: 'bar',
+      type: 'pie',
       data: {
-        labels: data.strandDistribution.map(s => s.strand),
-        datasets: [{ data: data.strandDistribution.map(s => s.count), backgroundColor: data.strandDistribution.map(s => STRAND_COLORS[s.strand] || '#64748b'), borderRadius: 4 }]
+        labels: data.strandDistribution.map(s => s.strand + ' — ' + s.count + ' (' + strandShare(s.count) + '%)'),
+        datasets: [{ data: data.strandDistribution.map(s => s.count), backgroundColor: data.strandDistribution.map(s => STRAND_COLORS[s.strand] || '#64748b'), borderColor: '#ffffff', borderWidth: 2 }]
       },
       options: {
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { boxWidth: 12, padding: 14 } },
+          tooltip: { callbacks: { label: (ctx) => ' ' + ctx.parsed + ' students (' + strandShare(ctx.parsed) + '%)' } }
+        }
       }
     });
 
@@ -683,19 +680,32 @@
       }
     });
 
-    const topCareersBody = document.getElementById('topCareersBody');
-    topCareersBody.innerHTML = data.topCareers.length
-      ? data.topCareers.map((c, i) => `
-        <tr>
-          <td class="px-5 py-4 text-sm text-slate-600">${i + 1}</td>
-          <td class="px-5 py-4 text-sm font-medium text-slate-800 whitespace-nowrap">${escapeHtml(c.title)}</td>
-          <td class="px-5 py-4"><div class="flex items-center gap-3">
-            <span class="text-sm text-slate-600 w-8">${c.count}</span>
-            <div class="w-32 h-1.5 rounded-full bg-slate-100"><div class="h-1.5 rounded-full bg-[#19427b]" style="width:${c.percent}%"></div></div>
-          </div></td>
-          <td class="px-5 py-4 text-sm text-slate-600">${c.percent}%</td>
-        </tr>`).join('')
-      : '<tr><td colspan="4" class="px-5 py-8 text-center text-sm text-slate-500">No recommendations computed yet.</td></tr>';
+    // Ranked counts of categories -> horizontal bars, so long program names stay readable.
+    document.getElementById('topCareersEmpty').classList.toggle('hidden', data.topCareers.length > 0);
+    document.getElementById('topCareersChart').parentElement.classList.toggle('hidden', data.topCareers.length === 0);
+    if (careersChartInstance) careersChartInstance.destroy();
+    if (data.topCareers.length) {
+      const shorten = (t) => t.length > 34 ? t.slice(0, 33) + '…' : t;
+      careersChartInstance = new Chart(document.getElementById('topCareersChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: data.topCareers.map((c, i) => (i + 1) + '. ' + shorten(c.title)),
+          datasets: [{ data: data.topCareers.map(c => c.count), backgroundColor: '#19427b', borderRadius: 4, barThickness: 28 }]
+        },
+        options: {
+          indexAxis: 'y',
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: {
+              title: (items) => data.topCareers[items[0].dataIndex].title,
+              label: (ctx) => ' ' + ctx.parsed.x + ' students (' + data.topCareers[ctx.dataIndex].percent + '% of recommendations)'
+            } }
+          },
+          scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+      });
+    }
     document.getElementById('topCareersSummary').textContent =
       'Showing top ' + data.topCareers.length + ' of ' + data.confidence.total + ' students with a computed recommendation';
 
@@ -716,24 +726,56 @@
     document.getElementById('statsAy').textContent = stats.academicYear || '—';
     document.getElementById('statsExpected').textContent = stats.expectedCount.toLocaleString();
     document.getElementById('statsCompleted').textContent = stats.completedCount.toLocaleString();
-    document.getElementById('statsBar').style.width = (stats.expectedCount > 0 ? Math.min(100, Math.round(stats.completedCount / stats.expectedCount * 100)) : 0) + '%';
-    document.getElementById('statsSections').textContent = stats.expectedSections.length ? stats.expectedSections.join(', ') : '—';
     document.getElementById('statsNoRoster').classList.toggle('hidden', stats.expectedCount > 0);
 
+    // Comparing two amounts across groups -> grouped bars, one pair per section.
+    const bySection = stats.bySection || [];
+    document.getElementById('statsChartEmpty').classList.toggle('hidden', bySection.length > 0);
+    document.getElementById('statsChart').classList.toggle('hidden', bySection.length === 0);
+    if (statsChartInstance) statsChartInstance.destroy();
+    if (bySection.length) {
+      statsChartInstance = new Chart(document.getElementById('statsChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: bySection.map(s => s.section),
+          datasets: [
+            { label: 'Expected', data: bySection.map(s => s.expected), backgroundColor: '#94a3b8', borderRadius: 4 },
+            { label: 'Completed', data: bySection.map(s => s.completed), backgroundColor: '#1b8a47', borderRadius: 4 }
+          ]
+        },
+        options: {
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12 } },
+            tooltip: { callbacks: { footer: (items) => {
+              const s = bySection[items[0].dataIndex];
+              return s.expected > 0 ? Math.min(100, Math.round(s.completed / s.expected * 100)) + '% completed' : '';
+            } } }
+          },
+          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+      });
+    }
+
     const byYear = data.completionByYear || [];
-    document.getElementById('yearChartEmpty').classList.toggle('hidden', byYear.length > 0);
-    document.getElementById('yearChart').classList.toggle('hidden', byYear.length === 0);
+    document.getElementById('yearChartEmpty').classList.toggle('hidden', byYear.length > 0);    document.getElementById('yearChart').classList.toggle('hidden', byYear.length === 0);
     if (yearChartInstance) yearChartInstance.destroy();
     if (byYear.length) {
+      // A rate that changes from one academic year to the next -> a line.
       yearChartInstance = new Chart(document.getElementById('yearChart').getContext('2d'), {
-        type: 'bar',
+        type: 'line',
         data: {
           labels: byYear.map(y => y.academicYear),
           datasets: [{
             label: 'Completion Rate',
             data: byYear.map(y => y.rate),
-            backgroundColor: '#1b8a47',
-            borderRadius: 4,
+            borderColor: '#1b8a47',
+            backgroundColor: 'rgba(27,138,71,0.12)',
+            fill: true,
+            tension: 0.25,
+            borderWidth: 3,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: '#1b8a47',
           }]
         },
         options: {
@@ -744,7 +786,8 @@
               return y.completed + ' of ' + y.total + ' students (' + y.rate + '%)';
             } } }
           },
-          scales: { y: { beginAtZero: true, max: 100, ticks: { callback: (v) => v + '%' } } }
+          // offset keeps a lone first point centred instead of jammed against the axis
+          scales: { x: { offset: true }, y: { beginAtZero: true, max: 100, ticks: { callback: (v) => v + '%' } } }
         }
       });
     }
