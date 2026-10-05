@@ -33,6 +33,7 @@ $cfg = array_merge($base, [
     // Engine-mechanics tests below use the rank-preserving encoding so their
     // hand-computed values stay fixed; production (binary) is tested at the end.
     'holland_rank_weights' => [1.00, 0.67, 0.33],
+    'student_vector' => 'scores',
 ]);
 $W = $cfg['holland_rank_weights'];
 $ccis = $base['college_electives']['CCIS'];
@@ -195,9 +196,15 @@ check('only the RIASEC block is used', CBFEngine::normalizedWeights($prod) === [
 check('ranking is by cosine alone (no stated-program bonus)', $prod['final_score'] == ['similarity' => 1.0, 'stated_program' => 0.0]);
 check('encoding is binary (1/1/1: letter present = 1, absent = 0)', $prod['holland_rank_weights'] === [1, 1, 1]);
 check('Top-N = 3', $prod['top_n'] === 3);
+check('student vector = top-3 binary', $prod['student_vector'] === 'top_binary' && $prod['student_top_n'] === 3);
+check('top-3 letters: C, I, E -> x under C, I, E (adviser sample)',
+    CBFEngine::studentFeatures(['riasec' => ['R' => 36, 'I' => 39, 'A' => 37, 'S' => 32, 'E' => 39, 'C' => 41]])['riasec'] === [0, 1, 0, 0, 1, 1]);
+check('ties for 3rd place keep R,I,A,S,E,C order', CBFEngine::topRiasecLetters(['R' => 30, 'I' => 30, 'A' => 30, 'S' => 30, 'E' => 30, 'C' => 30]) === ['R', 'I', 'A']);
+check('no assessment -> zero student vector', CBFEngine::studentFeatures(['riasec' => null])['riasec'] === [0, 0, 0, 0, 0, 0]);
 
 // S001 example from evaluation/METHODOLOGY.md (scores already on a 0-1 scale -> x50 = raw totals),
-// computed with the production binary encoding.
+// computed with the production setup: top-3 binary student (I, C, R) vs binary course letters,
+// so cosine = matching letters / 3.
 $s001 = ['riasec' => ['R' => 36, 'I' => 45.5, 'A' => 20, 'S' => 17.5, 'E' => 30, 'C' => 39], 'strand' => 'STEM', 'electives' => ['Animation']];
 $catalog = [
     ['id' => 1, 'hollandCode' => 'IRC', 'relatedStrands' => [], 'collegeCode' => 'CCIS'],
@@ -208,9 +215,10 @@ $catalog = [
 ];
 $r = CBFEngine::recommend($s001, $catalog, 3);
 $byId = array_column($r['all'], null, 'id');
-check('S001 binary: IRC = RIC = ICR = 0.8634, AES = SEA = 0.4836',
-    $byId[1]['cosine'] === 0.8634 && $byId[2]['cosine'] === 0.8634 && $byId[4]['cosine'] === 0.8634
-    && $byId[3]['cosine'] === 0.4836 && $byId[5]['cosine'] === 0.4836);
+check('S001: IRC = RIC = ICR = 1 (3 of 3 letters), AES = SEA = 0 (no letters)',
+    $byId[1]['cosine'] === 1.0 && $byId[2]['cosine'] === 1.0 && $byId[4]['cosine'] === 1.0
+    && $byId[3]['cosine'] === 0.0 && $byId[5]['cosine'] === 0.0);
+check('one matching letter -> 0.3333 (EIS shares only I)', CBFEngine::recommend($s001, [['id' => 9, 'hollandCode' => 'EIS']], null)['all'][0]['cosine'] === 0.3333);
 check('score == cosine for every course, including the stated one', array_reduce($r['all'], fn($ok, $e) => $ok && $e['score'] === $e['cosine'], true));
 check('tied courses ranked by lower id: IRC(1), RIC(2), ICR(4)', array_column($r['top3'], 'id') === [1, 2, 4]);
 check('stated low-fit program (AES) is NOT pushed into the Top-N', $r['statedOutsideTop3']['id'] === 3);

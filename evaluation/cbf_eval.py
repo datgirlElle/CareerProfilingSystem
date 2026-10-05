@@ -92,14 +92,40 @@ def holland_to_vector(code, weights=ENCODINGS[DEFAULT_ENCODING]):
     return vec
 
 
-def student_vector(row, scale="unit"):
-    """Six RIASEC scores -> [R,I,A,S,E,C] on a 0-1 scale.
+MARK_YES = {"x", "yes", "y", "1", "\u2713"}   # cell values meaning "this letter applies"
+MARK_NO = {"", "no", "n", "0", "-"}
 
+
+def is_marked_row(row):
+    """True when R..C cells are x/blank marks rather than numeric scores."""
+    cells = [str(row[d]).strip().lower() for d in DIMENSIONS]
+    return all(c in MARK_YES | MARK_NO for c in cells) and any(c in ("x", "", "yes", "no", "y", "n", "-", "\u2713") for c in cells)
+
+
+def top_binary(vals, n=3):
+    """1 for the n highest scores, 0 otherwise; ties keep R,I,A,S,E,C order (same as the app)."""
+    order = sorted(range(6), key=lambda i: -vals[i])  # stable sort -> ties keep R..C order
+    top = set(order[:n])
+    return [1.0 if i in top else 0.0 for i in range(6)]
+
+
+def student_vector(row, scale="auto"):
+    """Student RIASEC result -> [R,I,A,S,E,C].
+
+    auto   : x/blank cells -> 1/0 as given; numeric scores -> top-3 binary (the web app's method)
+    top3   : numeric scores -> 1 for the 3 highest, 0 otherwise
     unit   : scores are already 0-1 (validated)
     raw50  : raw totals 10-50 divided by 50 (does NOT change cosine values)
     minmax : (raw - 10) / 40, so an all-"1" dimension becomes 0 (DOES change cosine)
     """
-    vals = [float(row[d]) for d in DIMENSIONS]
+    if is_marked_row(row):
+        return [1.0 if str(row[d]).strip().lower() in MARK_YES else 0.0 for d in DIMENSIONS]
+    try:
+        vals = [float(row[d]) for d in DIMENSIONS]
+    except ValueError:
+        raise ValueError(f"Student {row.get('StudentID')}: R..C must be x/blank marks or numbers")
+    if scale in ("auto", "top3"):
+        return top_binary(vals)
     if scale == "unit":
         if any(v < 0 or v > 1 for v in vals):
             raise ValueError(f"Student {row.get('StudentID')}: scores must be 0-1 (use --scale raw50/minmax for raw totals)")
@@ -189,15 +215,71 @@ def paired_bootstrap(a, b, iters=2000, seed=7):
 
 # ---------------------------------------------------------------- I/O
 
+# Short names accepted in the course column (case, spaces, dots and hyphens ignored).
+# Ambiguous abbreviations (e.g. BSMT = Medical Technology or Marine Transportation)
+# are deliberately left out; use the full name for those.
+COURSE_ALIASES = {
+    "BA Communication": ["BACOMM", "ABCOMM"],
+    "B Multimedia Arts": ["BS Multimedia Arts", "BMMA", "BSMMA"],
+    "BS Computer Science": ["BSCS"],
+    "BS Information Technology": ["BSIT"],
+    "BS Biology": ["BSBIO"],
+    "BS Medical Technology": ["BSMEDTECH"],
+    "BS Pharmacy": ["BSPHARMA"],
+    "BS Physical Therapy": ["BSPT"],
+    "BS Psychology": ["BSPSYCH"],
+    "BS Nursing": ["BSN"],
+    "BS Accountancy": ["BSA"],
+    "BS Accounting Information System": ["BSAIS"],
+    "BSBA Major in Financial Management": ["BS Business Administration Major in Financial Management", "BSBAFM"],
+    "BSBA Major in Operations Management": ["BS Business Administration Major in Operations Management", "BSBAOM"],
+    "BSBA Major in Sustainability Management": ["BS Business Administration Major in Sustainability Management", "BSBASM"],
+    "BS Hospitality Management": ["BSHM"],
+    "BS Tourism Management": ["BSTM"],
+    "BS International Business": ["BSIB"],
+    "BS Architecture": ["BSARCH"],
+    "BS Chemical Engineering": ["BSCHE"],
+    "BS Civil Engineering": ["BSCE"],
+    "BS Mechanical Engineering": ["BSME"],
+    "BS Electrical Engineering": ["BSEE"],
+    "BS Electronics Engineering": ["BSECE"],
+    "BS Industrial Engineering": ["BSIE"],
+    "BS Computer Engineering": ["BSCPE", "BSCOE"],
+    "BS Aeronautical Engineering": ["BSAE", "BSAERO"],
+    "BS Marine Engineering": ["BSMARE"],
+}
+
+
+def _key(text):
+    return "".join(ch for ch in str(text).upper() if ch.isalnum())
+
+
+COURSE_LOOKUP = {_key(n): n for n in COURSE_NAMES}
+COURSE_LOOKUP.update({_key(a): n for n, aliases in COURSE_ALIASES.items() for a in aliases})
+
+
 def read_students(path):
-    with open(path, newline="", encoding="utf-8") as f:
-        rows = list(csv.DictReader(f))
-    need = {"StudentID", *DIMENSIONS, "ActualCourse"}
+    """Read the student CSV. Accepts the adviser's layout: a blank or "Student" first header,
+    lowercase r..c columns with x/blank cells, and a "course" column (full name or short name)."""
+    with open(path, newline="", encoding="utf-8-sig") as f:
+        raw = list(csv.reader(f))
+    if not raw:
+        raise SystemExit(f"{path} is empty")
+    alias = {"": "StudentID", "student": "StudentID", "studentid": "StudentID", "id": "StudentID",
+             "course": "ActualCourse", "actualcourse": "ActualCourse", **{d.lower(): d for d in DIMENSIONS}}
+    header = [alias.get(h.strip().lower().replace(" ", ""), h.strip()) for h in raw[0]]
+    rows = [dict(zip(header, r)) for r in raw[1:] if any(c.strip() for c in r)]
+    for r in rows:  # columns missing from the file (e.g. letters nobody marked) count as blank
+        for d in DIMENSIONS:
+            r.setdefault(d, "")
+    need = {"StudentID", "ActualCourse"}
     if not rows or not need <= set(rows[0]):
-        raise SystemExit(f"{path} must have columns: StudentID,R,I,A,S,E,C,ActualCourse")
-    unknown = sorted({r["ActualCourse"] for r in rows} - set(COURSE_NAMES))
+        raise SystemExit(f"{path} must have a student column, R,I,A,S,E,C columns and a course column")
+    unknown = sorted({r["ActualCourse"] for r in rows if _key(r["ActualCourse"]) not in COURSE_LOOKUP})
     if unknown:
-        raise SystemExit(f"ActualCourse values not in the 32-course list: {unknown}")
+        raise SystemExit(f"Course values not recognised (use the full course name): {unknown}")
+    for r in rows:
+        r["ActualCourse"] = COURSE_LOOKUP[_key(r["ActualCourse"])]
     dupes = [s for s, c in Counter(r["StudentID"] for r in rows).items() if c > 1]
     if dupes:
         raise SystemExit(f"Duplicate StudentID values: {dupes[:5]}")
@@ -222,7 +304,7 @@ def write_arff(path, rows, scale):
         f.write(f"@ATTRIBUTE ActualCourse {{{classes}}}\n\n@DATA\n")
         for r in rows:
             vec = student_vector(r, scale)
-            f.write(",".join(f"{v:.6f}" for v in vec) + ",'" + r["ActualCourse"].replace("'", "\\'") + "'\n")
+            f.write(",".join(f"{v:g}" for v in vec) + ",'" + r["ActualCourse"].replace("'", "\\'") + "'\n")
 
 
 # ---------------------------------------------------------------- commands
@@ -298,7 +380,7 @@ def main():
     for name in ("split", "cbf", "weights"):
         s = sub.add_parser(name)
         s.add_argument("--students", required=True)
-        s.add_argument("--scale", choices=["unit", "raw50", "minmax"], default="unit")
+        s.add_argument("--scale", choices=["auto", "top3", "unit", "raw50", "minmax"], default="auto")
         if name == "split":
             s.add_argument("--test-fraction", type=float, default=0.3)
             s.add_argument("--seed", type=int, default=42)

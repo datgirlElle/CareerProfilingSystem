@@ -577,6 +577,10 @@
       const cosinePct = Math.round(program.cosine * 100);
       const f = program.formula || { similarity: 0.70, stated_program: 0.30 };
       if (!f.stated_program) {
+        if (f.student_vector === 'top_binary') {
+          return 'Match Score = cosine similarity between your top ' + (f.student_top_n || 3) + ' RIASEC types and the letters of this program\'s Holland Code (' +
+            program.hollandCode + ') = ' + cosinePct + '%.';
+        }
         return 'Match Score = cosine similarity between your six RIASEC scores and this program\'s Holland Code = ' + cosinePct + '%.';
       }
       const label = program.formula ? 'RIASEC similarity' : (program.explanation ? 'profile similarity' : 'RIASEC similarity');

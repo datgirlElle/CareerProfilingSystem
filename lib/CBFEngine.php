@@ -5,7 +5,9 @@
  *
  * Process (one call to recommend() runs all of it):
  *   1. Student profile   — the six RIASEC scores from the student's assessment
- *   2. Student vector    — [R, I, A, S, E, C] scaled to 0-1 (studentFeatures)
+ *   2. Student vector    — [R, I, A, S, E, C]: currently 1 for the student's top 3
+ *                           RIASEC types and 0 for the rest (config student_vector;
+ *                           alternative: the six scores scaled 0-1) (studentFeatures)
  *   3. Course vectors    — each course's final Holland code encoded per letter
  *                           position (config holland_rank_weights). Currently
  *                           binary: letter in the code = 1, absent = 0
@@ -110,10 +112,14 @@ class CBFEngine
     {
         $config ??= self::config();
 
-        // Raw totals (10..50) -> 0-1 scale. Dividing by the maximum does not
-        // change cosine values; subtracting the floor does (see config/cbf.php).
         $riasec = array_fill(0, 6, 0);
-        if (!empty($profile['riasec'])) {
+        if (!empty($profile['riasec']) && ($config['student_vector'] ?? 'scores') === 'top_binary') {
+            // Top-N binary: 1 ("x") for the student's N highest RIASEC types, 0 otherwise.
+            $top = self::topRiasecLetters($profile['riasec'], $config['student_top_n'] ?? 3);
+            $riasec = self::multiHot(self::DIMENSIONS, $top);
+        } elseif (!empty($profile['riasec'])) {
+            // Raw totals (10..50) -> 0-1 scale. Dividing by the maximum does not
+            // change cosine values; subtracting the floor does (see config/cbf.php).
             $riasec = self::scoresToVector($profile['riasec']);
             $max = $config['riasec_max'];
             if ($config['riasec_subtract_floor']) {
@@ -249,12 +255,13 @@ class CBFEngine
     // Step 7: explainability — the actual attribute values that matched
     // ------------------------------------------------------------------
 
-    /** Student's top 3 RIASEC letters (highest score first; ties keep R,I,A,S,E,C order). */
-    public static function topRiasecLetters(array $scores): array
+    /** Student's top N RIASEC letters (highest score first; ties keep R,I,A,S,E,C order). */
+    public static function topRiasecLetters(array $scores, int $n = 3): array
     {
-        $ranked = array_intersect_key($scores, array_flip(self::DIMENSIONS));
+        // Put the scores in R,I,A,S,E,C order first, so the stable sort breaks ties by that order.
+        $ranked = array_intersect_key(array_merge(array_flip(self::DIMENSIONS), $scores), array_flip(self::DIMENSIONS));
         arsort($ranked);
-        return array_slice(array_keys($ranked), 0, 3);
+        return array_slice(array_keys($ranked), 0, $n);
     }
 
     /** Which strand / RIASEC types / electives the student and program share. */
@@ -396,6 +403,8 @@ class CBFEngine
                 'weights' => array_map(fn($w) => round($w, 4), $weights),
                 'finalScore' => $config['final_score'],
                 'riasecSubtractFloor' => $config['riasec_subtract_floor'],
+                'studentVector' => $config['student_vector'] ?? 'scores',
+                'studentTopN' => $config['student_top_n'] ?? 3,
             ],
             'featureLabels' => array_intersect_key(self::featureLabels($config), $weights),
             'student' => [

@@ -55,7 +55,11 @@ $topScore = (float) $recommendation['top3'][0]['score'];
 // Snapshot of every program's result. blocks/matches/explanation make the
 // recommendation explainable later without recomputing it; formula records the
 // final-score weights in force when it was computed (they are configurable).
-$formula = CBFEngine::config()['final_score'];
+$cbfConfig = CBFEngine::config();
+$formula = $cbfConfig['final_score'] + [
+    'student_vector' => $cbfConfig['student_vector'] ?? 'scores',
+    'student_top_n' => $cbfConfig['student_top_n'] ?? 3,
+];
 $scoresForStorage = array_map(fn($s) => [
     'programId' => $s['id'], 'cosine' => $s['cosine'], 'indicator' => $s['indicator'], 'score' => $s['score'],
     'blocks' => $s['blocks'], 'matches' => $s['matches'], 'explanation' => $s['explanation'], 'formula' => $formula,

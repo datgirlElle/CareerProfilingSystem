@@ -52,6 +52,16 @@ return [
     'riasec_floor'          => 10,
     'riasec_max'            => 50,
 
+    // How the student's RIASEC result becomes the student vector:
+    //   'top_binary': the student's top N RIASEC types (by score) = 1 ("x"),
+    //                 the others = 0, e.g. top C, I, E -> [0, 1, 0, 0, 1, 1].
+    //                 Ties keep the R, I, A, S, E, C order (same rule as the
+    //                 assessment's stored top types).
+    //   'scores'    : the six scores scaled to 0-1 (see the scaling settings above).
+    // Adviser's decision: top-3 binary, compared with the course's binary letters.
+    'student_vector' => 'top_binary',
+    'student_top_n'  => 3,
+
     // A course's 3-letter Holland code -> RIASEC vector, weight per letter position
     // (1st, 2nd, 3rd); letters not in the code are 0.
     //

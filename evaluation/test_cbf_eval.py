@@ -123,9 +123,46 @@ class Scaling(unittest.TestCase):
 
     def test_out_of_range_rejected(self):
         with self.assertRaises(ValueError):
-            m.student_vector(student("X", [1.2, 0, 0, 0, 0, 0]))
+            m.student_vector(student("X", [1.2, 0, 0, 0, 0, 0]), "unit")
         with self.assertRaises(ValueError):
             m.student_vector(student("X", [5, 20, 20, 20, 20, 20]), "raw50")
+
+
+class AdviserCsvFormat(unittest.TestCase):
+    """The adviser's sample: blank first header, x under the student's letters, course 'bsit'."""
+
+    def read(self, text):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "students.csv")
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                f.write(text)
+            return m.read_students(path)
+
+    def test_sample_row_with_only_c_i_e_columns(self):
+        rows = self.read(",c,i,e,course\nstudent1,x,x,x,bsit\n")
+        self.assertEqual(rows[0]["StudentID"], "student1")
+        self.assertEqual(rows[0]["ActualCourse"], "BS Information Technology")
+        self.assertEqual(m.student_vector(rows[0]), [0, 1, 0, 0, 1, 1])
+
+    def test_all_six_columns_x_and_blank(self):
+        rows = self.read("StudentID,R,I,A,S,E,C,course\nS1,x,,x,,,x,BS Architecture\n")
+        self.assertEqual(m.student_vector(rows[0]), [1, 0, 1, 0, 0, 1])
+
+    def test_numeric_scores_become_top3_like_the_app(self):
+        rows = self.read("StudentID,R,I,A,S,E,C,course\nS1,36,39,37,32,39,41,BSA\n")
+        self.assertEqual(m.student_vector(rows[0]), [0, 1, 0, 0, 1, 1])  # C, I, E
+        self.assertEqual(rows[0]["ActualCourse"], "BS Accountancy")
+
+    def test_unknown_course_is_reported(self):
+        with self.assertRaises(SystemExit):
+            self.read("StudentID,R,I,A,S,E,C,course\nS1,x,x,x,,,,BSMT\n")  # ambiguous, not accepted
+
+    def test_x_student_vs_matching_course_scores_1(self):
+        cv = m.course_vectors(m.ENCODINGS["binary"])
+        ranked = m.rank_courses([0, 1, 0, 0, 1, 1], cv)  # C, I, E
+        top = [n for n, s, r in ranked if r == 1]
+        self.assertIn("BS Accountancy", top)            # CEI: 3 of 3 letters
+        self.assertAlmostEqual(ranked[0][1], 1.0)
 
 
 class Evaluation(unittest.TestCase):
