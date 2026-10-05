@@ -68,8 +68,8 @@ return [
     // Binary encoding: a dimension is 1 if its letter appears in the code (YES)
     // and 0 if not (NO), e.g. IRC -> [1, 1, 0, 0, 0, 1]. Letter ORDER is not
     // used, so codes with the same three letters (IRC, RIC, ICR) get the same
-    // vector. Previous rank-preserving encoding: [1.00, 0.67, 0.33].
-    // Alternatives are compared in evaluation/ (cbf_eval.py weights).
+    // vector. Weighted letter positions (e.g. 1.00 / 0.67 / 0.33) are NOT used:
+    // no published study supports specific values (thesis methodology decision).
     'holland_rank_weights' => [1, 1, 1],
 
     // SHS strands offered (same list as the students.strand CHECK constraint).
