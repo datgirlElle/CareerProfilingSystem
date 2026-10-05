@@ -3,6 +3,7 @@
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/Sections.php';
 require_once __DIR__ . '/../lib/ExamSchedule.php';
+require_once __DIR__ . '/../lib/AcademicYear.php';
 
 $pdo = Database::get();
 $validStrands = ['STEM', 'ABM', 'ICT', 'HUMSS'];
@@ -54,6 +55,79 @@ function scheduleCounts(PDO $pdo, array $s): array
     $completed = (int) $stmt->fetchColumn();
 
     return ['expected' => $expected, 'completed' => $completed];
+}
+
+/** school_ids a session is expected to cover (same matching rules as scheduleCounts above). */
+function scheduleStudentIds(PDO $pdo, array $s): array
+{
+    $ids = [];
+    $rConds = ['academic_year = ?'];
+    $rParams = [$s['academic_year']];
+    if ($s['strand'] !== null) { $rConds[] = 'strand = ?'; $rParams[] = $s['strand']; }
+    if ($s['section'] !== null) { $rConds[] = 'section = ?'; $rParams[] = $s['section']; }
+    $stmt = $pdo->prepare('SELECT school_id FROM assessment_roster WHERE ' . implode(' AND ', $rConds));
+    $stmt->execute($rParams);
+    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $id) { $ids[$id] = true; }
+
+    $fConds = ['academic_year = ?'];
+    $fParams = [$s['academic_year']];
+    if ($s['grade_level'] !== null) { $fConds[] = 'grade_level = ?'; $fParams[] = $s['grade_level']; }
+    if ($s['strand'] !== null) { $fConds[] = 'strand = ?'; $fParams[] = $s['strand']; }
+    if ($s['section'] !== null) { $fConds[] = 'section = ?'; $fParams[] = $s['section']; }
+    $stmt = $pdo->prepare('SELECT school_id FROM students WHERE ' . implode(' AND ', $fConds));
+    $stmt->execute($fParams);
+    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $id) { $ids[$id] = true; }
+    return array_keys($ids);
+}
+
+/**
+ * Figures for the summary cards and the room-conflict banner: always about the
+ * sessions that are still active (not yet ended), whichever list is showing.
+ */
+function scheduleSummary(PDO $pdo, string $academicYear, int $archivedCount): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT id, academic_year, exam_date, start_time, end_time, room, grade_level, strand, section
+         FROM exam_schedules WHERE academic_year = ? AND NOT ' . ExamSchedule::endedSql() . ' ORDER BY exam_date, start_time'
+    );
+    $stmt->execute([$academicYear]);
+    $active = $stmt->fetchAll();
+
+    $today = new DateTimeImmutable('today', new DateTimeZone('Asia/Manila'));
+    $weekEnd = $today->modify('+6 days')->format('Y-m-d');
+    $todayStr = $today->format('Y-m-d');
+
+    $covered = [];
+    $rooms = [];
+    $thisWeek = 0;
+    foreach ($active as $s) {
+        foreach (scheduleStudentIds($pdo, $s) as $id) { $covered[$id] = true; }
+        $rooms[ExamSchedule::roomKey($s['room'])] = $s['room'];
+        if ($s['exam_date'] >= $todayStr && $s['exam_date'] <= $weekEnd) { $thisWeek++; }
+    }
+
+    // Bookings across every academic year: a room is a physical place, so a
+    // clash is a clash whichever year's session it belongs to.
+    $bookings = array_map(fn($r) => [
+        'id' => (int) $r['id'],
+        'examDate' => $r['exam_date'],
+        'startTime' => substr($r['start_time'], 0, 5),
+        'endTime' => substr($r['end_time'], 0, 5),
+        'room' => $r['room'],
+    ], $pdo->query(
+        'SELECT id, exam_date, start_time, end_time, room FROM exam_schedules WHERE NOT ' . ExamSchedule::endedSql() . ' ORDER BY exam_date, start_time'
+    )->fetchAll());
+
+    return [
+        'totalActive' => count($active),
+        'thisWeek' => $thisWeek,
+        'studentsCovered' => count($covered),
+        'roomsInUse' => count($rooms),
+        'roomNames' => array_values($rooms),
+        'completedSessions' => $archivedCount,
+        'bookings' => $bookings,
+        'conflicts' => ExamSchedule::findConflicts($bookings),
+    ];
 }
 
 function scheduleRow(array $s): array
@@ -120,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $user = Rbac::requireAccess('examinations', 'limited');
     $academicYear = trim((string) ($_GET['academicYear'] ?? ''));
     if ($academicYear === '') {
-        $academicYear = (string) $pdo->query("SELECT value FROM security_policies WHERE key = 'academicYear.current'")->fetchColumn();
+        $academicYear = AcademicYear::current();
     }
     // Active list by default; ?archived=1 shows the past ones. Past exams
     // stay in the table (audit logs and historical reports still need them).
@@ -146,7 +220,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         return $row;
     }, $rows);
 
-    jsonResponse(['academicYear' => $academicYear, 'schedules' => $schedules, 'archivedCount' => $archivedCount, 'showingArchived' => $showArchived]);
+    jsonResponse([
+        'academicYear' => $academicYear,
+        'schedules' => $schedules,
+        'archivedCount' => $archivedCount,
+        'showingArchived' => $showArchived,
+        'summary' => scheduleSummary($pdo, $academicYear, $archivedCount),
+    ]);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -157,10 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($type === 'create') {
         $academicYear = trim((string) ($body['academicYear'] ?? ''));
         if ($academicYear === '') {
-            $academicYear = (string) $pdo->query("SELECT value FROM security_policies WHERE key = 'academicYear.current'")->fetchColumn();
-        }
-        if ($academicYear === '') {
-            jsonResponse(['success' => false, 'error' => 'Set the current Academic Year in Security Configuration first.'], 400);
+            $academicYear = AcademicYear::current();
         }
 
         $examDate = trim((string) ($body['examDate'] ?? ''));
@@ -207,7 +284,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $section = null;
         }
         $notes = trim((string) ($body['notes'] ?? ''));
-        $scheduleType = ($body['scheduleType'] ?? 'initial') === 'retake' ? 'retake' : 'initial';
+        // Retakes were removed, so every schedule is a regular exam session.
+        $scheduleType = 'initial';
+
+        // One room can't hold two sessions at the same time. Compared ignoring
+        // case/extra spaces, and across every academic year (it's a real room).
+        $clash = $pdo->prepare(
+            "SELECT start_time, end_time FROM exam_schedules
+             WHERE exam_date = ? AND LOWER(REGEXP_REPLACE(TRIM(room), '\\s+', ' ', 'g')) = ?
+               AND start_time < ? AND end_time > ? LIMIT 1"
+        );
+        $clash->execute([$examDate, ExamSchedule::roomKey($room), $endTime, $startTime]);
+        if ($existingBooking = $clash->fetch()) {
+            jsonResponse(['success' => false, 'error' => trim(preg_replace('/\s+/', ' ', $room)) . ' is already booked from ' . substr($existingBooking['start_time'], 0, 5) . ' to ' . substr($existingBooking['end_time'], 0, 5) . ' on that date. Pick another room or time.'], 409);
+        }
 
         $accessCode = strtoupper(bin2hex(random_bytes(3)));
 

@@ -40,6 +40,25 @@ if ($isStaff) {
         ];
     }
 
+    // Staff sign-ups waiting for approval (admins only: only they can approve).
+    if ($user['role'] === 'admin') {
+        $stmt = $pdo->query(
+            "SELECT id, username, full_name, staff_position, email_verified_at, created_at FROM users
+             WHERE role = 'counselor' AND approval_status = 'pending'
+             ORDER BY created_at DESC LIMIT $each"
+        );
+        foreach ($stmt->fetchAll() as $row) {
+            $who = ($row['full_name'] ?: $row['username']) . ' (' . ($row['staff_position'] === 'facilitator' ? 'Guidance Facilitator' : 'Guidance Counselor') . ')';
+            $items[] = [
+                'type' => 'registration',
+                'title' => 'Staff sign-up awaiting approval',
+                'text' => $who . ($row['email_verified_at'] === null ? ' (email not verified yet).' : ' verified their email and is waiting for approval.'),
+                'link' => 'account-management',
+                'ts' => $row['created_at'],
+            ];
+        }
+    }
+
     // Pending monitoring flags awaiting review
     $stmt = $pdo->query(
         "SELECT mf.id, mf.reason, mf.created_at, s.first_name_enc, s.last_name_enc
@@ -123,7 +142,7 @@ if ($isStaff) {
     // they registered.
     $stmt = $pdo->prepare(
         "SELECT a.id, a.title, a.body_enc, a.publish_at FROM announcements a
-         WHERE a.publish_at <= NOW() AND a.publish_at > NOW() - INTERVAL '$days days'
+         WHERE a.status = 'sent' AND a.publish_at <= NOW() AND a.publish_at > NOW() - INTERVAL '$days days'
            AND a.publish_at >= ?
            AND (a.target_type = 'all' OR EXISTS (
                  SELECT 1 FROM announcement_recipients ar
@@ -132,7 +151,15 @@ if ($isStaff) {
          ORDER BY a.publish_at DESC LIMIT $each"
     );
     $stmt->execute([$since, $user['id']]);
+    $markRead = $full
+        ? $pdo->prepare('INSERT INTO announcement_reads (announcement_id, student_id) VALUES (?, ?) ON CONFLICT DO NOTHING')
+        : null;
     foreach ($stmt->fetchAll() as $row) {
+        // Opening the full Notifications page counts as seeing the announcement
+        // (the staff page's "% read"); the small bell dropdown does not.
+        if ($markRead) {
+            $markRead->execute([(int) $row['id'], (int) $user['id']]);
+        }
         $body = trim((string) Crypto::dec($row['body_enc']));
         $items[] = [
             'key' => 'ann:' . $row['id'],
@@ -168,26 +195,6 @@ if ($isStaff) {
             'text' => $row['exam_date'] . ' in ' . $row['room'] . '.',
             'link' => 'assessment',
             'ts' => $row['created_at'],
-        ];
-    }
-
-    // Staff-granted retakes (see retake_grants / api/retake-grants.php).
-    $stmt = $pdo->prepare(
-        "SELECT id, granted_at FROM retake_grants
-         WHERE student_id = ? AND status = 'granted' AND completed_attempt_number IS NULL
-           AND granted_at > NOW() - INTERVAL '$days days'
-           AND granted_at >= ?
-         ORDER BY granted_at DESC LIMIT $each"
-    );
-    $stmt->execute([$user['id'], $since]);
-    foreach ($stmt->fetchAll() as $row) {
-        $items[] = [
-            'key' => 'retake:' . $row['id'],
-            'type' => 'retake_granted',
-            'title' => 'Retake granted',
-            'text' => 'You have been granted a retake of the RIASEC assessment.',
-            'link' => 'assessment',
-            'ts' => $row['granted_at'],
         ];
     }
 

@@ -21,6 +21,44 @@ class ExamSchedule
         return "(({$p}exam_date + {$p}end_time) < (NOW() AT TIME ZONE 'Asia/Manila'))";
     }
 
+    /** Rooms are compared ignoring case and surrounding spaces ("Room 301" = " room 301 "). */
+    public static function roomKey(string $room): string
+    {
+        return mb_strtolower(trim(preg_replace('/\s+/', ' ', $room)));
+    }
+
+    /** Two time ranges on the same day overlap when each starts before the other ends (touching ends don't count). */
+    public static function timesOverlap(string $startA, string $endA, string $startB, string $endB): bool
+    {
+        $a1 = substr($startA, 0, 5); $a2 = substr($endA, 0, 5);
+        $b1 = substr($startB, 0, 5); $b2 = substr($endB, 0, 5);
+        return $a1 < $b2 && $b1 < $a2;
+    }
+
+    /**
+     * Pairs of sessions booked into the same room at overlapping times on the same date.
+     *
+     * @param array<int,array{id:int,examDate:string,startTime:string,endTime:string,room:string}> $sessions
+     * @return array<int,array{room:string,examDate:string,a:array,b:array}>
+     */
+    public static function findConflicts(array $sessions): array
+    {
+        $conflicts = [];
+        $n = count($sessions);
+        for ($i = 0; $i < $n; $i++) {
+            for ($j = $i + 1; $j < $n; $j++) {
+                $a = $sessions[$i];
+                $b = $sessions[$j];
+                if ($a['examDate'] === $b['examDate']
+                    && self::roomKey($a['room']) === self::roomKey($b['room'])
+                    && self::timesOverlap($a['startTime'], $a['endTime'], $b['startTime'], $b['endTime'])) {
+                    $conflicts[] = ['room' => $a['room'], 'examDate' => $a['examDate'], 'a' => $a, 'b' => $b];
+                }
+            }
+        }
+        return $conflicts;
+    }
+
     /** @param string $examDate Y-m-d  @param string $endTime H:i or H:i:s */
     public static function hasEnded(string $examDate, string $endTime, ?DateTimeImmutable $now = null): bool
     {

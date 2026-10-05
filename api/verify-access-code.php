@@ -31,14 +31,10 @@ if ($submitted === '') {
 
 $pdo = Database::get();
 
-// Prefer the code from the Exam Schedule that actually matches this
-// student's group (strand/section/grade/AY, NULL columns = wildcard) over
-// the old single blanket code — this is what makes Exam Scheduling a real
-// gate instead of a purely informational panel. Falls back to the global
-// security_policies code only when this student's group has no exam
-// schedule created for it at all, so access doesn't hard-lock the moment
-// this feature ships into a database with no schedules yet (as of this
-// change, exam_schedules is empty on the live DB).
+// The code must come from an Exam Schedule that matches this student's
+// group (strand/section/grade/AY, NULL columns = wildcard). There is no
+// global fallback code any more: a group with no exam scheduled simply
+// cannot start the assessment until a counselor schedules one.
 $studentStmt = $pdo->prepare('SELECT strand, section, grade_level, academic_year FROM students WHERE user_id = ?');
 $studentStmt->execute([$user['id']]);
 $student = $studentStmt->fetch();
@@ -57,44 +53,35 @@ if ($student && $student['academic_year']) {
 }
 
 $matchedScheduleId = null;
-if ($candidates) {
-    // This student's group has at least one scheduled exam — the code
-    // must match one of those now, not the old blanket code. Looped and
-    // hash_equals-compared in PHP (never in SQL) for the same
-    // timing-safe-comparison reason as the global code below.
-    //
-    // A schedule whose exam has already ended is archived and its code is
-    // discarded: it never unlocks the assessment, even though it's the right
-    // code. (Past schedules do NOT fall back to the global code either — that
-    // one is only for groups that have no exam scheduled at all.)
-    $expiredMatch = false;
-    foreach ($candidates as $c) {
-        if (!hash_equals((string) $c['access_code'], $submitted)) {
-            continue;
-        }
-        if (ExamSchedule::hasEnded($c['exam_date'], $c['end_time'])) {
-            $expiredMatch = true;
-            continue;
-        }
-        $matchedScheduleId = (int) $c['id'];
-        break;
+if (!$candidates) {
+    AuditLogger::log($user['id'], 'student', 'access_code_failed', 'assessment', null, 'No exam scheduled for this student\'s group');
+    jsonResponse(['success' => false, 'error' => 'No exam is scheduled for your group yet. Please ask your guidance counselor.'], 403);
+}
+
+// Looped and hash_equals-compared in PHP (never in SQL) so the comparison is
+// timing-safe.
+//
+// A schedule whose exam has already ended is archived and its code is
+// discarded: it never unlocks the assessment, even though it's the right code.
+$expiredMatch = false;
+foreach ($candidates as $c) {
+    if (!hash_equals((string) $c['access_code'], $submitted)) {
+        continue;
     }
-    if ($matchedScheduleId === null) {
-        if ($expiredMatch) {
-            AuditLogger::log($user['id'], 'student', 'access_code_failed', 'assessment', null, 'Expired assessment access code (exam already ended)');
-            jsonResponse(['success' => false, 'error' => 'This access code has expired because the exam has already ended. Please ask your guidance counselor for the current schedule and code.'], 403);
-        }
-        AuditLogger::log($user['id'], 'student', 'access_code_failed', 'assessment', null, 'Incorrect assessment access code');
-        jsonResponse(['success' => false, 'error' => 'Incorrect access code.'], 403);
+    if (ExamSchedule::hasEnded($c['exam_date'], $c['end_time'])) {
+        $expiredMatch = true;
+        continue;
     }
-} else {
-    // No exam schedule exists yet for this student's group — fall back to
-    // the single global code, same behavior as before this change.
-    $actual = (string) $pdo->query("SELECT value FROM security_policies WHERE key = 'assessment.accessCode'")->fetchColumn();
-    if ($actual === '' || !hash_equals($actual, $submitted)) {
-        AuditLogger::log($user['id'], 'student', 'access_code_failed', 'assessment', null, 'Incorrect assessment access code');
-        jsonResponse(['success' => false, 'error' => 'Incorrect access code.'], 403);
+    $matchedScheduleId = (int) $c['id'];
+    break;
+}
+if ($matchedScheduleId === null) {
+    if ($expiredMatch) {
+        AuditLogger::log($user['id'], 'student', 'access_code_failed', 'assessment', null, 'Expired assessment access code (exam already ended)');
+        jsonResponse(['success' => false, 'error' => 'This access code has expired because the exam has already ended. Please ask your guidance counselor for the current schedule and code.'], 403);
     }
+    AuditLogger::log($user['id'], 'student', 'access_code_failed', 'assessment', null, 'Incorrect assessment access code');
+    jsonResponse(['success' => false, 'error' => 'Incorrect access code.'], 403);
 }
 
 $_SESSION['assessmentUnlocked'] = true;

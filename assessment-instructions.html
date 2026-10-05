@@ -25,6 +25,10 @@
 
   <!-- Sidebar -->
   <aside id="sidebar" class="w-[260px] shrink-0 bg-[#001c43] flex flex-col fixed inset-y-0 left-0 z-40 -translate-x-full transition-transform duration-200 md:sticky md:top-0 md:translate-x-0 h-screen">
+    <div class="bg-white px-6 py-4 flex items-center justify-center gap-3 shrink-0">
+      <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="h-9 w-auto">
+      <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="h-8 w-auto">
+    </div>
     <div class="flex items-center gap-3 px-6 py-8">
       <img src="images/admin/logo-profilepath.svg" alt="ProfilePath logo" class="w-[64px]">
       <div>
@@ -61,10 +65,6 @@
       </a>
     </div>
 
-    <div class="bg-white px-6 py-3 flex items-center justify-center gap-3">
-      <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="h-8 w-auto">
-      <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="h-7 w-auto">
-    </div>
   </aside>
 
   <!-- Main Content -->
@@ -107,7 +107,6 @@
             <p class="text-xs text-gray-500" id="profilePanelMeta">—</p>
           </div>
           <a href="student-settings" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">My Profile</a>
-          <a href="#" id="profileLogout" class="block px-4 py-3 text-sm text-[#ed1c24] font-medium hover:bg-gray-50 border-t border-gray-100">Logout</a>
         </div>
       </div>
       </div>
@@ -281,7 +280,6 @@
     });
   }
   document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
-  document.getElementById('profileLogout').addEventListener('click', openLogoutModal);
   document.getElementById('logoutCancelBtn').addEventListener('click', closeLogoutModal);
   document.getElementById('logoutConfirmBtn').addEventListener('click', performLogout);
   logoutModal.addEventListener('click', function(e) { if (e.target.id === 'logoutConfirmModal') closeLogoutModal(); });

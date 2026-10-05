@@ -14,6 +14,14 @@ CREATE TABLE users (
     email_verified_at       TIMESTAMPTZ,
     avatar_data_url         TEXT,
     is_active               BOOLEAN NOT NULL DEFAULT TRUE,
+    -- Counselors sign up themselves and start 'pending' until an admin approves
+    -- them (Account Management). Everyone else is always 'approved'.
+    approval_status         VARCHAR(10) NOT NULL DEFAULT 'approved' CHECK (approval_status IN ('pending', 'approved', 'rejected')),
+    full_name               VARCHAR(150),
+    -- 'counselor' or 'facilitator', chosen at staff sign-up. Both are the same
+    -- system role (role = 'counselor') with identical access; this is only the
+    -- title shown next to the name. NULL (older accounts) reads as counselor.
+    staff_position          VARCHAR(12) CHECK (staff_position IS NULL OR staff_position IN ('counselor', 'facilitator')),
     failed_login_attempts   INT NOT NULL DEFAULT 0,
     locked_until            TIMESTAMPTZ,
     notifications_read_at   TIMESTAMPTZ,
@@ -24,8 +32,9 @@ CREATE TABLE users (
 -- Students self-register with a MMCL-issued email (see api/register.php's
 -- domain check) but that only proves the string LOOKS right — this proves
 -- they actually control the inbox before the account can log in. NULL =
--- not verified yet. Only enforced for role='student'; admin/counselor
--- accounts are staff-vetted through a different path (api/staff-accounts.php).
+-- not verified yet. Enforced for role='student'; counselors who sign up
+-- themselves verify their email too and are then approved by an admin
+-- (users.approval_status, api/staff-approvals.php).
 CREATE TABLE email_verification_tokens (
     id          SERIAL PRIMARY KEY,
     user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -231,8 +240,21 @@ CREATE TABLE announcements (
     -- Set once its email batch has gone out (see api/announcements.php's
     -- emailAnnouncement()); NULL until then, so it's never sent twice.
     emailed_at      TIMESTAMPTZ,
+    -- A draft is never shown to students or emailed until it is sent.
+    status          VARCHAR(10) NOT NULL DEFAULT 'sent' CHECK (status IN ('draft', 'sent')),
+    -- When "Remind Unread" last emailed the students who hadn't seen it.
+    last_reminded_at TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Which student saw which announcement (shown on their Assessments page or
+-- the full Notifications page); drives the "% read" figure on the staff page.
+CREATE TABLE announcement_reads (
+    announcement_id INT NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
+    student_id      INT NOT NULL REFERENCES students(user_id) ON DELETE CASCADE,
+    read_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (announcement_id, student_id)
 );
 
 -- Only populated when announcements.target_type = 'specific'.

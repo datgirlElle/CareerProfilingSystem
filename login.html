@@ -112,6 +112,9 @@
         <p class="text-sm text-gray-500 text-center">
           New student? <a href="registration" class="text-[#ed1c24] font-semibold hover:underline">Create an account</a>
         </p>
+        <p class="text-sm text-gray-500 text-center -mt-3">
+          Guidance staff? <a href="staff-register" class="text-[#ed1c24] font-semibold hover:underline">Sign up for a staff account</a>
+        </p>
         <p class="text-xs text-gray-500 text-center">
           Need help? Contact your <span class="text-gray-500">system administrator</span>.
         </p>
@@ -160,6 +163,10 @@
     if (verified === '1') {
       const banner = document.getElementById('verifiedBanner');
       banner.textContent = 'Email verified! You can now sign in.';
+      banner.classList.remove('hidden');
+    } else if (verified === '2') {
+      const banner = document.getElementById('verifiedBanner');
+      banner.textContent = 'Email verified! An administrator needs to approve your account before you can sign in.';
       banner.classList.remove('hidden');
     } else if (verified === '0') {
       showError('This verification link is invalid or has expired. Try signing in — you can resend a new link from here.', false);

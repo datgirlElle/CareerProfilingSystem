@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/StaffPosition.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -57,8 +58,28 @@ if (!password_verify($password, $user['password_hash'])) {
     jsonResponse($genericError, 401);
 }
 
-// Only students self-register through the public page and need this check —
-// admin/counselor accounts are staff-vetted through a different path.
+// Staff who signed up themselves wait for an admin: they confirm their email
+// first, then stay 'pending' until approved in Account Management. (Checked
+// only after the password is right, so the status never leaks to a stranger.)
+if ($user['role'] === 'counselor' && $user['approval_status'] === 'pending') {
+    if ($user['email_verified_at'] === null) {
+        AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Staff email not verified');
+        jsonResponse([
+            'success' => false,
+            'error' => 'Please verify your email first — check your inbox for the verification link. An administrator then needs to approve your account.',
+            'needsVerification' => true,
+        ], 403);
+    }
+    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Staff account awaiting approval');
+    jsonResponse(['success' => false, 'error' => 'Your account is waiting for an administrator to approve it. You will be able to sign in once it is approved.'], 403);
+}
+if ($user['role'] === 'counselor' && $user['approval_status'] === 'rejected') {
+    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Staff sign-up was rejected');
+    jsonResponse(['success' => false, 'error' => 'Your sign-up was not approved. Please contact your system administrator.'], 403);
+}
+
+// Students self-register through the public page and must verify their email
+// before signing in.
 if ($user['role'] === 'student' && $user['email_verified_at'] === null) {
     AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Email not verified');
     jsonResponse([
@@ -78,6 +99,11 @@ $sessionData = [
     'username' => $user['username'],
     'avatarUrl' => $user['avatar_data_url'],
 ];
+// Guidance counselors and facilitators share one role and one set of
+// permissions; the position is just the title shown beside their name.
+if ($user['role'] === 'counselor') {
+    $sessionData['positionLabel'] = StaffPosition::label($user['staff_position'] ?? null);
+}
 
 $redirect = 'admin-dashboard';
 if ($user['role'] === 'student') {

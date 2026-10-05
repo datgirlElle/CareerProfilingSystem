@@ -65,7 +65,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
             </span>
             <h1 class="text-xl font-semibold text-[#191c1e]">Email Verified</h1>
-            <p class="text-sm text-[#5c5a5a]">Your account is ready. Redirecting you to Login…</p>
+            <p id="successText" class="text-sm text-[#5c5a5a] max-w-[320px]">Your account is ready. Redirecting you to Login…</p>
           </div>
 
           <!-- State: error -->
@@ -118,9 +118,17 @@
           stateVerifying.classList.add('hidden');
           stateSuccess.classList.remove('hidden');
           stateSuccess.classList.add('flex');
-          setTimeout(function() {
-            window.location.href = 'login?verified=1';
-          }, 1600);
+          if (data.awaitingApproval) {
+            // A staff sign-up: verified, but an administrator still has to approve it.
+            document.getElementById('successText').textContent = 'Thank you. An administrator will now review your account. You will be able to sign in once it is approved.';
+            setTimeout(function() {
+              window.location.href = 'login?verified=2';
+            }, 3200);
+          } else {
+            setTimeout(function() {
+              window.location.href = 'login?verified=1';
+            }, 1600);
+          }
         } else {
           showError(data.error || 'This verification link is invalid or has expired.');
         }

@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/Lrn.php';
+require_once __DIR__ . '/../lib/AcademicYear.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -39,10 +40,7 @@ if ($extension !== 'csv') {
     jsonResponse(['success' => false, 'error' => 'Please upload a .csv file.'], 400);
 }
 
-$currentAy = (string) $pdo->query("SELECT value FROM security_policies WHERE key = 'academicYear.current'")->fetchColumn();
-if ($currentAy === '') {
-    jsonResponse(['success' => false, 'error' => 'Set the current Academic Year in Security Configuration before uploading a roster.'], 400);
-}
+$currentAy = AcademicYear::current();
 
 $handle = fopen($_FILES['roster']['tmp_name'], 'r');
 if ($handle === false) {

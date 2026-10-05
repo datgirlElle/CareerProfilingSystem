@@ -25,6 +25,10 @@
 
   <!-- Sidebar -->
   <aside id="sidebar" class="w-[260px] shrink-0 bg-[#001c43] flex flex-col fixed inset-y-0 left-0 z-40 -translate-x-full transition-transform duration-200 md:sticky md:top-0 md:translate-x-0 h-screen">
+    <div class="bg-white px-6 py-4 flex items-center justify-center gap-3 shrink-0">
+      <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="h-9 w-auto">
+      <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="h-8 w-auto">
+    </div>
 
     <!-- Logo Area -->
     <div class="flex items-center gap-3 px-6 py-8">
@@ -67,10 +71,6 @@
       </a>
     </div>
 
-    <div class="bg-white px-6 py-3 flex items-center justify-center gap-3">
-      <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="h-8 w-auto">
-      <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="h-7 w-auto">
-    </div>
   </aside>
 
   <!-- Main Content -->
@@ -114,7 +114,6 @@
             <p class="text-xs text-gray-500" id="profilePanelMeta">—</p>
           </div>
           <a href="student-settings" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">My Profile</a>
-          <a href="#" id="profileLogout" class="block px-4 py-3 text-sm text-[#ed1c24] font-medium hover:bg-gray-50 border-t border-gray-100">Logout</a>
         </div>
       </div>
       </div>
@@ -257,7 +256,6 @@
       });
     }
     document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
-    document.getElementById('profileLogout').addEventListener('click', openLogoutModal);
     document.getElementById('logoutCancelBtn').addEventListener('click', closeLogoutModal);
     document.getElementById('logoutConfirmBtn').addEventListener('click', performLogout);
     logoutModal.addEventListener('click', function(e) { if (e.target.id === 'logoutConfirmModal') closeLogoutModal(); });
@@ -301,7 +299,7 @@
       }
       document.getElementById('examSchedulePanelList').innerHTML = items.map(function(s) {
         const date = new Date(s.examDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
-        const label = s.scheduleType === 'retake' ? '<span class="text-amber-600 font-medium">Retake Exam</span>' : 'Career Interest Assessment';
+        const label = 'Career Interest Assessment';
         return '<div class="border-l-[3px] border-[#19427b] pl-4 py-1">' +
           '<p class="text-sm font-semibold text-[#001a40]">' + date + ' &middot; ' + escapeHtml(s.startTime) + '&ndash;' + escapeHtml(s.endTime) + '</p>' +
           '<p class="text-sm text-slate-600 mt-1">Room ' + escapeHtml(s.room) + ' &mdash; ' + label + '</p>' +
@@ -322,12 +320,17 @@
       function escapeHtml(str) {
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       }
+      // Tell the server these were just shown, so staff can see how many students have read them.
+      fetch('api/announcements.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'markRead', ids: items.map(function(a) { return a.id; }) })
+      }).catch(function() {});
       document.getElementById('announcementsPanelList').innerHTML = items.map(function(a) {
         const date = new Date(a.publishAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         return '<div class="border-l-[3px] border-[#ed1c24] pl-4 py-1">' +
           '<p class="text-sm font-semibold text-[#001a40]">' + escapeHtml(a.title) + '</p>' +
           '<p class="text-xs text-slate-500 mt-0.5">' + date + '</p>' +
-          '<p class="text-sm text-slate-600 mt-1 leading-relaxed">' + escapeHtml(a.body) + '</p>' +
+          '<p class="text-sm text-slate-600 mt-1 leading-relaxed" style="white-space:pre-line">' + escapeHtml(a.body) + '</p>' +
         '</div>';
       }).join('');
     })();
@@ -337,29 +340,14 @@
       const statusText = document.getElementById('riasecStatusText');
       const btn = document.getElementById('riasecActionBtn');
 
-      if (assessmentStatusData.retakeAvailable) {
-        // A counselor/admin has granted this student a retake (see
-        // retake_grants) — route through the same
-        // assessment-instructions.html -> access-code -> riasec-assessment.html
-        // flow as a first attempt; nothing here bypasses that gate.
-        pill.className = 'inline-flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-full px-3.5 py-1.5';
-        pill.querySelector('span:first-child').className = 'w-1.5 h-1.5 rounded-full bg-amber-500';
-        statusText.textContent = 'Retake Available';
-        statusText.className = 'text-base text-amber-600';
+      pill.className = 'inline-flex items-center gap-2 bg-green-50 border border-green-100 rounded-full px-3.5 py-1.5';
+      pill.querySelector('span:first-child').className = 'w-1.5 h-1.5 rounded-full bg-green-600';
+      statusText.textContent = 'Completed';
+      statusText.className = 'text-base text-green-600';
 
-        btn.textContent = 'Retake Assessment';
-        btn.setAttribute('href', 'assessment-instructions');
-        btn.className = 'inline-block bg-[#ed1c24] text-white text-[15px] font-semibold rounded-md px-8 py-3.5 shadow-sm hover:opacity-90';
-      } else {
-        pill.className = 'inline-flex items-center gap-2 bg-green-50 border border-green-100 rounded-full px-3.5 py-1.5';
-        pill.querySelector('span:first-child').className = 'w-1.5 h-1.5 rounded-full bg-green-600';
-        statusText.textContent = 'Completed';
-        statusText.className = 'text-base text-green-600';
-
-        btn.textContent = 'View Results';
-        btn.setAttribute('href', 'results?view=riasec');
-        btn.className = 'inline-block bg-white border border-[#ed1c24] text-[#ed1c24] text-[15px] font-semibold rounded-md px-8 py-3.5 shadow-sm hover:bg-red-50';
-      }
+      btn.textContent = 'View Results';
+      btn.setAttribute('href', 'results?view=riasec');
+      btn.className = 'inline-block bg-white border border-[#ed1c24] text-[#ed1c24] text-[15px] font-semibold rounded-md px-8 py-3.5 shadow-sm hover:bg-red-50';
 
       const wCard = document.getElementById('worksheetCard');
       wCard.className = 'bg-white border border-slate-200 rounded-lg shadow-[0px_2px_15px_0px_rgba(0,26,64,0.04)] p-[33px] flex items-center justify-between gap-8 flex-wrap';

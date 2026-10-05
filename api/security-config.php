@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/AcademicYear.php';
 
 $user = Rbac::requireRole('admin', 'counselor');
 $pdo = Database::get();
@@ -55,11 +56,9 @@ function loadPolicies(PDO $pdo): array
             'sessionTimeoutEnabled' => $b('sessionTimeoutEnabled', true),
             'timeoutMinutes' => $i('timeoutMinutes', 30),
         ],
+        // Detected from today's date (lib/AcademicYear.php) — read-only here.
         'academicYear' => [
-            'current' => $s('academicYear.current', ''),
-        ],
-        'assessment' => [
-            'accessCode' => $s('assessment.accessCode', ''),
+            'current' => AcademicYear::current(),
         ],
         'officeHours' => [
             'text' => $s('officeHours.text', 'Mon–Fri, 8:00 AM–5:00 PM'),
@@ -176,21 +175,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         jsonResponse(['success' => true] + loadPolicies($pdo));
     }
 
-    if ($type === 'academicYear') {
-        $current = trim((string) ($body['current'] ?? ''));
-        if ($current === '' || mb_strlen($current) > 20) {
-            jsonResponse(['success' => false, 'error' => 'Academic Year must be 1-20 characters.'], 400);
-        }
-        $stmt = $pdo->prepare(
-            'INSERT INTO security_policies (key, value, updated_by) VALUES (?, ?, ?)
-             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by'
-        );
-        $stmt->execute(['academicYear.current', $current, $user['id']]);
-
-        AuditLogger::log($user['id'], $user['role'], 'update_academic_year', 'security_policies', 'academicYear.current', "Set to: $current");
-        jsonResponse(['success' => true] + loadPolicies($pdo));
-    }
-
     if ($type === 'officeHours') {
         $text = trim((string) ($body['text'] ?? ''));
         if ($text === '' || mb_strlen($text) > 100) {
@@ -226,19 +210,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $set('principal.email', $email);
 
         AuditLogger::log($user['id'], $user['role'], 'update_principal_contact', 'security_policies', 'principal', "Set to: $name <$email>");
-        jsonResponse(['success' => true] + loadPolicies($pdo));
-    }
-
-    if ($type === 'regenerateAccessCode') {
-        // Server generates the code — a client never gets to choose it.
-        $code = strtoupper(bin2hex(random_bytes(3)));
-        $stmt = $pdo->prepare(
-            'INSERT INTO security_policies (key, value, updated_by) VALUES (?, ?, ?)
-             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by'
-        );
-        $stmt->execute(['assessment.accessCode', $code, $user['id']]);
-
-        AuditLogger::log($user['id'], $user['role'], 'regenerate_access_code', 'security_policies', 'assessment.accessCode', 'Access code regenerated');
         jsonResponse(['success' => true] + loadPolicies($pdo));
     }
 

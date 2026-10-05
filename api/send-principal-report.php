@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/AnalyticsReport.php';
+require_once __DIR__ . '/../lib/AcademicYear.php';
 require_once __DIR__ . '/../lib/Mailer.php';
 require_once __DIR__ . '/../lib/EmailTemplate.php';
 
@@ -26,13 +27,10 @@ $pdo = Database::get();
 $policyRow = fn(string $k) => (string) ($pdo->query('SELECT value FROM security_policies WHERE key = ' . $pdo->quote($k))->fetchColumn() ?: '');
 $principalName = $policyRow('principal.name');
 $principalEmail = $policyRow('principal.email');
-$currentAy = $policyRow('academicYear.current');
+$currentAy = AcademicYear::current();
 
 if ($principalName === '' || $principalEmail === '') {
     jsonResponse(['success' => false, 'error' => 'Set the Principal\'s name and email in Security Configuration first.'], 400);
-}
-if ($currentAy === '') {
-    jsonResponse(['success' => false, 'error' => 'Set the current Academic Year in Security Configuration first.'], 400);
 }
 
 /** @return array<int,array{title:string,rows:array<int,array{0:string,1:string}>}> */

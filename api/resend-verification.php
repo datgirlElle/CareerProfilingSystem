@@ -27,10 +27,13 @@ if (RateLimiter::tooMany('resend-verification:' . strtolower($username), 3, 60))
     jsonResponse($generic);
 }
 
+// Students (name in the students table) and staff who signed up themselves
+// and are still pending (name in users.full_name).
 $stmt = $pdo->prepare(
-    "SELECT u.id, u.email, s.first_name_enc FROM users u
-     JOIN students s ON s.user_id = u.id
-     WHERE LOWER(u.username) = LOWER(?) AND u.role = 'student' AND u.email_verified_at IS NULL"
+    "SELECT u.id, u.email, u.role, u.full_name, s.first_name_enc FROM users u
+     LEFT JOIN students s ON s.user_id = u.id
+     WHERE LOWER(u.username) = LOWER(?) AND u.email_verified_at IS NULL
+       AND (u.role = 'student' OR (u.role = 'counselor' AND u.approval_status = 'pending'))"
 );
 $stmt->execute([$username]);
 $user = $stmt->fetch();
@@ -39,7 +42,9 @@ if (!$user || !$user['email']) {
     jsonResponse($generic);
 }
 
-$firstName = Crypto::dec($user['first_name_enc']);
+$firstName = $user['role'] === 'student'
+    ? Crypto::dec($user['first_name_enc'])
+    : (string) ($user['full_name'] ?: $username);
 
 $pdo->prepare('UPDATE email_verification_tokens SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL')
     ->execute([$user['id']]);

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="js/csrf.js"></script>
+<title>Staff Sign Up — Career Profiling System</title>
+<link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
+<link rel="stylesheet" href="css/tailwind.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body{ font-family:'Inter', sans-serif; }
+</style>
+<link rel="stylesheet" href="css/motion.css">
+</head>
+<body class="min-h-screen">
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<div class="relative flex flex-col items-start justify-center min-h-screen overflow-hidden">
+
+  <!-- Background photo + triangle accents (matches login page) -->
+  <div class="absolute inset-0">
+    <img src="images/login/campus-bg.png" alt="" class="absolute inset-0 w-full h-full object-cover">
+    <div class="absolute inset-0 bg-white/70"></div>
+    <div class="absolute bottom-0 left-0 w-[500px] h-[400px] pointer-events-none select-none" style="background:#081E3C; clip-path: polygon(0% 0%, 100% 100%, 0% 100%);"></div>
+    <img src="images/login/red-triangle.svg" alt="" class="absolute bottom-0 right-0 w-[640px] pointer-events-none select-none">
+  </div>
+
+  <div class="relative flex w-full min-h-screen">
+
+    <!-- Left: Branding -->
+    <div class="hidden md:flex flex-1 relative overflow-hidden">
+      <div class="relative mt-16 mb-auto max-w-md px-8" data-reveal="left">
+        <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling — Mapúa MCL" class="w-[280px] mb-4">
+        <h1 class="text-[#001c43] text-3xl font-medium leading-tight">Career Profiling System</h1>
+        <div class="w-16 h-1 bg-[#ed1c24] mt-4 mb-4"></div>
+        <p class="text-[#001c43] text-lg leading-relaxed">
+          Empowering students. Guiding futures.
+          Data-driven insights for informed career decisions.
+        </p>
+      </div>
+    </div>
+
+    <!-- Right: Staff sign-up card -->
+    <div class="flex flex-1 items-center justify-center p-8 py-12">
+      <div id="main-content" class="w-full max-w-[520px] bg-white border border-gray-100 rounded-xl shadow-2xl p-10 flex flex-col gap-6" data-reveal="scale" style="transition-delay:120ms">
+
+        <div class="flex flex-col items-center gap-1">
+          <img src="images/login/mmcl-crest.png" alt="Mapúa MCL crest" class="w-[140px] mb-2">
+          <h2 class="text-[#001c43] text-2xl font-bold text-center">Staff Sign Up</h2>
+          <p class="text-gray-500 text-sm text-center">
+            For Guidance Counselors and Guidance Facilitators using the <span class="text-[#ed1c24] font-semibold">Career Profiling System</span>. An administrator will approve your account before you can sign in.
+          </p>
+        </div>
+
+        <form id="staffForm" class="flex flex-col gap-5">
+
+          <p id="formMessage" class="hidden text-sm rounded-md px-3.5 py-2.5"></p>
+
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-4">
+              <img src="images/login/icon-user.svg" alt="" class="w-full h-full">
+            </span>
+            <input
+              type="text"
+              name="full_name"
+              maxlength="150"
+              autocomplete="name"
+              placeholder="Full Name"
+              aria-label="Full Name"
+              required
+              class="w-full pl-10 pr-3 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+          </div>
+
+          <fieldset>
+            <legend class="text-xs font-medium text-gray-600 mb-2">I am a</legend>
+            <div class="flex gap-3">
+              <label class="flex-1"><input type="radio" name="position" value="counselor" required class="peer hidden"><span class="block text-center border border-gray-300 rounded-md py-3 text-sm font-medium text-gray-700 cursor-pointer peer-checked:bg-[#ed1c24] peer-checked:text-white peer-checked:border-[#ed1c24]">Guidance Counselor</span></label>
+              <label class="flex-1"><input type="radio" name="position" value="facilitator" class="peer hidden"><span class="block text-center border border-gray-300 rounded-md py-3 text-sm font-medium text-gray-700 cursor-pointer peer-checked:bg-[#ed1c24] peer-checked:text-white peer-checked:border-[#ed1c24]">Guidance Facilitator</span></label>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">Counselors and facilitators get the same access to the system. Your choice only sets the title shown beside your name.</p>
+          </fieldset>
+
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-4">
+              <img src="images/login/icon-user.svg" alt="" class="w-full h-full">
+            </span>
+            <input
+              type="text"
+              name="username"
+              maxlength="50"
+              autocomplete="username"
+              placeholder="Username (letters, numbers, . _ -)"
+              aria-label="Username"
+              required
+              class="w-full pl-10 pr-3 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+          </div>
+
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-4">
+              <img src="images/login/icon-mail.svg" alt="" class="w-full h-full">
+            </span>
+            <input
+              type="email"
+              name="email"
+              autocomplete="email"
+              placeholder="Email Address"
+              aria-label="Email Address"
+              required
+              class="w-full pl-10 pr-3 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+          </div>
+
+          <!-- The show/hide eye on these two fields is added by js/password-toggle.js -->
+          <input
+            type="password"
+            name="password"
+            autocomplete="new-password"
+            placeholder="Password"
+            aria-label="Password"
+            required
+            class="w-full px-3.5 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+          <input
+            type="password"
+            name="confirm_password"
+            autocomplete="new-password"
+            placeholder="Confirm Password"
+            aria-label="Confirm Password"
+            required
+            class="w-full px-3.5 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+
+          <label class="flex items-start gap-2.5 text-xs text-gray-500 leading-relaxed cursor-pointer">
+            <input type="checkbox" id="policyAgreeCheckbox" required class="mt-0.5 w-4 h-4 shrink-0 rounded border-gray-300 text-[#ed1c24] focus:ring-[#ed1c24] focus:ring-offset-0">
+            <span>
+              I agree to the <a href="terms" class="text-[#ed1c24] hover:underline">Terms of Use</a> and the <a href="privacy" class="text-[#ed1c24] hover:underline">Data Privacy Policy</a>, and I will handle student information only for guidance and counseling purposes.
+            </span>
+          </label>
+
+          <button type="submit" class="w-full py-3.5 rounded-md bg-[#ed1c24] text-white text-sm font-medium shadow hover:opacity-90 transition">
+            Sign Up
+          </button>
+        </form>
+
+        <p class="text-sm text-gray-500 text-center">
+          Already have an account? <a href="login" class="text-[#ed1c24] font-semibold hover:underline">Sign in</a>
+        </p>
+        <p class="text-xs text-gray-400 text-center">
+          <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
+          <span class="mx-1.5">&middot;</span>
+          <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
+          <span class="mx-1.5">&middot;</span>
+          <a href="accessibility" class="hover:text-gray-600 hover:underline">Accessibility</a>
+        </p>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="successModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4 text-center items-center">
+    <div class="w-14 h-14 rounded-full bg-green-50 flex items-center justify-center">
+      <svg viewBox="0 0 24 24" fill="none" class="w-7 h-7 text-green-600">
+        <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h3 class="text-lg font-semibold text-[#001c43]">Sign-up Received</h3>
+    <p id="successMessage" class="text-sm text-gray-500 leading-relaxed"></p>
+    <div id="successVerifyLinkBox" class="hidden w-full bg-amber-50 border border-amber-100 rounded-md px-3.5 py-2.5 text-left break-all">
+      <p class="text-xs text-amber-800">The verification email couldn't be delivered. Use this link directly: <a id="successVerifyLinkAnchor" href="#" class="font-semibold underline"></a></p>
+    </div>
+    <a href="login" class="w-full py-3 rounded-md bg-[#ed1c24] text-white text-sm font-medium shadow hover:opacity-90 transition text-center">
+      Back to Sign In
+    </a>
+  </div>
+</div>
+
+<script>
+  (function() {
+    function showMessage(text) {
+      var msg = document.getElementById('formMessage');
+      msg.textContent = text;
+      msg.className = 'text-sm rounded-md px-3.5 py-2.5 text-[#ed1c24] bg-red-50 border border-red-100';
+      void msg.offsetWidth;
+      msg.classList.add('alert-anim');
+    }
+
+    var successModal = document.getElementById('successModal');
+    function openSuccessModal(email, verifyLink) {
+      document.getElementById('successMessage').textContent =
+        'We\'ve sent a verification link to ' + email + '. Verify your email, then an administrator will review your account. You can sign in once it is approved.';
+      var linkBox = document.getElementById('successVerifyLinkBox');
+      if (verifyLink) {
+        var anchor = document.getElementById('successVerifyLinkAnchor');
+        anchor.href = verifyLink;
+        anchor.textContent = verifyLink;
+        linkBox.classList.remove('hidden');
+      }
+      successModal.classList.remove('hidden');
+      setTimeout(function() { successModal.classList.add('is-open'); }, 16);
+    }
+
+    document.getElementById('staffForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var form = e.target;
+      var fullName = form.full_name.value.trim();
+      var positionInput = form.querySelector('input[name="position"]:checked');
+      var position = positionInput ? positionInput.value : '';
+      var username = form.username.value.trim();
+      var email = form.email.value.trim();
+      var password = form.password.value;
+      var confirm = form.confirm_password.value;
+      var privacyConsent = document.getElementById('policyAgreeCheckbox').checked;
+
+      if (!fullName || !username || !email || !password || !confirm) {
+        showMessage('Please fill out all fields.');
+        return;
+      }
+      if (!position) {
+        showMessage('Choose whether you are a Guidance Counselor or a Guidance Facilitator.');
+        return;
+      }
+      if (!/^[A-Za-z0-9._-]{3,50}$/.test(username)) {
+        showMessage('Username must be 3 to 50 characters: letters, numbers, dots, dashes or underscores.');
+        return;
+      }
+      if (password !== confirm) {
+        showMessage('The two passwords do not match.');
+        return;
+      }
+      if (!privacyConsent) {
+        showMessage('You must agree to the Data Privacy Policy to sign up.');
+        return;
+      }
+
+      var submitBtn = form.querySelector('button[type="submit"]');
+      var defaultHtml = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Signing up…';
+      try {
+        var res = await fetch('api/staff-register.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fullName: fullName, position: position, username: username, email: email, password: password, privacyConsent: privacyConsent })
+        });
+        var data = await res.json();
+        if (!data.success) {
+          showMessage(data.error || 'Sign-up failed. Please try again.');
+          return;
+        }
+        openSuccessModal(email, data.verifyLink || null);
+        form.reset();
+      } catch (err) {
+        showMessage('Unable to reach the server. Please try again.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = defaultHtml;
+      }
+    });
+  })();
+</script>
+
+<script src="js/motion.js" defer></script>
+<script src="js/password-toggle.js" defer></script>
+</body>
+</html>

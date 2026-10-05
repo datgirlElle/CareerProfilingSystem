@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/Sections.php';
+require_once __DIR__ . '/../lib/AcademicYear.php';
 
 $user = Rbac::requireRole('admin', 'counselor');
 $pdo = Database::get();
@@ -90,18 +91,12 @@ if ($schoolIdLookup !== '') {
     }
 
     // Full attempt history (not just is_latest), for the "Assessment
-    // Attempts" section — cross-referenced with retake_grants so a retake
-    // attempt is labeled as such, matching Phase 4's retake workflow.
+    // Attempts" section. Attempts made before retakes were removed still show.
     $attemptsStmt = $pdo->prepare(
         'SELECT id, attempt_number, top_types, completed_at, score_r, score_i, score_a, score_s, score_e, score_c
          FROM assessments WHERE student_id = ? ORDER BY attempt_number DESC'
     );
     $attemptsStmt->execute([(int) $row['user_id']]);
-    $retakeAttemptNumbers = $pdo->prepare(
-        'SELECT completed_attempt_number FROM retake_grants WHERE student_id = ? AND completed_attempt_number IS NOT NULL'
-    );
-    $retakeAttemptNumbers->execute([(int) $row['user_id']]);
-    $retakeSet = array_flip(array_map('intval', $retakeAttemptNumbers->fetchAll(PDO::FETCH_COLUMN)));
 
     $attempts = array_map(fn($a) => [
         'attemptNumber' => (int) $a['attempt_number'],
@@ -111,7 +106,6 @@ if ($schoolIdLookup !== '') {
             'R' => (int) $a['score_r'], 'I' => (int) $a['score_i'], 'A' => (int) $a['score_a'],
             'S' => (int) $a['score_s'], 'E' => (int) $a['score_e'], 'C' => (int) $a['score_c'],
         ],
-        'isRetake' => isset($retakeSet[(int) $a['attempt_number']]),
     ], $attemptsStmt->fetchAll());
 
     jsonResponse(['student' => [
@@ -252,7 +246,7 @@ $students = array_map(function ($r) use ($counseledIds) {
 // roster upload, not just who happened to sign up. A roster row whose
 // school_id already matches a registered student is skipped entirely;
 // the real account's live data always wins over the one-time CSV snapshot.
-$currentAy = (string) $pdo->query("SELECT value FROM security_policies WHERE key = 'academicYear.current'")->fetchColumn();
+$currentAy = AcademicYear::current();
 if ($currentAy !== '') {
     $registeredSchoolIds = array_column($rows, 'school_id');
     $rosterStmt = $pdo->prepare('SELECT school_id, name_enc, strand, section FROM assessment_roster WHERE academic_year = ?');

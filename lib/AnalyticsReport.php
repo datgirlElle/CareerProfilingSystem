@@ -10,6 +10,7 @@
  * the system already has.
  */
 require_once __DIR__ . '/Sections.php';
+require_once __DIR__ . '/AcademicYear.php';
 
 class AnalyticsReport
 {
@@ -134,7 +135,7 @@ class AnalyticsReport
         // upload used to REPLACE this count outright rather than add to it,
         // so a small or stale roster could show something like "2 of 1" once
         // more students registered than the roster had ever listed.
-        $currentAy = (string) $pdo->query("SELECT value FROM security_policies WHERE key = 'academicYear.current'")->fetchColumn();
+        $currentAy = AcademicYear::current();
         $expectedCount = (int) (function () use ($pdo, $currentAy, $hasStrand, $strand, $hasSection, $section) {
             $studentConds = ['academic_year = ?'];
             $studentParams = [$currentAy];

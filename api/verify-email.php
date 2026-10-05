@@ -24,7 +24,9 @@ $pdo = Database::get();
 $tokenHash = hash('sha256', $token);
 
 $stmt = $pdo->prepare(
-    'SELECT id, user_id FROM email_verification_tokens WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW()'
+    'SELECT t.id, t.user_id, u.role, u.approval_status FROM email_verification_tokens t
+     JOIN users u ON u.id = t.user_id
+     WHERE t.token_hash = ? AND t.used_at IS NULL AND t.expires_at > NOW()'
 );
 $stmt->execute([$tokenHash]);
 $row = $stmt->fetch();
@@ -44,6 +46,8 @@ try {
     jsonResponse(['success' => false, 'error' => 'Failed to verify your email. Please try again.'], 500);
 }
 
-AuditLogger::log((int) $row['user_id'], 'student', 'verify_email', 'user', (string) $row['user_id']);
+AuditLogger::log((int) $row['user_id'], $row['role'], 'verify_email', 'user', (string) $row['user_id']);
 
-jsonResponse(['success' => true]);
+// A staff sign-up is verified but still needs an administrator's approval;
+// the page words its confirmation differently for that case.
+jsonResponse(['success' => true, 'awaitingApproval' => $row['role'] === 'counselor' && $row['approval_status'] === 'pending']);

@@ -72,6 +72,8 @@ config/     .env loader
    php db/migrate_add_examinations.php
    php db/migrate_add_counseling_notes.php
    php db/migrate_add_program_careers.php
+   php db/migrate_add_staff_approval.php
+   php db/migrate_announcement_features.php
    ```
 
 4. **Seed reference data and a default admin account:**

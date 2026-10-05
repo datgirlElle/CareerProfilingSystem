@@ -5,6 +5,7 @@ require_once __DIR__ . '/../lib/Mailer.php';
 require_once __DIR__ . '/../lib/EmailTemplate.php';
 require_once __DIR__ . '/../lib/Sections.php';
 require_once __DIR__ . '/../lib/Lrn.php';
+require_once __DIR__ . '/../lib/AcademicYear.php';
 
 // Only Mapúa MCL's own student email domain may self-register a student
 // account — this is a public page, and without this check anyone on the
@@ -108,7 +109,7 @@ try {
     $userStmt->execute(['student', $schoolId, $hash, $email]);
     $userId = (int) $userStmt->fetchColumn();
 
-    $currentAy = $pdo->query("SELECT value FROM security_policies WHERE key = 'academicYear.current'")->fetchColumn();
+    $currentAy = AcademicYear::current();
     $studentStmt = $pdo->prepare(
         'INSERT INTO students (user_id, school_id, first_name_enc, last_name_enc, strand, grade_level, section, academic_year) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     );
@@ -146,8 +147,8 @@ $response = ['success' => true, 'emailSent' => $sent];
 if (!$sent) {
     // The student just proved they control this form submission (not the
     // inbox) — if delivery fails there's no other way for them to get
-    // moving, so hand over the link the same way staff-accounts.php does
-    // for admin-created accounts.
+    // moving, so hand over the link directly (api/staff-register.php does
+    // the same for staff sign-ups).
     $response['verifyLink'] = $verifyLink;
 }
 jsonResponse($response);
