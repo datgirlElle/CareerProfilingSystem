@@ -95,74 +95,80 @@ to make design decisions.
 **[Theory]** A Holland code lists a person's or environment's three most prominent types
 **in order**. "IRC" means Investigative first, then Realistic, then Conventional.
 
-**[Engineering] Rank-preserving encoding.** Each letter gets a weight by its position:
+**[Engineering] Encoding used by the system: binary.** Each RIASEC dimension is **1** if its
+letter appears in the course's final Holland code (YES), and **0** if not (NO):
 
-| Position in code | 1st | 2nd | 3rd | absent |
-|---|---|---|---|---|
-| Weight | 1.00 | 0.67 | 0.33 | 0.00 |
+| Letter in the code? | Yes (1st, 2nd or 3rd letter) | No |
+|---|---|---|
+| Value | 1 | 0 |
 
-**Why keep the rank?** With binary encoding (1/1/1), IRC, RIC and ICR all become the same vector
-`[1, 1, 0, 0, 0, 1]`. The CBF could then not tell BS Computer Science (IRC) from BS Civil
-Engineering (RIC) or BS Computer Engineering (ICR). The validator's ICR revision of Computer
-Engineering would also have **no effect at all**. This is verified in
-`test_binary_encoding_loses_letter_order`. A rank-preserving encoding keeps the ordinal
-information the validators put into each code, and makes the revisions matter. §13 shows
-Computer Engineering moving from joint 7th to 1st for a sample student.
+Example: IRC → `[1, 1, 0, 0, 0, 1]`. This is set in `config/cbf.php`
+(`holland_rank_weights = [1, 1, 1]`).
 
-**Limitations. State these in the thesis:**
+**What binary encoding means:**
 
-- **[Assumption]** 1.00 / 0.67 / 0.33 are equally spaced steps. That says the gap between the
-  1st and 2nd letter equals the gap between the 2nd and 3rd. Holland's theory specifies an
-  *order*, not *intensities* or intervals, so these values are a **design choice, not a
-  validated psychological measurement**.
-- 0.67 and 0.33 are rounded versions of 2/3 and 1/3. The web app currently uses 3/2/1, which is
-  proportional to 1 : 2/3 : 1/3 and gives identical cosine values. Across 20,000 random
-  students × 32 courses, the rounded and exact versions never differ by more than **0.003** in
-  cosine.
-- Every course vector has the same length, ‖C‖ = √(1² + 0.67² + 0.33²) = **1.2481**, so no
-  course is favoured by vector size.
-- Whether this encoding is *appropriate* is tested empirically in §10. It is not assumed.
+- **Letter order is not used.** Codes with the same three letters get the same vector:
+  IRC, RIC and ICR are all `[1, 1, 0, 0, 0, 1]`. Under binary, the CBF cannot distinguish
+  BS Computer Science (IRC) from BS Civil Engineering (RIC) or BS Computer Engineering (ICR).
+- **Validator revisions that only reorder letters have no effect on recommendations.** For
+  example, Computer Engineering RIC → ICR, Sustainability ESI → EIS and Tourism ESA → SEA keep
+  the same letters, so their vectors don't change. The revisions are still stored (§2).
+- **The 32 courses collapse into only 11 distinct course vectors.** For example, 11
+  courses share the letters I, R and C. Ties are much more common than under a rank-preserving
+  encoding (§9 and §11).
+- Every course vector has the same length, ‖C‖ = √3 = **1.7321**, so no course is favoured by
+  vector size.
 
-**All 32 course vectors (proposed encoding; bold = revised by the validator):**
+**Alternative kept for comparison: rank-preserving encoding.** 1st letter = 1.00, 2nd = 0.67,
+3rd = 0.33, absent = 0 (IRC → `[0.67, 1.00, 0, 0, 0, 0.33]`).
+
+- This **does** keep the letter order. It is equivalent to rank-sum weights (3 : 2 : 1).
+- The values are equally spaced, which is an **[Assumption]**: Holland's theory gives an
+  *order*, not *intensities*.
+- It is still available by setting `holland_rank_weights = [1.00, 0.67, 0.33]`.
+
+Which encoding performs better is tested empirically in §10. Neither is assumed to be correct.
+
+**All 32 course vectors (binary encoding; bold = revised by the validator):**
 
 | # | College | Course | Original | Final | R | I | A | S | E | C |
 |---|---|---|---|---|---|---|---|---|---|---|
-| 1 | CAS | BA Communication | AES | AES | 0.00 | 0.00 | 1.00 | 0.33 | 0.67 | 0.00 |
-| 2 | CAS | B Multimedia Arts | AER | AER | 0.33 | 0.00 | 1.00 | 0.00 | 0.67 | 0.00 |
-| 3 | CCIS | BS Computer Science | IRC | IRC | 0.67 | 1.00 | 0.00 | 0.00 | 0.00 | 0.33 |
-| 4 | CCIS | BS Information Technology | IRC | IRC | 0.67 | 1.00 | 0.00 | 0.00 | 0.00 | 0.33 |
-| 5 | CHS | BS Biology | IRS | IRS | 0.67 | 1.00 | 0.00 | 0.33 | 0.00 | 0.00 |
-| 6 | CHS | BS Medical Technology | IRC | IRC | 0.67 | 1.00 | 0.00 | 0.00 | 0.00 | 0.33 |
-| 7 | CHS | BS Pharmacy | ISC | ISC | 0.00 | 1.00 | 0.00 | 0.67 | 0.00 | 0.33 |
-| 8 | CHS | BS Physical Therapy | SIR | SIR | 0.33 | 0.67 | 0.00 | 1.00 | 0.00 | 0.00 |
-| 9 | CHS | BS Psychology | SIA | SIA | 0.00 | 0.67 | 0.33 | 1.00 | 0.00 | 0.00 |
-| 10 | CN | BS Nursing | SIR | SIR | 0.33 | 0.67 | 0.00 | 1.00 | 0.00 | 0.00 |
-| 11 | ETYCB | BS Accountancy | CEI | CEI | 0.00 | 0.33 | 0.00 | 0.00 | 0.67 | 1.00 |
-| 12 | ETYCB | BS Accounting Information System | CIE | CIE | 0.00 | 0.67 | 0.00 | 0.00 | 0.33 | 1.00 |
-| 13 | ETYCB | BSBA Major in Financial Management | ECI | ECI | 0.00 | 0.33 | 0.00 | 0.00 | 1.00 | 0.67 |
-| 14 | ETYCB | BSBA Major in Operations Management | EIC | EIC | 0.00 | 0.67 | 0.00 | 0.00 | 1.00 | 0.33 |
-| 15 | ETYCB | BSBA Major in Sustainability Management | EIS | EIS | 0.00 | 0.67 | 0.00 | 0.33 | 1.00 | 0.00 |
-| 16 | ETYCB | BS Hospitality Management | ESC | ESC | 0.00 | 0.00 | 0.00 | 0.67 | 1.00 | 0.33 |
-| 17 | ETYCB | BS Tourism Management | EAS | **SEA** | 0.00 | 0.00 | 0.33 | 1.00 | 0.67 | 0.00 |
-| 18 | ETYCB | BS International Business | ECS | ECS | 0.00 | 0.00 | 0.00 | 0.33 | 1.00 | 0.67 |
-| 19 | ETYCB | BS Business Analytics with Artificial Intelligence | IEC | IEC | 0.00 | 1.00 | 0.00 | 0.00 | 0.67 | 0.33 |
-| 20 | ETYCB | BS Marketing | EAS | EAS | 0.00 | 0.00 | 0.67 | 0.33 | 1.00 | 0.00 |
-| 21 | MITL | BS Architecture | ARI | ARI | 0.67 | 0.33 | 1.00 | 0.00 | 0.00 | 0.00 |
-| 22 | MITL | BS Chemical Engineering | IRC | IRC | 0.67 | 1.00 | 0.00 | 0.00 | 0.00 | 0.33 |
-| 23 | MITL | BS Civil Engineering | RIC | RIC | 1.00 | 0.67 | 0.00 | 0.00 | 0.00 | 0.33 |
-| 24 | MITL | BS Mechanical Engineering | RIC | RIC | 1.00 | 0.67 | 0.00 | 0.00 | 0.00 | 0.33 |
-| 25 | MITL | BS Electrical Engineering | RIC | RIC | 1.00 | 0.67 | 0.00 | 0.00 | 0.00 | 0.33 |
-| 26 | MITL | BS Electronics Engineering | RIC | RIC | 1.00 | 0.67 | 0.00 | 0.00 | 0.00 | 0.33 |
-| 27 | MITL | BS Industrial Engineering | REC | REC | 1.00 | 0.00 | 0.00 | 0.00 | 0.67 | 0.33 |
-| 28 | MITL | BS Computer Engineering | RIC | **ICR** | 0.33 | 1.00 | 0.00 | 0.00 | 0.00 | 0.67 |
-| 29 | MIA | BS Aeronautical Engineering | RIC | RIC | 1.00 | 0.67 | 0.00 | 0.00 | 0.00 | 0.33 |
-| 30 | MIA | BS Aviation Management | ERC | ERC | 0.67 | 0.00 | 0.00 | 0.00 | 1.00 | 0.33 |
-| 31 | CMET | BS Marine Engineering | RIC | RIC | 1.00 | 0.67 | 0.00 | 0.00 | 0.00 | 0.33 |
-| 32 | CMET | BS Marine Transportation | REC | REC | 1.00 | 0.00 | 0.00 | 0.00 | 0.67 | 0.33 |
+| 1 | CAS | BA Communication | AES | AES | 0 | 0 | 1 | 1 | 1 | 0 |
+| 2 | CAS | B Multimedia Arts | AER | AER | 1 | 0 | 1 | 0 | 1 | 0 |
+| 3 | CCIS | BS Computer Science | IRC | IRC | 1 | 1 | 0 | 0 | 0 | 1 |
+| 4 | CCIS | BS Information Technology | IRC | IRC | 1 | 1 | 0 | 0 | 0 | 1 |
+| 5 | CHS | BS Biology | IRS | IRS | 1 | 1 | 0 | 1 | 0 | 0 |
+| 6 | CHS | BS Medical Technology | IRC | IRC | 1 | 1 | 0 | 0 | 0 | 1 |
+| 7 | CHS | BS Pharmacy | ISC | ISC | 0 | 1 | 0 | 1 | 0 | 1 |
+| 8 | CHS | BS Physical Therapy | SIR | SIR | 1 | 1 | 0 | 1 | 0 | 0 |
+| 9 | CHS | BS Psychology | SIA | SIA | 0 | 1 | 1 | 1 | 0 | 0 |
+| 10 | CN | BS Nursing | SIR | SIR | 1 | 1 | 0 | 1 | 0 | 0 |
+| 11 | ETYCB | BS Accountancy | CEI | CEI | 0 | 1 | 0 | 0 | 1 | 1 |
+| 12 | ETYCB | BS Accounting Information System | CIE | CIE | 0 | 1 | 0 | 0 | 1 | 1 |
+| 13 | ETYCB | BSBA Major in Financial Management | ECI | ECI | 0 | 1 | 0 | 0 | 1 | 1 |
+| 14 | ETYCB | BSBA Major in Operations Management | EIC | EIC | 0 | 1 | 0 | 0 | 1 | 1 |
+| 15 | ETYCB | BSBA Major in Sustainability Management | EIS | EIS | 0 | 1 | 0 | 1 | 1 | 0 |
+| 16 | ETYCB | BS Hospitality Management | ESC | ESC | 0 | 0 | 0 | 1 | 1 | 1 |
+| 17 | ETYCB | BS Tourism Management | EAS | **SEA** | 0 | 0 | 1 | 1 | 1 | 0 |
+| 18 | ETYCB | BS International Business | ECS | ECS | 0 | 0 | 0 | 1 | 1 | 1 |
+| 19 | ETYCB | BS Business Analytics with Artificial Intelligence | IEC | IEC | 0 | 1 | 0 | 0 | 1 | 1 |
+| 20 | ETYCB | BS Marketing | EAS | EAS | 0 | 0 | 1 | 1 | 1 | 0 |
+| 21 | MITL | BS Architecture | ARI | ARI | 1 | 1 | 1 | 0 | 0 | 0 |
+| 22 | MITL | BS Chemical Engineering | IRC | IRC | 1 | 1 | 0 | 0 | 0 | 1 |
+| 23 | MITL | BS Civil Engineering | RIC | RIC | 1 | 1 | 0 | 0 | 0 | 1 |
+| 24 | MITL | BS Mechanical Engineering | RIC | RIC | 1 | 1 | 0 | 0 | 0 | 1 |
+| 25 | MITL | BS Electrical Engineering | RIC | RIC | 1 | 1 | 0 | 0 | 0 | 1 |
+| 26 | MITL | BS Electronics Engineering | RIC | RIC | 1 | 1 | 0 | 0 | 0 | 1 |
+| 27 | MITL | BS Industrial Engineering | REC | REC | 1 | 0 | 0 | 0 | 1 | 1 |
+| 28 | MITL | BS Computer Engineering | RIC | **ICR** | 1 | 1 | 0 | 0 | 0 | 1 |
+| 29 | MIA | BS Aeronautical Engineering | RIC | RIC | 1 | 1 | 0 | 0 | 0 | 1 |
+| 30 | MIA | BS Aviation Management | ERC | ERC | 1 | 0 | 0 | 0 | 1 | 1 |
+| 31 | CMET | BS Marine Engineering | RIC | RIC | 1 | 1 | 0 | 0 | 0 | 1 |
+| 32 | CMET | BS Marine Transportation | REC | REC | 1 | 0 | 0 | 0 | 1 | 1 |
 
-The 32 courses share only **22 distinct final codes**: RIC × 6, IRC × 4, SIR × 2, REC × 2.
-Courses with the same code have identical vectors, so CBF gives them identical scores. §9
-explains how evaluation handles this, and §11 discusses it as a threat to validity.
+The 32 courses share **22 distinct final codes**, but only **11 distinct letter sets**.
+Under binary encoding, courses with the same letter set have identical vectors and identical
+scores. §9 explains how evaluation handles ties, and §11 discusses this as a threat to validity.
 
 ## 4. Student-vector generation
 
@@ -310,23 +316,26 @@ test students** at **matching output levels**:
 ## 10. Weight-validation experiment
 
 - **Encodings compared:**
-  - binary: 1 / 1 / 1
+  - **binary: 1 / 1 / 1 (used by the system)**
   - steep: 1 / 0.50 / 0.25
   - flat: 1 / 0.75 / 0.50
-  - **proposed: 1 / 0.67 / 0.33**
+  - proposed (rank-preserving): 1 / 0.67 / 0.33
 - **Data:** the **training** split only (`cbf_eval.py weights --students train.csv --k 3`).
 - **Primary metric:** MRR. Secondary metrics: Hit Rate@3 and Top-1. Fix these before looking
   at any results.
 - **Decision rule, fixed in advance:**
-  - Keep the proposed encoding unless another encoding's 95% paired-bootstrap confidence
-    interval for the MRR difference lies entirely above 0.
-  - If no encoding is clearly better, keep the proposed one. It is the simplest equally spaced
-    rank encoding and is consistent with the existing system.
+  - Keep the binary encoding (the system's current choice) unless another encoding's 95%
+    paired-bootstrap confidence interval for the MRR difference lies entirely above 0.
+  - `cbf_eval.py weights` reports differences against `proposed`. When reading the output,
+    compare each encoding with **binary**.
+  - If no encoding is clearly better, keep binary. It is the simplest encoding and matches the
+    running system.
 - **Then:** evaluate the chosen encoding **once** on the test split.
 - **How to report the result:**
-  - If the results support it, write: "the empirical results support using the proposed
-    encoding". Do not write that the weights are "scientifically validated".
-  - If binary performs worse, that is direct evidence that preserving rank matters.
+  - If the results support it, write: "the empirical results support using the binary
+    encoding". Do not write that it is "scientifically validated".
+  - If a rank-preserving encoding performs clearly better, that is evidence that letter order
+    matters. Report it, and consider switching `holland_rank_weights`.
 
 ## 11. Threats to validity
 
@@ -337,10 +346,12 @@ test students** at **matching output levels**:
 3. **Instrument validity.** The project questionnaire has not been psychometrically validated (§4).
 4. **Expert-coding subjectivity.** Course codes come from the crosswalk and validator
    judgement. One reviewer's revisions may not generalise.
-5. **Encoding assumption.** The equal-interval weights are a design choice (§3).
-6. **Indistinguishable courses.** 22 codes for 32 courses puts a limit on CBF Top-1. For
-   example, a student in any of the 6 RIC courses can reach at most 1/6 expected Top-1 from the
-   RIC tie alone.
+5. **Encoding assumption.** Binary encoding ignores letter order (§3). This is a design
+   choice, and it is tested against rank-preserving alternatives in §10.
+6. **Indistinguishable courses.** Under binary encoding, the 32 courses form only 11
+   distinct vectors, which limits CBF Top-1. For example, the 11 courses with letters I, R and C
+   always tie, so a student in any of them can reach at most 1/11 expected Top-1 from that tie
+   alone.
 7. **Small, imbalanced sample across 32 classes.** J48 may overfit. Courses with one student
    cannot be tested (`split` reports them). Report per-class counts.
 8. **Selection and timing.** The sample comes from one institution and one cohort. Grade 11
@@ -362,7 +373,7 @@ test students** at **matching output levels**:
    (Tourism → SEA, Computer Engineering → ICR). The originals are kept in
    `programs.original_holland_code_enc`. The shared list is in `db/program_codes.php`.
 4. ✅ **Done in the app:** `config/cbf.php` now matches the evaluated model.
-   - Encoding `[1.00, 0.67, 0.33]`.
+   - Binary encoding `[1, 1, 1]` (letter present = 1, absent = 0).
    - RIASEC-only weights.
    - Ranking by cosine alone, with no stated-program bonus.
    - Scores scaled by /50.
@@ -377,7 +388,7 @@ test students** at **matching output levels**:
 9. WEKA J48 on `train.arff` / `test.arff` (§8).
 10. Compare using §9's table. Add baselines and significance tests.
 
-Tests: `python3 -m unittest evaluation/test_cbf_eval.py` (16 tests).
+Tests: `python3 -m unittest evaluation/test_cbf_eval.py` (18 tests).
 
 ## 13. Worked examples (student S001)
 
@@ -385,35 +396,41 @@ S = [0.72, 0.91, 0.40, 0.35, 0.60, 0.78]
 
 ‖S‖ = √(0.72² + 0.91² + 0.40² + 0.35² + 0.60² + 0.78²) = √2.5974 = **1.6116**
 
-‖C‖ = **1.2481** for every code (§3).
+### Binary encoding (used by the system)
+
+‖C‖ = √3 = **1.7321** for every course (§3).
 
 | Code | Course vector C | S · C | Cosine |
 |---|---|---|---|
-| **IRC** (BS CS, IT, MedTech, ChemE) | [0.67, 1.00, 0, 0, 0, 0.33] | 0.72·0.67 + 0.91·1.00 + 0.78·0.33 = 1.6498 | 1.6498 / (1.6116 · 1.2481) = **0.8202** |
-| **RIC** (Civil, Mech, EE, ECE, Aero, Marine Eng.) | [1.00, 0.67, 0, 0, 0, 0.33] | 0.72·1.00 + 0.91·0.67 + 0.78·0.33 = 1.5871 | **0.7890** |
-| **AES** (BA Communication) | [0, 0, 1.00, 0.33, 0.67, 0] | 0.40·1.00 + 0.35·0.33 + 0.60·0.67 = 0.9175 | **0.4561** |
-| ESI (Sustainability, original as stated) | [0, 0.33, 0, 0.67, 1.00, 0] | 1.1348 | 0.5641 |
-| **EIS** (Sustainability, final) | [0, 0.67, 0, 0.33, 1.00, 0] | 1.3252 | **0.6588** |
-| ESA (Tourism, original as stated) | [0, 0, 0.33, 0.67, 1.00, 0] | 0.9665 | 0.4805 |
-| **SEA** (Tourism, final) | [0, 0, 0.33, 1.00, 0.67, 0] | 0.8840 | **0.4395** |
-| RIC (Computer Engineering, original) | [1.00, 0.67, 0, 0, 0, 0.33] | 1.5871 | 0.7890 (joint rank 7) |
-| **ICR** (Computer Engineering, final) | [0.33, 1.00, 0, 0, 0, 0.67] | 1.6702 | **0.8303 (rank 1)** |
+| **IRC / RIC / ICR** (11 courses) | [1, 1, 0, 0, 0, 1] | 0.72 + 0.91 + 0.78 = 2.41 | 2.41 / (1.6116 · 1.7321) = **0.8634** |
+| **AES / SEA** (BA Communication, Tourism) | [0, 0, 1, 1, 1, 0] | 0.40 + 0.35 + 0.60 = 1.35 | 1.35 / (1.6116 · 1.7321) = **0.4836** |
+| **EIS** (Sustainability) | [0, 1, 0, 1, 1, 0] | 0.91 + 0.35 + 0.60 = 1.86 | 1.86 / (1.6116 · 1.7321) = **0.6663** |
 
 **How to read these results:**
 
-- **IRC beats RIC (0.8202 vs 0.7890)** because S001 is higher on I (0.91) than on R (0.72).
-  Rank preservation captures exactly this. Under binary encoding the two would tie.
-- **The revisions change recommendations.**
-  - ESI → EIS raises Sustainability Management for this I-leaning student (0.564 → 0.659).
-  - ESA → SEA lowers Tourism Management, because S001's S score (0.35) is weak (0.481 → 0.440).
-  - RIC → ICR moves Computer Engineering from joint 7th to **1st**, because S001's C score
-    (0.78) is strong and C is now the 2nd letter.
-- **S001's own top-3 letters are I, C, R ("ICR")**, the order of their three highest scores.
-  After the revision, this code exists (Computer Engineering), but the method doesn't depend
-  on that. Without it, the IRC courses (0.8202) would simply lead.
-- **S001's final Top-5:**
-  1. Computer Engineering 0.8303
-  2. CS, IT, MedTech and ChemE, tied at 0.8202 (shared rank 2)
+- **All 11 courses with letters I, R and C tie at 0.8634.** These are the IRC, RIC and ICR
+  courses. The system's Top-3 shows three of them, chosen by course-list order.
+- **Revisions that only reorder letters change nothing:**
+  - ESI and EIS: both 0.6663
+  - ESA and SEA: both 0.4836
+  - RIC and ICR: both 0.8634
+
+### Rank-preserving encoding (for comparison)
+
+‖C‖ = √(1² + 0.67² + 0.33²) = **1.2481** for every course.
+
+| Code | Course vector C | Cosine |
+|---|---|---|
+| **ICR** (Computer Engineering) | [0.33, 1.00, 0, 0, 0, 0.67] | **0.8303** (rank 1) |
+| **IRC** (CS, IT, MedTech, ChemE) | [0.67, 1.00, 0, 0, 0, 0.33] | **0.8202** |
+| **RIC** (Civil, Mech, EE, ECE, Aero, Marine Eng.) | [1.00, 0.67, 0, 0, 0, 0.33] | **0.7890** |
+| **EIS** (Sustainability) | [0, 0.67, 0, 0.33, 1.00, 0] | **0.6588** |
+| **AES** (BA Communication) | [0, 0, 1.00, 0.33, 0.67, 0] | **0.4561** |
+| **SEA** (Tourism) | [0, 0, 0.33, 1.00, 0.67, 0] | **0.4395** |
+
+With the letter order kept, the 11 tied courses separate. S001 is stronger on I (0.91) than
+on R (0.72), so IRC courses rank above RIC courses. This difference is what the experiment in
+§10 measures.
 
 ## 14. How to document this in the thesis
 
@@ -421,9 +438,10 @@ S = [0.72, 0.91, 0.40, 0.35, 0.60, 0.78]
   - Present §3–§6 with the [Theory] / [Engineering] / [Assumption] labels.
   - Include the full 32-course table with original and final codes, the validator's name and
     role, and the revision date (August 7, 2026).
-  - State the encoding as: *"a rank-preserving engineering encoding that keeps the ordinal
-    information of the Holland code; the specific values are design choices and are evaluated
-    empirically."*
+  - State the encoding as: *"a binary encoding in which each RIASEC dimension is 1 if its
+    letter appears in the course's Holland code and 0 otherwise; letter order is not used. This
+    is an engineering design choice, and it was compared empirically with rank-preserving
+    alternatives."*
   - Describe the leakage controls (§11, item 10) and the fixed split.
 - **Chapter 4 (Results):**
   - Sample description: N, per-course counts, and the source of `ActualCourse`.

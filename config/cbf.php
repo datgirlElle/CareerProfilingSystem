@@ -52,12 +52,15 @@ return [
     'riasec_floor'          => 10,
     'riasec_max'            => 50,
 
-    // A course's 3-letter Holland code -> RIASEC vector: 1st letter = 1.00,
-    // 2nd = 0.67, 3rd = 0.33, absent = 0 (e.g. IRC -> [0.67, 1, 0, 0, 0, 0.33]).
-    // This is a rank-preserving ENGINEERING encoding that keeps the order of the
-    // code's letters; the values are design choices, not intensities defined by
-    // Holland's theory. Alternatives are compared in evaluation/ (cbf_eval.py weights).
-    'holland_rank_weights' => [1.00, 0.67, 0.33],
+    // A course's 3-letter Holland code -> RIASEC vector, weight per letter position
+    // (1st, 2nd, 3rd); letters not in the code are 0.
+    //
+    // Binary encoding: a dimension is 1 if its letter appears in the code (YES)
+    // and 0 if not (NO), e.g. IRC -> [1, 1, 0, 0, 0, 1]. Letter ORDER is not
+    // used, so codes with the same three letters (IRC, RIC, ICR) get the same
+    // vector. Previous rank-preserving encoding: [1.00, 0.67, 0.33].
+    // Alternatives are compared in evaluation/ (cbf_eval.py weights).
+    'holland_rank_weights' => [1, 1, 1],
 
     // SHS strands offered (same list as the students.strand CHECK constraint).
     'strands' => ['STEM', 'ABM', 'ICT', 'HUMSS'],

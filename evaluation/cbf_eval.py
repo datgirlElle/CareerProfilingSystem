@@ -24,9 +24,11 @@ from collections import Counter
 
 DIMENSIONS = ["R", "I", "A", "S", "E", "C"]  # fixed vector order
 
-# Rank-preserving encodings for a 3-letter Holland code: weight of the
-# 1st, 2nd and 3rd letter (absent letters = 0). These are ENGINEERING choices
-# that keep the letter order, not weights defined by Holland's theory.
+# Encodings for a 3-letter Holland code: weight of the 1st, 2nd and 3rd letter
+# (absent letters = 0). These are ENGINEERING choices, not weights defined by
+# Holland's theory. "binary" (letter present = 1) is what the web app uses
+# (config/cbf.php); the others keep letter order and are compared in `weights`.
+DEFAULT_ENCODING = "binary"
 ENCODINGS = {
     "proposed": (1.00, 0.67, 0.33),
     "binary": (1.00, 1.00, 1.00),
@@ -79,8 +81,8 @@ TIE_EPS = 1e-12  # scores closer than this are treated as equal (identical cours
 
 # ---------------------------------------------------------------- vectors
 
-def holland_to_vector(code, weights=ENCODINGS["proposed"]):
-    """'IRC' -> [0.67, 1.00, 0, 0, 0, 0.33] under the proposed encoding."""
+def holland_to_vector(code, weights=ENCODINGS[DEFAULT_ENCODING]):
+    """'IRC' -> [1, 1, 0, 0, 0, 1] (binary); [0.67, 1.00, 0, 0, 0, 0.33] with the proposed encoding."""
     code = code.strip().upper()
     if len(code) != 3 or len(set(code)) != 3 or any(c not in DIMENSIONS for c in code):
         raise ValueError(f"Invalid Holland code: {code!r}")
@@ -228,7 +230,7 @@ def write_arff(path, rows, scale):
 def cmd_courses(a):
     rows = [[col, name, orig, final, *[f"{v:.2f}" for v in holland_to_vector(final)]] for col, name, orig, final in COURSES]
     write_csv(a.out, ["College", "Course", "OriginalHollandCode", "FinalHollandCode", *DIMENSIONS], rows)
-    print(f"Wrote {a.out} ({len(rows)} courses, proposed encoding 1.00/0.67/0.33 on FinalHollandCode)")
+    print(f"Wrote {a.out} ({len(rows)} courses, {DEFAULT_ENCODING} encoding {ENCODINGS[DEFAULT_ENCODING]} on FinalHollandCode)")
 
 
 def cmd_split(a):
@@ -303,7 +305,7 @@ def main():
         else:
             s.add_argument("--k", type=int, default=3)
         if name == "cbf":
-            s.add_argument("--encoding", choices=list(ENCODINGS), default="proposed")
+            s.add_argument("--encoding", choices=list(ENCODINGS), default=DEFAULT_ENCODING)
             s.add_argument("--out", default="cbf_results.csv")
     a = p.parse_args()
     {"courses": cmd_courses, "split": cmd_split, "cbf": cmd_cbf, "weights": cmd_weights}[a.cmd](a)

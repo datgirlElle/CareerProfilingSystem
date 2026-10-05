@@ -16,10 +16,16 @@ def student(sid, vec, actual="BS Architecture"):
 
 
 class Vectors(unittest.TestCase):
+    def test_default_is_binary_like_the_web_app(self):
+        self.assertEqual(m.DEFAULT_ENCODING, "binary")
+        self.assertEqual(m.holland_to_vector("IRC"), [1.0, 1.0, 0.0, 0.0, 0.0, 1.0])
+        self.assertEqual(m.holland_to_vector("AES"), [0.0, 0.0, 1.0, 1.0, 1.0, 0.0])
+
     def test_proposed_encoding_examples(self):
-        self.assertEqual(m.holland_to_vector("IRC"), [0.67, 1.00, 0.0, 0.0, 0.0, 0.33])
-        self.assertEqual(m.holland_to_vector("RIC"), [1.00, 0.67, 0.0, 0.0, 0.0, 0.33])
-        self.assertEqual(m.holland_to_vector("AES"), [0.0, 0.0, 1.00, 0.33, 0.67, 0.0])
+        p = m.ENCODINGS["proposed"]
+        self.assertEqual(m.holland_to_vector("IRC", p), [0.67, 1.00, 0.0, 0.0, 0.0, 0.33])
+        self.assertEqual(m.holland_to_vector("RIC", p), [1.00, 0.67, 0.0, 0.0, 0.0, 0.33])
+        self.assertEqual(m.holland_to_vector("AES", p), [0.0, 0.0, 1.00, 0.33, 0.67, 0.0])
 
     def test_invalid_codes_rejected(self):
         for bad in ("RI", "RRI", "RIX", "RIAS"):
@@ -61,7 +67,7 @@ class Ranking(unittest.TestCase):
         self.cv = m.course_vectors(m.ENCODINGS["proposed"])
 
     def test_known_best_course(self):
-        ranked = m.rank_courses(m.holland_to_vector("ARI"), self.cv)
+        ranked = m.rank_courses(m.holland_to_vector("ARI", m.ENCODINGS["proposed"]), self.cv)
         self.assertEqual(ranked[0][:1], ("BS Architecture",))
         self.assertAlmostEqual(ranked[0][1], 1.0)
 
@@ -79,7 +85,7 @@ class Ranking(unittest.TestCase):
         self.assertLess(ranked[0][1], 1.0)
 
     def test_identical_course_vectors_share_rank_and_tie_metrics(self):
-        ranked = m.rank_courses(m.holland_to_vector("IRC"), self.cv)
+        ranked = m.rank_courses(m.holland_to_vector("IRC", m.ENCODINGS["proposed"]), self.cv)
         irc = [n for n, _, r in ranked if r == 1]
         self.assertEqual(sorted(irc), sorted(["BS Computer Science", "BS Information Technology",
                                               "BS Medical Technology", "BS Chemical Engineering"]))
@@ -89,6 +95,13 @@ class Ranking(unittest.TestCase):
         self.assertAlmostEqual(rr, (1 + 1 / 2 + 1 / 3 + 1 / 4) / 4)
         self.assertAlmostEqual(m.tie_aware(ranked, "BS Information Technology", 3)[0], 0.75)
         self.assertAlmostEqual(m.tie_aware(ranked, "BS Information Technology", 4)[0], 1.0)
+
+    def test_binary_encoding_ties_all_courses_with_same_letters(self):
+        # IRC x4, RIC x6 and ICR x1 share the letters I, R, C -> 11 courses tie.
+        binary = m.course_vectors(m.ENCODINGS["binary"])
+        ranked = m.rank_courses([0.72, 0.91, 0.40, 0.35, 0.60, 0.78], binary)
+        self.assertEqual(sum(1 for _, _, r in ranked if r == 1), 11)
+        self.assertAlmostEqual(ranked[0][1], 0.8634, places=4)
 
     def test_zero_vector_student_does_not_crash(self):
         ranked = m.rank_courses([0] * 6, self.cv)

@@ -1,33 +1,33 @@
 College,Course,OriginalHollandCode,FinalHollandCode,R,I,A,S,E,C
-CAS,BA Communication,AES,AES,0.00,0.00,1.00,0.33,0.67,0.00
-CAS,B Multimedia Arts,AER,AER,0.33,0.00,1.00,0.00,0.67,0.00
-CCIS,BS Computer Science,IRC,IRC,0.67,1.00,0.00,0.00,0.00,0.33
-CCIS,BS Information Technology,IRC,IRC,0.67,1.00,0.00,0.00,0.00,0.33
-CHS,BS Biology,IRS,IRS,0.67,1.00,0.00,0.33,0.00,0.00
-CHS,BS Medical Technology,IRC,IRC,0.67,1.00,0.00,0.00,0.00,0.33
-CHS,BS Pharmacy,ISC,ISC,0.00,1.00,0.00,0.67,0.00,0.33
-CHS,BS Physical Therapy,SIR,SIR,0.33,0.67,0.00,1.00,0.00,0.00
-CHS,BS Psychology,SIA,SIA,0.00,0.67,0.33,1.00,0.00,0.00
-CN,BS Nursing,SIR,SIR,0.33,0.67,0.00,1.00,0.00,0.00
-ETYCB,BS Accountancy,CEI,CEI,0.00,0.33,0.00,0.00,0.67,1.00
-ETYCB,BS Accounting Information System,CIE,CIE,0.00,0.67,0.00,0.00,0.33,1.00
-ETYCB,BSBA Major in Financial Management,ECI,ECI,0.00,0.33,0.00,0.00,1.00,0.67
-ETYCB,BSBA Major in Operations Management,EIC,EIC,0.00,0.67,0.00,0.00,1.00,0.33
-ETYCB,BSBA Major in Sustainability Management,EIS,EIS,0.00,0.67,0.00,0.33,1.00,0.00
-ETYCB,BS Hospitality Management,ESC,ESC,0.00,0.00,0.00,0.67,1.00,0.33
-ETYCB,BS Tourism Management,EAS,SEA,0.00,0.00,0.33,1.00,0.67,0.00
-ETYCB,BS International Business,ECS,ECS,0.00,0.00,0.00,0.33,1.00,0.67
-ETYCB,BS Business Analytics with Artificial Intelligence,IEC,IEC,0.00,1.00,0.00,0.00,0.67,0.33
-ETYCB,BS Marketing,EAS,EAS,0.00,0.00,0.67,0.33,1.00,0.00
-MITL,BS Architecture,ARI,ARI,0.67,0.33,1.00,0.00,0.00,0.00
-MITL,BS Chemical Engineering,IRC,IRC,0.67,1.00,0.00,0.00,0.00,0.33
-MITL,BS Civil Engineering,RIC,RIC,1.00,0.67,0.00,0.00,0.00,0.33
-MITL,BS Mechanical Engineering,RIC,RIC,1.00,0.67,0.00,0.00,0.00,0.33
-MITL,BS Electrical Engineering,RIC,RIC,1.00,0.67,0.00,0.00,0.00,0.33
-MITL,BS Electronics Engineering,RIC,RIC,1.00,0.67,0.00,0.00,0.00,0.33
-MITL,BS Industrial Engineering,REC,REC,1.00,0.00,0.00,0.00,0.67,0.33
-MITL,BS Computer Engineering,RIC,ICR,0.33,1.00,0.00,0.00,0.00,0.67
-MIA,BS Aeronautical Engineering,RIC,RIC,1.00,0.67,0.00,0.00,0.00,0.33
-MIA,BS Aviation Management,ERC,ERC,0.67,0.00,0.00,0.00,1.00,0.33
-CMET,BS Marine Engineering,RIC,RIC,1.00,0.67,0.00,0.00,0.00,0.33
-CMET,BS Marine Transportation,REC,REC,1.00,0.00,0.00,0.00,0.67,0.33
+CAS,BA Communication,AES,AES,0.00,0.00,1.00,1.00,1.00,0.00
+CAS,B Multimedia Arts,AER,AER,1.00,0.00,1.00,0.00,1.00,0.00
+CCIS,BS Computer Science,IRC,IRC,1.00,1.00,0.00,0.00,0.00,1.00
+CCIS,BS Information Technology,IRC,IRC,1.00,1.00,0.00,0.00,0.00,1.00
+CHS,BS Biology,IRS,IRS,1.00,1.00,0.00,1.00,0.00,0.00
+CHS,BS Medical Technology,IRC,IRC,1.00,1.00,0.00,0.00,0.00,1.00
+CHS,BS Pharmacy,ISC,ISC,0.00,1.00,0.00,1.00,0.00,1.00
+CHS,BS Physical Therapy,SIR,SIR,1.00,1.00,0.00,1.00,0.00,0.00
+CHS,BS Psychology,SIA,SIA,0.00,1.00,1.00,1.00,0.00,0.00
+CN,BS Nursing,SIR,SIR,1.00,1.00,0.00,1.00,0.00,0.00
+ETYCB,BS Accountancy,CEI,CEI,0.00,1.00,0.00,0.00,1.00,1.00
+ETYCB,BS Accounting Information System,CIE,CIE,0.00,1.00,0.00,0.00,1.00,1.00
+ETYCB,BSBA Major in Financial Management,ECI,ECI,0.00,1.00,0.00,0.00,1.00,1.00
+ETYCB,BSBA Major in Operations Management,EIC,EIC,0.00,1.00,0.00,0.00,1.00,1.00
+ETYCB,BSBA Major in Sustainability Management,EIS,EIS,0.00,1.00,0.00,1.00,1.00,0.00
+ETYCB,BS Hospitality Management,ESC,ESC,0.00,0.00,0.00,1.00,1.00,1.00
+ETYCB,BS Tourism Management,EAS,SEA,0.00,0.00,1.00,1.00,1.00,0.00
+ETYCB,BS International Business,ECS,ECS,0.00,0.00,0.00,1.00,1.00,1.00
+ETYCB,BS Business Analytics with Artificial Intelligence,IEC,IEC,0.00,1.00,0.00,0.00,1.00,1.00
+ETYCB,BS Marketing,EAS,EAS,0.00,0.00,1.00,1.00,1.00,0.00
+MITL,BS Architecture,ARI,ARI,1.00,1.00,1.00,0.00,0.00,0.00
+MITL,BS Chemical Engineering,IRC,IRC,1.00,1.00,0.00,0.00,0.00,1.00
+MITL,BS Civil Engineering,RIC,RIC,1.00,1.00,0.00,0.00,0.00,1.00
+MITL,BS Mechanical Engineering,RIC,RIC,1.00,1.00,0.00,0.00,0.00,1.00
+MITL,BS Electrical Engineering,RIC,RIC,1.00,1.00,0.00,0.00,0.00,1.00
+MITL,BS Electronics Engineering,RIC,RIC,1.00,1.00,0.00,0.00,0.00,1.00
+MITL,BS Industrial Engineering,REC,REC,1.00,0.00,0.00,0.00,1.00,1.00
+MITL,BS Computer Engineering,RIC,ICR,1.00,1.00,0.00,0.00,0.00,1.00
+MIA,BS Aeronautical Engineering,RIC,RIC,1.00,1.00,0.00,0.00,0.00,1.00
+MIA,BS Aviation Management,ERC,ERC,1.00,0.00,0.00,0.00,1.00,1.00
+CMET,BS Marine Engineering,RIC,RIC,1.00,1.00,0.00,0.00,0.00,1.00
+CMET,BS Marine Transportation,REC,REC,1.00,0.00,0.00,0.00,1.00,1.00

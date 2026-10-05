@@ -6,8 +6,9 @@
  * Process (one call to recommend() runs all of it):
  *   1. Student profile   — the six RIASEC scores from the student's assessment
  *   2. Student vector    — [R, I, A, S, E, C] scaled to 0-1 (studentFeatures)
- *   3. Course vectors    — each course's final Holland code encoded by letter
- *                           rank: 1st = 1.00, 2nd = 0.67, 3rd = 0.33, absent = 0
+ *   3. Course vectors    — each course's final Holland code encoded per letter
+ *                           position (config holland_rank_weights). Currently
+ *                           binary: letter in the code = 1, absent = 0
  *                           (programFeatures / hollandCodeToVector)
  *   4. Cosine similarity  — cos(S, C) = (S · C) / (||S|| × ||C||) between the
  *                           student vector and EVERY course vector
