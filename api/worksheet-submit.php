@@ -46,24 +46,6 @@ if (!$assessment) {
 
 // Student profile = strand + latest RIASEC scores + the electives being submitted now.
 $profile = CBFData::studentProfile($pdo, $studentId, $electives);
-$activePrograms = CBFData::activePrograms($pdo);
-
-$recommendation = CBFEngine::recommend($profile, $activePrograms, $programId);
-$topProgramId = (int) $recommendation['top3'][0]['id'];
-$topScore = (float) $recommendation['top3'][0]['score'];
-
-// Snapshot of every program's result. blocks/matches/explanation make the
-// recommendation explainable later without recomputing it; formula records the
-// final-score weights in force when it was computed (they are configurable).
-$cbfConfig = CBFEngine::config();
-$formula = $cbfConfig['final_score'] + [
-    'student_vector' => $cbfConfig['student_vector'] ?? 'scores',
-    'student_top_n' => $cbfConfig['student_top_n'] ?? 3,
-];
-$scoresForStorage = array_map(fn($s) => [
-    'programId' => $s['id'], 'cosine' => $s['cosine'], 'indicator' => $s['indicator'], 'score' => $s['score'],
-    'blocks' => $s['blocks'], 'matches' => $s['matches'], 'explanation' => $s['explanation'], 'formula' => $formula,
-], $recommendation['all']);
 
 $pdo->beginTransaction();
 try {
@@ -82,32 +64,9 @@ try {
     ]);
     $worksheetId = (int) $worksheetInsert->fetchColumn();
 
-    $recInsert = $pdo->prepare(
-        'INSERT INTO recommendations (student_id, stated_program_id, scores, top_program_id, top_score, source_assessment_id, source_worksheet_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id'
-    );
-    $recInsert->execute([
-        $studentId, $programId, json_encode($scoresForStorage), $topProgramId, $topScore,
-        (int) $assessment['id'], $worksheetId,
-    ]);
-    $recommendationId = (int) $recInsert->fetchColumn();
-
-    $policyRows = $pdo->query("SELECT value FROM security_policies WHERE key = 'monitoring.lowConfidenceThreshold'")->fetchColumn();
-    $threshold = $policyRows !== false ? (float) $policyRows : 0.50;
-
-    if ($topScore < $threshold) {
-        $pendingCheck = $pdo->prepare(
-            "SELECT id FROM monitoring_flags WHERE student_id = ? AND reason = 'low_confidence' AND status = 'pending'"
-        );
-        $pendingCheck->execute([$studentId]);
-        if (!$pendingCheck->fetch()) {
-            $flagInsert = $pdo->prepare(
-                "INSERT INTO monitoring_flags (student_id, recommendation_id, reason, status)
-                 VALUES (?, ?, 'low_confidence', 'pending')"
-            );
-            $flagInsert->execute([$studentId, $recommendationId]);
-        }
-    }
+    $saved = CBFData::saveRecommendation($pdo, $studentId, $profile, $programId, (int) $assessment['id'], $worksheetId);
+    $recommendationId = $saved['recommendationId'];
+    $topScore = $saved['topScore'];
 
     $pdo->commit();
 } catch (Throwable $e) {

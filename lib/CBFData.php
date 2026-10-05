@@ -97,6 +97,62 @@ class CBFData
         ];
     }
 
+    /**
+     * Run the CBF for one student and save the result as a new `recommendations`
+     * row (earlier rows are kept as history). Also raises the low-confidence
+     * monitoring flag when the top score is below the configured threshold.
+     * The caller manages the transaction.
+     *
+     * @return array{recommendationId: int, topProgramId: int, topScore: float}|null null if there are no active programs
+     */
+    public static function saveRecommendation(PDO $pdo, int $studentId, array $profile, ?int $statedProgramId, int $assessmentId, ?int $worksheetId): ?array
+    {
+        $recommendation = CBFEngine::recommend($profile, self::activePrograms($pdo), $statedProgramId);
+        if (!$recommendation['top3']) {
+            return null;
+        }
+        $topProgramId = (int) $recommendation['top3'][0]['id'];
+        $topScore = (float) $recommendation['top3'][0]['score'];
+
+        // Snapshot of every program's result. blocks/matches/explanation make the
+        // recommendation explainable later without recomputing it; formula records
+        // the settings in force when it was computed (they are configurable).
+        $config = CBFEngine::config();
+        $formula = $config['final_score'] + [
+            'student_vector' => $config['student_vector'] ?? 'scores',
+            'student_top_n' => $config['student_top_n'] ?? 3,
+        ];
+        $scoresForStorage = array_map(fn($s) => [
+            'programId' => $s['id'], 'cosine' => $s['cosine'], 'indicator' => $s['indicator'], 'score' => $s['score'],
+            'blocks' => $s['blocks'], 'matches' => $s['matches'], 'explanation' => $s['explanation'], 'formula' => $formula,
+        ], $recommendation['all']);
+
+        $recInsert = $pdo->prepare(
+            'INSERT INTO recommendations (student_id, stated_program_id, scores, top_program_id, top_score, source_assessment_id, source_worksheet_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id'
+        );
+        $recInsert->execute([
+            $studentId, $statedProgramId, json_encode($scoresForStorage), $topProgramId, $topScore, $assessmentId, $worksheetId,
+        ]);
+        $recommendationId = (int) $recInsert->fetchColumn();
+
+        $threshold = $pdo->query("SELECT value FROM security_policies WHERE key = 'monitoring.lowConfidenceThreshold'")->fetchColumn();
+        $threshold = $threshold !== false ? (float) $threshold : 0.50;
+        if ($topScore < $threshold) {
+            $pendingCheck = $pdo->prepare(
+                "SELECT id FROM monitoring_flags WHERE student_id = ? AND reason = 'low_confidence' AND status = 'pending'"
+            );
+            $pendingCheck->execute([$studentId]);
+            if (!$pendingCheck->fetch()) {
+                $pdo->prepare(
+                    "INSERT INTO monitoring_flags (student_id, recommendation_id, reason, status) VALUES (?, ?, 'low_confidence', 'pending')"
+                )->execute([$studentId, $recommendationId]);
+            }
+        }
+
+        return ['recommendationId' => $recommendationId, 'topProgramId' => $topProgramId, 'topScore' => $topScore];
+    }
+
     /** Every Active program, decrypted, in the shape CBFEngine::recommend() expects. */
     public static function activePrograms(PDO $pdo): array
     {
