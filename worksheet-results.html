@@ -304,17 +304,19 @@
   document.getElementById('profileLabels').textContent = topTypes.map(function(t) { return t === 'Investigate' ? 'Investigative' : t; }).join(', ');
   document.getElementById('topInterestArea').textContent = INTEREST_AREA[topLetters[0]] || '—';
 
-  // "Aligned" is a real, computed fact: does the program the student stated on the
-  // worksheet actually land among their CBF Top Matches?
-  const isAligned = recommendation.statedOutsideTop3 === null;
+  // Match / mismatch as stored with the result (CBFEngine::classify). Older results
+  // without a status fall back to: is the chosen program among the Top Matches?
+  const isAligned = recommendation.matchStatus
+    ? recommendation.matchStatus === 'match'
+    : recommendation.statedOutsideTop3 === null;
 
   const badge = document.getElementById('alignBadge');
   if (isAligned) {
     badge.className = 'inline-flex items-center gap-2 bg-[#ecfdf5] border border-[#a7f3d0] rounded px-4 py-2';
-    badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg><span class="text-xs font-bold text-[#047857] uppercase tracking-wide">Aligned</span>';
+    badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg><span class="text-xs font-bold text-[#047857] uppercase tracking-wide">Match</span>';
   } else {
     badge.className = 'inline-flex items-center gap-2 bg-orange-50 border border-orange-200 rounded px-4 py-2';
-    badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.007M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span class="text-xs font-bold text-orange-700 uppercase tracking-wide">Worth a Second Look</span>';
+    badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.007M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span class="text-xs font-bold text-orange-700 uppercase tracking-wide">Visit the Guidance Office</span>';
   }
 
   const goalTitle = statedProgram ? statedProgram.title : 'your stated program';
@@ -323,8 +325,10 @@
   const analysis = isAligned
     ? '"' + goalTitle + '" is among your Top Matches: its Holland Code (' + (statedProgram ? statedProgram.hollandCode : '') +
       ') matches your top RIASEC interest areas.'
-    : '"' + goalTitle + '" is not among your Top Matches based on your RIASEC results. That doesn\'t rule it out. ' +
-      'Please visit the Guidance Office to discuss it with a Guidance Counselor.';
+    : (recommendation.statedOutsideTop3 !== null
+        ? '"' + goalTitle + '" is not among your Top Matches based on your RIASEC results. '
+        : '') +
+      'Please visit the Guidance Office to discuss your results with a Guidance Counselor.';
   document.getElementById('analysisText').textContent = analysis;
 })();
 </script>

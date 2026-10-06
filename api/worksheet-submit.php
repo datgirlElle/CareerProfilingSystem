@@ -3,6 +3,7 @@
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/CBFEngine.php';
 require_once __DIR__ . '/../lib/CBFData.php';
+require_once __DIR__ . '/../lib/ResultEmail.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -76,4 +77,7 @@ try {
 
 AuditLogger::log($studentId, 'student', 'submit_worksheet', 'worksheet', (string) $worksheetId, "Top match score: $topScore");
 
-jsonResponse(['success' => true, 'worksheetId' => $worksheetId, 'recommendationId' => $recommendationId]);
+// Automatic result email: matched courses, or (mismatch) only a referral to the Guidance Office.
+$emailSent = ResultEmail::send($pdo, $studentId, $saved['status'], $saved['finalTitles']);
+
+jsonResponse(['success' => true, 'worksheetId' => $worksheetId, 'recommendationId' => $recommendationId, 'emailSent' => $emailSent]);

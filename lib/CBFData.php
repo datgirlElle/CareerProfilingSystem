@@ -103,7 +103,7 @@ class CBFData
      * monitoring flag when the top score is below the configured threshold.
      * The caller manages the transaction.
      *
-     * @return array{recommendationId: int, topProgramId: int, topScore: float, status: string, reason: ?string}|null null if there are no active programs
+     * @return array{recommendationId: int, topProgramId: int, topScore: float, status: string, reason: ?string, finalTitles: string[]}|null null if there are no active programs
      */
     public static function saveRecommendation(PDO $pdo, int $studentId, array $profile, ?int $statedProgramId, int $assessmentId, ?int $worksheetId): ?array
     {
@@ -155,8 +155,10 @@ class CBFData
             }
         }
 
+        $titles = array_column($recommendation['top3'], 'title', 'id');
         return ['recommendationId' => $recommendationId, 'topProgramId' => $topProgramId, 'topScore' => $topScore,
-            'status' => $outcome['status'], 'reason' => $outcome['reason']];
+            'status' => $outcome['status'], 'reason' => $outcome['reason'],
+            'finalTitles' => array_values(array_map(fn($id) => $titles[$id], $outcome['finalIds']))];
     }
 
     /** Every Active program, decrypted, in the shape CBFEngine::recommend() expects. */
