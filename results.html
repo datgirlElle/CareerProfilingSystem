@@ -213,24 +213,34 @@
           <div id="cr-topTypes" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <div class="lg:col-span-8">
-            <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-4">Top MMCL Program Matches</h2>
-            <div id="cr-topMatches" class="flex flex-col gap-4"></div>
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-6">
+          <div class="lg:col-span-8 bg-white border border-[#e0e3e5] rounded-lg p-5">
+            <p class="text-[11px] font-semibold tracking-[1.2px] text-[#495e88] uppercase mb-3">Your Career Worksheet</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              <div>
+                <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">Career I Want to Take</p>
+                <p class="text-base font-semibold text-[#001c43]" id="cr-wsCareer">—</p>
+              </div>
+              <div>
+                <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">MMCL Program</p>
+                <p class="text-base font-semibold text-[#001c43]" id="cr-wsProgram">—</p>
+                <p class="text-xs text-[#5e3f3c] mt-0.5" id="cr-wsCollege"></p>
+              </div>
+              <div>
+                <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">Electives</p>
+                <div class="flex flex-wrap gap-2" id="cr-wsElectives"></div>
+              </div>
+            </div>
           </div>
-          <div class="lg:col-span-4 flex flex-col gap-4">
-            <div class="bg-white border border-[#e0e3e5] rounded shadow-sm p-[17px]">
-              <h3 class="text-xl font-semibold text-[#191c1e] mb-1">Suggested Programs</h3>
-              <p class="text-xs text-[#5e3f3c] mb-3">Other MMCL programs that align with your secondary traits.</p>
-              <div id="cr-suggested" class="flex flex-col gap-1"></div>
-            </div>
-            <div class="bg-[#f2f4f6] border border-[#e0e3e5] rounded p-[17px]">
-              <h3 class="text-xl font-semibold text-[#191c1e] mb-2">Need Guidance?</h3>
-              <p class="text-xs text-[#5e3f3c] mb-4">Discuss these results with our guidance staff to map out your curriculum and ensure you're on the right track.</p>
-              <a href="help-center?subject=Request%20for%20Academic%20Advising" class="block text-center bg-[#495e88] text-white text-xs font-semibold uppercase tracking-wide rounded px-4 py-2 hover:opacity-90">Schedule Advising</a>
-            </div>
+          <div class="lg:col-span-4 bg-[#f2f4f6] border border-[#e0e3e5] rounded-lg p-5 flex flex-col">
+            <h3 class="text-xl font-semibold text-[#191c1e] mb-2">Need Guidance?</h3>
+            <p class="text-xs text-[#5e3f3c] mb-4 flex-1">Discuss these results with our guidance staff to map out your curriculum and ensure you're on the right track.</p>
+            <a href="help-center?subject=Request%20for%20Academic%20Advising" class="block text-center bg-[#495e88] text-white text-xs font-semibold uppercase tracking-wide rounded px-4 py-2.5 hover:opacity-90">Schedule Advising Session</a>
           </div>
         </div>
+
+        <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-4">Top MMCL Program Matches</h2>
+        <div id="cr-topMatches" class="flex flex-col gap-4"></div>
       </div>
 
     </main>
@@ -509,16 +519,34 @@
     });
   })();
 
+  function escapeText(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
   async function renderCareerResults(recommendation) {
     document.getElementById('cr-code').textContent = ranked.slice(0, 3).map(function(r) { return r.name[0]; }).join(' - ');
 
     document.getElementById('cr-topTypes').innerHTML = ranked.slice(0, 3).map(function(r) {
       const info = TYPE_INFO[r.name];
-      return '<div>' +
+      return '<div class="flex flex-col">' +
         '<p class="text-sm font-semibold text-[#001c43]">' + r.name + ' (' + info.letter + ')</p>' +
-        '<p class="text-xs text-[#5e3f3c] mt-1 leading-relaxed">' + info.description + '</p>' +
+        '<p class="text-xs text-[#5e3f3c] mt-1 leading-relaxed flex-1">' + info.description + '</p>' +
+        '<p class="text-xs text-[#495e88] mt-3 font-semibold">Dominance score <span class="text-[#bb0013]">' + Math.round((r.score / MAX_SCORE) * 100) + ' / 100</span></p>' +
       '</div>';
     }).join('');
+
+    // The career the student typed on the worksheet, the program it links to,
+    // and the electives they picked.
+    const ws = recommendation.statedProgram;
+    document.getElementById('cr-wsCareer').textContent = recommendation.statedCareer || 'Not provided';
+    document.getElementById('cr-wsProgram').textContent = ws ? ws.title : 'Not linked to a program';
+    document.getElementById('cr-wsCollege').textContent = ws ? ws.collegeCode + ' — ' + ws.collegeName : '';
+    const electives = recommendation.electives || [];
+    document.getElementById('cr-wsElectives').innerHTML = electives.length
+      ? electives.map(function(e) {
+          return '<span class="bg-[#f2f4f6] border border-[#e0e3e5] text-[#191c1e] text-xs rounded-full px-3 py-1.5">' + escapeText(e) + '</span>';
+        }).join('')
+      : '<span class="text-xs text-[#5e3f3c]">None chosen</span>';
 
     // A career the student typed that couldn't be linked to a program: say so,
     // instead of leaving them wondering why it isn't highlighted anywhere.
@@ -541,11 +569,9 @@
 
     function describeProgram(p) {
       // Prefer the real program description staff wrote in Career Data Set;
-      // fall back to the generic match-quality sentence for programs that
-      // don't have one yet. The full match-score breakdown is still just a
-      // click away via "View Program Details".
+      // fall back to a generic sentence for programs that don't have one yet.
       if (p.description) return p.description;
-      return 'This program is a ' + p.matchPercent + '% match to your RIASEC profile, based on its Holland Code (' + p.hollandCode + ') and your assessment results.';
+      return 'This program\'s Holland Code (' + p.hollandCode + ') lines up with your RIASEC assessment results.';
     }
 
     // No per-program images/icons exist in the data (or schema) — this maps
@@ -601,9 +627,13 @@
     recommendation.top3.forEach(function(p) { allPrograms[p.id] = p; });
     if (recommendation.statedOutsideTop3) allPrograms[recommendation.statedOutsideTop3.id] = recommendation.statedOutsideTop3;
 
-    const topMatches = recommendation.top3.slice(0, 2);
-    const suggested = recommendation.top3.slice(2);
-    if (recommendation.statedOutsideTop3) suggested.push(recommendation.statedOutsideTop3);
+    // Best three, in match order. If the program the student's career links to
+    // isn't among them, it takes the third spot so their own choice is always shown.
+    const topMatches = recommendation.top3.slice();
+    if (recommendation.statedOutsideTop3 && topMatches.length) {
+      topMatches[topMatches.length - 1] = recommendation.statedOutsideTop3;
+    }
+    topMatches.forEach(function(p) { allPrograms[p.id] = p; });
 
     document.getElementById('cr-topMatches').innerHTML = topMatches.map(function(p) {
       return '<div class="bg-white border border-[#e0e3e5] rounded p-[17px] flex flex-col gap-4">' +
@@ -612,7 +642,9 @@
             '<span class="w-10 h-10 rounded-lg bg-[#eef1fb] text-[#0f2a6b] flex items-center justify-center shrink-0">' + collegeIconSvg(p.collegeCode, 'w-5 h-5') + '</span>' +
             '<div><h3 class="text-xl font-semibold text-[#495e88]">' + p.title + (p.isActive === false ? ' <span class="inline-flex items-center bg-gray-100 text-gray-500 text-[10px] font-semibold px-2 py-0.5 rounded-full align-middle">No longer available</span>' : '') + '</h3><p class="text-xs text-[#5e3f3c]">' + p.collegeName + '</p></div>' +
           '</div>' +
-          '<span class="bg-[rgba(187,0,19,0.1)] border border-[rgba(187,0,19,0.2)] text-[#bb0013] text-xs font-semibold rounded-full px-3.5 py-1.5 shrink-0">' + p.matchPercent + '% Match</span>' +
+          (recommendation.statedProgramId === p.id
+            ? '<span class="bg-[#ecfdf5] border border-[#a7f3d0] text-[#047857] text-xs font-semibold rounded-full px-3.5 py-1.5 shrink-0">Your chosen program</span>'
+            : '') +
         '</div>' +
         '<p class="text-sm text-[#191c1e] leading-relaxed max-w-[700px]">' + describeProgram(p) + '</p>' +
         careerChipsHtml(p) +
@@ -627,19 +659,6 @@
       '</div>';
     }).join('');
 
-    const ICON_BG = ['#d3e4fe', '#d7e2ff', '#ffdad6'];
-    document.getElementById('cr-suggested').innerHTML = suggested.map(function(p, i) {
-      const note = (recommendation.statedOutsideTop3 && p.id === recommendation.statedOutsideTop3.id) ? ' (your stated interest)' : '';
-      const inactiveNote = p.isActive === false ? ' <span class="inline-flex items-center bg-gray-100 text-gray-500 text-[10px] font-semibold px-1.5 py-0.5 rounded-full align-middle">No longer available</span>' : '';
-      return '<div class="flex items-center justify-between gap-3 py-2.5">' +
-        '<div class="flex items-center gap-3">' +
-          '<span class="w-8 h-8 rounded-xl flex items-center justify-center text-[#495e88]" style="background:' + ICON_BG[i % ICON_BG.length] + '">' + collegeIconSvg(p.collegeCode, 'w-4 h-4') + '</span>' +
-          '<div><p class="text-sm font-semibold text-[#495e88]">' + p.title + note + inactiveNote + '</p><p class="text-xs text-[#5e3f3c]">' + p.collegeCode + ((p.careers || []).length ? ' &middot; ' + p.careers.slice(0, 2).join(', ') : '') + '</p></div>' +
-        '</div>' +
-        '<span class="text-xs font-semibold text-[#495e88] shrink-0">' + p.matchPercent + '%</span>' +
-      '</div>';
-    }).join('');
-
     document.getElementById('cr-topMatches').addEventListener('click', async function(e) {
       const detailsBtn = e.target.closest('.view-details-btn');
       if (detailsBtn) {
@@ -647,13 +666,11 @@
         document.getElementById('detailsModalTitle').textContent = program.title + (program.isActive === false ? ' — No longer available' : '');
         const overview = program.description
           ? program.description
-          : 'This program is a ' + program.matchPercent + '% match to your RIASEC profile, based on its Holland Code (' + program.hollandCode + ') and your assessment results.';
+          : 'This program\'s Holland Code (' + program.hollandCode + ') lines up with your RIASEC assessment results.';
         document.getElementById('detailsModalBody').innerHTML =
           '<p>' + overview + '</p>' +
           ((program.careers || []).length ? '<p class="text-xs text-[#5e3f3c] mt-3"><span class="font-semibold">Careers that fit:</span> ' + program.careers.join(', ') + '</p>' : '') +
-          '<p class="text-xs text-[#5e3f3c] mt-3">' + program.collegeCode + ' — ' + program.collegeName + ' &middot; Holland Code: ' + program.hollandCode + '</p>' +
-          '<p class="text-xs text-slate-400 mt-3 pt-3 border-t border-gray-100">Final Match Score = 0.70 × RIASEC similarity (' + Math.round(program.cosine * 100) + '%) + 0.30 × stated-interest indicator (' +
-          (recommendation.statedProgramId === program.id ? '1, since the career you chose on your worksheet leads to this program' : '0') + ') = ' + program.matchPercent + '%.</p>';
+          '<p class="text-xs text-[#5e3f3c] mt-3">' + program.collegeCode + ' — ' + program.collegeName + ' &middot; Holland Code: ' + program.hollandCode + '</p>';
         openDetailsModal();
         return;
       }
