@@ -363,3 +363,12 @@ a:focus-visible .icon-nudge-left {
     transform: none !important;
   }
 }
+
+/* Sidebar: logo strip sized to the 260px sidebar, and a menu that scrolls
+   without drawing a scrollbar. */
+.sidebar-brand { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 14px 16px; }
+.sidebar-brand img { flex: 0 1 auto; min-width: 0; height: auto; max-height: 40px; object-fit: contain; }
+.sidebar-brand-mmcl { max-width: 42%; }
+.sidebar-brand-cgc { max-width: 56%; }
+#sidebar nav { scrollbar-width: none; -ms-overflow-style: none; }
+#sidebar nav::-webkit-scrollbar { display: none; }

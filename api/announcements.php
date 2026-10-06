@@ -328,6 +328,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->commit();
         } catch (Throwable $e) {
             $pdo->rollBack();
+            error_log('[announcements] create failed: ' . $e->getMessage());
             jsonResponse(['success' => false, 'error' => 'Failed to save the announcement. Please try again.'], 500);
         }
 
@@ -374,6 +375,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->commit();
         } catch (Throwable $e) {
             $pdo->rollBack();
+            error_log('[announcements] update failed: ' . $e->getMessage());
             jsonResponse(['success' => false, 'error' => 'Failed to save your changes. Please try again.'], 500);
         }
 
