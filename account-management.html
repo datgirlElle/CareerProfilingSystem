@@ -126,13 +126,14 @@
                   <th class="px-5 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Name</th>
                   <th class="px-5 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Position</th>
                    <th class="px-5 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Email</th>
+                  <th class="px-5 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Sections</th>
                   <th class="px-5 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Signed Up</th>
                   <th class="px-5 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Status</th>
                   <th class="px-5 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase text-center">Action</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100" id="staffTbody">
-                <tr><td colspan="6" class="px-5 py-8 text-center text-sm text-gray-500">Loading…</td></tr>
+                <tr><td colspan="7" class="px-5 py-8 text-center text-sm text-gray-500">Loading…</td></tr>
               </tbody>
             </table>
           </div>
@@ -173,6 +174,26 @@
               <input type="file" id="rosterFileInput" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden">
             </div>
             <pre id="rosterResult" class="hidden text-xs whitespace-pre-wrap rounded-md px-3.5 py-2.5"></pre>
+
+            <div>
+              <h3 class="text-sm font-semibold text-gray-900 mb-2">Uploaded Sections <span class="text-xs font-normal text-gray-500" id="rosterAyLabel"></span></h3>
+              <div class="border border-gray-200 rounded-lg overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                  <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th class="px-4 py-2.5 text-xs font-semibold tracking-wide text-gray-600 uppercase">Strand</th>
+                      <th class="px-4 py-2.5 text-xs font-semibold tracking-wide text-gray-600 uppercase">Section</th>
+                      <th class="px-4 py-2.5 text-xs font-semibold tracking-wide text-gray-600 uppercase">Students</th>
+                      <th class="px-4 py-2.5 text-xs font-semibold tracking-wide text-gray-600 uppercase">Registered</th>
+                      <th class="px-4 py-2.5 text-xs font-semibold tracking-wide text-gray-600 uppercase">Last Uploaded</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-100" id="rosterSectionsBody">
+                    <tr><td colspan="5" class="px-4 py-5 text-center text-sm text-gray-500">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -195,6 +216,21 @@
     <div class="flex justify-end gap-2 pt-1">
       <button type="button" id="genericConfirmCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
       <button type="button" id="genericConfirmOkBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div id="assignModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-md max-h-[85vh] flex flex-col">
+    <div class="px-6 pt-5 pb-3">
+      <h3 class="text-lg font-semibold text-gray-900" id="assignModalTitle">Assign sections</h3>
+      <p class="text-xs text-gray-500 mt-1">This person will only see the students of the sections you tick. Leave everything unticked to let them see all sections.</p>
+    </div>
+    <div class="px-6 pb-2 overflow-auto" id="assignModalBody"></div>
+    <p id="assignModalError" class="hidden px-6 text-xs text-[#ed1c24]"></p>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button type="button" id="assignCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+      <button type="button" id="assignSaveBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#0f2a6b] rounded-md hover:opacity-90">Save</button>
     </div>
   </div>
 </div>
@@ -347,10 +383,21 @@
       return '<button type="button" class="' + btn + (a.isActive ? 'text-[#ed1c24] border-[#ed1c24] hover:bg-red-50' : 'text-emerald-600 border-emerald-300 hover:bg-emerald-50') + '" data-action="toggleActive"' + data + ' data-active="' + (a.isActive ? '1' : '0') + '">' + (a.isActive ? 'Deactivate' : 'Activate') + '</button>';
     }
 
+    // Which sections each staff member handles (none ticked = sees every section).
+    let assignmentData = { assignments: {}, options: [] };
+    function sectionsCell(a) {
+      if (a.status !== 'approved') return '—';
+      const mine = assignmentData.assignments[a.id] || [];
+      const text = mine.length ? mine.map(function(s) { return escapeHtml(s.section); }).join(', ') : 'All sections';
+      return '<span class="' + (mine.length ? 'text-gray-700' : 'text-gray-400') + '">' + text + '</span> ' +
+        '<button type="button" class="assign-sections text-xs font-semibold text-[#19427b] hover:underline ml-1" data-id="' + a.id + '" data-name="' + escapeHtml(a.fullName || a.email) + '">Assign</button>';
+    }
+
     async function loadStaff() {
+      try { assignmentData = await (await fetch('api/staff-assignments.php')).json(); } catch (e) {}
       const res = await fetch('api/staff-approvals.php');
       if (!res.ok) {
-        staffTbody.innerHTML = '<tr><td colspan="6" class="px-5 py-8 text-center text-sm text-gray-500">Could not load staff accounts.</td></tr>';
+        staffTbody.innerHTML = '<tr><td colspan="7" class="px-5 py-8 text-center text-sm text-gray-500">Could not load staff accounts.</td></tr>';
         return;
       }
       const accounts = (await res.json()).accounts || [];
@@ -363,11 +410,12 @@
           '<td class="px-5 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">' + (a.fullName ? escapeHtml(a.fullName) : '—') + '</td>' +
           '<td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(a.position || 'Guidance Counselor') + '</td>' +
           '<td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">' + (a.email ? escapeHtml(a.email) : '—') + '</td>' +
+          '<td class="px-5 py-4 text-sm text-gray-500">' + sectionsCell(a) + '</td>' +
           '<td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">' + formatDate(a.createdAt) + '</td>' +
           '<td class="px-5 py-4 whitespace-nowrap">' + staffBadge(a) + '</td>' +
           '<td class="px-5 py-4 text-center whitespace-nowrap">' + actionButtons(a) + '</td>' +
         '</tr>';
-      }).join('') : '<tr><td colspan="6" class="px-5 py-8 text-center text-sm text-gray-500">No staff accounts yet. Staff can sign up from the login page.</td></tr>';
+      }).join('') : '<tr><td colspan="7" class="px-5 py-8 text-center text-sm text-gray-500">No staff accounts yet. Staff can sign up from the login page.</td></tr>';
     }
 
     staffTbody.addEventListener('click', async function(e) {
@@ -390,6 +438,61 @@
       if (!data.success) { showToast(data.error || 'Could not update this account.', true); btn.disabled = false; return; }
       showToast(action === 'approve' ? 'Account approved.' : action === 'reject' ? 'Sign-up rejected.' : 'Account updated.', false);
       await loadStaff();
+    });
+
+    // ---- Assign sections to a staff member ----
+    const assignModal = document.getElementById('assignModal');
+    let assignUserId = null;
+    function closeAssign() {
+      assignModal.classList.remove('is-open');
+      setTimeout(function() { assignModal.classList.add('hidden'); }, 260);
+    }
+    staffTbody.addEventListener('click', function(e) {
+      const b = e.target.closest('.assign-sections');
+      if (!b) return;
+      assignUserId = Number(b.dataset.id);
+      const mine = (assignmentData.assignments[assignUserId] || []).map(function(s) { return s.strand + '|' + s.section; });
+      document.getElementById('assignModalTitle').textContent = 'Assign sections — ' + b.dataset.name;
+      document.getElementById('assignModalError').classList.add('hidden');
+      const byStrand = {};
+      (assignmentData.options || []).forEach(function(o) { (byStrand[o.strand] = byStrand[o.strand] || []).push(o); });
+      const strands = Object.keys(byStrand);
+      document.getElementById('assignModalBody').innerHTML = strands.length ? strands.map(function(strand) {
+        return '<div class="mb-4"><p class="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-2">' + escapeHtml(strand) + '</p><div class="grid grid-cols-3 gap-2">' +
+          byStrand[strand].map(function(o) {
+            const key = o.strand + '|' + o.section;
+            return '<label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" class="assign-check accent-[#0f2a6b]" data-strand="' + escapeHtml(o.strand) + '" data-section="' + escapeHtml(o.section) + '"' + (mine.indexOf(key) !== -1 ? ' checked' : '') + '>' + escapeHtml(o.section) + '</label>';
+          }).join('') + '</div></div>';
+      }).join('') : '<p class="text-sm text-gray-500 py-4">No sections yet. Add sections or upload a class roster first.</p>';
+      assignModal.classList.remove('hidden');
+      setTimeout(function() { assignModal.classList.add('is-open'); }, 16);
+    });
+    document.getElementById('assignCancelBtn').addEventListener('click', closeAssign);
+    assignModal.addEventListener('click', function(e) { if (e.target.id === 'assignModal') closeAssign(); });
+    document.getElementById('assignSaveBtn').addEventListener('click', async function() {
+      const btn = this;
+      const sections = Array.from(document.querySelectorAll('.assign-check:checked')).map(function(c) { return { strand: c.dataset.strand, section: c.dataset.section }; });
+      btn.disabled = true;
+      try {
+        const res = await fetch('api/staff-assignments.php', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: assignUserId, sections: sections })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          const err = document.getElementById('assignModalError');
+          err.textContent = data.error || 'Could not save the sections.';
+          err.classList.remove('hidden');
+          return;
+        }
+        showToast(sections.length ? 'Sections assigned.' : 'This person can now see all sections.', false);
+        closeAssign();
+        await loadStaff();
+      } catch (e) {
+        showToast('Unable to reach the server. Please try again.', true);
+      } finally {
+        btn.disabled = false;
+      }
     });
 
     await loadStaff();
@@ -497,6 +600,27 @@
   await loadSections();
 
   // ---------- Class roster ----------
+  // The sections already uploaded for this academic year, so staff can see what is on the roster.
+  async function loadRosterSections() {
+    const body = document.getElementById('rosterSectionsBody');
+    try {
+      const data = await (await fetch('api/roster-sections.php')).json();
+      document.getElementById('rosterAyLabel').textContent = data.academicYear ? '(Academic Year ' + data.academicYear + ')' : '';
+      const rows = data.sections || [];
+      body.innerHTML = rows.length ? rows.map(function(s) {
+        const d = s.lastUploaded ? new Date(String(s.lastUploaded).replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00')) : null;
+        const when = d && !isNaN(d) ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }) : '—';
+        return '<tr><td class="px-4 py-3 text-sm text-gray-700">' + escapeHtml(s.strand) + '</td>' +
+          '<td class="px-4 py-3 text-sm font-medium text-gray-900">' + escapeHtml(s.section) + '</td>' +
+          '<td class="px-4 py-3 text-sm text-gray-700">' + s.students + '</td>' +
+          '<td class="px-4 py-3 text-sm text-gray-700">' + s.registered + ' of ' + s.students + '</td>' +
+          '<td class="px-4 py-3 text-sm text-gray-500">' + when + '</td></tr>';
+      }).join('') : '<tr><td colspan="5" class="px-4 py-5 text-center text-sm text-gray-500">No sections uploaded yet for this academic year.</td></tr>';
+    } catch (e) {
+      body.innerHTML = '<tr><td colspan="5" class="px-4 py-5 text-center text-sm text-gray-500">Could not load the uploaded sections.</td></tr>';
+    }
+  }
+  loadRosterSections();
   const resultEl = document.getElementById('rosterResult');
   function showRosterResult(text, isError) {
     resultEl.textContent = text;
@@ -522,6 +646,7 @@
       if (!data.success) {
         showRosterResult((data.error || 'Upload failed.') + (data.details ? '\n\n' + data.details.join('\n') : ''), true);
       } else {
+        loadRosterSections();
         showRosterResult('Roster uploaded: ' + data.count + ' student(s) in ' + data.strand + ' ' + data.section + ' for Academic Year ' + data.academicYear + '.', false);
       }
     } catch (err) {

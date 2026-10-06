@@ -270,14 +270,23 @@
         </div>
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
           <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-1">Overall Assessment</p>
-          <p class="text-xs text-slate-500 mb-4">Students who completed the RIASEC assessment, by section, for Academic Year <span id="statsAy">—</span>.</p>
+          <p class="text-xs text-slate-500 mb-4">Share of all students who have taken the RIASEC assessment, for Academic Year <span id="statsAy">—</span>.</p>
           <div class="mb-3">
             <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Completed Assessments</p>
             <p id="statsCompleted" class="text-3xl font-bold text-[#1b8a47]">—</p>
           </div>
           <div id="statsChartBox" style="position:relative;height:220px"><canvas id="statsChart"></canvas></div>
-          <p id="statsChartEmpty" class="hidden text-sm text-slate-400 text-center py-6">No assessments have been completed yet.</p>
+          <p id="statsChartEmpty" class="hidden text-sm text-slate-400 text-center py-6">No students are expected yet.</p>
         </div>
+      </div>
+
+      <!-- Assessment Completion by Section: taken vs not yet taken, as percentages, with the overall total below -->
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 mb-6">
+        <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-1">Assessment Completion by Section</p>
+        <p class="text-xs text-slate-500 mb-4">Percent of each section's students who have taken and not yet taken the assessment.</p>
+        <div id="sectionCompletionBox" style="position:relative;height:300px"><canvas id="sectionCompletionChart"></canvas></div>
+        <p id="sectionCompletionEmpty" class="hidden text-sm text-slate-400 text-center py-6">No sections yet.</p>
+        <p id="sectionCompletionOverall" class="text-sm text-slate-700 mt-4 pt-3 border-t border-slate-100"></p>
       </div>
 
       <!-- Assessment Completion by Academic Year -->
@@ -534,7 +543,10 @@
 
   let strandChartInstance = null;
   let riasecChartInstance = null;
+  Chart.defaults.font.size = 14; // charts were too small to read
+  Chart.defaults.color = '#334155';
   let sectionChartInstance = null;
+  let sectionCompletionInstance = null;
   let yearChartInstance = null;
   let statsChartInstance = null;
   let careersChartInstance = null;
@@ -656,36 +668,63 @@
     document.getElementById('statsAy').textContent = stats.academicYear || '—';
     document.getElementById('statsCompleted').textContent = stats.completedCount.toLocaleString();
 
-    // Each slice is one section's share of all completed assessments (the same
-    // section colours as the Students by Section chart, so the two read together).
-    const bySection = (stats.bySection || []).filter(s => s.completed > 0);
-    const completedTotal = bySection.reduce((sum, s) => sum + s.completed, 0);
-    const completedShare = (n) => completedTotal > 0 ? Math.round(n / completedTotal * 100) : 0;
-    document.getElementById('statsChartEmpty').classList.toggle('hidden', bySection.length > 0);
-    document.getElementById('statsChartBox').classList.toggle('hidden', bySection.length === 0);
+    // Overall: everyone expected this year, split into taken / not yet taken.
+    const expectedAll = Math.max(stats.expectedCount || 0, stats.completedCount || 0);
+    const takenAll = stats.completedCount || 0;
+    const notTakenAll = Math.max(0, expectedAll - takenAll);
+    const pctOf = (n, whole) => whole > 0 ? Math.round(n / whole * 100) : 0;
+    document.getElementById('statsCompleted').textContent = takenAll.toLocaleString() + ' of ' + expectedAll.toLocaleString() + ' (' + pctOf(takenAll, expectedAll) + '%)';
+    document.getElementById('statsChartEmpty').classList.toggle('hidden', expectedAll > 0);
+    document.getElementById('statsChartBox').classList.toggle('hidden', expectedAll === 0);
     if (statsChartInstance) statsChartInstance.destroy();
-    if (bySection.length) {
+    if (expectedAll > 0) {
       statsChartInstance = new Chart(document.getElementById('statsChart').getContext('2d'), {
         type: 'pie',
         data: {
-          labels: bySection.map(s => s.section + ' — ' + s.completed + ' (' + completedShare(s.completed) + '%)'),
-          datasets: [{
-            data: bySection.map(s => s.completed),
-            backgroundColor: bySection.map(s => sectionColor(s.section, data.sectionsByStrand)),
-            borderColor: '#ffffff',
-            borderWidth: 2
-          }]
+          labels: ['Completed — ' + takenAll + ' (' + pctOf(takenAll, expectedAll) + '%)', 'Not yet completed — ' + notTakenAll + ' (' + pctOf(notTakenAll, expectedAll) + '%)'],
+          datasets: [{ data: [takenAll, notTakenAll], backgroundColor: ['#1b8a47', '#cbd5e1'], borderColor: '#ffffff', borderWidth: 2 }]
         },
         options: {
           maintainAspectRatio: false,
           plugins: {
-            legend: { position: 'right', labels: { boxWidth: 12, padding: 12 } },
-            tooltip: { callbacks: { label: (ctx) => ' ' + ctx.parsed + ' completed (' + completedShare(ctx.parsed) + '%)' } }
+            legend: { position: 'right', labels: { boxWidth: 12, padding: 12, font: { size: 13 } } },
+            tooltip: { callbacks: { label: (ctx) => ' ' + ctx.parsed + ' students (' + pctOf(ctx.parsed, expectedAll) + '%)' } }
           }
         }
       });
     }
 
+    // Per section: percent taken and not yet taken (each bar adds up to 100%), overall total below.
+    const sectionRows = (stats.bySection || []).map(s => ({ section: s.section, taken: s.completed, total: Math.max(s.expected, s.completed) })).filter(s => s.total > 0);
+    document.getElementById('sectionCompletionEmpty').classList.toggle('hidden', sectionRows.length > 0);
+    document.getElementById('sectionCompletionBox').classList.toggle('hidden', sectionRows.length === 0);
+    if (sectionCompletionInstance) sectionCompletionInstance.destroy();
+    if (sectionRows.length) {
+      sectionCompletionInstance = new Chart(document.getElementById('sectionCompletionChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: sectionRows.map(s => s.section + ' (' + s.taken + ' of ' + s.total + ')'),
+          datasets: [
+            { label: 'Taken', data: sectionRows.map(s => pctOf(s.taken, s.total)), backgroundColor: '#1b8a47' },
+            { label: 'Not yet taken', data: sectionRows.map(s => 100 - pctOf(s.taken, s.total)), backgroundColor: '#cbd5e1' }
+          ]
+        },
+        options: {
+          indexAxis: 'y',
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { size: 13 } } },
+            tooltip: { callbacks: { label: (ctx) => ' ' + ctx.dataset.label + ': ' + ctx.parsed.x + '%' } }
+          },
+          scales: {
+            x: { stacked: true, min: 0, max: 100, ticks: { callback: (v) => v + '%', font: { size: 13 } } },
+            y: { stacked: true, ticks: { font: { size: 13 } } }
+          }
+        }
+      });
+    }
+    document.getElementById('sectionCompletionOverall').innerHTML =
+      '<span class="font-semibold">Overall:</span> ' + pctOf(takenAll, expectedAll) + '% taken (' + takenAll + ' of ' + expectedAll + ' students) &middot; ' + pctOf(notTakenAll, expectedAll) + '% not yet taken';
     const byYear = data.completionByYear || [];
     document.getElementById('yearChartEmpty').classList.toggle('hidden', byYear.length > 0);    document.getElementById('yearChart').classList.toggle('hidden', byYear.length === 0);
     if (yearChartInstance) yearChartInstance.destroy();

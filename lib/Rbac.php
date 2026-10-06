@@ -13,6 +13,13 @@ class Rbac
 {
     private const MODULES = ['career', 'rac', 'recommendations', 'counselor', 'monitoring', 'announcements', 'examinations', 'counselingNotes', 'sections'];
 
+    /**
+     * Only the administrator posts announcements and sets assessment schedules, so
+     * facilitators and counselors can't post conflicting ones: for everyone else these
+     * modules are view-only whatever the matrix says (see also api/security-config.php).
+     */
+    public const ADMIN_ONLY_WRITE = ['announcements', 'examinations'];
+
     public static function accessLevel(string $module, string $role): string
     {
         if (!in_array($module, self::MODULES, true)) {
@@ -22,7 +29,11 @@ class Rbac
         $stmt = $pdo->prepare('SELECT access_level FROM security_rbac WHERE module = ? AND role = ?');
         $stmt->execute([$module, $role]);
         $level = $stmt->fetchColumn();
-        return $level !== false ? $level : 'none';
+        $level = $level !== false ? $level : 'none';
+        if ($role !== 'admin' && $level === 'full' && in_array($module, self::ADMIN_ONLY_WRITE, true)) {
+            return 'limited';
+        }
+        return $level;
     }
 
     /**

@@ -67,4 +67,83 @@ class ExamSchedule
         $end = new DateTimeImmutable($examDate . ' ' . substr($endTime, 0, 8), $tz);
         return $end < $now;
     }
+
+    /** True from a session's start time until its end time on its date (school time, Asia/Manila). */
+    public static function isOpen(string $examDate, string $startTime, string $endTime, ?DateTimeImmutable $now = null): bool
+    {
+        $tz = new DateTimeZone('Asia/Manila');
+        $now = $now ?? new DateTimeImmutable('now', $tz);
+        $start = new DateTimeImmutable($examDate . ' ' . substr($startTime, 0, 8), $tz);
+        $end = new DateTimeImmutable($examDate . ' ' . substr($endTime, 0, 8), $tz);
+        return $start <= $now && $now < $end;
+    }
+
+    /**
+     * Where a student's group stands: the assessment is "activated" only while one of its
+     * scheduled sessions is open. 'open' (now), 'upcoming' (next one not started),
+     * 'ended' (all over) or 'none' (nothing scheduled).
+     *
+     * @param array<int,array{examDate:string,startTime:string,endTime:string,room?:string}> $sessions
+     * @return array{state:string,examDate?:string,startTime?:string,endTime?:string,room?:string}
+     */
+    public static function windowFor(array $sessions, ?DateTimeImmutable $now = null): array
+    {
+        if (!$sessions) {
+            return ['state' => 'none'];
+        }
+        $tz = new DateTimeZone('Asia/Manila');
+        $now = $now ?? new DateTimeImmutable('now', $tz);
+        $upcoming = null;
+        $upcomingStart = null;
+        foreach ($sessions as $s) {
+            if (self::isOpen($s['examDate'], $s['startTime'], $s['endTime'], $now)) {
+                return ['state' => 'open'] + self::pick($s);
+            }
+            $start = new DateTimeImmutable($s['examDate'] . ' ' . substr($s['startTime'], 0, 8), $tz);
+            if ($start > $now && ($upcomingStart === null || $start < $upcomingStart)) {
+                $upcoming = $s;
+                $upcomingStart = $start;
+            }
+        }
+        return $upcoming !== null ? ['state' => 'upcoming'] + self::pick($upcoming) : ['state' => 'ended'];
+    }
+
+    /** @return array{examDate:string,startTime:string,endTime:string,room:string} */
+    private static function pick(array $s): array
+    {
+        return [
+            'examDate' => $s['examDate'],
+            'startTime' => substr($s['startTime'], 0, 5),
+            'endTime' => substr($s['endTime'], 0, 5),
+            'room' => (string) ($s['room'] ?? ''),
+        ];
+    }
+
+    /**
+     * The sessions scheduled for this student's group (same matching rule as the access-code
+     * check: grade level, strand and section, where an empty column means everyone).
+     *
+     * @return array<int,array{examDate:string,startTime:string,endTime:string,room:string}>
+     */
+    public static function sessionsForStudent(PDO $pdo, int $studentUserId): array
+    {
+        $studentStmt = $pdo->prepare('SELECT strand, section, grade_level, academic_year FROM students WHERE user_id = ?');
+        $studentStmt->execute([$studentUserId]);
+        $student = $studentStmt->fetch();
+        if (!$student || !$student['academic_year']) {
+            return [];
+        }
+        $stmt = $pdo->prepare(
+            'SELECT exam_date::text AS exam_date, start_time::text AS start_time, end_time::text AS end_time, room
+             FROM exam_schedules
+             WHERE academic_year = ?
+               AND (grade_level IS NULL OR grade_level = ?)
+               AND (strand IS NULL OR strand = ?)
+               AND (section IS NULL OR section = ?)'
+        );
+        $stmt->execute([$student['academic_year'], $student['grade_level'], $student['strand'], $student['section']]);
+        return array_map(fn($r) => [
+            'examDate' => $r['exam_date'], 'startTime' => $r['start_time'], 'endTime' => $r['end_time'], 'room' => $r['room'],
+        ], $stmt->fetchAll());
+    }
 }

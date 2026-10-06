@@ -105,7 +105,10 @@
           <h1 class="text-2xl font-bold text-gray-900 mt-2" id="studentName">Student Profile</h1>
           <p class="text-sm text-gray-500 mt-1" id="studentId">—</p>
         </div>
-        <button type="button" id="toggleActiveBtn" class="hidden shrink-0 border rounded-md px-4 py-2 text-sm font-medium"></button>
+        <div class="flex items-center gap-3 flex-wrap">
+          <button type="button" id="resetAssessmentBtn" class="hidden shrink-0 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50">Reset Assessment</button>
+          <button type="button" id="toggleActiveBtn" class="hidden shrink-0 border rounded-md px-4 py-2 text-sm font-medium"></button>
+        </div>
       </div>
 
       <div id="detailsGrid" class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start max-w-4xl">
@@ -340,6 +343,25 @@
     closeToggleActiveModal();
   });
 
+  // Admin only: delete a student's answers so they can retake the assessment (rare, and only when
+  // the Guidance Office allows it). Shown only for a student who has finished it.
+  document.getElementById('resetAssessmentBtn').addEventListener('click', async function() {
+    if (!window.confirm('Delete this student\'s answers?\n\nThis removes their RIASEC assessment, Career Worksheet and recommendations so they can take the assessment again once a session is open. It cannot be undone.')) return;
+    const btn = this;
+    btn.disabled = true;
+    try {
+      const res = await fetch('api/students.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'resetAssessment', userId: toggleActiveUserId })
+      });
+      const data = await res.json();
+      if (!data.success) { window.alert(data.error || 'Could not reset the assessment.'); btn.disabled = false; return; }
+      window.location.reload();
+    } catch (e) {
+      window.alert('Unable to reach the server. Please try again.');
+      btn.disabled = false;
+    }
+  });
   // Counseling Notes — gated by the 'counselingNotes' RBAC module
   // (Security Configuration). Loading the list only needs 'limited';
   // adding a note needs 'full' — rather than pre-checking which level the
@@ -426,6 +448,7 @@
       const s = data.student;
       toggleActiveUserId = s.userId;
       renderToggleActiveButton(s.isActive);
+      if (currentUser.role === 'admin' && s.status === 'Completed') document.getElementById('resetAssessmentBtn').classList.remove('hidden');
       document.getElementById('studentName').textContent = s.name;
       document.getElementById('avatarName').textContent = s.name;
       document.getElementById('avatarStrand').textContent = s.strand;

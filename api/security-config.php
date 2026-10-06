@@ -25,7 +25,12 @@ function loadRbac(PDO $pdo): array
     }
     foreach ($rows as $r) {
         if (isset($rbac[$r['module']])) {
-            $rbac[$r['module']][$r['role']] = $r['access_level'];
+            $level = $r['access_level'];
+            // Announcements and assessment scheduling are the administrator's alone (lib/Rbac.php).
+            if ($r['role'] !== 'admin' && $level === 'full' && in_array($r['module'], Rbac::ADMIN_ONLY_WRITE, true)) {
+                $level = 'limited';
+            }
+            $rbac[$r['module']][$r['role']] = $level;
         }
     }
     return $rbac;
@@ -87,6 +92,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $lockouts7d = (int) $pdo->query(
         "SELECT COUNT(*) FROM audit_log WHERE action = 'login_lockout' AND created_at >= NOW() - INTERVAL '7 days'"
     )->fetchColumn();
+    $sharedLogins7d = (int) $pdo->query(
+        "SELECT COUNT(*) FROM audit_log WHERE action = 'login_shared_suspected' AND created_at >= NOW() - INTERVAL '7 days'"
+    )->fetchColumn();
     $activeUsersToday = (int) $pdo->query(
         "SELECT COUNT(DISTINCT actor_user_id) FROM audit_log WHERE created_at::date = CURRENT_DATE"
     )->fetchColumn();
@@ -97,6 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         'lastUpdated' => $lastUpdated,
         'overview' => [
             'lockouts7d' => $lockouts7d,
+            'sharedLogins7d' => $sharedLogins7d,
             'activeUsersToday' => $activeUsersToday,
             'pendingFlags' => $pendingFlags,
         ],
@@ -135,6 +144,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($role === 'admin' || $role === 'student') {
                 $skippedAdmin = $skippedAdmin || $role === 'admin';
                 continue;
+            }
+            if (in_array($module, Rbac::ADMIN_ONLY_WRITE, true) && $level === 'full') {
+                continue; // never grant a non-admin write access to these
             }
             $stmt->execute([$level, $user['id'], $module, $role]);
         }

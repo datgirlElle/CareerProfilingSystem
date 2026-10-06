@@ -29,7 +29,8 @@ $expected = [
     'counselor'       => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'monitoring'      => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'announcements'   => ['admin' => 'full', 'counselor' => 'limited', 'student' => 'limited'],
-    'examinations'    => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
+    // Only the administrator sets assessment schedules: counselors stay view-only even where the table says full.
+    'examinations'    => ['admin' => 'full', 'counselor' => 'limited', 'student' => 'none'],
     'counselingNotes' => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'sections'        => ['admin' => 'full', 'counselor' => 'limited', 'student' => 'none'],
 ];

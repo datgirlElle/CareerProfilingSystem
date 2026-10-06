@@ -7,12 +7,13 @@ require_once __DIR__ . '/../lib/PasswordPolicy.php';
 require_once __DIR__ . '/../lib/RateLimiter.php';
 require_once __DIR__ . '/../lib/StaffPosition.php';
 require_once __DIR__ . '/../lib/StaffName.php';
+require_once __DIR__ . '/../lib/StaffEmail.php';
 
 // Public staff (guidance counselor / facilitator) sign-up. The account starts 'pending': the
 // person must confirm their email, then an administrator approves them in
 // Account Management before they can sign in. Admins are never created here.
-// Staff sign in with their email, so there is no username to choose; the users table still
-// needs one, so an internal one is generated (never shown, and never LRN-shaped).
+// There is no username to choose: it is the part of the school email before the @, and that
+// part must match the person's name (lib/StaffEmail.php), so an address can't be borrowed.
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -50,19 +51,23 @@ if (!StaffName::isValid($fullName)) {
 if (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 255) {
     jsonResponse(['success' => false, 'error' => 'Enter a valid email address.'], 400);
 }
+// School email only (@mcl.edu.ph), and its name part must match the name given.
+$emailCheck = StaffEmail::check($email, $fullName);
+if (!$emailCheck['ok']) {
+    jsonResponse(['success' => false, 'error' => $emailCheck['error']], 400);
+}
+$username = $emailCheck['username']; // e.g. alilao — never digits only, so it can't collide with a student's LRN
+
 $errors = PasswordPolicy::errors($pdo, $password);
 if ($errors) {
     jsonResponse(['success' => false, 'error' => implode(' ', $errors)], 400);
 }
 
-$existing = $pdo->prepare('SELECT 1 FROM users WHERE LOWER(email) = LOWER(?)');
-$existing->execute([$email]);
+$existing = $pdo->prepare('SELECT 1 FROM users WHERE LOWER(email) = LOWER(?) OR LOWER(username) = LOWER(?)');
+$existing->execute([$email, $username]);
 if ($existing->fetch()) {
     jsonResponse(['success' => false, 'error' => 'An account with this email already exists.'], 409);
 }
-
-// Internal login name: "staff-" + random hex, so it can never collide with a student's LRN.
-$username = 'staff-' . bin2hex(random_bytes(6));
 
 $pdo->beginTransaction();
 try {

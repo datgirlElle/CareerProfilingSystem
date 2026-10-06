@@ -4,6 +4,7 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/CBFEngine.php';
 require_once __DIR__ . '/../lib/Careers.php';
 require_once __DIR__ . '/../lib/CareerMatcher.php';
+require_once __DIR__ . '/../lib/ResultEmail.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -110,5 +111,11 @@ try {
 }
 
 AuditLogger::log($studentId, 'student', 'submit_worksheet', 'worksheet', (string) $worksheetId, "Top match score: $topScore");
+
+// Automatic result email, no staff action: a thank-you with the Top Matches, or a request to see the
+// Guidance Office when the program they chose isn't among them (lib/Mismatch.php).
+$titlesById = array_column($allPrograms, 'title', 'id');
+$topTitles = array_values(array_filter(array_map(fn($p) => $titlesById[$p['id']] ?? null, $recommendation['top3'])));
+ResultEmail::send($pdo, $studentId, Mismatch::isMismatch($programId, $scoresForStorage), $topTitles);
 
 jsonResponse(['success' => true, 'worksheetId' => $worksheetId, 'recommendationId' => $recommendationId]);

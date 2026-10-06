@@ -129,7 +129,7 @@
           <p class="text-base text-slate-500 mt-2">Updates from the Guidance Office.</p>
         </div>
         <div class="bg-white border border-slate-200 rounded-lg shadow-[0px_2px_15px_0px_rgba(0,26,64,0.04)] p-[25px]">
-          <div id="announcementsPanelList" class="flex flex-col gap-3">
+          <div id="announcementsPanelList" class="flex flex-col gap-3" style="max-height:340px;overflow-y:auto;padding-right:8px">
             <p id="announcementsEmpty" class="text-sm text-slate-500">No announcements right now.</p>
           </div>
         </div>
@@ -157,6 +157,7 @@
                 <span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
                 <span class="text-base text-orange-500" id="riasecStatusText">Ready to take</span>
               </span>
+              <p id="riasecWindowNote" class="hidden text-sm text-slate-500 mt-3"></p>
             </div>
           </div>
           <div class="border-l border-slate-100 pl-10 shrink-0">
@@ -315,7 +316,7 @@
       } catch (e) {
         return;
       }
-      const items = (data.announcements || []).slice(0, 3);
+      const items = (data.announcements || []).slice(0, 30); // the list scrolls, so it can grow
       if (!items.length) return;
       function escapeHtml(str) {
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -334,6 +335,30 @@
         '</div>';
       }).join('');
     })();
+
+    // The RIASEC button is only on while the assessment is activated for this student's group,
+    // i.e. while one of the group's Assessment Schedule sessions is open.
+    if (!assessment) {
+      const w = assessmentStatusData.window || { state: 'none' };
+      if (w.state !== 'open') {
+        const btn = document.getElementById('riasecActionBtn');
+        btn.removeAttribute('href');
+        btn.setAttribute('aria-disabled', 'true');
+        btn.className = 'inline-block bg-slate-200 text-slate-400 text-[15px] font-semibold rounded-md px-8 py-3.5 pointer-events-none';
+        const fmt = function(d, hhmm) {
+          const when = new Date(d + 'T' + hhmm + ':00');
+          return when.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) + ' at ' + when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        };
+        const note = document.getElementById('riasecWindowNote');
+        document.getElementById('riasecStatusText').textContent = w.state === 'upcoming' ? 'Not open yet' : (w.state === 'ended' ? 'Session ended' : 'Not scheduled');
+        note.textContent = w.state === 'upcoming'
+          ? 'Your assessment opens on ' + fmt(w.examDate, w.startTime) + (w.room ? ' in Room ' + w.room : '') + '.'
+          : (w.state === 'ended'
+            ? 'The scheduled assessment session for your group has ended. Please contact the Guidance Office.'
+            : 'No assessment is scheduled for your group yet. Please watch for an announcement from the Guidance Office.');
+        note.classList.remove('hidden');
+      }
+    }
 
     if (assessment && assessment.completed) {
       const pill = document.getElementById('riasecStatusPill');

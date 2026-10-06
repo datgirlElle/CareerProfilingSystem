@@ -110,7 +110,7 @@
         <p class="text-sm text-gray-500 mt-1">Overview of student assessments and counseling status</p>
       </div>
 
-      <!-- Summary Cards -->
+      <!-- Summary Cards: totals and shares only (the assessment is taken once a year, so there is no monthly trend) -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
 
         <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-6 flex flex-col justify-between">
@@ -123,9 +123,7 @@
               <p class="text-3xl font-bold text-gray-900" id="cardTotalStudents">—</p>
             </div>
           </div>
-          <div class="flex items-end justify-end pt-4"><svg id="sparkTotal" class="shrink-0" style="width:84px;height:32px" viewBox="0 0 96 36" role="img" aria-label="Students added per month, last 6 months"></svg></div>
         </div>
-
         <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-6 flex flex-col justify-between">
           <div class="flex items-start justify-between pb-4">
             <span class="w-12 h-12 rounded-lg bg-[#dcfce7] flex items-center justify-center">
@@ -136,14 +134,10 @@
               <p class="text-3xl font-bold text-gray-900" id="cardCompleted">—</p>
             </div>
           </div>
-          <div class="flex items-end justify-between pt-4" style="gap:12px">
-            <div class="flex flex-col" style="gap:2px;min-width:0">
-              <span class="text-sm font-medium text-emerald-500" id="cardCompletedPct">—</span>
-            </div>
-            <svg id="sparkCompleted" class="shrink-0" style="width:84px;height:32px" viewBox="0 0 96 36" role="img" aria-label="Assessments completed per month, last 6 months"></svg>
+          <div class="flex items-end justify-between pt-4">
+            <span class="text-sm font-medium text-emerald-500" id="cardCompletedPct">—</span>
           </div>
         </div>
-
         <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-6 flex flex-col justify-between">
           <div class="flex items-start justify-between pb-4">
             <span class="w-12 h-12 rounded-lg bg-[#ffedd5] flex items-center justify-center">
@@ -154,33 +148,49 @@
               <p class="text-3xl font-bold text-gray-900" id="cardPending">—</p>
             </div>
           </div>
-          <div class="flex items-end justify-between pt-4" style="gap:12px">
-            <div class="flex flex-col" style="gap:2px;min-width:0">
-              <span class="text-sm font-medium text-amber-500" id="cardPendingPct">—</span>
-            </div>
-            <svg id="sparkPending" class="shrink-0" style="width:84px;height:32px" viewBox="0 0 96 36" role="img" aria-label="New pending students per month, last 6 months"></svg>
+          <div class="flex items-end justify-between pt-4">
+            <span class="text-sm font-medium text-amber-500" id="cardPendingPct">—</span>
           </div>
         </div>
-
         <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-6 flex flex-col justify-between">
           <div class="flex items-start justify-between pb-4">
             <span class="w-12 h-12 rounded-lg bg-[#f3e8ff] flex items-center justify-center">
               <img src="images/admin/card-icon-counseling.svg" alt="" class="w-5 h-5">
             </span>
             <div class="text-right">
-              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Availed for Counseling</p>
-              <p class="text-3xl font-bold text-gray-900" id="cardCounseling">—</p>
+              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Mismatched Results</p>
+              <p class="text-3xl font-bold text-gray-900" id="cardMismatched">—</p>
             </div>
           </div>
-          <div class="flex items-end justify-between pt-4" style="gap:12px">
-            <div class="flex flex-col" style="gap:2px;min-width:0">
-              <span class="text-sm font-medium text-purple-500" id="cardCounselingPct">—</span>
-            </div>
-            <svg id="sparkCounseling" class="shrink-0" style="width:84px;height:32px" viewBox="0 0 96 36" role="img" aria-label="Students who availed counseling per month, last 6 months"></svg>
+          <div class="flex items-end justify-between pt-4">
+            <span class="text-sm font-medium text-purple-500" id="cardMismatchedPct">—</span>
           </div>
         </div>
       </div>
 
+      <!-- Sections at a glance -->
+      <div id="sectionSummaryCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-8">
+        <div class="border-b border-gray-200 px-6 py-4">
+          <h2 class="text-lg font-bold text-gray-900">Sections at a Glance</h2>
+          <p class="text-xs text-gray-500 mt-1">How many students each section has and where they stand.</p>
+        </div>
+        <div class="overflow-auto">
+          <table class="w-full text-left border-collapse">
+            <thead class="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th class="px-6 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Strand</th>
+                <th class="px-6 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Section</th>
+                <th class="px-6 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Students</th>
+                <th class="px-6 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Completed</th>
+                <th class="px-6 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Pending</th>
+                <th class="px-6 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Not Registered</th>
+                <th class="px-6 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Mismatched</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100" id="sectionSummaryBody"></tbody>
+          </table>
+        </div>
+      </div>
       <!-- Data Table Section -->
       <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
 
@@ -194,6 +204,7 @@
               <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" viewBox="0 -960 960 960" fill="#64748B"><path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>
               <input type="text" id="studentSearch" placeholder="Search by name..." aria-label="Search by name" class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
             </div>
+            <button type="button" id="emailListedBtn" class="hidden w-full sm:w-auto items-center justify-center gap-2 border border-[#0f2a6b] text-[#0f2a6b] rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-slate-50">Email these students</button>
             <div class="relative">
               <button type="button" id="filterBtn" class="w-full sm:w-auto flex items-center justify-center gap-2 border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
                 <svg class="w-3.5 h-3.5" viewBox="0 -960 960 960" fill="#64748B"><path d="M400-240v-80h160v80H400ZM240-440v-80h480v80H240ZM120-640v-80h720v80H120Z"/></svg>
@@ -213,7 +224,7 @@
                   </div>
                   <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Section</label>
-                    <input type="text" id="filterSection" placeholder="e.g. S1114" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
+                    <input type="text" id="filterSection" placeholder="Choose a strand first" disabled class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed">
                   </div>
                   <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Assessment Status</label>
@@ -221,6 +232,7 @@
                       <option value="">All Status</option>
                       <option>Completed</option>
                       <option>Pending</option>
+                      <option>Mismatched</option>
                       <option>Not Registered</option>
                     </select>
                   </div>
@@ -442,49 +454,6 @@
     '</tr>';
   }
 
-  // ---- Summary-card trends: last 6 months, oldest first, current month last ----
-  const SVG_NS = 'http://www.w3.org/2000/svg';
-
-  function svgEl(name, attrs) {
-    const el = document.createElementNS(SVG_NS, name);
-    Object.keys(attrs).forEach((k) => el.setAttribute(k, attrs[k]));
-    return el;
-  }
-
-  function drawSparkline(svg, values, labels, color, noun) {
-    svg.innerHTML = '';
-    const W = 96, H = 36, PAD = 4;
-    const max = Math.max.apply(null, values.concat([1]));
-    const x = (i) => PAD + i * (W - 2 * PAD) / (values.length - 1);
-    const y = (v) => H - PAD - (v / max) * (H - 2 * PAD);
-    const pts = values.map((v, i) => [x(i), y(v)]);
-    const line = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
-    svg.appendChild(svgEl('path', { d: line + ' L' + pts[pts.length - 1][0].toFixed(1) + ' ' + (H - PAD) + ' L' + pts[0][0].toFixed(1) + ' ' + (H - PAD) + ' Z', fill: color, 'fill-opacity': '0.12' }));
-    svg.appendChild(svgEl('path', { d: line, fill: 'none', stroke: color, 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
-    pts.forEach((p, i) => {
-      const last = i === pts.length - 1;
-      const dot = svgEl('circle', { cx: p[0].toFixed(1), cy: p[1].toFixed(1), r: last ? '3' : '6', fill: last ? color : 'transparent' });
-      const tip = document.createElementNS(SVG_NS, 'title');
-      tip.textContent = labels[i] + ': ' + values[i] + ' ' + noun; // hover shows that month's count
-      dot.appendChild(tip);
-      svg.appendChild(dot);
-    });
-  }
-
-  function renderTrends(trends) {
-    if (!trends) return;
-    const labels = trends.months.map((m) => m.label);
-    [
-      { key: 'students', spark: 'sparkTotal', color: '#2563eb', noun: 'added' },
-      { key: 'completed', spark: 'sparkCompleted', color: '#059669', noun: 'completed' },
-      { key: 'pending', spark: 'sparkPending', color: '#d97706', noun: 'new pending' },
-      { key: 'counseling', spark: 'sparkCounseling', color: '#9333ea', noun: 'availed' },
-    ].forEach((c) => {
-      const values = trends[c.key];
-drawSparkline(document.getElementById(c.spark), values, labels, c.color, c.noun);
-    });
-  }
-
   async function load() {
     tbody.innerHTML = '<tr><td colspan="9" class="px-6 py-8 text-center text-sm text-gray-500">Loading…</td></tr>';
     const params = new URLSearchParams({
@@ -495,21 +464,69 @@ drawSparkline(document.getElementById(c.spark), values, labels, c.color, c.noun)
     document.getElementById('cardTotalStudents').textContent = data.summary.totalStudents.toLocaleString();
     document.getElementById('cardCompleted').textContent = data.summary.completedCount.toLocaleString();
     document.getElementById('cardPending').textContent = data.summary.pendingCount.toLocaleString();
-    document.getElementById('cardCounseling').textContent = data.summary.counselingCount.toLocaleString();
+    document.getElementById('cardMismatched').textContent = data.summary.mismatchedCount.toLocaleString();
     const pct = (n) => data.summary.totalStudents > 0 ? Math.round((n / data.summary.totalStudents) * 100) + '% of total' : '—';
     document.getElementById('cardCompletedPct').textContent = pct(data.summary.completedCount);
     document.getElementById('cardPendingPct').textContent = pct(data.summary.pendingCount);
-    document.getElementById('cardCounselingPct').textContent = pct(data.summary.counselingCount);
-    renderTrends(data.trends);
+    // Mismatched is a share of the students who finished the assessment.
+    document.getElementById('cardMismatchedPct').textContent = data.summary.completedCount > 0 ? Math.round((data.summary.mismatchedCount / data.summary.completedCount) * 100) + '% of completed' : '—';
 
+    // Sections at a glance: a row per section with its shares.
+    const secRows = data.sections || [];
+    document.getElementById('sectionSummaryCard').classList.toggle('hidden', secRows.length === 0);
+    document.getElementById('sectionSummaryBody').innerHTML = secRows.map(function(s) {
+      const pct = s.total > 0 ? Math.round(s.completed / s.total * 100) : 0;
+      return '<tr><td class="px-6 py-3 text-sm text-gray-700">' + escapeHtml(s.strand) + '</td>' +
+        '<td class="px-6 py-3 text-sm font-medium text-gray-900">' + escapeHtml(s.section) + '</td>' +
+        '<td class="px-6 py-3 text-sm text-gray-700">' + s.total + '</td>' +
+        '<td class="px-6 py-3 text-sm text-gray-700">' + s.completed + ' <span class="text-xs text-emerald-600">(' + pct + '%)</span></td>' +
+        '<td class="px-6 py-3 text-sm text-gray-700">' + s.pending + '</td>' +
+        '<td class="px-6 py-3 text-sm text-gray-700">' + s.notRegistered + '</td>' +
+        '<td class="px-6 py-3 text-sm text-gray-700">' + s.mismatched + '</td></tr>';
+    }).join('');
     noResults.classList.toggle('hidden', data.students.length !== 0);
     tbody.innerHTML = data.students.length
       ? data.students.map((s, i) => renderRow(s, data.startIndex + i)).join('')
       : '';
 
+    // Staff can email everyone currently listed when the list is Pending or Mismatched students.
+    const emailBtn = document.getElementById('emailListedBtn');
+    emailBtn.classList.toggle('hidden', !(state.status === 'Pending' || state.status === 'Mismatched'));
+    emailBtn.classList.toggle('flex', state.status === 'Pending' || state.status === 'Mismatched');
+    emailBtn.textContent = state.status === 'Mismatched' ? 'Email: visit the Guidance Office' : 'Email: assessment reminder';
+
     document.getElementById('paginationSummary').innerHTML =
       'Showing <span class="font-medium text-gray-900">' + data.total.toLocaleString() + '</span> student' + (data.total === 1 ? '' : 's') + '. Scroll the table to see more.';
   }
+
+  // "Email these students": a reminder to the Pending students, or a request to visit the
+  // Guidance Office for the Mismatched ones, limited to the current strand/section filters.
+  document.getElementById('emailListedBtn').addEventListener('click', async function() {
+    const kind = state.status === 'Mismatched' ? 'mismatch' : 'pending';
+    const what = kind === 'mismatch' ? 'ask the listed students to visit the Guidance Office' : 'send the listed students an assessment reminder';
+    if (!window.confirm('Email these students? This will ' + what + '. A student receives at most one such email per day; students without an account are skipped.')) return;
+    const btn = this, label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Sending…';
+    const summary = document.getElementById('paginationSummary');
+    try {
+      const res = await fetch('api/student-reminders.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: kind, strand: state.strand, section: state.section })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        summary.textContent = data.error || 'Could not send the emails.';
+      } else {
+        summary.textContent = 'Emailed ' + data.sent + ' of ' + data.listed + ' student' + (data.listed === 1 ? '' : 's') +
+          (data.alreadyEmailedToday ? ' (' + data.alreadyEmailedToday + ' already emailed today)' : '') +
+          (data.failed ? '. ' + data.failed + ' could not be delivered.' : '.');
+      }
+    } catch (e) {
+      summary.textContent = 'Unable to reach the server. Please try again.';
+    } finally {
+      btn.disabled = false; btn.textContent = label;
+    }
+  });
 
   searchInput.addEventListener('input', () => {
     clearTimeout(debounceHandle);
@@ -518,6 +535,17 @@ drawSparkline(document.getElementById(c.spark), values, labels, c.color, c.noun)
             load();
     }, 300);
   });
+  // The section filter only makes sense within a strand, so it stays off while All Strands is selected.
+  function syncSectionFilter() {
+    const sec = document.getElementById('filterSection');
+    const hasStrand = document.getElementById('filterStrand').value !== '';
+    sec.disabled = !hasStrand;
+    sec.placeholder = hasStrand ? 'e.g. S1114' : 'Choose a strand first';
+    if (!hasStrand) sec.value = '';
+  }
+  document.getElementById('filterStrand').addEventListener('change', syncSectionFilter);
+  syncSectionFilter();
+
   document.getElementById('applyFilters').addEventListener('click', () => {
     state.strand = document.getElementById('filterStrand').value;
     state.section = document.getElementById('filterSection').value.trim();
@@ -529,6 +557,7 @@ drawSparkline(document.getElementById(c.spark), values, labels, c.color, c.noun)
   document.getElementById('clearFilters').addEventListener('click', () => {
     document.getElementById('filterStrand').value = '';
     document.getElementById('filterSection').value = '';
+    syncSectionFilter();
     document.getElementById('filterStatus').value = '';
     document.getElementById('filterCounseling').value = '';
     searchInput.value = '';

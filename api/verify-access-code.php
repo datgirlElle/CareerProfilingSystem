@@ -13,6 +13,15 @@ if ($user['role'] !== 'student') {
     jsonResponse(['success' => false, 'error' => 'Only students take the RIASEC assessment.'], 403);
 }
 
+// The assessment is taken once. Anyone who has already finished it is turned away right here,
+// before a code is even looked at.
+$alreadyDone = Database::get()->prepare('SELECT 1 FROM assessments WHERE student_id = ? AND is_latest = TRUE AND completed_at IS NOT NULL');
+$alreadyDone->execute([$user['id']]);
+if ($alreadyDone->fetch()) {
+    AuditLogger::log($user['id'], 'student', 'access_code_failed', 'assessment', null, 'Tried to start the assessment again after finishing it');
+    jsonResponse(['success' => false, 'alreadyTaken' => true, 'error' => 'You have already taken this assessment. Please seek the assistance of the Guidance Office.'], 403);
+}
+
 // 3 attempts per 5 minutes, keyed per-student — matches the scale of the
 // login lockout policy. A genuine student mistyping a code a couple times
 // is unaffected; a script grinding through the ~16.7 million possible
@@ -42,7 +51,7 @@ $student = $studentStmt->fetch();
 $candidates = [];
 if ($student && $student['academic_year']) {
     $stmt = $pdo->prepare(
-        'SELECT id, access_code, exam_date, end_time FROM exam_schedules
+        'SELECT id, access_code, exam_date, start_time, end_time FROM exam_schedules
          WHERE academic_year = ?
            AND (grade_level IS NULL OR grade_level = ?)
            AND (strand IS NULL OR strand = ?)
@@ -64,6 +73,7 @@ if (!$candidates) {
 // A schedule whose exam has already ended is archived and its code is
 // discarded: it never unlocks the assessment, even though it's the right code.
 $expiredMatch = false;
+$notStartedMatch = null;
 foreach ($candidates as $c) {
     if (!hash_equals((string) $c['access_code'], $submitted)) {
         continue;
@@ -72,10 +82,20 @@ foreach ($candidates as $c) {
         $expiredMatch = true;
         continue;
     }
+    // The assessment is activated for the group only from the session's start time.
+    if (!ExamSchedule::isOpen($c['exam_date'], $c['start_time'], $c['end_time'])) {
+        $notStartedMatch = $c;
+        continue;
+    }
     $matchedScheduleId = (int) $c['id'];
     break;
 }
 if ($matchedScheduleId === null) {
+    if ($notStartedMatch !== null) {
+        $opens = (new DateTimeImmutable($notStartedMatch['exam_date'] . ' ' . substr($notStartedMatch['start_time'], 0, 5), new DateTimeZone('Asia/Manila')))->format('F j, Y \\a\\t g:i A');
+        AuditLogger::log($user['id'], 'student', 'access_code_failed', 'assessment', null, 'Assessment has not started yet');
+        jsonResponse(['success' => false, 'error' => "This assessment has not started yet. It opens on $opens."], 403);
+    }
     if ($expiredMatch) {
         AuditLogger::log($user['id'], 'student', 'access_code_failed', 'assessment', null, 'Expired assessment access code (exam already ended)');
         jsonResponse(['success' => false, 'error' => 'This access code has expired because the assessment has already ended. Please ask your guidance counselor for the current schedule and code.'], 403);

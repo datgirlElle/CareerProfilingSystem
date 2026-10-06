@@ -47,5 +47,20 @@ $clash = ExamSchedule::findConflicts([
 check('one clash found (same room, same day, overlapping, spelled differently)', count($clash) === 1);
 check('it names both sessions', $clash[0]['a']['id'] === 1 && $clash[0]['b']['id'] === 2);
 
+echo "\n=== activation window: when the assessment is open for a group ===\n";
+$tzM = new DateTimeZone('Asia/Manila');
+$at = fn(string $s) => new DateTimeImmutable($s, $tzM);
+$session = ['examDate' => '2026-10-12', 'startTime' => '08:00:00', 'endTime' => '10:00:00', 'room' => '301'];
+check('before the start time it is not open', ExamSchedule::isOpen('2026-10-12', '08:00', '10:00', $at('2026-10-12 07:59:00')) === false);
+check('at the start time it opens', ExamSchedule::isOpen('2026-10-12', '08:00', '10:00', $at('2026-10-12 08:00:00')) === true);
+check('in the middle it is open', ExamSchedule::isOpen('2026-10-12', '08:00', '10:00', $at('2026-10-12 09:15:00')) === true);
+check('at the end time it is closed', ExamSchedule::isOpen('2026-10-12', '08:00', '10:00', $at('2026-10-12 10:00:00')) === false);
+check('the next day it is closed', ExamSchedule::isOpen('2026-10-12', '08:00', '10:00', $at('2026-10-13 08:30:00')) === false);
+check('nothing scheduled -> none', ExamSchedule::windowFor([], $at('2026-10-12 09:00:00'))['state'] === 'none');
+check('inside a session -> open, with its room', (function () use ($session, $at) { $w = ExamSchedule::windowFor([$session], $at('2026-10-12 09:00:00')); return $w['state'] === 'open' && $w['room'] === '301' && $w['endTime'] === '10:00'; })());
+check('a session later today -> upcoming, with its start', (function () use ($session, $at) { $w = ExamSchedule::windowFor([$session], $at('2026-10-12 06:00:00')); return $w['state'] === 'upcoming' && $w['startTime'] === '08:00' && $w['examDate'] === '2026-10-12'; })());
+check('only past sessions -> ended', ExamSchedule::windowFor([$session], $at('2026-10-12 11:00:00'))['state'] === 'ended');
+check('several sessions: the soonest upcoming one is reported', (function () use ($session, $at) { $later = ['examDate' => '2026-10-14', 'startTime' => '13:00', 'endTime' => '15:00']; $w = ExamSchedule::windowFor([$later, $session], $at('2026-10-11 09:00:00')); return $w['state'] === 'upcoming' && $w['examDate'] === '2026-10-12'; })());
+check('a past session plus a future one -> upcoming, not ended', ExamSchedule::windowFor([$session, ['examDate' => '2026-10-20', 'startTime' => '08:00', 'endTime' => '10:00']], $at('2026-10-13 09:00:00'))['state'] === 'upcoming');
 echo "\n=== Summary: $passed passed, $failures failed ===\n";
 exit($failures > 0 ? 1 : 0);

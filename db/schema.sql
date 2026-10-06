@@ -365,3 +365,12 @@ CREATE TABLE notification_dismissals (
     dismissed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (user_id, item_key)
 );
+
+-- Which sections each guidance counselor / facilitator handles (assigned by the administrator).
+-- A staff member with none assigned sees every section.
+CREATE TABLE staff_sections (
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    strand  VARCHAR(10) NOT NULL CHECK (strand IN ('STEM', 'ABM', 'ICT', 'HUMSS')),
+    section VARCHAR(20) NOT NULL,
+    PRIMARY KEY (user_id, strand, section)
+);

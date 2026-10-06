@@ -31,7 +31,13 @@ class RosterCsv
         $lines = [];
         // $escape is passed explicitly: PHP 8.4 notices when it is left unset.
         while (($line = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
-            $lines[] = $line;
+            // Excel's plain "CSV (Comma delimited)" saves in Windows-1252, not UTF-8, so a name
+            // like "Peña" arrives as a single byte that is not valid UTF-8 (and would later break
+            // the student list). Convert any such cell; CSV UTF-8 files pass through unchanged.
+            $lines[] = array_map(function ($cell) {
+                $cell = (string) $cell;
+                return mb_check_encoding($cell, 'UTF-8') ? $cell : mb_convert_encoding($cell, 'UTF-8', 'Windows-1252');
+            }, $line);
         }
         return self::parseLines($lines);
     }

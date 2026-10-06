@@ -60,5 +60,15 @@ check('an empty file is reported', $r['error'] === 'The file is empty.');
 $r = parseText("Strand:,STEM\nSection:,S1114\n");
 check('a file with no header row is rejected', $r['error'] === RosterCsv::FORMAT_HELP);
 
+echo "\n=== names with Ñ and accents in every way Excel can save a CSV ===\n";
+$header = "Strand:,STEM\nSection:,S1114\nLRN,Lastname,Firstname,Middle\n";
+$row = "123456789012,Dela Pe\xC3\xB1a,Jos\xC3\xA9,\xC3\x91\n"; // Dela Peña, José, Ñ  (UTF-8 bytes)
+$r = parseText($header . $row);
+check('CSV UTF-8 keeps Ñ and accents', $r['rows']['123456789012'][1] === "Dela Pe\xC3\xB1a, Jos\xC3\xA9 \xC3\x91");
+$ansi = "Strand:,STEM\nSection:,S1114\nLRN,Lastname,Firstname,Middle\n123456789012,Dela Pe\xF1a,Jos\xE9,\xD1\n"; // Windows-1252 bytes
+$r = parseText($ansi);
+$name = $r['rows']['123456789012'][1];
+check('Excel\'s plain CSV (Windows-1252) is converted to the same text', $name === "Dela Pe\xC3\xB1a, Jos\xC3\xA9 \xC3\x91");
+check('and the stored name is valid UTF-8 that can be sent as JSON', mb_check_encoding($name, 'UTF-8') && json_encode($name) !== false);
 echo "\n=== Summary: $passed passed, $failures failed ===\n";
 exit($failures > 0 ? 1 : 0);

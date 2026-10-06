@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/ExamSchedule.php';
 
 $user = Auth::requireLogin();
 if ($user['role'] !== 'student') {
@@ -16,7 +17,8 @@ $stmt->execute([(int) $user['id']]);
 $row = $stmt->fetch();
 
 if (!$row) {
-    jsonResponse(['completed' => false]);
+    // Not taken yet: the RIASEC button is on only while one of the group's sessions is open.
+    jsonResponse(['completed' => false, 'window' => ExamSchedule::windowFor(ExamSchedule::sessionsForStudent($pdo, (int) $user['id']))]);
 }
 
 jsonResponse([

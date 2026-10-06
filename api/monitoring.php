@@ -1,12 +1,13 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/StaffScope.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     jsonResponse(['error' => 'Method not allowed'], 405);
 }
 
-Rbac::requireAccess('monitoring', 'full');
+$user = Rbac::requireAccess('monitoring', 'full');
 $pdo = Database::get();
 
 $tab = $_GET['tab'] ?? 'needs-review';
@@ -19,6 +20,7 @@ function decryptStudent(array $row): array
         'userId' => (int) $row['user_id'],
         'name' => Crypto::dec($row['last_name_enc']) . ', ' . Crypto::dec($row['first_name_enc']),
         'strand' => $row['strand'],
+        'section' => $row['section'] ?? null,
     ];
 }
 
@@ -76,7 +78,7 @@ function applySearchAndLimit(array $rows, ?string $search, ?int $limit): array
 function buildFlagRows(PDO $pdo, string $status, float $threshold): array
 {
     $sql = "SELECT mf.id AS flag_id, mf.reason, mf.status, mf.created_at, mf.note,
-                   s.user_id, s.school_id, s.strand, s.first_name_enc, s.last_name_enc,
+                   s.user_id, s.school_id, s.strand, s.section, s.first_name_enc, s.last_name_enc,
                    r.top_program_id, r.top_score
             FROM monitoring_flags mf
             JOIN students s ON s.user_id = mf.student_id
@@ -114,7 +116,7 @@ function buildFlagRows(PDO $pdo, string $status, float $threshold): array
 
 function buildCompletedRows(PDO $pdo): array
 {
-    $sql = "SELECT a.student_id, a.completed_at, s.school_id, s.strand, s.first_name_enc, s.last_name_enc,
+    $sql = "SELECT a.student_id, a.completed_at, s.school_id, s.strand, s.section, s.first_name_enc, s.last_name_enc,
                    r.top_program_id, r.top_score
             FROM assessments a
             JOIN students s ON s.user_id = a.student_id
@@ -140,7 +142,7 @@ function buildCompletedRows(PDO $pdo): array
 
 function buildPendingRows(PDO $pdo): array
 {
-    $sql = "SELECT s.user_id, s.school_id, s.strand, s.first_name_enc, s.last_name_enc, s.registered_at
+    $sql = "SELECT s.user_id, s.school_id, s.strand, s.section, s.first_name_enc, s.last_name_enc, s.registered_at
             FROM students s
             WHERE NOT EXISTS (SELECT 1 FROM assessments a WHERE a.student_id = s.user_id AND a.is_latest = TRUE)
             ORDER BY s.registered_at DESC";
@@ -156,6 +158,14 @@ $allNeedsReview = buildFlagRows($pdo, 'pending', $threshold);
 $allCounseling = buildFlagRows($pdo, 'escalated', $threshold);
 $allCompleted = buildCompletedRows($pdo);
 $allPending = buildPendingRows($pdo);
+
+// A staff member sees only the sections assigned to them (everyone if none are; lib/StaffScope.php).
+$scope = StaffScope::forUser($pdo, $user);
+$inScope = fn(array $rows) => array_values(array_filter($rows, fn($r) => StaffScope::allows($scope, $r['strand'] ?? null, $r['section'] ?? null)));
+$allNeedsReview = $inScope($allNeedsReview);
+$allCounseling = $inScope($allCounseling);
+$allCompleted = $inScope($allCompleted);
+$allPending = $inScope($allPending);
 
 $rowsByTab = [
     'needs-review' => $allNeedsReview,

@@ -354,11 +354,17 @@
                 <p class="text-xs font-medium text-slate-600">Active Users</p>
                 <p class="text-[10px] text-slate-500 mt-1">Today</p>
               </div>
-              <div class="border border-slate-200 rounded-lg p-4 flex flex-col items-center justify-center text-center" style="grid-column: span 2">
+              <div class="border border-slate-200 rounded-lg p-4 flex flex-col items-center justify-center text-center">
                 <img src="images/security/icon-overview-alerts.svg" alt="" class="w-[21px] h-6 mb-2">
                 <p class="text-2xl font-bold text-slate-800" id="overviewPendingFlags">—</p>
                 <p class="text-xs font-medium text-slate-600">Pending Monitoring Flags</p>
                 <p class="text-[10px] text-slate-500 mt-1">Awaiting review</p>
+              </div>
+              <div class="border border-slate-200 rounded-lg p-4 flex flex-col items-center justify-center text-center">
+                <img src="images/security/icon-overview-alerts.svg" alt="" class="w-[21px] h-6 mb-2">
+                <p class="text-2xl font-bold text-slate-800" id="overviewSharedLogins">—</p>
+                <p class="text-xs font-medium text-slate-600">Possible Shared Logins</p>
+                <p class="text-[10px] text-slate-500 mt-1">Last 7 days</p>
               </div>
             </div>
           </div>
@@ -390,7 +396,7 @@
       <button type="button" id="rolesModalClose" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
     </div>
     <div class="px-6 py-5">
-      <p class="text-xs text-slate-500 mb-4">Administrator and Student access are fixed. Only the Guidance Counselor / Facilitator column can be changed.</p>
+      <p class="text-xs text-slate-500 mb-4">Administrator and Student access are fixed, and only the administrator can post announcements and set assessment schedules. Everything else in the Guidance Counselor / Facilitator column can be changed.</p>
       <table class="w-full text-left border-collapse">
         <thead>
           <tr>
@@ -654,6 +660,7 @@
 
     function renderOverview() {
       document.getElementById('overviewLockouts').textContent = state.overview.lockouts7d;
+      document.getElementById('overviewSharedLogins').textContent = state.overview.sharedLogins7d;
       document.getElementById('overviewActiveUsers').textContent = state.overview.activeUsersToday;
       document.getElementById('overviewPendingFlags').textContent = state.overview.pendingFlags;
     }
@@ -697,6 +704,10 @@
           }
           // Student access is fixed too: students only ever need to take the assessment, view their results
           // and recommendations, request counseling and read announcements (backend enforces this as well).
+          if (r === 'counselor' && (m.id === 'announcements' || m.id === 'examinations')) {
+            // Only the administrator posts announcements and sets assessment schedules.
+            return '<td class="py-2.5 px-1 text-center"><span class="text-xs text-slate-400" title="Only the administrator can post announcements and set assessment schedules">View only (fixed)</span></td>';
+          }
           if (r === 'student') {
             return '<td class="py-2.5 px-1 text-center"><span class="text-xs text-slate-400" title="Student access cannot be changed">' + LEVEL_LABEL[state.rbac[m.id][r]] + ' (fixed)</span></td>';
           }

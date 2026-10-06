@@ -148,7 +148,7 @@
             </span>
             <div>
               <p class="text-sm font-semibold text-[#191c1e] mb-1">About 10–15 Minutes</p>
-              <p class="text-sm text-[#5e3f3c]">Your progress is saved automatically, so you can pick up where you left off if you need to step away.</p>
+              <p class="text-sm text-[#5e3f3c]">Your progress is saved automatically on this computer and browser, so you can pick up where you left off if you need to step away.</p>
             </div>
           </div>
 
@@ -171,6 +171,16 @@
               <p class="text-sm text-[#5e3f3c]">Once you finish, you'll see your RIASEC results and be able to start the Career Worksheet.</p>
             </div>
           </div>
+        </div>
+
+        <div class="bg-[#eef1fb] border border-[#d5dcf3] rounded-lg p-5 mb-6">
+          <p class="text-sm font-semibold text-[#001c43] mb-2">If your computer shuts down or the connection is lost</p>
+          <ol class="text-sm text-[#5e3f3c] leading-relaxed flex flex-col gap-1.5" style="list-style:decimal;padding-left:1.25rem">
+            <li>Stay in the room and tell your proctor or the Guidance Office right away.</li>
+            <li>Restart, log in with your own account, and open the assessment again on the same computer and browser. Your answers so far are saved there, and you continue from where you stopped. Using a different computer starts you over.</li>
+            <li>Your session stays open only until its scheduled end time. If it has ended, or your computer cannot be recovered in time, the Guidance Office will set up a make-up session for you.</li>
+            <li>Answers count only after you finish and submit. The assessment is taken once, so never let anyone else use your account to continue it.</li>
+          </ol>
         </div>
 
         <div class="bg-orange-50 border border-orange-100 rounded-lg p-4 flex gap-3 items-start mb-6">
@@ -303,10 +313,23 @@
   profilePanel.addEventListener('click', function(e) { e.stopPropagation(); });
 
   const beginBtn = document.getElementById('beginBtn');
+  // The assessment is taken once: if it's already finished, say so right away and block the Begin button.
+  let alreadyTaken = false;
+  try {
+    const st = await (await fetch('api/assessment-status.php')).json();
+    alreadyTaken = !!st.completed;
+  } catch (e) {}
+  if (alreadyTaken) {
+    const banner = document.createElement('div');
+    banner.className = 'bg-red-50 border border-red-100 rounded-lg p-4 mb-6 text-sm text-red-700';
+    banner.setAttribute('role', 'alert');
+    banner.textContent = 'You have already taken this assessment. Please seek the assistance of the Guidance Office.';
+    document.getElementById('beginBtn').closest('.bg-white').prepend(banner);
+  }
   const policyCheckbox = document.getElementById('policyAgreeCheckbox');
   const honestyCheckbox = document.getElementById('honestyAgreeCheckbox');
   function updateBeginState() {
-    beginBtn.disabled = !(policyCheckbox.checked && honestyCheckbox.checked);
+    beginBtn.disabled = alreadyTaken || !(policyCheckbox.checked && honestyCheckbox.checked);
   }
   policyCheckbox.addEventListener('change', updateBeginState);
   honestyCheckbox.addEventListener('change', updateBeginState);

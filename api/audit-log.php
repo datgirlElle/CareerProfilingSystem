@@ -10,12 +10,13 @@ $pdo = Database::get();
 // everything else recorded is by definition a completed action.
 const FAILED_SUFFIX = '_failed';
 // An account lockout is a security event too, so it reads as Failed in the log.
-const FAILED_SQL = "(al.action LIKE '%_failed' OR al.action = 'login_lockout')";
+const FAILED_SQL = "(al.action LIKE '%_failed' OR al.action IN ('login_lockout', 'login_shared_suspected'))";
 
 $actionLabels = [
     'login' => 'Logged in',
     'login_failed' => 'Failed login attempt',
     'login_lockout' => 'Account locked out',
+    'login_shared_suspected' => 'Possible shared account',
     'logout' => 'Logged out',
     'register' => 'Registered new account',
     'submit_assessment' => 'Submitted RIASEC assessment',
@@ -88,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['export'])) {
     $out = fopen('php://output', 'w');
     fputcsv($out, ['Timestamp', 'User', 'Role', 'Action', 'Module', 'IP Address', 'Status'], escape: '\\');
     foreach ($stmt as $row) {
-        $status = (str_ends_with($row['action'], FAILED_SUFFIX) || $row['action'] === 'login_lockout') ? 'Failed' : 'Success';
+        $status = (str_ends_with($row['action'], FAILED_SUFFIX) || in_array($row['action'], ['login_lockout', 'login_shared_suspected'], true)) ? 'Failed' : 'Success';
         fputcsv($out, [
             (new DateTime($row['created_at']))->format('M j, Y g:i:s A'), actorLabel($row), roleLabel($row['actor_role'], $roleLabels),
             actionLabel($row['action'], $actionLabels), $row['target_type'] ?? '-', $row['ip_address'], $status,
@@ -130,7 +131,7 @@ $rows = array_map(function ($r) use ($actionLabels, $roleLabels) {
         'action' => actionLabel($r['action'], $actionLabels),
         'module' => $r['target_type'] ?? '-',
         'ip' => $r['ip_address'],
-        'status' => (str_ends_with($r['action'], FAILED_SUFFIX) || $r['action'] === 'login_lockout') ? 'Failed' : 'Success',
+        'status' => (str_ends_with($r['action'], FAILED_SUFFIX) || in_array($r['action'], ['login_lockout', 'login_shared_suspected'], true)) ? 'Failed' : 'Success',
     ];
 }, $stmt->fetchAll());
 

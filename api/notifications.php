@@ -29,7 +29,7 @@ if ($isStaff) {
         $name = Crypto::dec($row['first_name_enc']) . ' ' . Crypto::dec($row['last_name_enc']);
         $items[] = [
             'type' => 'registration',
-            'title' => 'New student registered',
+            'title' => 'Student registered',
             'text' => "$name just signed up.",
             // student-profile.html (and api/students.php's single-student
             // lookup) read ?id=, the student's internal user id.

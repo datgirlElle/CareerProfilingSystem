@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/StaffPosition.php';
+require_once __DIR__ . '/../lib/LoginDevice.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -12,7 +13,7 @@ $username = trim((string) ($body['username'] ?? ''));
 $password = (string) ($body['password'] ?? '');
 
 if ($username === '' || $password === '') {
-    jsonResponse(['success' => false, 'error' => 'Email (or LRN) and password are required.'], 400);
+    jsonResponse(['success' => false, 'error' => 'Username and password are required.'], 400);
 }
 
 $pdo = Database::get();
@@ -37,7 +38,7 @@ if (!$user && strpos($username, '@') !== false) {
     $user = $byEmail->fetch();
 }
 
-$genericError = ['success' => false, 'error' => 'Invalid email, LRN or password.'];
+$genericError = ['success' => false, 'error' => 'Invalid username or password.'];
 
 if (!$user || !$user['is_active']) {
     AuditLogger::log(null, null, 'login_failed', 'user', $username, 'Unknown or inactive username');
@@ -137,6 +138,20 @@ if ($user['role'] === 'student') {
 }
 
 Auth::login($sessionData);
-AuditLogger::log((int) $user['id'], $user['role'], 'login', 'user', $user['username'], 'Successful login');
+// Where this login came from. If a student signs in from another IP or device while an earlier login
+// is still recent, it is flagged as a possible shared account (nobody is blocked).
+$loginIp = $_SERVER['REMOTE_ADDR'] ?? null;
+$loginDevice = LoginDevice::describe((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''));
+if ($user['role'] === 'student') {
+    try {
+        $conflict = LoginDevice::findConflict($pdo, (int) $user['id'], $loginIp, $loginDevice);
+        if ($conflict !== null) {
+            AuditLogger::log((int) $user['id'], 'student', 'login_shared_suspected', 'user', $user['username'], "Signed in from {$loginIp} ({$loginDevice}) while a login from {$conflict['ip']} ({$conflict['device']}) was still recent");
+        }
+    } catch (Throwable $e) {
+        error_log('[login-device] check failed: ' . $e->getMessage());
+    }
+}
+AuditLogger::log((int) $user['id'], $user['role'], 'login', 'user', $user['username'], 'Successful login — ' . $loginDevice);
 
 jsonResponse(['success' => true, 'role' => $user['role'], 'redirect' => $redirect, 'user' => $sessionData]);
