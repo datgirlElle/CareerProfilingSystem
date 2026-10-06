@@ -56,7 +56,7 @@ $emailCheck = StaffEmail::check($email, $fullName);
 if (!$emailCheck['ok']) {
     jsonResponse(['success' => false, 'error' => $emailCheck['error']], 400);
 }
-$username = $emailCheck['username']; // e.g. alilao — never digits only, so it can't collide with a student's LRN
+$username = $emailCheck['username']; // e.g. jdcruz — never digits only, so it can't collide with a student's LRN
 
 $errors = PasswordPolicy::errors($pdo, $password);
 if ($errors) {

@@ -4,8 +4,8 @@
  * Staff sign in with a username that comes from their school email, so nobody
  * can borrow an address that isn't theirs: the email must be on the school
  * domain and its part before the @ must match the person's name — first
- * initial, middle initial, last name. "Ilao, Adomar L." must use
- * alilao@mcl.edu.ph, and that "alilao" is their username.
+ * initial, middle initial, last name. "Cruz, Juan D." must use
+ * jdcruz@mcl.edu.ph, and that "jdcruz" is their username.
  */
 class StaffEmail
 {
