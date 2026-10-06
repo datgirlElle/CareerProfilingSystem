@@ -132,7 +132,10 @@ CREATE TABLE recommendations (
     top_program_id          INT NOT NULL REFERENCES programs(id),
     top_score               NUMERIC(5, 4) NOT NULL,
     source_assessment_id    INT NOT NULL REFERENCES assessments(id),
-    source_worksheet_id     INT REFERENCES worksheets(id)
+    source_worksheet_id     INT REFERENCES worksheets(id),
+    -- Match/mismatch outcome (CBFEngine::classify); NULL on results saved before it existed.
+    match_status            VARCHAR(10) CHECK (match_status IN ('match', 'mismatch')),
+    mismatch_reason         VARCHAR(40)
 );
 
 CREATE TABLE monitoring_flags (

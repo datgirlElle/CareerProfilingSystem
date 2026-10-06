@@ -22,7 +22,7 @@ if ($requestedStudentId !== null && $requestedStudentId !== (int) $user['id']) {
 }
 
 $stmt = $pdo->prepare(
-    'SELECT id, computed_at, stated_program_id, scores, top_program_id, top_score, source_worksheet_id
+    'SELECT id, computed_at, stated_program_id, scores, top_program_id, top_score, source_worksheet_id, match_status, mismatch_reason
      FROM recommendations WHERE student_id = ? ORDER BY computed_at DESC LIMIT 1'
 );
 $stmt->execute([$studentId]);
@@ -131,5 +131,8 @@ jsonResponse([
     'topProgramId' => (int) $row['top_program_id'],
     'topScore' => (float) $row['top_score'],
     'top3' => $top3,
+    // 'match' / 'mismatch' (CBFEngine::classify); null on results saved before it existed.
+    'matchStatus' => $row['match_status'],
+    'mismatchReason' => $row['mismatch_reason'],
     'statedOutsideTop3' => $statedOutsideTop3Score !== null ? enrichEntry($statedOutsideTop3Score, $programs) : null,
 ]);

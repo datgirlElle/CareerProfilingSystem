@@ -349,6 +349,17 @@ test students** at **matching output levels**:
 
   In counseling, the counselor can review and revise the recommendation. The system's ranking
   is not final in these cases, and **this is a limitation of the study** (§11).
+- **Match / mismatch (team definition).** Each saved result is classified as `match` or
+  `mismatch` (`CBFEngine::classify`, stored in `recommendations.match_status`):
+  - **Final rule (once the decision tree is connected):** a **mismatch** is when the decision
+    tree's courses and the CBF mapping have **no course in common**. The student is referred to
+    the Guidance Office and no course is suggested. Otherwise, the final suggestion is the
+    courses common to both.
+  - **Interim rule (until then):** a **mismatch** is when the student's preferred (worksheet)
+    course is **not among the CBF matches**.
+  - Under both rules, a student with no CBF match at all is a mismatch.
+
+  The switch is a single setting in `config/cbf.php` (`decision_tree.enabled`).
 
 ## 11. Threats to validity
 

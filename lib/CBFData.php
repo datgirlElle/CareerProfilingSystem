@@ -103,7 +103,7 @@ class CBFData
      * monitoring flag when the top score is below the configured threshold.
      * The caller manages the transaction.
      *
-     * @return array{recommendationId: int, topProgramId: int, topScore: float}|null null if there are no active programs
+     * @return array{recommendationId: int, topProgramId: int, topScore: float, status: string, reason: ?string}|null null if there are no active programs
      */
     public static function saveRecommendation(PDO $pdo, int $studentId, array $profile, ?int $statedProgramId, int $assessmentId, ?int $worksheetId): ?array
     {
@@ -127,12 +127,17 @@ class CBFData
             'blocks' => $s['blocks'], 'matches' => $s['matches'], 'explanation' => $s['explanation'], 'formula' => $formula,
         ], $recommendation['all']);
 
+        // Match / mismatch (team definition). The decision tree is not connected yet,
+        // so its output is null and the interim rule applies (see CBFEngine::classify).
+        $outcome = CBFEngine::classify(array_column($recommendation['top3'], 'id'), null, $statedProgramId, $config);
+
         $recInsert = $pdo->prepare(
-            'INSERT INTO recommendations (student_id, stated_program_id, scores, top_program_id, top_score, source_assessment_id, source_worksheet_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id'
+            'INSERT INTO recommendations (student_id, stated_program_id, scores, top_program_id, top_score, source_assessment_id, source_worksheet_id, match_status, mismatch_reason)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id'
         );
         $recInsert->execute([
             $studentId, $statedProgramId, json_encode($scoresForStorage), $topProgramId, $topScore, $assessmentId, $worksheetId,
+            $outcome['status'], $outcome['reason'],
         ]);
         $recommendationId = (int) $recInsert->fetchColumn();
 
@@ -150,7 +155,8 @@ class CBFData
             }
         }
 
-        return ['recommendationId' => $recommendationId, 'topProgramId' => $topProgramId, 'topScore' => $topScore];
+        return ['recommendationId' => $recommendationId, 'topProgramId' => $topProgramId, 'topScore' => $topScore,
+            'status' => $outcome['status'], 'reason' => $outcome['reason']];
     }
 
     /** Every Active program, decrypted, in the shape CBFEngine::recommend() expects. */

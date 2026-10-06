@@ -53,7 +53,7 @@ foreach ($students as $st) {
             $pdo, (int) $st['user_id'], $profile, $profile['statedProgramId'], (int) $st['assessment_id'], (int) $st['worksheet_id']
         );
         $pdo->commit();
-        printf("%s top score %s -> %.0f%%\n", $label, $old, $saved['topScore'] * 100);
+        printf("%s top score %s -> %.0f%%  %s%s\n", $label, $old, $saved['topScore'] * 100, $saved['status'], $saved['reason'] ? " ({$saved['reason']})" : '');
         $done++;
     } catch (Throwable $e) {
         $pdo->rollBack();

@@ -50,6 +50,22 @@ return [
     'match_rule' => 'highest',
     'top_n'      => 3,
 
+    // Decision tree (Weka rules). Not connected yet; when it is, set enabled => true.
+    // Final suggestion = courses common to the decision tree's output and the CBF matches.
+    'decision_tree' => [
+        'enabled' => false,
+    ],
+
+    // MISMATCH (team decision): the decision tree and the CBF mapping have no course in
+    // common -> refer the student to the Guidance Office (no course is suggested).
+    // Until the decision tree is enabled, the interim rule is used instead: the
+    // student's preferred (worksheet) course is not among the CBF matches.
+    // In both cases, a student with no matched course at all is a mismatch.
+    'mismatch' => [
+        'definition' => 'no_common_course',      // used when decision_tree.enabled = true
+        'interim'    => 'preferred_not_matched', // used until then
+    ],
+
     // Student scores -> 0-1 scale. Each RIASEC dimension has 10 items answered
     // 1-5, so a raw total is 10..50.
     //   false: score / riasec_max           (10..50 -> 0.20..1.00). Cosine values

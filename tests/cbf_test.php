@@ -243,6 +243,27 @@ check('selectMatches keeps only entries tied at the best score',
     array_column(CBFEngine::selectMatches([['id' => 1, 'score' => 1.0], ['id' => 2, 'score' => 1.0], ['id' => 3, 'score' => 0.6667]]), 'id') === [1, 2]);
 check('strand and electives do not affect the ranking', $byId[2]['blocks'] === ['riasec' => $byId[2]['blocks']['riasec']]);
 
+echo "\n=== Match / mismatch (CBFEngine::classify) ===\n";
+$prodCfg = CBFEngine::config();
+$treeOn = array_replace_recursive($prodCfg, ['decision_tree' => ['enabled' => true]]);
+check('config: final definition = no common course; interim = preferred not matched; tree not yet enabled',
+    $prodCfg['mismatch'] == ['definition' => 'no_common_course', 'interim' => 'preferred_not_matched'] && $prodCfg['decision_tree']['enabled'] === false);
+// Interim rule (decision tree not connected): CBF matches 11, 12, 13
+$m = CBFEngine::classify([11, 12, 13], null, 12);
+check('interim: preferred course among the matches -> match', $m['status'] === 'match' && $m['finalIds'] === [11, 12, 13]);
+$m = CBFEngine::classify([11, 12, 13], null, 5);
+check('interim: preferred course not among the matches -> mismatch (preferred_not_matched)', $m['status'] === 'mismatch' && $m['reason'] === 'preferred_not_matched');
+check('interim: no preferred course given -> match', CBFEngine::classify([11, 12], null, null)['status'] === 'match');
+check('no CBF match at all -> mismatch (no_cbf_match)', CBFEngine::classify([], null, 5)['reason'] === 'no_cbf_match');
+check('tree output ignored while the tree is disabled', CBFEngine::classify([11, 12], [99], 11)['status'] === 'match');
+// Final definition (decision tree enabled): final = CBF matches AND tree output
+$m = CBFEngine::classify([11, 12, 13], [12, 20], 5, $treeOn);
+check('tree on: common course -> match, final suggestion = common courses only', $m['status'] === 'match' && $m['finalIds'] === [12]);
+check('tree on: preferred course outside the final suggestion is NOT a mismatch by itself', $m['status'] === 'match');
+$m = CBFEngine::classify([11, 12, 13], [20, 21], 12, $treeOn);
+check('tree on: no common course -> mismatch (no_common_course), nothing suggested', $m['status'] === 'mismatch' && $m['reason'] === 'no_common_course' && $m['finalIds'] === []);
+check('tree on but no tree output yet -> falls back to the interim rule', CBFEngine::classify([11, 12], null, 5, $treeOn)['reason'] === 'preferred_not_matched');
+
 echo "\n=== Postgres text[] parsing ===\n";
 check('bare and quoted elements are both read', CBFData::parseTextArray('{Animation,"Biology 1-2",Entrepreneurship}') === ['Animation', 'Biology 1-2', 'Entrepreneurship']);
 check('escaped quotes/backslashes are unescaped', CBFData::parseTextArray('{"a \\"b\\"","c\\\\d"}') === ['a "b"', 'c\\d']);

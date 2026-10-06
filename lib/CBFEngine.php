@@ -404,6 +404,46 @@ class CBFEngine
     }
 
     /**
+     * Match or mismatch for one student (team decision, config 'mismatch'):
+     *
+     *   With the decision tree enabled (definition 'no_common_course'):
+     *     final suggestion = courses in BOTH the CBF matches and the tree's output.
+     *     No common course -> mismatch: refer to the Guidance Office, suggest nothing.
+     *   Until then (interim 'preferred_not_matched'):
+     *     final suggestion = the CBF matches; mismatch if the student's preferred
+     *     (worksheet) course is not among them.
+     *   Always: no CBF match at all -> mismatch.
+     *
+     * A preferred course outside the final suggestion is shown at the end of the list
+     * by the results page; under the final definition that alone is NOT a mismatch.
+     *
+     * @param int[]      $cbfMatchIds program ids of the CBF matches (selectMatches)
+     * @param int[]|null $treeIds     program ids predicted by the decision tree (null = not available)
+     * @return array{status: string, reason: ?string, rule: string, finalIds: int[]}
+     */
+    public static function classify(array $cbfMatchIds, ?array $treeIds, ?int $preferredId, ?array $config = null): array
+    {
+        $config ??= self::config();
+        $useTree = ($config['decision_tree']['enabled'] ?? false) && $treeIds !== null;
+        $rule = $useTree ? ($config['mismatch']['definition'] ?? 'no_common_course') : ($config['mismatch']['interim'] ?? 'preferred_not_matched');
+
+        if (!$cbfMatchIds) {
+            return ['status' => 'mismatch', 'reason' => 'no_cbf_match', 'rule' => $rule, 'finalIds' => []];
+        }
+        if ($rule === 'no_common_course') {
+            $final = array_values(array_intersect($cbfMatchIds, $treeIds ?? []));
+            return $final
+                ? ['status' => 'match', 'reason' => null, 'rule' => $rule, 'finalIds' => $final]
+                : ['status' => 'mismatch', 'reason' => 'no_common_course', 'rule' => $rule, 'finalIds' => []];
+        }
+        // interim: preferred course not among the CBF matches
+        if ($preferredId !== null && !in_array($preferredId, $cbfMatchIds, true)) {
+            return ['status' => 'mismatch', 'reason' => 'preferred_not_matched', 'rule' => $rule, 'finalIds' => array_values($cbfMatchIds)];
+        }
+        return ['status' => 'match', 'reason' => null, 'rule' => $rule, 'finalIds' => array_values($cbfMatchIds)];
+    }
+
+    /**
      * Developer/thesis view of one recommendation run: every intermediate value
      * (raw feature blocks, weighted vectors, per-block cosines, final score) for
      * the student and each program, in ranked order. Used by api/cbf-debug.php
