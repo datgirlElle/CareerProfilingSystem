@@ -1,11 +1,14 @@
 <?php
 
+require_once __DIR__ . '/StarterCareers.php';
+
 /**
  * Helpers for the careers each program leads to (programs.careers, a Postgres
  * TEXT[]) and for the career a student states on the Career Worksheet.
  *
- * A program with no careers listed falls back to its own title wherever a
- * career is needed, so nothing breaks before staff fill the lists in.
+ * A program with no careers listed falls back to its starter list
+ * (lib/StarterCareers.php) wherever a career is needed, so nothing breaks
+ * before staff fill the lists in.
  */
 class Careers
 {
@@ -75,13 +78,15 @@ class Careers
 
     /**
      * The careers a student can choose / is shown for a program: its own list,
-     * or the program title when staff haven't listed any yet.
+     * or the starter list for that program when staff haven't listed any yet.
+     * A program name is never passed off as a career, so a program with
+     * neither shows no careers.
      *
      * @param array<int,string> $careers
      * @return array<int,string>
      */
     public static function effective(array $careers, string $programTitle): array
     {
-        return $careers !== [] ? $careers : [$programTitle];
+        return $careers !== [] ? $careers : StarterCareers::forProgram($programTitle);
     }
 }

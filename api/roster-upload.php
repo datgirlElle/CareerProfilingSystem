@@ -3,6 +3,7 @@
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/Lrn.php';
 require_once __DIR__ . '/../lib/AcademicYear.php';
+require_once __DIR__ . '/../lib/RosterCsv.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -46,103 +47,48 @@ $handle = fopen($_FILES['roster']['tmp_name'], 'r');
 if ($handle === false) {
     jsonResponse(['success' => false, 'error' => 'Could not read the uploaded file.'], 400);
 }
-
-// PHP 8.4 deprecated leaving $escape unset (it will default to "" in a
-// future version) and emits a notice on every call otherwise — printed
-// straight into the response body ahead of the JSON, which broke the
-// frontend's res.json() parse ("Unable to reach the server"). Pass it
-// explicitly to keep the historical backslash-escape behavior.
-$header = fgetcsv($handle, 0, ',', '"', '\\');
-if ($header === false) {
-    fclose($handle);
-    jsonResponse(['success' => false, 'error' => 'The CSV file is empty.'], 400);
-}
-$header = array_map(fn($h) => strtolower(trim((string) $h)), $header);
-
-$colIndex = function (array $candidates) use ($header): ?int {
-    foreach ($candidates as $c) {
-        $i = array_search($c, $header, true);
-        if ($i !== false) {
-            return $i;
-        }
-    }
-    return null;
-};
-// "LRN" is the current header; the older names are still accepted so
-// previously prepared CSV files keep working.
-$idxSchoolId = $colIndex(['lrn', 'school id', 'schoolid', 'student number']);
-$idxFirstName = $colIndex(['first name', 'firstname']);
-$idxLastName = $colIndex(['last name', 'lastname']);
-$idxStrand = $colIndex(['strand']);
-$idxSection = $colIndex(['section']);
-
-if ($idxSchoolId === null || $idxFirstName === null || $idxLastName === null || $idxStrand === null || $idxSection === null) {
-    fclose($handle);
-    jsonResponse(['success' => false, 'error' => 'CSV must have columns: LRN, First Name, Last Name, Strand, Section.'], 400);
-}
-
-$validStrands = ['STEM', 'ABM', 'ICT', 'HUMSS'];
-$rows = [];
-$errors = [];
-$lineNum = 1;
-while (($line = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
-    $lineNum++;
-    if (count(array_filter($line, fn($v) => trim((string) $v) !== '')) === 0) {
-        continue; // skip blank lines
-    }
-    $schoolId = trim((string) ($line[$idxSchoolId] ?? ''));
-    $firstName = trim((string) ($line[$idxFirstName] ?? ''));
-    $lastName = trim((string) ($line[$idxLastName] ?? ''));
-    $strand = strtoupper(trim((string) ($line[$idxStrand] ?? '')));
-    $section = trim((string) ($line[$idxSection] ?? ''));
-
-    if ($schoolId === '' || $firstName === '' || $lastName === '' || $section === '') {
-        $errors[] = "Row $lineNum: missing a required value.";
-        continue;
-    }
-    if (!Lrn::isValid($schoolId)) {
-        $errors[] = "Row $lineNum: invalid LRN \"$schoolId\" — " . Lrn::INVALID_MESSAGE;
-        continue;
-    }
-    if (!in_array($strand, $validStrands, true)) {
-        $errors[] = "Row $lineNum: invalid strand \"$strand\".";
-        continue;
-    }
-    if (mb_strlen($section) > 20) {
-        $errors[] = "Row $lineNum: section too long.";
-        continue;
-    }
-    $rows[$schoolId] = [$schoolId, "$lastName, $firstName", $strand, $section];
-}
+// One file is one section (Strand: / Section: at the top, then the students).
+$parsed = RosterCsv::parse($handle);
 fclose($handle);
 
-if ($errors) {
-    jsonResponse(['success' => false, 'error' => 'CSV had ' . count($errors) . ' invalid row(s).', 'details' => array_slice($errors, 0, 20)], 400);
+if ($parsed['error'] !== null) {
+    jsonResponse(['success' => false, 'error' => $parsed['error']], 400);
 }
-if (!$rows) {
-    jsonResponse(['success' => false, 'error' => 'No valid rows found in the CSV.'], 400);
+if ($parsed['details']) {
+    jsonResponse(['success' => false, 'error' => 'CSV had ' . count($parsed['details']) . ' invalid row(s).', 'details' => array_slice($parsed['details'], 0, 20)], 400);
 }
+if (!$parsed['rows']) {
+    jsonResponse(['success' => false, 'error' => 'No students found in the CSV.'], 400);
+}
+$strand = $parsed['strand'];
+$section = $parsed['section'];
 
 $pdo->beginTransaction();
 try {
-    // Replace the current AY's roster wholesale — a re-upload is meant to
-    // supersede the previous list for that period, not merge with it.
-    $pdo->prepare('DELETE FROM assessment_roster WHERE academic_year = ?')->execute([$currentAy]);
+    // A re-upload replaces just this section for the current AY, so the other
+    // sections' rosters are left alone.
+    $deleted = $pdo->prepare('DELETE FROM assessment_roster WHERE academic_year = ? AND strand = ? AND section = ?');
+    $deleted->execute([$currentAy, $strand, $section]);
 
+    // A student already listed under another section this AY is moved here.
     $insert = $pdo->prepare(
         'INSERT INTO assessment_roster (academic_year, school_id, name_enc, strand, section, uploaded_by)
-         VALUES (?, ?, ?, ?, ?, ?)'
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT (academic_year, school_id) DO UPDATE
+            SET name_enc = EXCLUDED.name_enc, strand = EXCLUDED.strand, section = EXCLUDED.section,
+                uploaded_by = EXCLUDED.uploaded_by, uploaded_at = NOW()'
     );
-    foreach ($rows as $r) {
-        $insert->execute([$currentAy, $r[0], Crypto::enc($r[1]), $r[2], $r[3], $user['id']]);
+    foreach ($parsed['rows'] as $r) {
+        $insert->execute([$currentAy, $r[0], Crypto::enc($r[1]), $strand, $section, $user['id']]);
     }
 
     $pdo->commit();
 } catch (Throwable $e) {
     $pdo->rollBack();
+    error_log('[roster-upload] failed: ' . $e->getMessage());
     jsonResponse(['success' => false, 'error' => 'Failed to save the roster. Please try again.'], 500);
 }
 
-AuditLogger::log($user['id'], $user['role'], 'upload_roster', 'assessment_roster', $currentAy, count($rows) . ' student(s) for AY ' . $currentAy);
+AuditLogger::log($user['id'], $user['role'], 'upload_roster', 'assessment_roster', $currentAy, count($parsed['rows']) . " student(s) in $strand $section for AY $currentAy");
 
-jsonResponse(['success' => true, 'count' => count($rows), 'academicYear' => $currentAy]);
+jsonResponse(['success' => true, 'count' => count($parsed['rows']), 'academicYear' => $currentAy, 'strand' => $strand, 'section' => $section]);

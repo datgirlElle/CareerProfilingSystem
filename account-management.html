@@ -159,8 +159,8 @@
           </div>
           <div class="p-5 flex flex-col gap-4">
             <ol class="text-sm text-gray-600 list-decimal pl-5 flex flex-col gap-1">
-              <li>Download the template and replace the example row with your students (10 to 12 digit LRN, strand, section).</li>
-              <li>Save it as a .csv file and upload it here.</li>
+              <li>Download the template. Type the Strand and Section once at the top, then list the students under Learning ID (10 to 12 digits), Lastname, Firstname and Middle.</li>
+              <li>Save it as a .csv file and upload it here. Each file is one section; upload a section again to replace just that section's list.</li>
             </ol>
             <div class="flex items-center gap-3 flex-wrap">
               <a id="downloadTemplateBtn" href="api/roster-template.php" class="inline-flex items-center gap-2 bg-white border border-gray-300 rounded-md px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
@@ -524,7 +524,7 @@
       if (!data.success) {
         showRosterResult((data.error || 'Upload failed.') + (data.details ? '\n\n' + data.details.join('\n') : ''), true);
       } else {
-        showRosterResult('Roster uploaded: ' + data.count + ' student(s) for Academic Year ' + data.academicYear + '.', false);
+        showRosterResult('Roster uploaded: ' + data.count + ' student(s) in ' + data.strand + ' ' + data.section + ' for Academic Year ' + data.academicYear + '.', false);
       }
     } catch (err) {
       showRosterResult('Unable to reach the server. Please try again.', true);

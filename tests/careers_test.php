@@ -47,8 +47,19 @@ try {
 }
 check('an over-long career is rejected', $rejected);
 
-echo "\n=== effective: falls back to the program title ===\n";
-check('empty list -> [title]', Careers::effective([], 'BS Nursing') === ['BS Nursing']);
+echo "\n=== effective: falls back to the starter careers, never the program name ===\n";
+$nursing = Careers::effective([], 'BS Nursing');
+check('empty list -> the program\'s starter careers', in_array('Registered Nurse', $nursing, true));
+check('the program name is never offered as a career', !in_array('BS Nursing', $nursing, true));
+check('every starter list has careers and none is a program name', (function () {
+    foreach (StarterCareers::LISTS as $title => $list) {
+        if ($list === [] || in_array($title, $list, true) || count($list) > Careers::MAX_PER_PROGRAM) {
+            return false;
+        }
+    }
+    return true;
+})());
+check('a program with no starter list and no careers -> []', Careers::effective([], 'BS Underwater Basket Weaving') === []);
 check('listed careers are used as-is', Careers::effective(['Registered Nurse'], 'BS Nursing') === ['Registered Nurse']);
 
 echo "\n=== Summary: $passed passed, $failures failed ===\n";

@@ -182,7 +182,8 @@ class CareerMatcher
         return array_map(fn($r) => [
             'id' => (int) $r['id'],
             'title' => Crypto::dec($r['title_enc']),
-            'careers' => Careers::parse($r['careers']),
+            // Its own list, or the starter list while staff haven't filled one in.
+            'careers' => Careers::effective(Careers::parse($r['careers']), Crypto::dec($r['title_enc'])),
             'hollandCode' => Crypto::dec($r['holland_code_enc']),
             'collegeCode' => $r['college_code'],
             'collegeName' => $r['college_name'],
