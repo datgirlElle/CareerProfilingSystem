@@ -147,7 +147,7 @@
     headerAvatarWrap.innerHTML = `<img src="${currentUser.avatarUrl}" alt="" class="w-full h-full object-cover">`;
   }
   const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
-  document.getElementById('headerUserName').textContent = currentUser.username;
+  document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
   document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
 
   const logoutModal = document.getElementById('logoutConfirmModal');

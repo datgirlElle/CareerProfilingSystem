@@ -126,7 +126,7 @@
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-gray-600 mb-1">Username</label>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Name</label>
               <input type="text" id="usernameField" disabled class="w-full border border-gray-200 bg-gray-50 rounded-md px-3 py-2.5 text-sm text-gray-500">
             </div>
             <div>
@@ -220,11 +220,11 @@
   }
   const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
   const roleLabel = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
-  document.getElementById('headerUserName').textContent = currentUser.username;
+  document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
   document.getElementById('headerUserRole').textContent = roleLabel;
-  document.getElementById('avatarName').textContent = currentUser.username;
+  document.getElementById('avatarName').textContent = currentUser.displayName || currentUser.username;
   document.getElementById('avatarRole').textContent = roleLabel;
-  document.getElementById('usernameField').value = currentUser.username;
+  document.getElementById('usernameField').value = currentUser.displayName || currentUser.username;
   document.getElementById('roleField').value = roleLabel;
 
   const avatarWrap = document.getElementById('avatarWrap');

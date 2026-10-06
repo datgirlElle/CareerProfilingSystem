@@ -68,11 +68,13 @@
               name="full_name"
               maxlength="150"
               autocomplete="name"
-              placeholder="Full Name"
-              aria-label="Full Name"
+              placeholder="Cruz, Juan D."
+              aria-label="Full Name (Last Name, First Name, M.I.)"
+              aria-describedby="fullNameHelp"
               required
               class="w-full pl-10 pr-3 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
           </div>
+          <p id="fullNameHelp" class="text-xs text-gray-500" style="margin-top:-0.75rem">Enter your name as <span class="font-medium text-gray-600">Last Name, First Name, M.I.</span> For example: Cruz, Juan D.</p>
 
           <fieldset>
             <legend class="text-xs font-medium text-gray-600 mb-2">I am a</legend>
@@ -83,20 +85,6 @@
             <p class="text-xs text-gray-500 mt-2">Counselors and facilitators get the same access to the system. Your choice only sets the title shown beside your name.</p>
           </fieldset>
 
-          <div class="relative">
-            <span class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-4">
-              <img src="images/login/icon-user.svg" alt="" class="w-full h-full">
-            </span>
-            <input
-              type="text"
-              name="username"
-              maxlength="50"
-              autocomplete="username"
-              placeholder="Username (letters, numbers, . _ -)"
-              aria-label="Username"
-              required
-              class="w-full pl-10 pr-3 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
-          </div>
 
           <div class="relative">
             <span class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-4">
@@ -108,9 +96,11 @@
               autocomplete="email"
               placeholder="Email Address"
               aria-label="Email Address"
+              aria-describedby="emailHelp"
               required
               class="w-full pl-10 pr-3 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
           </div>
+          <p id="emailHelp" class="text-xs text-gray-500" style="margin-top:-0.75rem">Use your school email. You will sign in with it.</p>
 
           <!-- The show/hide eye on these two fields is added by js/password-toggle.js -->
           <input
@@ -208,13 +198,12 @@
       var fullName = form.full_name.value.trim();
       var positionInput = form.querySelector('input[name="position"]:checked');
       var position = positionInput ? positionInput.value : '';
-      var username = form.username.value.trim();
       var email = form.email.value.trim();
       var password = form.password.value;
       var confirm = form.confirm_password.value;
       var privacyConsent = document.getElementById('policyAgreeCheckbox').checked;
 
-      if (!fullName || !username || !email || !password || !confirm) {
+      if (!fullName || !email || !password || !confirm) {
         showMessage('Please fill out all fields.');
         return;
       }
@@ -222,8 +211,9 @@
         showMessage('Choose whether you are a Guidance Counselor or a Guidance Facilitator.');
         return;
       }
-      if (!/^[A-Za-z0-9._-]{3,50}$/.test(username)) {
-        showMessage('Username must be 3 to 50 characters: letters, numbers, dots, dashes or underscores.');
+      // Last Name, First Name, M.I. — the same rule the server applies (lib/StaffName.php)
+      if (!/^[\p{L}][\p{L}\p{M}'’. -]*,\s*[\p{L}][\p{L}\p{M}'’. -]*$/u.test(fullName)) {
+        showMessage('Enter your name as Last Name, First Name, M.I. — for example Cruz, Juan D.');
         return;
       }
       if (password !== confirm) {
@@ -243,7 +233,7 @@
         var res = await fetch('api/staff-register.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fullName: fullName, position: position, username: username, email: email, password: password, privacyConsent: privacyConsent })
+          body: JSON.stringify({ fullName: fullName, position: position, email: email, password: password, privacyConsent: privacyConsent })
         });
         var data = await res.json();
         if (!data.success) {

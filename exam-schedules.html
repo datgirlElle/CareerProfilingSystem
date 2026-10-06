@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="js/csrf.js"></script>
-<title>Exam Scheduling — Career Profiling System</title>
+<title>Assessment Scheduling — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
 <link rel="stylesheet" href="css/tailwind.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -105,12 +105,12 @@
     <main id="main-content" class="flex-1 p-4 sm:p-8 overflow-auto">
 
       <div class="mb-6">
-        <h1 class="text-2xl font-bold text-slate-900">Exam Scheduling</h1>
-        <p class="text-sm text-slate-500 mt-1">Set exam sessions (date, time, room) for a grade level, strand, or section — students see their matching session automatically.</p>
+        <h1 class="text-2xl font-bold text-slate-900">Assessment Scheduling</h1>
+        <p class="text-sm text-slate-500 mt-1">Set assessment sessions (date, time, room) for a grade level, strand, or section — students see their matching session automatically.</p>
       </div>
 
       <div id="readOnlyNotice" class="hidden bg-amber-50 border border-amber-100 rounded-md px-4 py-3 text-sm text-amber-800 mb-6">
-        You have view-only access to Exam Scheduling.
+        You have view-only access to Assessment Scheduling.
       </div>
 
       <!-- Summary cards (same style as the Student Information cards) -->
@@ -175,11 +175,11 @@
 
         <!-- Create form -->
         <div id="createCard" class="lg:col-span-1 bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-          <h2 class="text-base font-semibold text-slate-900 mb-1">Create Exam Schedule</h2>
+          <h2 class="text-base font-semibold text-slate-900 mb-1">Create Assessment Schedule</h2>
           <p class="text-xs text-slate-500 mb-4">Leave Grade Level / Strand / Section on "All" to cover every student in that dimension.</p>
           <form id="createForm" class="flex flex-col gap-4">
             <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1" for="fExamDate">Exam Date</label>
+              <label class="block text-xs font-medium text-slate-600 mb-1" for="fExamDate">Assessment Date</label>
               <input type="date" id="fExamDate" required class="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
               <div class="flex items-center gap-2 mt-2">
                 <button type="button" class="quick-date px-2.5 py-1 text-xs font-medium text-slate-600 border border-slate-300 rounded-full hover:bg-slate-50" data-offset="today">Today</button>
@@ -340,7 +340,7 @@
     headerAvatarWrap.innerHTML = `<img src="${currentUser.avatarUrl}" alt="" class="w-full h-full object-cover">`;
   }
   const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
-  document.getElementById('headerUserName').textContent = currentUser.username;
+  document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
   document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
 
   const logoutModal = document.getElementById('logoutConfirmModal');
@@ -522,11 +522,11 @@
     updateRoomConflictHint();
     listEl.innerHTML = data.schedules && data.schedules.length
       ? data.schedules.map(renderCard).join('')
-      : '<p class="px-6 py-8 text-center text-sm text-slate-400">' + (showArchived ? 'No archived sessions.' : 'No active exam schedules.') + '</p>';
+      : '<p class="px-6 py-8 text-center text-sm text-slate-400">' + (showArchived ? 'No archived sessions.' : 'No active assessment schedules.') + '</p>';
 
     listEl.querySelectorAll('.delete-schedule-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
-        if (!(await showConfirm('Delete this exam schedule?'))) return;
+        if (!(await showConfirm('Delete this assessment schedule?'))) return;
         btn.disabled = true;
         const res = await fetch('api/exam-schedules.php', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -658,7 +658,7 @@
     const examDate = document.getElementById('fExamDate').value;
     const startTime = document.getElementById('fStartTime').value;
     if (examDate < todayStr()) {
-      dateErrorEl.textContent = 'Exam date can\'t be in the past.';
+      dateErrorEl.textContent = 'Assessment date can\'t be in the past.';
       dateErrorEl.classList.remove('hidden');
       return;
     }

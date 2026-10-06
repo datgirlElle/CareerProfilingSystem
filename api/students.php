@@ -58,20 +58,22 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     jsonResponse(['error' => 'Method not allowed'], 405);
 }
 
-// Single-student lookup mode: student-profile.html loads a real record by
-// schoolId instead of everything being smuggled through URL query params.
-$schoolIdLookup = trim((string) ($_GET['schoolId'] ?? ''));
-if ($schoolIdLookup !== '') {
+// Single-student lookup mode: student-profile.html loads a real record by the
+// student's internal user id (never the LRN, so it doesn't end up in the web
+// address or browser history) instead of everything being smuggled through
+// URL query params.
+$idLookup = (int) ($_GET['id'] ?? 0);
+if ($idLookup > 0) {
     $stmt = $pdo->prepare(
-        'SELECT s.user_id, s.school_id, s.first_name_enc, s.last_name_enc, s.strand, s.grade_level, s.section,
+        'SELECT s.user_id, s.first_name_enc, s.last_name_enc, s.strand, s.grade_level, s.section,
                 s.academic_year, s.registered_at, u.is_active, a.top_types, a.completed_at, a.score_r, a.score_i, a.score_a,
                 a.score_s, a.score_e, a.score_c
          FROM students s
          JOIN users u ON u.id = s.user_id
          LEFT JOIN assessments a ON a.student_id = s.user_id AND a.is_latest = TRUE
-         WHERE LOWER(s.school_id) = LOWER(?)'
+         WHERE s.user_id = ?'
     );
-    $stmt->execute([$schoolIdLookup]);
+    $stmt->execute([$idLookup]);
     $row = $stmt->fetch();
     if (!$row) {
         jsonResponse(['error' => 'Student not found'], 404);
@@ -110,7 +112,6 @@ if ($schoolIdLookup !== '') {
 
     jsonResponse(['student' => [
         'userId' => (int) $row['user_id'],
-        'schoolId' => $row['school_id'],
         'firstName' => Crypto::dec($row['first_name_enc']),
         'lastName' => Crypto::dec($row['last_name_enc']),
         'name' => Crypto::dec($row['last_name_enc']) . ', ' . Crypto::dec($row['first_name_enc']),
@@ -147,7 +148,7 @@ if ($schoolIdLookup !== '') {
 if (isset($_GET['accounts'])) {
     $search = trim((string) ($_GET['search'] ?? ''));
     $rows = $pdo->query(
-        'SELECT u.id AS user_id, u.username, u.email, u.is_active, u.created_at,
+        'SELECT u.id AS user_id, u.email, u.is_active, u.created_at,
                 s.first_name_enc, s.last_name_enc, s.strand, s.section
          FROM users u
          JOIN students s ON s.user_id = u.id
@@ -156,7 +157,6 @@ if (isset($_GET['accounts'])) {
 
     $accounts = array_map(fn($r) => [
         'userId' => (int) $r['user_id'],
-        'username' => $r['username'],
         'name' => Crypto::dec($r['last_name_enc']) . ', ' . Crypto::dec($r['first_name_enc']),
         'strand' => $r['strand'],
         'section' => $r['section'],
@@ -167,9 +167,7 @@ if (isset($_GET['accounts'])) {
 
     if ($search !== '') {
         $needle = mb_strtolower($search);
-        $accounts = array_values(array_filter($accounts, fn($a) =>
-            str_contains(mb_strtolower($a['name']), $needle) || str_contains(mb_strtolower($a['username']), $needle)
-        ));
+        $accounts = array_values(array_filter($accounts, fn($a) => str_contains(mb_strtolower($a['name']), $needle)));
     }
 
     jsonResponse(['accounts' => $accounts, 'total' => count($accounts)]);
@@ -226,7 +224,6 @@ $students = array_map(function ($r) use ($counseledIds) {
 
     return [
         'userId' => (int) $r['user_id'],
-        'schoolId' => $r['school_id'],
         'name' => Crypto::dec($r['last_name_enc']) . ', ' . Crypto::dec($r['first_name_enc']),
         'strand' => $r['strand'],
         'gradeLevel' => $r['grade_level'],
@@ -257,7 +254,6 @@ if ($currentAy !== '') {
         }
         $students[] = [
             'userId' => null,
-            'schoolId' => $rr['school_id'],
             'name' => Crypto::dec($rr['name_enc']),
             'strand' => $rr['strand'],
             'gradeLevel' => null,
@@ -330,7 +326,7 @@ foreach ($students as $s) {
 $filtered = $students;
 if ($search !== '') {
     $needle = mb_strtolower($search);
-    $filtered = array_values(array_filter($filtered, fn($s) => str_contains(mb_strtolower($s['name']), $needle) || str_contains(mb_strtolower($s['schoolId']), $needle)));
+    $filtered = array_values(array_filter($filtered, fn($s) => str_contains(mb_strtolower($s['name']), $needle)));
 }
 if ($strandFilter !== '') {
     $filtered = array_values(array_filter($filtered, fn($s) => $s['strand'] === $strandFilter));

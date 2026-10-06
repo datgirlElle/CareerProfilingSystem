@@ -17,7 +17,6 @@ function decryptStudent(array $row): array
 {
     return [
         'userId' => (int) $row['user_id'],
-        'schoolId' => $row['school_id'],
         'name' => Crypto::dec($row['last_name_enc']) . ', ' . Crypto::dec($row['first_name_enc']),
         'strand' => $row['strand'],
     ];

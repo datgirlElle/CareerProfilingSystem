@@ -32,10 +32,8 @@ if ($isStaff) {
             'title' => 'New student registered',
             'text' => "$name just signed up.",
             // student-profile.html (and api/students.php's single-student
-            // lookup) reads ?schoolId=, never ?id= — this previously
-            // linked with the wrong param name, so clicking it always
-            // landed on "Student not found."
-            'link' => 'student-profile?schoolId=' . urlencode($row['school_id']),
+            // lookup) read ?id=, the student's internal user id.
+            'link' => 'student-profile?id=' . (int) $row['user_id'],
             'ts' => $row['registered_at'],
         ];
     }
@@ -191,7 +189,7 @@ if ($isStaff) {
         $items[] = [
             'key' => 'exam:' . $row['id'],
             'type' => 'schedule_published',
-            'title' => 'Exam scheduled',
+            'title' => 'Assessment scheduled',
             'text' => $row['exam_date'] . ' in ' . $row['room'] . '.',
             'link' => 'assessment',
             'ts' => $row['created_at'],

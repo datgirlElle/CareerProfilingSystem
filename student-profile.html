@@ -103,7 +103,7 @@
         <div>
           <a href="admin-dashboard" class="text-sm text-gray-500 hover:text-[#ed1c24]">&larr; Back to Dashboard</a>
           <h1 class="text-2xl font-bold text-gray-900 mt-2" id="studentName">Student Profile</h1>
-          <p class="text-sm text-gray-500 mt-1" id="studentId">Student ID: —</p>
+          <p class="text-sm text-gray-500 mt-1" id="studentId">—</p>
         </div>
         <button type="button" id="toggleActiveBtn" class="hidden shrink-0 border rounded-md px-4 py-2 text-sm font-medium"></button>
       </div>
@@ -122,10 +122,6 @@
           <h2 class="text-base font-semibold text-gray-900">Assessment Details</h2>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs font-medium text-gray-600 mb-1">LRN</label>
-              <input type="text" id="schoolIdField" disabled class="w-full border border-gray-200 bg-gray-50 rounded-md px-3 py-2.5 text-sm text-gray-500">
-            </div>
             <div>
               <label class="block text-xs font-medium text-gray-600 mb-1">Grade Level</label>
               <input type="text" id="gradeLevelField" disabled class="w-full border border-gray-200 bg-gray-50 rounded-md px-3 py-2.5 text-sm text-gray-500">
@@ -249,14 +245,8 @@
   if (currentUser.avatarUrl) {
     headerAvatarWrap.innerHTML = `<img src="${currentUser.avatarUrl}" alt="" class="w-full h-full object-cover">`;
   }
-  // Masks everything but the last 4 digits (e.g. "123456789012" -> "••••••••9012")
-  // so this view doesn't expose a student's full LRN at a glance.
-  function maskLrn(lrn) {
-    const s = String(lrn || '');
-    return s.length > 4 ? '•'.repeat(s.length - 4) + s.slice(-4) : s;
-  }
   const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
-  document.getElementById('headerUserName').textContent = currentUser.username;
+  document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
   document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
 
   const logoutModal = document.getElementById('logoutConfirmModal');
@@ -292,7 +282,7 @@
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSidebar(); });
   })();
 
-  // Deactivate/Activate account — declared before the schoolId lookup
+  // Deactivate/Activate account — declared before the student lookup
   // below (which sets the button's initial label/state), for the same
   // reason the Counseling Notes block right after this one is.
   let toggleActiveUserId = null;
@@ -357,7 +347,7 @@
   // this page at all (admin/counselor), and a 'limited' counselor simply
   // gets the server's 403 back as an inline error if they try to add one,
   // matching how the rest of the app surfaces RBAC restrictions. Declared
-  // here, before the schoolId lookup below calls loadCounselingNotes(),
+  // here, before the student lookup below calls loadCounselingNotes(),
   // since that call happens well before this script reaches its bottom.
   let counselingNotesStudentId = null;
   function renderCounselingNotes(notes) {
@@ -421,13 +411,13 @@
   });
 
   const params = new URLSearchParams(window.location.search);
-  const schoolId = params.get('schoolId') || '';
+  const studentUserId = params.get('id') || '';
 
-  if (!schoolId) {
+  if (!/^\d+$/.test(studentUserId)) {
     document.getElementById('detailsGrid').classList.add('hidden');
     document.getElementById('notFoundState').classList.remove('hidden');
   } else {
-    const res = await fetch('api/students.php?schoolId=' + encodeURIComponent(schoolId));
+    const res = await fetch('api/students.php?id=' + encodeURIComponent(studentUserId));
     const data = await res.json();
     if (!res.ok || !data.student) {
       document.getElementById('detailsGrid').classList.add('hidden');
@@ -439,8 +429,7 @@
       document.getElementById('studentName').textContent = s.name;
       document.getElementById('avatarName').textContent = s.name;
       document.getElementById('avatarStrand').textContent = s.strand;
-      document.getElementById('studentId').textContent = 'LRN: ' + maskLrn(s.schoolId);
-      document.getElementById('schoolIdField').value = maskLrn(s.schoolId);
+      document.getElementById('studentId').textContent = 'Grade ' + s.gradeLevel + ' · ' + s.strand + ' ' + s.section;
       document.getElementById('gradeLevelField').value = 'Grade ' + s.gradeLevel;
       document.getElementById('strandField').value = s.strand;
       document.getElementById('sectionField').value = s.section;

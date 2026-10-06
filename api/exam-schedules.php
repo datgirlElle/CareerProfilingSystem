@@ -245,7 +245,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $endTime = trim((string) ($body['endTime'] ?? ''));
         $room = trim((string) ($body['room'] ?? ''));
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $examDate)) {
-            jsonResponse(['success' => false, 'error' => 'Enter a valid exam date.'], 400);
+            jsonResponse(['success' => false, 'error' => 'Enter a valid assessment date.'], 400);
         }
         if (!preg_match('/^\d{2}:\d{2}$/', $startTime) || !preg_match('/^\d{2}:\d{2}$/', $endTime)) {
             jsonResponse(['success' => false, 'error' => 'Enter valid start/end times.'], 400);
@@ -258,7 +258,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // a hand-built request can't schedule an exam that's already passed.
         $today = date('Y-m-d');
         if ($examDate < $today) {
-            jsonResponse(['success' => false, 'error' => 'Exam date can\'t be in the past.'], 400);
+            jsonResponse(['success' => false, 'error' => 'Assessment date can\'t be in the past.'], 400);
         }
         if ($examDate === $today && $startTime < date('H:i')) {
             jsonResponse(['success' => false, 'error' => 'Start time has already passed for today.'], 400);
@@ -325,7 +325,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $existing->execute([$id]);
         $row = $existing->fetch();
         if ($row && ExamSchedule::hasEnded($row['exam_date'], $row['end_time'])) {
-            jsonResponse(['success' => false, 'error' => 'This exam has already ended and is archived. Create a new schedule instead.'], 409);
+            jsonResponse(['success' => false, 'error' => 'This assessment has already ended and is archived. Create a new schedule instead.'], 409);
         }
         $accessCode = strtoupper(bin2hex(random_bytes(3)));
         $stmt = $pdo->prepare('UPDATE exam_schedules SET access_code = ?, updated_at = NOW() WHERE id = ?');

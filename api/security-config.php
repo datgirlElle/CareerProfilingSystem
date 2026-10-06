@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/AcademicYear.php';
+require_once __DIR__ . '/../lib/OfficeHours.php';
 
 $user = Rbac::requireRole('admin', 'counselor');
 $pdo = Database::get();
@@ -60,8 +61,10 @@ function loadPolicies(PDO $pdo): array
         'academicYear' => [
             'current' => AcademicYear::current(),
         ],
+        // Chosen day by day; 	ext is the sentence built from it that students read.
         'officeHours' => [
             'text' => $s('officeHours.text', 'Mon–Fri, 8:00 AM–5:00 PM'),
+            'schedule' => OfficeHours::fromJson($s('officeHours.schedule', '')),
         ],
         'principal' => [
             'name' => $s('principal.name', ''),
@@ -79,26 +82,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
          )'
     )->fetchColumn();
 
-    $failedLogins7d = (int) $pdo->query(
-        "SELECT COUNT(*) FROM audit_log WHERE action = 'login_failed' AND created_at >= NOW() - INTERVAL '7 days'"
+    // A lockout is logged (api/login.php) the moment an account reaches the maximum failed attempts,
+    // so this counts accounts that were actually locked out, not every wrong password.
+    $lockouts7d = (int) $pdo->query(
+        "SELECT COUNT(*) FROM audit_log WHERE action = 'login_lockout' AND created_at >= NOW() - INTERVAL '7 days'"
     )->fetchColumn();
     $activeUsersToday = (int) $pdo->query(
         "SELECT COUNT(DISTINCT actor_user_id) FROM audit_log WHERE created_at::date = CURRENT_DATE"
     )->fetchColumn();
     $pendingFlags = (int) $pdo->query("SELECT COUNT(*) FROM monitoring_flags WHERE status = 'pending'")->fetchColumn();
-    $encryptedRecords = (int) $pdo->query(
-        'SELECT (SELECT COUNT(*) FROM students) + (SELECT COUNT(*) FROM programs) + (SELECT COUNT(*) FROM assessment_questions)
-              + (SELECT COUNT(*) FROM help_requests) + (SELECT COUNT(*) FROM counseling_notes)'
-    )->fetchColumn();
 
     jsonResponse([
         'rbac' => loadRbac($pdo),
         'lastUpdated' => $lastUpdated,
         'overview' => [
-            'failedLogins7d' => $failedLogins7d,
+            'lockouts7d' => $lockouts7d,
             'activeUsersToday' => $activeUsersToday,
             'pendingFlags' => $pendingFlags,
-            'encryptedRecords' => $encryptedRecords,
         ],
     ] + loadPolicies($pdo));
 }
@@ -130,8 +130,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             // Self-lockout guard: the admin role's access is never editable through this UI —
             // there is no recovery path if an admin accidentally revokes their own access.
-            if ($role === 'admin') {
-                $skippedAdmin = true;
+            // The student role is fixed too: students only ever need the assessment, their
+            // results and recommendations, counseling and announcements, so it isn't configurable.
+            if ($role === 'admin' || $role === 'student') {
+                $skippedAdmin = $skippedAdmin || $role === 'admin';
                 continue;
             }
             $stmt->execute([$level, $user['id'], $module, $role]);
@@ -176,15 +178,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($type === 'officeHours') {
-        $text = trim((string) ($body['text'] ?? ''));
-        if ($text === '' || mb_strlen($text) > 100) {
-            jsonResponse(['success' => false, 'error' => 'Office Hours must be 1-100 characters.'], 400);
+        // Office hours are picked day by day (see lib/OfficeHours.php), never typed as text.
+        $checked = OfficeHours::validate($body['schedule'] ?? null);
+        if ($checked['error'] !== null) {
+            jsonResponse(['success' => false, 'error' => $checked['error']], 400);
         }
+        $text = OfficeHours::text($checked['schedule']);
         $stmt = $pdo->prepare(
             'INSERT INTO security_policies (key, value, updated_by) VALUES (?, ?, ?)
              ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by'
         );
-        $stmt->execute(['officeHours.text', $text, $user['id']]);
+        $stmt->execute(['officeHours.schedule', json_encode($checked['schedule']), $user['id']]);
+        $stmt->execute(['officeHours.text', $text, $user['id']]); // what api/public-settings.php sends to students
 
         AuditLogger::log($user['id'], $user['role'], 'update_office_hours', 'security_policies', 'officeHours.text', "Set to: $text");
         jsonResponse(['success' => true] + loadPolicies($pdo));

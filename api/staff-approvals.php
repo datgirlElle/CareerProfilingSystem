@@ -20,8 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     jsonResponse(['accounts' => array_map(fn($r) => [
         'id' => (int) $r['id'],
-        'username' => $r['username'],
-        'fullName' => $r['full_name'] ?? '',
+        // Accounts made before staff gave their name fall back to their old login name; auto-generated ones show nothing.
+        'fullName' => trim((string) $r['full_name']) !== '' ? $r['full_name'] : (str_starts_with($r['username'], 'staff-') ? '' : $r['username']),
         'position' => StaffPosition::label($r['staff_position'] ?? null),
         'email' => $r['email'],
         'emailVerified' => $r['email_verified_at'] !== null,
@@ -68,7 +68,7 @@ if ($type === 'approve') {
         jsonResponse(['success' => false, 'error' => 'This person has not verified their email yet. Ask them to open the link we emailed, then approve.'], 409);
     }
     $pdo->prepare("UPDATE users SET approval_status = 'approved', is_active = TRUE, updated_at = NOW() WHERE id = ?")->execute([$id]);
-    AuditLogger::log($user['id'], 'admin', 'approve_staff_account', 'user', (string) $id, $target['username']);
+    AuditLogger::log($user['id'], 'admin', 'approve_staff_account', 'user', (string) $id, $displayName);
     notifyStaff($target, $displayName, 'Your ProfilePath account was approved', 'Your account is approved', 'An administrator approved your staff account. You can now sign in.');
     jsonResponse(['success' => true, 'status' => 'approved']);
 }
@@ -78,7 +78,7 @@ if ($type === 'reject') {
         jsonResponse(['success' => false, 'error' => 'Only a pending sign-up can be rejected.'], 409);
     }
     $pdo->prepare("UPDATE users SET approval_status = 'rejected', updated_at = NOW() WHERE id = ?")->execute([$id]);
-    AuditLogger::log($user['id'], 'admin', 'reject_staff_account', 'user', (string) $id, $target['username']);
+    AuditLogger::log($user['id'], 'admin', 'reject_staff_account', 'user', (string) $id, $displayName);
     notifyStaff($target, $displayName, 'Your ProfilePath sign-up was not approved', 'Sign-up not approved', 'An administrator reviewed your staff sign-up and did not approve it. Please contact your system administrator if you think this is a mistake.');
     jsonResponse(['success' => true, 'status' => 'rejected']);
 }

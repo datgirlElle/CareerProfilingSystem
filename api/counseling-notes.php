@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     $stmt = $pdo->prepare(
-        'SELECT cn.id, cn.note_enc, cn.created_at, u.username AS author_username
+        'SELECT cn.id, cn.note_enc, cn.created_at, COALESCE(u.full_name, u.username) AS author_username
          FROM counseling_notes cn
          LEFT JOIN users u ON u.id = cn.author_id
          WHERE cn.student_id = ?

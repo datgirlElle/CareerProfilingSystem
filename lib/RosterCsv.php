@@ -8,7 +8,7 @@ require_once __DIR__ . '/Lrn.php';
  *
  *   Strand:,STEM
  *   Section:,S1114
- *   Learning ID,Lastname,Firstname,Middle
+ *   LRN,Lastname,Firstname,Middle
  *   123456789012,Dela Cruz,Juan,Santos
  *
  * A file is exactly one section. api/roster-upload.php replaces that
@@ -17,7 +17,7 @@ require_once __DIR__ . '/Lrn.php';
 class RosterCsv
 {
     public const VALID_STRANDS = ['STEM', 'ABM', 'ICT', 'HUMSS'];
-    public const FORMAT_HELP = 'The file must start with "Strand:" and "Section:" rows, then a header row of Learning ID, Lastname, Firstname, Middle. Please download the roster template and use it.';
+    public const FORMAT_HELP = 'The file must start with "Strand:" and "Section:" rows, then a header row of LRN, Lastname, Firstname, Middle. Please download the roster template and use it.';
 
     /**
      * @param resource $handle an open CSV file
@@ -116,7 +116,7 @@ class RosterCsv
             }
             return null;
         };
-        $idxId = $col(['learning id', 'learningid', 'lrn']);
+        $idxId = $col(['student number', 'studentnumber', 'learning id', 'learningid', 'lrn']); // the older names still work
         $idxLast = $col(['lastname', 'last name']);
         $idxFirst = $col(['firstname', 'first name']);
         $idxMiddle = $col(['middle', 'middle name', 'middlename']);
@@ -141,7 +141,7 @@ class RosterCsv
             $middle = $idxMiddle !== null ? trim((string) ($line[$idxMiddle] ?? '')) : '';
 
             if ($lrn === '' || $last === '' || $first === '') {
-                $result['details'][] = "Row $num: missing a required value (Learning ID, Lastname and Firstname are needed).";
+                $result['details'][] = "Row $num: missing a required value (LRN, Lastname and Firstname are needed).";
                 continue;
             }
             if (!Lrn::isValid($lrn)) {
@@ -158,6 +158,6 @@ class RosterCsv
     private static function isHeader(array $line): bool
     {
         $first = strtolower(preg_replace('/\s+/', ' ', trim((string) ($line[0] ?? ''))));
-        return in_array($first, ['learning id', 'learningid', 'lrn'], true);
+        return in_array($first, ['student number', 'studentnumber', 'learning id', 'learningid', 'lrn'], true);
     }
 }

@@ -32,7 +32,7 @@
     { title: 'Assessment', items: [
       { id: 'career-dataset', href: 'career-dataset', label: 'Career Dataset', icon: 'database' },
       { id: 'question-bank', href: 'question-bank', label: 'Question Bank', icon: 'quiz' },
-      { id: 'exam-schedules', href: 'exam-schedules', label: 'Exam Scheduling', icon: 'calendar' },
+      { id: 'exam-schedules', href: 'exam-schedules', label: 'Assessment Scheduling', icon: 'calendar' },
       { id: 'monitoring', href: 'monitoring', label: 'Monitoring', icon: 'monitoring' }
     ] },
     { title: 'Student Support', items: [

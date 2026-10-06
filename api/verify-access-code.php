@@ -55,7 +55,7 @@ if ($student && $student['academic_year']) {
 $matchedScheduleId = null;
 if (!$candidates) {
     AuditLogger::log($user['id'], 'student', 'access_code_failed', 'assessment', null, 'No exam scheduled for this student\'s group');
-    jsonResponse(['success' => false, 'error' => 'No exam is scheduled for your group yet. Please ask your guidance counselor.'], 403);
+    jsonResponse(['success' => false, 'error' => 'No assessment is scheduled for your group yet. Please ask your guidance counselor.'], 403);
 }
 
 // Looped and hash_equals-compared in PHP (never in SQL) so the comparison is
@@ -78,7 +78,7 @@ foreach ($candidates as $c) {
 if ($matchedScheduleId === null) {
     if ($expiredMatch) {
         AuditLogger::log($user['id'], 'student', 'access_code_failed', 'assessment', null, 'Expired assessment access code (exam already ended)');
-        jsonResponse(['success' => false, 'error' => 'This access code has expired because the exam has already ended. Please ask your guidance counselor for the current schedule and code.'], 403);
+        jsonResponse(['success' => false, 'error' => 'This access code has expired because the assessment has already ended. Please ask your guidance counselor for the current schedule and code.'], 403);
     }
     AuditLogger::log($user['id'], 'student', 'access_code_failed', 'assessment', null, 'Incorrect assessment access code');
     jsonResponse(['success' => false, 'error' => 'Incorrect access code.'], 403);

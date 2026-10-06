@@ -192,7 +192,7 @@
           <div class="flex flex-col sm:flex-row sm:items-center gap-3">
             <div class="relative w-full sm:w-64">
               <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" viewBox="0 -960 960 960" fill="#64748B"><path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>
-              <input type="text" id="studentSearch" placeholder="Search by name or LRN..." aria-label="Search by name or LRN" class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+              <input type="text" id="studentSearch" placeholder="Search by name..." aria-label="Search by name" class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
             </div>
             <div class="relative">
               <button type="button" id="filterBtn" class="w-full sm:w-auto flex items-center justify-center gap-2 border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
@@ -306,7 +306,7 @@
     headerAvatarWrap.innerHTML = `<img src="${currentUser.avatarUrl}" alt="" class="w-full h-full object-cover">`;
   }
   const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
-  document.getElementById('headerUserName').textContent = currentUser.username;
+  document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
   document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
 
   const logoutModal = document.getElementById('logoutConfirmModal');
@@ -420,7 +420,7 @@
     const counselingCell = s.counseling
       ? badge(s.counseling, COUNSELING_STYLE[s.counseling])
       : '<span class="text-gray-500">—</span>';
-    const params = new URLSearchParams({ schoolId: s.schoolId });
+    const params = new URLSearchParams({ id: s.userId });
     // A roster-only entry has no account to open a profile for — no link,
     // just a dash, matching the other empty-data cells in this row.
     const actionCell = isRosterOnly

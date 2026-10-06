@@ -12,7 +12,7 @@ $username = trim((string) ($body['username'] ?? ''));
 $password = (string) ($body['password'] ?? '');
 
 if ($username === '' || $password === '') {
-    jsonResponse(['success' => false, 'error' => 'Username and password are required.'], 400);
+    jsonResponse(['success' => false, 'error' => 'Email (or LRN) and password are required.'], 400);
 }
 
 $pdo = Database::get();
@@ -30,8 +30,14 @@ function lockoutPolicy(PDO $pdo): array
 $stmt = $pdo->prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?)');
 $stmt->execute([$username]);
 $user = $stmt->fetch();
+// Staff sign in with their email (they have no username to remember); students keep using their LRN.
+if (!$user && strpos($username, '@') !== false) {
+    $byEmail = $pdo->prepare("SELECT * FROM users WHERE LOWER(email) = LOWER(?) AND role IN ('admin', 'counselor') ORDER BY id LIMIT 1");
+    $byEmail->execute([$username]);
+    $user = $byEmail->fetch();
+}
 
-$genericError = ['success' => false, 'error' => 'Invalid username or password.'];
+$genericError = ['success' => false, 'error' => 'Invalid email, LRN or password.'];
 
 if (!$user || !$user['is_active']) {
     AuditLogger::log(null, null, 'login_failed', 'user', $username, 'Unknown or inactive username');
@@ -53,6 +59,10 @@ if (!password_verify($password, $user['password_hash'])) {
     }
     $update = $pdo->prepare('UPDATE users SET failed_login_attempts = ?, locked_until = ? WHERE id = ?');
     $update->execute([$attempts, $lockedUntil, $user['id']]);
+    if ($lockedUntil !== null) {
+        // One entry per lockout (not per wrong password): what the Security Overview's Account Lockouts counts.
+        AuditLogger::log((int) $user['id'], $user['role'], 'login_lockout', 'user', $username, "Locked for {$policy['lockoutMinutes']} minutes after {$policy['maxAttempts']} failed attempts");
+    }
 
     AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Incorrect password');
     jsonResponse($genericError, 401);
@@ -99,6 +109,10 @@ $sessionData = [
     'username' => $user['username'],
     'avatarUrl' => $user['avatar_data_url'],
 ];
+// What staff see beside their name: their own name, not a login name.
+if ($user['role'] !== 'student') {
+    $sessionData['displayName'] = trim((string) ($user['full_name'] ?? '')) !== '' ? $user['full_name'] : $user['username'];
+}
 // Guidance counselors and facilitators share one role and one set of
 // permissions; the position is just the title shown beside their name.
 if ($user['role'] === 'counselor') {

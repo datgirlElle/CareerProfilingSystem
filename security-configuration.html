@@ -190,11 +190,13 @@
               <div class="border border-slate-200 rounded-lg p-[17px] flex flex-col gap-3">
                 <p class="text-sm font-semibold text-slate-800">Guidance Office Hours</p>
                 <p class="text-xs text-slate-500">Shown on the student Help Center page's "Contact the Guidance Office" card.</p>
-                <div class="flex items-center gap-2">
-                  <input type="text" id="officeHoursInput" maxlength="100" class="flex-1 border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#ed1c24]" placeholder="e.g. Mon–Fri, 8:00 AM–5:00 PM">
+                <div id="officeHoursGrid" class="flex flex-col gap-1.5"></div>
+                <p class="text-xs text-slate-500">Students will see: <span id="officeHoursPreview" class="font-medium text-slate-700">—</span></p>
+                <p id="officeHoursError" class="hidden text-xs text-[#ed1c24]" aria-live="polite"></p>
+                <div class="flex items-center gap-3">
                   <button type="button" id="officeHoursSave" class="px-4 py-2 text-xs font-semibold text-white bg-[#0f2a6b] rounded-md hover:opacity-90 shrink-0">Save</button>
+                  <p id="officeHoursStatus" class="hidden text-xs" aria-live="polite"></p>
                 </div>
-                <p id="officeHoursStatus" class="hidden text-xs" aria-live="polite"></p>
               </div>
 
               <div class="border border-slate-200 rounded-lg p-[17px] flex flex-col gap-3">
@@ -342,8 +344,8 @@
             <div class="p-5 grid grid-cols-2 gap-4">
               <div class="border border-slate-200 rounded-lg p-4 flex flex-col items-center justify-center text-center">
                 <img src="images/security/icon-overview-alerts.svg" alt="" class="w-[21px] h-6 mb-2">
-                <p class="text-2xl font-bold text-slate-800" id="overviewFailedLogins">—</p>
-                <p class="text-xs font-medium text-slate-600">Failed Logins</p>
+                <p class="text-2xl font-bold text-slate-800" id="overviewLockouts">—</p>
+                <p class="text-xs font-medium text-slate-600">Account Lockouts</p>
                 <p class="text-[10px] text-slate-500 mt-1">Last 7 days</p>
               </div>
               <div class="border border-slate-200 rounded-lg p-4 flex flex-col items-center justify-center text-center">
@@ -352,17 +354,11 @@
                 <p class="text-xs font-medium text-slate-600">Active Users</p>
                 <p class="text-[10px] text-slate-500 mt-1">Today</p>
               </div>
-              <div class="border border-slate-200 rounded-lg p-4 flex flex-col items-center justify-center text-center">
+              <div class="border border-slate-200 rounded-lg p-4 flex flex-col items-center justify-center text-center" style="grid-column: span 2">
                 <img src="images/security/icon-overview-alerts.svg" alt="" class="w-[21px] h-6 mb-2">
                 <p class="text-2xl font-bold text-slate-800" id="overviewPendingFlags">—</p>
                 <p class="text-xs font-medium text-slate-600">Pending Monitoring Flags</p>
                 <p class="text-[10px] text-slate-500 mt-1">Awaiting review</p>
-              </div>
-              <div class="border border-slate-200 rounded-lg p-4 flex flex-col items-center justify-center text-center">
-                <img src="images/security/icon-overview-backup.svg" alt="" class="w-[18px] h-6 mb-2">
-                <p class="text-2xl font-bold text-slate-800" id="overviewEncryptedRecords">—</p>
-                <p class="text-xs font-medium text-slate-600">Encrypted Records</p>
-                <p class="text-[10px] text-slate-500 mt-1">AES-256 protected</p>
               </div>
             </div>
           </div>
@@ -394,6 +390,7 @@
       <button type="button" id="rolesModalClose" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
     </div>
     <div class="px-6 py-5">
+      <p class="text-xs text-slate-500 mb-4">Administrator and Student access are fixed. Only the Guidance Counselor / Facilitator column can be changed.</p>
       <table class="w-full text-left border-collapse">
         <thead>
           <tr>
@@ -462,7 +459,7 @@
   }
   const isAdmin = currentUser.role === 'admin';
   const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
-  document.getElementById('headerUserName').textContent = currentUser.username;
+  document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
   document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
 
   const logoutModal = document.getElementById('logoutConfirmModal');
@@ -531,7 +528,7 @@
       { id: 'counselor', label: 'CGC Guidance Counselor', desc: 'Counselor and facilitator accounts', icon: 'images/security/icon-module-counselor.svg', iconClass: 'w-3 h-4 mt-0.5' },
       { id: 'monitoring', label: 'Student Monitoring', desc: 'View student progress and status', icon: 'images/security/icon-module-monitoring.svg', iconClass: 'w-4 h-4 mt-0.5' },
       { id: 'announcements', label: 'Announcements', desc: 'Send updates to students', icon: 'images/security/icon-module-announcements.svg', iconClass: 'w-4 h-4 mt-0.5' },
-      { id: 'examinations', label: 'Examination Management', desc: 'Exam schedules and rooms', icon: 'images/security/icon-module-examinations.svg', iconClass: 'w-4 h-4 mt-0.5' },
+      { id: 'examinations', label: 'Assessment Scheduling', desc: 'Assessment schedules and rooms', icon: 'images/security/icon-module-examinations.svg', iconClass: 'w-4 h-4 mt-0.5' },
       { id: 'counselingNotes', label: 'Counseling Notes', desc: 'Session notes on student profiles', icon: 'images/security/icon-module-counseling-notes.svg', iconClass: 'w-3.5 h-4 mt-0.5' },
       { id: 'sections', label: 'Section Management', desc: 'Account Management. Limited: add sections. Full: also deactivate them', icon: 'images/security/icon-people.svg', iconClass: 'w-4 h-4 mt-0.5' }
     ];
@@ -550,14 +547,91 @@
       renderLastUpdated();
     }
 
-    function renderSystemCustomization() {
-      document.getElementById('officeHoursInput').value = state.officeHours.text;
-      if (!isAdmin) {
-        [document.getElementById('officeHoursInput'), document.getElementById('officeHoursSave')].forEach(el => {
-          el.disabled = true;
-          el.classList.add('opacity-60', 'cursor-not-allowed');
-        });
+    // ---- Guidance Office Hours: pick the days and times instead of typing them ----
+    const OH_DAYS = [['mon', 'Monday'], ['tue', 'Tuesday'], ['wed', 'Wednesday'], ['thu', 'Thursday'], ['fri', 'Friday'], ['sat', 'Saturday'], ['sun', 'Sunday']];
+    const OH_SHORT = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
+    // 6:00 AM to 9:30 PM in 30-minute steps, as 24-hour "HH:MM" values
+    const OH_TIMES = (function() {
+      const out = [];
+      for (let m = 6 * 60; m <= 21 * 60 + 30; m += 30) {
+        out.push(String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'));
       }
+      return out;
+    })();
+    function ohLabel(hhmm) {
+      const h = parseInt(hhmm.slice(0, 2), 10), m = hhmm.slice(3);
+      return (h % 12 === 0 ? 12 : h % 12) + ':' + m + ' ' + (h >= 12 ? 'PM' : 'AM');
+    }
+    function ohOptions(selected) {
+      return OH_TIMES.map(t => '<option value="' + t + '"' + (t === selected ? ' selected' : '') + '>' + ohLabel(t) + '</option>').join('');
+    }
+    // The schedule as currently chosen on the page: [{day, open, close}] for the open days.
+    function ohCollect() {
+      return OH_DAYS.filter(d => document.getElementById('ohOpen_' + d[0]).checked).map(d => ({
+        day: d[0],
+        open: document.getElementById('ohFrom_' + d[0]).value,
+        close: document.getElementById('ohTo_' + d[0]).value
+      }));
+    }
+    // Same wording the server builds: consecutive days with the same hours become a range.
+    function ohText(schedule) {
+      const order = OH_DAYS.map(d => d[0]);
+      const groups = [];
+      schedule.forEach(function(row) {
+        const idx = order.indexOf(row.day);
+        const hours = ohLabel(row.open) + '–' + ohLabel(row.close);
+        const last = groups[groups.length - 1];
+        if (last && last.hours === hours && last.endIdx === idx - 1) { last.endIdx = idx; last.end = row.day; }
+        else groups.push({ hours: hours, start: row.day, end: row.day, endIdx: idx });
+      });
+      return groups.map(g => (g.start === g.end ? OH_SHORT[g.start] : OH_SHORT[g.start] + '–' + OH_SHORT[g.end]) + ', ' + g.hours).join('; ');
+    }
+    // Returns an error message (and shows it) when the choice isn't a valid schedule.
+    function ohValidate() {
+      const schedule = ohCollect();
+      let error = '';
+      if (!schedule.length) error = 'Choose at least one day the Guidance Office is open.';
+      schedule.some(function(row) {
+        if (row.close <= row.open) { error = OH_SHORT[row.day] + ': closing time must be later than opening time.'; return true; }
+        return false;
+      });
+      const errEl = document.getElementById('officeHoursError');
+      errEl.textContent = error;
+      errEl.classList.toggle('hidden', !error);
+      document.getElementById('officeHoursPreview').textContent = error ? '—' : ohText(schedule);
+      const save = document.getElementById('officeHoursSave');
+      save.disabled = !!error || !isAdmin;
+      save.classList.toggle('opacity-60', save.disabled);
+      save.classList.toggle('cursor-not-allowed', save.disabled);
+      return error;
+    }
+    function renderSystemCustomization() {
+      const byDay = {};
+      (state.officeHours.schedule || []).forEach(r => { byDay[r.day] = r; });
+      document.getElementById('officeHoursGrid').innerHTML = OH_DAYS.map(function(d) {
+        const r = byDay[d[0]];
+        const sel = 'class="border border-slate-200 rounded-md px-2 py-1.5 text-xs text-slate-700 disabled:opacity-40 disabled:bg-slate-50"';
+        return '<div class="flex items-center gap-3">' +
+          '<label class="flex items-center gap-2 w-32 text-sm text-slate-700"><input type="checkbox" id="ohOpen_' + d[0] + '" class="w-4 h-4 accent-[#0f2a6b]"' + (r ? ' checked' : '') + '>' + d[1] + '</label>' +
+          '<select id="ohFrom_' + d[0] + '" aria-label="' + d[1] + ' opening time" ' + sel + (r ? '' : ' disabled') + '>' + ohOptions(r ? r.open : '08:00') + '</select>' +
+          '<span class="text-xs text-slate-400">to</span>' +
+          '<select id="ohTo_' + d[0] + '" aria-label="' + d[1] + ' closing time" ' + sel + (r ? '' : ' disabled') + '>' + ohOptions(r ? r.close : '17:00') + '</select>' +
+          '<span class="text-xs text-slate-400" id="ohClosed_' + d[0] + '"' + (r ? ' hidden' : '') + '>Closed</span>' +
+        '</div>';
+      }).join('');
+      OH_DAYS.forEach(function(d) {
+        document.getElementById('ohOpen_' + d[0]).addEventListener('change', function() {
+          document.getElementById('ohFrom_' + d[0]).disabled = !this.checked;
+          document.getElementById('ohTo_' + d[0]).disabled = !this.checked;
+          document.getElementById('ohClosed_' + d[0]).hidden = this.checked;
+          ohValidate();
+        });
+        ['ohFrom_', 'ohTo_'].forEach(p => document.getElementById(p + d[0]).addEventListener('change', ohValidate));
+      });
+      if (!isAdmin) {
+        document.querySelectorAll('#officeHoursGrid input, #officeHoursGrid select').forEach(el => { el.disabled = true; });
+      }
+      ohValidate();
     }
 
     function renderPrincipalContact() {
@@ -579,10 +653,9 @@
     }
 
     function renderOverview() {
-      document.getElementById('overviewFailedLogins').textContent = state.overview.failedLogins7d;
+      document.getElementById('overviewLockouts').textContent = state.overview.lockouts7d;
       document.getElementById('overviewActiveUsers').textContent = state.overview.activeUsersToday;
       document.getElementById('overviewPendingFlags').textContent = state.overview.pendingFlags;
-      document.getElementById('overviewEncryptedRecords').textContent = state.overview.encryptedRecords;
     }
 
     function renderLastUpdated() {
@@ -621,6 +694,11 @@
           // recovery path if an admin accidentally revokes their own access (backend enforces this too).
           if (r === 'admin') {
             return '<td class="py-2.5 px-1 text-center"><span class="text-xs text-slate-400" title="Administrator access cannot be changed">Full (fixed)</span></td>';
+          }
+          // Student access is fixed too: students only ever need to take the assessment, view their results
+          // and recommendations, request counseling and read announcements (backend enforces this as well).
+          if (r === 'student') {
+            return '<td class="py-2.5 px-1 text-center"><span class="text-xs text-slate-400" title="Student access cannot be changed">' + LEVEL_LABEL[state.rbac[m.id][r]] + ' (fixed)</span></td>';
           }
           const options = Object.keys(LEVEL_LABEL).map(lvl =>
             '<option value="' + lvl + '"' + (state.rbac[m.id][r] === lvl ? ' selected' : '') + '>' + LEVEL_LABEL[lvl] + '</option>'
@@ -859,10 +937,10 @@
 
       document.getElementById('officeHoursSave').addEventListener('click', async function() {
         const statusEl = document.getElementById('officeHoursStatus');
-        const value = document.getElementById('officeHoursInput').value.trim();
+        if (ohValidate()) return;
         const res = await fetch('api/security-config.php', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'officeHours', text: value })
+          body: JSON.stringify({ type: 'officeHours', schedule: ohCollect() })
         });
         const data = await res.json();
         statusEl.classList.remove('hidden');

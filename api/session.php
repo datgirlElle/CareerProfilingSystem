@@ -27,6 +27,16 @@ if ($user !== null && $user['role'] === 'counselor') {
     $user['positionLabel'] = StaffPosition::label($stmt->fetchColumn() ?: null);
 }
 
+// Staff are shown by their own name (they sign in with email, so the login name is internal).
+if ($user !== null && $user['role'] !== 'student') {
+    $stmt = Database::get()->prepare('SELECT full_name, username FROM users WHERE id = ?');
+    $stmt->execute([(int) $user['id']]);
+    $row = $stmt->fetch();
+    if ($row) {
+        $user['displayName'] = trim((string) $row['full_name']) !== '' ? $row['full_name'] : $row['username'];
+    }
+}
+
 $response = ['user' => $user, 'csrfToken' => Csrf::token()];
 if ($user !== null) {
     $response['sessionTimeout'] = Auth::sessionTimeoutPolicy();

@@ -28,7 +28,7 @@ function parseText(string $csv): array
 }
 
 echo "=== the template layout ===\n";
-$r = parseText("Strand:,STEM\nSection:,S1114\nLearning ID,Lastname,Firstname,Middle\n=\"123456789012\",Dela Cruz,Juan,Santos\n210987654321,Reyes,Ana,\n");
+$r = parseText("Strand:,STEM\nSection:,S1114\nLRN,Lastname,Firstname,Middle\n=\"123456789012\",Dela Cruz,Juan,Santos\n210987654321,Reyes,Ana,\n");
 check('no file-level error', $r['error'] === null);
 check('strand and section are read from the top', $r['strand'] === 'STEM' && $r['section'] === 'S1114');
 check('both students are read', count($r['rows']) === 2);
@@ -36,6 +36,8 @@ check('the template\'s ="..." LRN becomes plain digits', isset($r['rows']['12345
 check('name is "Lastname, Firstname Middle"', $r['rows']['123456789012'][1] === 'Dela Cruz, Juan Santos');
 check('a blank Middle leaves no trailing space', $r['rows']['210987654321'][1] === 'Reyes, Ana');
 check('no row-level problems', $r['details'] === []);
+$old = parseText("Strand:,STEM\nSection:,S1114\nLearning ID,Lastname,Firstname,Middle\n123456789012,A,B,\n");
+check('the Student Number and Learning ID header names also work', $old['error'] === null && count($old['rows']) === 1);
 
 echo "\n=== forgiving about how Excel saves it ===\n";
 $r = parseText("\xEF\xBB\xBFStrand:,stem,,\nSection:,S1114,,\nLearning ID,Lastname,Firstname,Middle\n123456789012,A,B,\n,,,\n");
@@ -51,7 +53,7 @@ $r = parseText("Strand:,PE\nSection:,S1114\nLearning ID,Lastname,Firstname,Middl
 check('an unknown strand is rejected', $r['error'] !== null && strpos($r['error'], 'Strand must be') === 0);
 $r = parseText("Strand:,STEM\nSection:,\nLearning ID,Lastname,Firstname,Middle\n123456789012,A,B,\n");
 check('an empty Section: row is rejected', $r['error'] !== null && strpos($r['error'], 'Section') !== false);
-$r = parseText("Strand:,STEM\nSection:,S1114\nLearning ID,Lastname,Firstname,Middle\n123,A,B,\n123456789012,,B,\n");
+$r = parseText("Strand:,STEM\nSection:,S1114\nLRN,Lastname,Firstname,Middle\n123,A,B,\n123456789012,,B,\n");
 check('a bad LRN and a missing name are listed per row', count($r['details']) === 2 && strpos($r['details'][0], 'Row 4') === 0 && strpos($r['details'][1], 'Row 5') === 0);
 $r = parseText('');
 check('an empty file is reported', $r['error'] === 'The file is empty.');

@@ -32,10 +32,10 @@ if (RateLimiter::tooMany('resend-verification:' . strtolower($username), 3, 60))
 $stmt = $pdo->prepare(
     "SELECT u.id, u.email, u.role, u.full_name, s.first_name_enc FROM users u
      LEFT JOIN students s ON s.user_id = u.id
-     WHERE LOWER(u.username) = LOWER(?) AND u.email_verified_at IS NULL
+     WHERE (LOWER(u.username) = LOWER(?) OR LOWER(u.email) = LOWER(?)) AND u.email_verified_at IS NULL
        AND (u.role = 'student' OR (u.role = 'counselor' AND u.approval_status = 'pending'))"
 );
-$stmt->execute([$username]);
+$stmt->execute([$username, $username]);
 $user = $stmt->fetch();
 
 if (!$user || !$user['email']) {

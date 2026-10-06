@@ -207,7 +207,7 @@
   const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
   const nameEl = document.getElementById('headerUserName');
   const roleEl = document.getElementById('headerUserRole');
-  if (nameEl) nameEl.textContent = currentUser.username;
+  if (nameEl) nameEl.textContent = currentUser.displayName || currentUser.username;
   if (roleEl) roleEl.textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
 
   const logoutModal = document.getElementById('logoutConfirmModal');

@@ -33,7 +33,7 @@ if ($section !== '') {
 }
 
 $stmt = $pdo->prepare(
-    'SELECT s.school_id, s.first_name_enc, s.last_name_enc, s.strand, s.grade_level, s.section,
+    'SELECT s.first_name_enc, s.last_name_enc, s.strand, s.grade_level, s.section,
             a.top_types, a.completed_at, a.score_r, a.score_i, a.score_a, a.score_s, a.score_e, a.score_c
      FROM students s
      LEFT JOIN assessments a ON a.student_id = s.user_id AND a.is_latest = TRUE
@@ -48,14 +48,13 @@ header('Content-Type: text/csv');
 header('Content-Disposition: attachment; filename="student-roster-' . $safeAy . '.csv"');
 $out = fopen('php://output', 'w');
 fputcsv($out, [
-    'LRN', 'Last Name', 'First Name', 'Strand', 'Grade Level', 'Section',
+    'Last Name', 'First Name', 'Strand', 'Grade Level', 'Section',
     'Assessment Status', 'Top RIASEC Types', 'R', 'I', 'A', 'S', 'E', 'C',
 ], escape: '\\');
 
 foreach ($stmt as $row) {
     $completed = $row['completed_at'] !== null;
     fputcsv($out, [
-        $row['school_id'],
         Crypto::dec($row['last_name_enc']),
         Crypto::dec($row['first_name_enc']),
         $row['strand'],

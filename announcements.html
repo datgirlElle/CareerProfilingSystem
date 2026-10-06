@@ -181,8 +181,8 @@
           <div class="mb-4">
             <p class="text-xs font-medium text-slate-600 mb-2">Start from a template</p>
             <div class="grid grid-cols-2 gap-2" id="templateButtons">
-              <button type="button" class="tpl-btn text-left border border-slate-200 rounded-md px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50" data-tpl="exam">Exam Notice</button>
-              <button type="button" class="tpl-btn text-left border border-slate-200 rounded-md px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50" data-tpl="results">Results Ready</button>
+              <button type="button" class="tpl-btn text-left border border-slate-200 rounded-md px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50" data-tpl="assessment">Assessment Notice</button>
+              <button type="button" class="tpl-btn text-left border border-slate-200 rounded-md px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50" data-tpl="afterAssessment">What to Do After the Assessment</button>
               <button type="button" class="tpl-btn text-left border border-slate-200 rounded-md px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50" data-tpl="guidance">Guidance Reminder</button>
               <button type="button" class="tpl-btn text-left border border-slate-200 rounded-md px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50" data-tpl="system">System Notice</button>
             </div>
@@ -218,7 +218,7 @@
               <div id="studentPicker" class="hidden">
                 <div id="selectedChips" class="flex flex-wrap gap-1.5 mb-2"></div>
                 <div class="relative">
-                  <input type="text" id="studentSearchInput" placeholder="Search by name or LRN…" autocomplete="off" class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+                  <input type="text" id="studentSearchInput" placeholder="Search by name…" autocomplete="off" class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
                   <div id="studentCheckList" class="hidden absolute left-0 right-0 top-full mt-1 z-20 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-auto divide-y divide-slate-100"></div>
                 </div>
                 <p class="text-xs text-slate-500 mt-1"><span id="selectedCount">0</span> selected</p>
@@ -346,7 +346,7 @@
     headerAvatarWrap.innerHTML = `<img src="${currentUser.avatarUrl}" alt="" class="w-full h-full object-cover">`;
   }
   const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
-  document.getElementById('headerUserName').textContent = currentUser.username;
+  document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
   document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
 
   // 'announcements' is Full for admins and Limited for counselors by default,
@@ -405,14 +405,6 @@
 
   function escapeHtml(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-  // Masks everything but the last 4 digits (e.g. "123456789012" -> "••••••••9012")
-  // so staff lists don't expose the full LRN at a glance. The recipient
-  // search filter still matches against the real schoolId — only the
-  // displayed text here is masked.
-  function maskLrn(lrn) {
-    const s = String(lrn || '');
-    return s.length > 4 ? '•'.repeat(s.length - 4) + s.slice(-4) : s;
   }
   // Always render in school time (Asia/Manila), whatever the viewer's device
   // clock is set to. Postgres may send "+08" without minutes, which some
@@ -605,8 +597,8 @@
   let editingId = null;
 
   const TEMPLATES = {
-    exam: { title: 'Assessment Exam Schedule', body: 'Your RIASEC career assessment is scheduled. Please check My Exam Schedule on your Assessments page for the date, time and room, and get the access code from your guidance counselor on the day. Bring your school ID and arrive 10 minutes early.' },
-    results: { title: 'Your Career Results Are Ready', body: 'If you have finished your RIASEC assessment and career worksheet, you can now see the MMCL programs you match and the careers that fit them under Career Results on your student portal.' },
+    assessment: { title: 'Assessment Notice', body: 'Your RIASEC career assessment is scheduled. Please check My Assessment Schedule on your Assessments page for the date, time and room, and get the access code from your guidance counselor on the day. Bring your school ID and arrive 10 minutes early.' },
+    afterAssessment: { title: 'What to Do After the Assessment', body: 'Thank you for taking the RIASEC career assessment. Here is what to do next:\n1. Review your assessment results under Career Results.\n2. Check the MMCL programs and careers recommended for you.\n3. Save the programs that interest you under Saved Careers.\n4. Request counseling through the Help Center if you need assistance.\n5. Contact the Guidance Office if you have questions.' },
     guidance: { title: 'Guidance Office Reminder', body: 'The Guidance Office is open for career counseling during office hours. You can request a session anytime through the Help Center in your student portal.' },
     system: { title: 'System Maintenance Notice', body: 'ProfilePath will be briefly unavailable while we do maintenance. Please save your work and try again a little later. Thank you for your patience.' }
   };
@@ -682,12 +674,12 @@
     const needle = (filterText || '').trim().toLowerCase();
     const matches = allStudents.filter(function(s) {
       if (s.userId === null || selectedStudentIds.has(s.userId)) return false;
-      return !needle || s.name.toLowerCase().includes(needle) || String(s.schoolId).toLowerCase().includes(needle);
+      return !needle || s.name.toLowerCase().includes(needle);
     });
     resultsBox.innerHTML = matches.length
       ? matches.map(function(s) {
           return '<button type="button" class="student-option w-full text-left px-3 py-2 text-sm hover:bg-slate-50" data-id="' + s.userId + '">' +
-            escapeHtml(s.name) + ' <span class="text-xs text-slate-400">(' + escapeHtml(maskLrn(s.schoolId)) + ')</span></button>';
+            escapeHtml(s.name) + ' <span class="text-xs text-slate-400">(' + escapeHtml(s.strand) + (s.section ? ' ' + escapeHtml(s.section) : '') + ')</span></button>';
         }).join('')
       : '<p class="text-xs text-slate-400 text-center py-4">No matching students.</p>';
     resultsBox.classList.remove('hidden');

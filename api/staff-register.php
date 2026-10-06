@@ -6,10 +6,13 @@ require_once __DIR__ . '/../lib/EmailTemplate.php';
 require_once __DIR__ . '/../lib/PasswordPolicy.php';
 require_once __DIR__ . '/../lib/RateLimiter.php';
 require_once __DIR__ . '/../lib/StaffPosition.php';
+require_once __DIR__ . '/../lib/StaffName.php';
 
-// Public staff (guidance counselor) sign-up. The account starts 'pending': the
+// Public staff (guidance counselor / facilitator) sign-up. The account starts 'pending': the
 // person must confirm their email, then an administrator approves them in
 // Account Management before they can sign in. Admins are never created here.
+// Staff sign in with their email, so there is no username to choose; the users table still
+// needs one, so an internal one is generated (never shown, and never LRN-shaped).
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -23,14 +26,13 @@ if (RateLimiter::tooMany('staff-register:' . $ip, 5, 60)) {
 
 $pdo = Database::get();
 $body = readJsonBody();
-$fullName = trim((string) ($body['fullName'] ?? ''));
+$fullName = StaffName::normalize((string) ($body['fullName'] ?? ''));
 $position = (string) ($body['position'] ?? '');
-$username = trim((string) ($body['username'] ?? ''));
 $email = trim((string) ($body['email'] ?? ''));
 $password = (string) ($body['password'] ?? '');
 $privacyConsent = $body['privacyConsent'] ?? false;
 
-if ($fullName === '' || $username === '' || $email === '' || $password === '') {
+if ($fullName === '' || $email === '' || $password === '') {
     jsonResponse(['success' => false, 'error' => 'All fields are required.'], 400);
 }
 if (!StaffPosition::isValid($position)) {
@@ -42,13 +44,8 @@ if ($privacyConsent !== true) {
 if (mb_strlen($fullName) > 150) {
     jsonResponse(['success' => false, 'error' => 'Name must be 150 characters or fewer.'], 400);
 }
-if (!preg_match('/^[A-Za-z0-9._-]{3,50}$/', $username)) {
-    jsonResponse(['success' => false, 'error' => 'Username must be 3 to 50 characters: letters, numbers, dots, dashes or underscores.'], 400);
-}
-// A staff username must never look like an LRN, or it could shadow or collide
-// with a student's login (students sign in with their 10-12 digit LRN).
-if (preg_match('/^[0-9]{10,12}$/', $username)) {
-    jsonResponse(['success' => false, 'error' => 'Choose a username that is not just numbers.'], 400);
+if (!StaffName::isValid($fullName)) {
+    jsonResponse(['success' => false, 'error' => StaffName::FORMAT_MESSAGE], 400);
 }
 if (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 255) {
     jsonResponse(['success' => false, 'error' => 'Enter a valid email address.'], 400);
@@ -58,11 +55,14 @@ if ($errors) {
     jsonResponse(['success' => false, 'error' => implode(' ', $errors)], 400);
 }
 
-$existing = $pdo->prepare('SELECT 1 FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?)');
-$existing->execute([$username, $email]);
+$existing = $pdo->prepare('SELECT 1 FROM users WHERE LOWER(email) = LOWER(?)');
+$existing->execute([$email]);
 if ($existing->fetch()) {
-    jsonResponse(['success' => false, 'error' => 'An account with this username or email already exists.'], 409);
+    jsonResponse(['success' => false, 'error' => 'An account with this email already exists.'], 409);
 }
+
+// Internal login name: "staff-" + random hex, so it can never collide with a student's LRN.
+$username = 'staff-' . bin2hex(random_bytes(6));
 
 $pdo->beginTransaction();
 try {
@@ -86,7 +86,7 @@ try {
     jsonResponse(['success' => false, 'error' => 'Sign-up failed. Please try again.'], 500);
 }
 
-AuditLogger::log($userId, 'counselor', 'staff_signup', 'user', (string) $userId, "Staff sign-up awaiting approval: $username (" . StaffPosition::label($position) . ')');
+AuditLogger::log($userId, 'counselor', 'staff_signup', 'user', (string) $userId, "Staff sign-up awaiting approval: $fullName (" . StaffPosition::label($position) . ')');
 
 $verifyLink = rtrim((string) getenv('APP_URL'), '/') . '/verify-email?token=' . $rawToken;
 $safeName = htmlspecialchars($fullName, ENT_QUOTES, 'UTF-8');

@@ -196,7 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // Staff management view: everything, including drafts and scheduled ones.
     $rows = $pdo->query(
         "SELECT a.id, a.title, a.body_enc, a.target_type, a.status, a.publish_at, a.created_at, a.emailed_at, a.last_reminded_at,
-                u.username AS created_by_username,
+                COALESCE(NULLIF(u.full_name, ''), u.username) AS created_by_username,
                 (SELECT COUNT(*) FROM announcement_recipients ar WHERE ar.announcement_id = a.id) AS recipient_count,
                 (SELECT COUNT(*) FROM announcement_reads r
                    JOIN users ru ON ru.id = r.student_id AND ru.is_active = TRUE

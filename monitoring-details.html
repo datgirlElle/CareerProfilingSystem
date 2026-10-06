@@ -222,7 +222,7 @@
     headerAvatarWrap.innerHTML = `<img src="${currentUser.avatarUrl}" alt="" class="w-full h-full object-cover">`;
   }
   const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
-  document.getElementById('headerUserName').textContent = currentUser.username;
+  document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
   document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
 
   const logoutModal = document.getElementById('logoutConfirmModal');
@@ -296,12 +296,6 @@
       div.textContent = str;
       return div.innerHTML;
     }
-    // Masks everything but the last 4 digits (e.g. "123456789012" -> "••••••••9012")
-    // so staff lists don't expose the full LRN at a glance.
-    function maskLrn(lrn) {
-      const s = String(lrn || '');
-      return s.length > 4 ? '•'.repeat(s.length - 4) + s.slice(-4) : s;
-    }
 
     let activeTab = 'needs-review';
     let currentFlagId = null;
@@ -323,7 +317,7 @@
               '">' + escapeHtml(r.priority) + '</span></td>'
           : '';
         return '<tr>' +
-          '<td class="px-6 py-3"><p class="text-sm text-slate-900">' + escapeHtml(r.name) + '</p><p class="text-xs text-slate-500">' + escapeHtml(maskLrn(r.schoolId)) + '</p></td>' +
+          '<td class="px-6 py-3"><p class="text-sm text-slate-900">' + escapeHtml(r.name) + '</p></td>' +
           '<td class="px-6 py-3 text-sm text-slate-900">' + escapeHtml(r.strand) + '</td>' +
           '<td class="px-6 py-3 text-sm text-slate-600">' + escapeHtml(r.career) + '</td>' +
           '<td class="px-6 py-3 text-sm font-bold text-slate-700">' + escapeHtml(r.match) + '</td>' +
@@ -334,7 +328,7 @@
       }
       if (tab === 'completed') {
         return '<tr>' +
-          '<td class="px-6 py-3"><p class="text-sm text-slate-900">' + escapeHtml(r.name) + '</p><p class="text-xs text-slate-500">' + escapeHtml(maskLrn(r.schoolId)) + '</p></td>' +
+          '<td class="px-6 py-3"><p class="text-sm text-slate-900">' + escapeHtml(r.name) + '</p></td>' +
           '<td class="px-6 py-3 text-sm text-slate-900">' + escapeHtml(r.strand) + '</td>' +
           '<td class="px-6 py-3 text-sm text-slate-600">' + escapeHtml(r.career) + '</td>' +
           '<td class="px-6 py-3 text-sm font-bold text-green-600">' + escapeHtml(r.match) + '</td>' +
@@ -342,7 +336,7 @@
         '</tr>';
       }
       return '<tr>' +
-        '<td class="px-6 py-3"><p class="text-sm text-slate-900">' + escapeHtml(r.name) + '</p><p class="text-xs text-slate-500">' + escapeHtml(maskLrn(r.schoolId)) + '</p></td>' +
+        '<td class="px-6 py-3"><p class="text-sm text-slate-900">' + escapeHtml(r.name) + '</p></td>' +
         '<td class="px-6 py-3 text-sm text-slate-900">' + escapeHtml(r.strand) + '</td>' +
         '<td class="px-6 py-3 text-sm text-slate-600">' + escapeHtml(r.assigned) + '</td>' +
         '<td class="px-6 py-3"><span class="border text-xs font-bold px-2.5 py-1 rounded-md bg-slate-50 border-slate-200 text-slate-600">' + escapeHtml(r.status) + '</span></td>' +
@@ -394,7 +388,7 @@
     function openReviewModal(r) {
       currentFlagId = r.flagId;
       document.getElementById('reviewStudentName').textContent = r.name;
-      document.getElementById('reviewStudentId').textContent = maskLrn(r.schoolId);
+      document.getElementById('reviewStudentId').textContent = '';
       document.getElementById('reviewStrand').textContent = r.strand;
       document.getElementById('reviewMatch').textContent = r.match;
       document.getElementById('reviewCareer').textContent = r.career;

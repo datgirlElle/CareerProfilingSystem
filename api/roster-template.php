@@ -17,7 +17,7 @@ $out = fopen('php://output', 'w');
 // be copied onto every line. Upload one file per section.
 fputcsv($out, ['Strand:', 'STEM'], escape: '\\');
 fputcsv($out, ['Section:', 'S1114'], escape: '\\');
-fputcsv($out, ['Learning ID', 'Lastname', 'Firstname', 'Middle'], escape: '\\');
+fputcsv($out, ['LRN', 'Lastname', 'Firstname', 'Middle'], escape: '\\');
 // Excel auto-formats a bare 10+ digit CSV value as a number and displays it
 // in scientific notation (e.g. "1.23E+11") the moment the file is opened —
 // it's purely a display/formatting issue, the underlying value is untouched,
