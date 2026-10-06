@@ -54,7 +54,7 @@ check('an empty Section: row is rejected', $r['error'] !== null && strpos($r['er
 $r = parseText("Strand:,STEM\nSection:,S1114\nLearning ID,Lastname,Firstname,Middle\n123,A,B,\n123456789012,,B,\n");
 check('a bad LRN and a missing name are listed per row', count($r['details']) === 2 && strpos($r['details'][0], 'Row 4') === 0 && strpos($r['details'][1], 'Row 5') === 0);
 $r = parseText('');
-check('an empty file is reported', $r['error'] === 'The CSV file is empty.');
+check('an empty file is reported', $r['error'] === 'The file is empty.');
 $r = parseText("Strand:,STEM\nSection:,S1114\n");
 check('a file with no header row is rejected', $r['error'] === RosterCsv::FORMAT_HELP);
 

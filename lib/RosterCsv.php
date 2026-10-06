@@ -28,20 +28,35 @@ class RosterCsv
      */
     public static function parse($handle): array
     {
-        $result = ['error' => null, 'strand' => null, 'section' => null, 'rows' => [], 'details' => []];
-
         $lines = [];
-        $n = 0;
         // $escape is passed explicitly: PHP 8.4 notices when it is left unset.
         while (($line = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
-            $n++;
-            if ($n === 1 && isset($line[0])) {
-                $line[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $line[0]); // Excel's UTF-8 byte-order mark
-            }
-            $lines[$n] = $line;
+            $lines[] = $line;
         }
-        if (!$lines) {
-            $result['error'] = 'The CSV file is empty.';
+        return self::parseLines($lines);
+    }
+
+    /**
+     * Same layout, from rows already split into cells (a CSV read above, or a
+     * worksheet read by XlsxReader). Row n of the file is $lines[n - 1].
+     *
+     * @param array<int,array<int,mixed>> $lines
+     * @return array{error:?string,strand:?string,section:?string,rows:array<string,array{0:string,1:string}>,details:array<int,string>}
+     */
+    public static function parseLines(array $lines): array
+    {
+        $result = ['error' => null, 'strand' => null, 'section' => null, 'rows' => [], 'details' => []];
+
+        $numbered = [];
+        foreach (array_values($lines) as $i => $line) {
+            $numbered[$i + 1] = $line; // 1-based, matching the row numbers people see
+        }
+        $lines = $numbered;
+        if (isset($lines[1][0])) {
+            $lines[1][0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $lines[1][0]); // Excel's UTF-8 byte-order mark
+        }
+        if (!array_filter($lines, fn($l) => count(array_filter($l, fn($v) => trim((string) $v) !== '')) > 0)) {
+            $result['error'] = 'The file is empty.';
             return $result;
         }
 

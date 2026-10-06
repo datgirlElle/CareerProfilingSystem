@@ -160,7 +160,7 @@
           <div class="p-5 flex flex-col gap-4">
             <ol class="text-sm text-gray-600 list-decimal pl-5 flex flex-col gap-1">
               <li>Download the template. Type the Strand and Section once at the top, then list the students under Learning ID (10 to 12 digits), Lastname, Firstname and Middle.</li>
-              <li>Save it as a .csv file and upload it here. Each file is one section; upload a section again to replace just that section's list.</li>
+              <li>Save it as a .csv or Excel (.xlsx) file and upload it here. Each file is one section; upload a section again to replace just that section's list.</li>
             </ol>
             <div class="flex items-center gap-3 flex-wrap">
               <a id="downloadTemplateBtn" href="api/roster-template.php" class="inline-flex items-center gap-2 bg-white border border-gray-300 rounded-md px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
@@ -169,9 +169,9 @@
               </a>
               <button type="button" id="uploadRosterBtn" class="inline-flex items-center gap-2 bg-[#0f2a6b] text-white rounded-md px-4 py-2.5 text-sm font-medium shadow-sm hover:opacity-90">
                 <svg class="w-4 h-4" viewBox="0 -960 960 960" fill="currentColor"><path d="M440-320v-326L336-542l-56-58 200-200 200 200-56 58-104-104v326h-80ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
-                Upload Roster (CSV)
+                Upload Roster (CSV or Excel)
               </button>
-              <input type="file" id="rosterFileInput" accept=".csv,text/csv" class="hidden">
+              <input type="file" id="rosterFileInput" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden">
             </div>
             <pre id="rosterResult" class="hidden text-xs whitespace-pre-wrap rounded-md px-3.5 py-2.5"></pre>
           </div>
