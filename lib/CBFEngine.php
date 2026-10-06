@@ -15,7 +15,8 @@
  *   4. Cosine similarity  — cos(S, C) = (S · C) / (||S|| × ||C||) between the
  *                           student vector and EVERY course vector
  *   5. Ranking            — all courses sorted by similarity, highest first; the
- *                           first N (config top_n) are the recommendations
+ *                           student's mapped courses are every course tied at the
+ *                           highest similarity (config match_rule, selectMatches)
  *   6. Explanation        — which of the student's top RIASEC types the course shares
  *
  * Weights, encoding, scaling and N all live in config/cbf.php. The engine also
@@ -366,8 +367,8 @@ class CBFEngine
         // cosine, then the lower program id, so the order is always reproducible.
         usort($scored, fn($a, $b) => [$b['score'], $b['cosine'], $a['id']] <=> [$a['score'], $a['cosine'], $b['id']]);
 
-        // 'top3' holds the Top-N recommendations (N = config top_n, 3 by default).
-        $top3 = array_slice($scored, 0, $config['top_n'] ?? 3);
+        // 'top3' holds the student's mapped courses (config match_rule; see selectMatches).
+        $top3 = self::selectMatches($scored, 'score', $config);
         $statedInTop3 = $statedProgramId !== null && in_array($statedProgramId, array_column($top3, 'id'), true);
 
         $statedEntry = null;
@@ -381,6 +382,25 @@ class CBFEngine
         }
 
         return ['all' => $scored, 'top3' => $top3, 'statedOutsideTop3' => $statedEntry];
+    }
+
+    /**
+     * The student's mapped courses from a list already sorted by score (highest first).
+     *   match_rule 'highest': every entry tied at the highest score; none if that score is 0.
+     *   match_rule 'top_n'  : the first top_n entries.
+     * Used by recommend() and by api/recommendations.php on saved results, so both agree.
+     */
+    public static function selectMatches(array $sorted, string $scoreKey = 'score', ?array $config = null): array
+    {
+        $config ??= self::config();
+        if (($config['match_rule'] ?? 'top_n') !== 'highest') {
+            return array_slice($sorted, 0, $config['top_n'] ?? 3);
+        }
+        $best = $sorted ? (float) $sorted[0][$scoreKey] : 0.0;
+        if ($best <= 0) {
+            return [];
+        }
+        return array_values(array_filter($sorted, fn($e) => abs((float) $e[$scoreKey] - $best) < 1e-9));
     }
 
     /**

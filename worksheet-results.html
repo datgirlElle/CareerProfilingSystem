@@ -305,7 +305,7 @@
   document.getElementById('topInterestArea').textContent = INTEREST_AREA[topLetters[0]] || '—';
 
   // "Aligned" is a real, computed fact: does the program the student stated on the
-  // worksheet actually land in their own top-N CBF recommendation?
+  // worksheet actually land among their CBF Top Matches?
   const isAligned = recommendation.statedOutsideTop3 === null;
 
   const badge = document.getElementById('alignBadge');
@@ -318,17 +318,13 @@
   }
 
   const goalTitle = statedProgram ? statedProgram.title : 'your stated program';
-  const cosinePct = statedProgram ? Math.round(statedProgram.cosine * 100) : 0;
-  // Newer snapshots compare the whole profile (RIASEC + strand + electives)
-  // and carry an explanation of what matched; older ones were RIASEC-only.
-  const explanation = statedProgram && statedProgram.explanation;
-  // Only the interim multi-attribute snapshots (explanation, no formula) used more than RIASEC.
-  const multiAttribute = explanation && !statedProgram.formula;
-  const profileLabel = multiAttribute ? 'Your profile' : 'Your RIASEC profile';
-  const analysis = (isAligned
-    ? profileLabel + ' is a ' + cosinePct + '% cosine match with "' + goalTitle + '," which is why it lands in your own top-3 career recommendations.' + (explanation ? '' : ' The electives you chose reinforce the skills this path typically calls for.')
-    : profileLabel + ' is only a ' + cosinePct + '% cosine match with "' + goalTitle + ',"  so it did not make your own top-3 recommendation list based ' + (multiAttribute ? 'on profile fit' : 'purely on interest fit') + '. That doesn\'t rule it out — consider discussing this with a counselor to explore how your strengths could still support this goal.')
-    + (explanation ? ' ' + explanation : '');
+  // No percentages are shown to students (adviser); only whether the chosen
+  // program is among the RIASEC-based Top Matches.
+  const analysis = isAligned
+    ? '"' + goalTitle + '" is among your Top Matches: its Holland Code (' + (statedProgram ? statedProgram.hollandCode : '') +
+      ') matches your top RIASEC interest areas.'
+    : '"' + goalTitle + '" is not among your Top Matches based on your RIASEC results. That doesn\'t rule it out. ' +
+      'Please visit the Guidance Office to discuss it with a Guidance Counselor.';
   document.getElementById('analysisText').textContent = analysis;
 })();
 </script>

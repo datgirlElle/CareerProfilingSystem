@@ -34,6 +34,7 @@ $cfg = array_merge($base, [
     // hand-computed values stay fixed; production (binary) is tested at the end.
     'holland_rank_weights' => [1.00, 0.67, 0.33],
     'student_vector' => 'scores',
+    'match_rule' => 'top_n',
 ]);
 $W = $cfg['holland_rank_weights'];
 $ccis = $base['college_electives']['CCIS'];
@@ -195,7 +196,7 @@ $prod = CBFEngine::config();
 check('only the RIASEC block is used', CBFEngine::normalizedWeights($prod) === ['riasec' => 1.0]);
 check('ranking is by cosine alone (no stated-program bonus)', $prod['final_score'] == ['similarity' => 1.0, 'stated_program' => 0.0]);
 check('encoding is binary (1/1/1: letter present = 1, absent = 0)', $prod['holland_rank_weights'] === [1, 1, 1]);
-check('Top-N = 3', $prod['top_n'] === 3);
+check('mapped courses = every program tied at the highest similarity', $prod['match_rule'] === 'highest');
 check('student vector = top-3 binary', $prod['student_vector'] === 'top_binary' && $prod['student_top_n'] === 3);
 check('top-3 letters: C, I, E -> x under C, I, E (adviser sample)',
     CBFEngine::studentFeatures(['riasec' => ['R' => 36, 'I' => 39, 'A' => 37, 'S' => 32, 'E' => 39, 'C' => 41]])['riasec'] === [0, 1, 0, 0, 1, 1]);
@@ -223,6 +224,23 @@ check('score == cosine for every course, including the stated one', array_reduce
 check('tied courses ranked by lower id: IRC(1), RIC(2), ICR(4)', array_column($r['top3'], 'id') === [1, 2, 4]);
 check('stated low-fit program (AES) is NOT pushed into the Top-N', $r['statedOutsideTop3']['id'] === 3);
 check('low-match explanation names only RIASEC', CBFEngine::explain(['strand' => [], 'riasec' => [], 'electives' => []]) === 'This program shares none of your top RIASEC types, so its match is low.');
+// Adviser's sample student (top 3 = C, I, E) against all 32 programs.
+$all = [];
+foreach (require __DIR__ . '/../db/program_codes.php' as $i => [$c, $t, $o, $f]) {
+    $all[] = ['id' => $i + 1, 'title' => $t, 'hollandCode' => $f, 'collegeCode' => $c];
+}
+$cie = CBFEngine::recommend(['riasec' => ['R' => 36, 'I' => 39, 'A' => 37, 'S' => 32, 'E' => 39, 'C' => 41]], $all, null);
+check('C-I-E student: all 5 programs sharing C, I, E are matches (no cut at 3)',
+    array_column($cie['top3'], 'hollandCode') === ['CEI', 'CIE', 'ECI', 'EIC', 'IEC']);
+$icr = CBFEngine::recommend(['riasec' => ['R' => 36, 'I' => 45, 'A' => 20, 'S' => 17, 'E' => 30, 'C' => 39]], $all, null);
+check('I-C-R student: all 11 I/R/C programs incl. Marine Engineering, across colleges',
+    count($icr['top3']) === 11 && in_array('BS Marine Engineering', array_column($icr['top3'], 'title'), true)
+    && count(array_unique(array_column($icr['top3'], 'collegeCode'))) >= 4);
+check('same-code programs appear together (BSCS and BSIT)',
+    count(array_intersect(['BS Computer Science', 'BS Information Technology'], array_column($icr['top3'], 'title'))) === 2);
+check('no assessment -> no mapped courses (refer to guidance)', CBFEngine::recommend(['riasec' => null], $all, null)['top3'] === []);
+check('selectMatches keeps only entries tied at the best score',
+    array_column(CBFEngine::selectMatches([['id' => 1, 'score' => 1.0], ['id' => 2, 'score' => 1.0], ['id' => 3, 'score' => 0.6667]]), 'id') === [1, 2]);
 check('strand and electives do not affect the ranking', $byId[2]['blocks'] === ['riasec' => $byId[2]['blocks']['riasec']]);
 
 echo "\n=== Postgres text[] parsing ===\n";

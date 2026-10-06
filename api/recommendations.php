@@ -43,8 +43,10 @@ if ($row['source_worksheet_id'] !== null) {
 }
 
 $scores = json_decode($row['scores'], true);
-usort($scores, fn($a, $b) => $b['score'] <=> $a['score']);
-$top3Scores = array_slice($scores, 0, CBFEngine::config()['top_n'] ?? 3);
+// Same order as the engine: score, then cosine, then lower program id.
+usort($scores, fn($a, $b) => [$b['score'], $b['cosine'], $a['programId']] <=> [$a['score'], $a['cosine'], $b['programId']]);
+// The student's mapped courses ("Top Matches"), selected by the same rule as the engine.
+$top3Scores = CBFEngine::selectMatches($scores, 'score');
 
 $statedProgramId = $row['stated_program_id'] !== null ? (int) $row['stated_program_id'] : null;
 $top3Ids = array_column($top3Scores, 'programId');

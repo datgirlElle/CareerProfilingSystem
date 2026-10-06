@@ -39,8 +39,16 @@ return [
         'stated_program' => 0.0,
     ],
 
-    // Number of recommended courses returned to the student (Top-N).
-    'top_n' => 3,
+    // Which programs the CBF returns as the student's mapped courses ("Top Matches"):
+    //   'highest': every program tied at the student's highest similarity, e.g.
+    //              all programs sharing the student's three RIASEC letters. No cut
+    //              by list order; programs with the same code appear together.
+    //              Nothing is returned if the best similarity is 0.
+    //   'top_n'  : exactly the first top_n programs (ties cut by list order).
+    // Adviser's design: the CBF is the guidance-mapping component; its matches are
+    // later combined with the decision tree (final = courses common to both).
+    'match_rule' => 'highest',
+    'top_n'      => 3,
 
     // Student scores -> 0-1 scale. Each RIASEC dimension has 10 items answered
     // 1-5, so a raw total is 10..50.
