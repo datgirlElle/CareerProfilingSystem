@@ -392,14 +392,21 @@
 
   // The student types their own career. Careers from the program lists are
   // offered as suggestions (native datalist), nothing more: any text is fine.
-  const programsData = await (await fetch('api/programs.php')).json();
-  const suggestions = {};
-  programsData.programs.forEach(function(p) {
-    (p.careerOptions || [p.title]).forEach(function(career) { suggestions[career] = true; });
-  });
-  document.getElementById('careerSuggestions').innerHTML = Object.keys(suggestions).sort().map(function(career) {
-    return '<option value="' + career.replace(/"/g, '&quot;') + '"></option>';
-  }).join('');
+  // Loaded after the typing handlers below are attached, and allowed to fail:
+  // the suggestions are a convenience, the worksheet works without them.
+  async function loadSuggestions() {
+    try {
+      const programsData = await (await fetch('api/programs.php')).json();
+      const suggestions = {};
+      programsData.programs.forEach(function(p) {
+        (p.careerOptions || [p.title]).forEach(function(career) { suggestions[career] = true; });
+      });
+      document.getElementById('careerSuggestions').innerHTML = Object.keys(suggestions).sort().map(function(career) {
+        return '<option value="' + career.replace(/"/g, '&quot;') + '"></option>';
+      }).join('');
+    } catch (e) {
+    }
+  }
 
   // As they type, ask the server which MMCL program the text would link to
   // (the same matching worksheet-submit.php re-runs on submit).
@@ -417,9 +424,13 @@
     }
     let data;
     try {
-      data = await (await fetch('api/career-match.php?q=' + encodeURIComponent(career))).json();
+      const res = await fetch('api/career-match.php?q=' + encodeURIComponent(career));
+      data = await res.json();
+      if (!res.ok) data = { matched: false };
     } catch (e) {
-      return;
+      // The preview couldn't be reached: treat it as "not linked yet" so the
+      // electives still show and the student can carry on.
+      data = { matched: false };
     }
     if (request !== matchRequest) return; // a newer keystroke superseded this answer
     if (data.matched) {
@@ -470,6 +481,7 @@
   });
 
   renderElectives('');
+  loadSuggestions();
 })();
 </script>
 

@@ -20,9 +20,16 @@ if ($typed === null) {
     jsonResponse(['career' => null, 'matched' => false]);
 }
 
-$pdo = Database::get();
-$programs = CareerMatcher::loadPrograms($pdo);
-$programId = CareerMatcher::resolve($typed, $programs, CareerMatcher::latestScores($pdo, (int) $user['id']));
+// A failure here must not leave the worksheet stuck: log the cause and report
+// "no match" so the student can still pick from every elective and submit.
+try {
+    $pdo = Database::get();
+    $programs = CareerMatcher::loadPrograms($pdo);
+    $programId = CareerMatcher::resolve($typed, $programs, CareerMatcher::latestScores($pdo, (int) $user['id']));
+} catch (Throwable $e) {
+    error_log('[career-match] failed: ' . $e->getMessage());
+    jsonResponse(['career' => $typed, 'matched' => false]);
+}
 
 if ($programId === null) {
     jsonResponse(['career' => $typed, 'matched' => false]);
