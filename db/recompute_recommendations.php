@@ -43,8 +43,8 @@ foreach ($students as $st) {
         $programs = CBFData::activePrograms($pdo);
         $r = RecommendationPipeline::run($profile, $programs, $profile['statedProgramId'] !== null ? [$profile['statedProgramId']] : []);
         $titles = array_column($programs, 'title', 'id');
-        printf("%s %s%s  Best Match: %s\n", $label, $r['status'], $r['reason'] ? " ({$r['reason']})" : '',
-            implode(', ', array_map(fn($id) => $titles[$id], $r['bestMatchIds'])) ?: '-');
+        printf("%s %s%s  Best RIASEC Match: %s\n", $label, $r['status'], $r['reason'] ? " ({$r['reason']})" : '',
+            implode(', ', array_map(fn($id) => $titles[$id], $r['bestRiasecMatchIds'])) ?: '-');
         $done++;
         continue;
     }
@@ -55,7 +55,7 @@ foreach ($students as $st) {
             $pdo, (int) $st['user_id'], $profile, $profile['statedProgramId'], (int) $st['assessment_id'], (int) $st['worksheet_id']
         );
         $pdo->commit();
-        printf("%s %s%s  Best Match: %s\n", $label, $saved['status'], $saved['reason'] ? " ({$saved['reason']})" : '', implode(', ', $saved['bestMatchTitles']) ?: '-');
+        printf("%s %s%s  Best RIASEC Match: %s\n", $label, $saved['status'], $saved['reason'] ? " ({$saved['reason']})" : '', implode(', ', $saved['bestRiasecMatchTitles']) ?: '-');
         $done++;
     } catch (Throwable $e) {
         $pdo->rollBack();

@@ -54,10 +54,11 @@ if ($cbf['status'] !== 'available') {
 
 if ($format === '--csv') {
     $out = fopen('php://stdout', 'w');
-    fputcsv($out, ['Course', 'RIASEC', 'Course Vector [R,I,A,S,E,C]', 'Dot Product', '||S||', '||C||', 'Cosine Similarity', 'CBF Candidate']);
+    fputcsv($out, ['Course', 'RIASEC', 'Course Vector [R,I,A,S,E,C]', 'Dot Product', '||S||', '||C||', 'Cosine Similarity', 'Result']);
     foreach ($cbf['results'] as $r) {
         fputcsv($out, [$r['title'], $r['hollandCode'], '[' . implode(', ', $r['courseVector']) . ']', $r['dotProduct'],
-            $cbf['studentMagnitude'], $r['courseMagnitude'], $r['cosine'], in_array($r['id'], $cbf['candidateIds'], true) ? 'yes' : '']);
+            $cbf['studentMagnitude'], $r['courseMagnitude'], $r['cosine'],
+            in_array($r['id'], $cbf['candidateIds'], true) ? 'Best RIASEC Match' : (in_array($r['id'], $cbf['alternatives'], true) ? 'Alternative' : '')]);
     }
     exit;
 }
@@ -69,15 +70,16 @@ echo "||S||                 : {$cbf['studentMagnitude']}\n\n";
 printf("%-62s %-6s %-20s %8s %7s %8s\n", 'Course', 'RIASEC', 'Course vector C', 'S·C', '||C||', 'Cosine');
 foreach ($cbf['results'] as $r) {
     printf("%-62s %-6s %-20s %8s %7s %8.4f%s\n", substr($r['title'], 0, 62), $r['hollandCode'], '[' . implode(',', $r['courseVector']) . ']',
-        $r['dotProduct'], $r['courseMagnitude'], $r['cosine'], in_array($r['id'], $cbf['candidateIds'], true) ? '  <- CBF candidate' : '');
+        $r['dotProduct'], $r['courseMagnitude'], $r['cosine'], in_array($r['id'], $cbf['candidateIds'], true) ? '  <- Best RIASEC Match'
+            : (in_array($r['id'], $cbf['alternatives'], true) ? '  <- Alternative' : ''));
 }
 foreach ($cbf['excluded'] as $x) {
     echo "EXCLUDED: {$x['title']} ({$x['hollandCode']}): {$x['reason']}\n";
 }
 echo "\nRecommendation sources\n";
-echo '  CBF candidates   : ' . $named($cbf['candidateIds']) . "\n";
-echo '  Worksheet        : ' . ($run['worksheet']['status'] === 'available' ? $named($run['worksheet']['courseIds']) : 'no worksheet result') . "\n";
-echo "  Prediction model : {$run['prediction']['reason']}\n";
-echo '  Best Match       : ' . $named($run['bestMatchIds']) . "\n";
-echo '  Alternatives     : ' . $named($run['alternativeIds']) . "\n";
-echo "  Status           : {$run['status']}" . ($run['reason'] ? " ({$run['reason']})" : '') . "  (prediction model pending: not a final three-source result)\n";
+echo '  Best RIASEC Match (CBF) : ' . $named($run['bestRiasecMatchIds']) . "\n";
+echo '  Alternatives (CBF)      : ' . $named($run['alternativeIds']) . "\n";
+echo '  Preferred Course        : ' . ($run['worksheet']['status'] === 'available' ? $named($run['worksheet']['courseIds']) : 'no worksheet result')
+    . ($run['preferred'] ? ($run['preferred'][0]['inBestRiasecMatch'] ? ' (also a Best RIASEC Match)' : ' (differs from the Best RIASEC Match)') : '') . "\n";
+echo "  Prediction model        : {$run['prediction']['reason']}\n";
+echo "  Final Best Match        : not computed (needs the prediction model)\n";

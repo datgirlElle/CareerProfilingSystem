@@ -3,26 +3,26 @@
 require_once __DIR__ . '/CBFEngine.php';
 
 /**
- * Recommendation sources and the final recommendation.
+ * Recommendation sources, kept separate.
  *
  *   Source 1  CBF                "Which courses have RIASEC characteristics most similar to
  *                                 this student's RIASEC profile?" -> cosine similarity
- *                                 (lib/CBFEngine.php) -> CBF candidates
- *   Source 2  Worksheet          "Which course does the student's Career Electives Worksheet
- *                                 indicate?" -> the Preferred Course
+ *                                 (lib/CBFEngine.php):
+ *                                   Best RIASEC Match = courses tied at the highest similarity
+ *                                   Alternative Courses = courses at the next-highest similarity
+ *   Source 2  Worksheet          "Which course did the student select?" -> the Preferred Course.
+ *                                 Shown on its own; it never changes, forces or replaces the CBF
+ *                                 result, and never enters the cosine calculation.
  *   Source 3  Prediction model   WEKA decision tree. NOT AVAILABLE in this version: the real
  *                                 dataset does not exist yet, so this source is always reported
  *                                 as unavailable and never produces a course. The existing
  *                                 WEKA code (lib/PredictionModel.php) is not called.
  *
- *   Final     Best Match = the course(s) common to the AVAILABLE sources (now: CBF candidates
- *             ∩ worksheet). Alternative Courses = the other CBF candidates.
- *             The result is marked incomplete (isComplete = false) because the prediction
- *             model is still pending; once it exists, its courses join the intersection in
- *             finalRecommendation() (see the marked place below).
+ *   Final Best Match (CBF + prediction model + worksheet) is NOT computed yet: it needs the
+ *   prediction model and an adviser-approved combination rule. finalBestMatchIds is null and
+ *   isComplete is false until then.
  *
- * The sources are kept separate: the worksheet never enters the cosine calculation, and no
- * source is given a numeric weight.
+ * No source is given a numeric weight.
  */
 class RecommendationPipeline
 {
@@ -72,57 +72,49 @@ class RecommendationPipeline
     }
 
     /**
-     * Final recommendation from the available sources (pure; tested in tests/pipeline_test.php).
+     * Combines the sources for display (pure; tested in tests/pipeline_test.php). The CBF
+     * result is passed through unchanged; the Preferred Course is only compared with it.
      *
-     * @return array{bestMatchIds:int[], alternativeIds:int[], commonIds:int[], preferred:array,
-     *               status:string, reason:?string, sourcesUsed:string[], pendingSources:string[], isComplete:bool}
+     * @return array{bestRiasecMatchIds:int[], alternativeIds:int[], preferred:array, status:string, reason:?string,
+     *               finalBestMatchIds:null, sourcesUsed:string[], pendingSources:string[], isComplete:bool}
      */
     public static function finalRecommendation(array $cbf, array $worksheet, array $prediction): array
     {
-        $candidates = $cbf['status'] === 'available' ? $cbf['candidateIds'] : [];
-        $sourcesUsed = ['cbf'];
-        $common = $candidates;
-        if ($worksheet['status'] === 'available') {
-            $sourcesUsed[] = 'worksheet';
-            $common = array_values(array_filter($common, fn($id) => in_array($id, $worksheet['courseIds'], true)));
-        } else {
-            $common = []; // no worksheet: nothing to combine with yet
-        }
-        // FUTURE (prediction model): when $prediction['status'] === 'available', add 'prediction' to
-        // $sourcesUsed and keep only the courses also in $prediction['courseIds'] here.
-        $pending = $prediction['status'] === 'available' ? [] : ['prediction'];
+        $available = $cbf['status'] === 'available';
+        $best = $available ? $cbf['candidateIds'] : [];
+        $alternatives = $available ? ($cbf['alternatives'] ?? []) : [];
 
-        $bestMatchIds = $common;
-        $alternativeIds = array_values(array_filter($candidates, fn($id) => !in_array($id, $bestMatchIds, true)));
+        $preferred = array_map(fn($id) => ['id' => $id, 'inBestRiasecMatch' => in_array($id, $best, true)], $worksheet['courseIds']);
 
-        $preferred = array_map(fn($id) => [
-            'id' => $id,
-            'inCbfCandidates' => in_array($id, $candidates, true),
-            'isBestMatch' => in_array($id, $bestMatchIds, true),
-        ], $worksheet['courseIds']);
-
-        if ($cbf['status'] !== 'available') {
+        // Does the student's preference agree with the RIASEC-based (CBF) result?
+        if (!$available) {
             [$status, $reason] = ['mismatch', 'no_cbf_result'];
-        } elseif (!$candidates) {
+        } elseif (!$best) {
             [$status, $reason] = ['mismatch', 'no_cbf_match'];
         } elseif ($worksheet['status'] !== 'available') {
             [$status, $reason] = ['mismatch', 'no_worksheet'];
-        } elseif (!$bestMatchIds) {
+        } elseif (!$preferred[0]['inBestRiasecMatch']) {
             [$status, $reason] = ['mismatch', 'preferred_not_matched'];
         } else {
             [$status, $reason] = ['match', null];
         }
 
+        $sourcesUsed = $worksheet['status'] === 'available' ? ['cbf', 'worksheet'] : ['cbf'];
+        // FUTURE (prediction model): once $prediction['status'] === 'available' and the adviser
+        // has approved the combination rule, compute the final Best Match here from the CBF,
+        // the prediction model and the worksheet, and set isComplete = true.
+        $pending = $prediction['status'] === 'available' ? [] : ['prediction'];
+
         return [
-            'bestMatchIds' => $bestMatchIds,
-            'alternativeIds' => $alternativeIds,
-            'commonIds' => $common,
+            'bestRiasecMatchIds' => $best,
+            'alternativeIds' => $alternatives,
             'preferred' => $preferred,
             'status' => $status,
             'reason' => $reason,
+            'finalBestMatchIds' => null,
             'sourcesUsed' => $sourcesUsed,
             'pendingSources' => $pending,
-            'isComplete' => !$pending,
+            'isComplete' => false,
         ];
     }
 }

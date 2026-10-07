@@ -230,12 +230,12 @@
           <p id="reviewStrand" class="text-sm text-slate-800"></p>
         </div>
         <div>
-          <p class="text-xs font-semibold text-slate-500 uppercase">Status</p>
+          <p class="text-xs font-semibold text-slate-500 uppercase">Preferred vs RIASEC</p>
           <p id="reviewMatch" class="text-sm text-slate-800"></p>
         </div>
       </div>
       <div>
-        <p class="text-xs font-semibold text-slate-500 uppercase">Best Match</p>
+        <p class="text-xs font-semibold text-slate-500 uppercase">Best RIASEC Match</p>
         <p id="reviewCareer" class="text-sm text-slate-800"></p>
       </div>
       <div>
@@ -358,10 +358,10 @@
     let debounceHandle = null;
 
     function headForTab(tab) {
-      if (tab === 'needs-review') return ['Student', 'Strand', 'Best Match', 'Status', 'Flag Reason', 'Priority', 'Action'];
-      if (tab === 'completed') return ['Student', 'Strand', 'Best Match', 'Status', 'Completed At'];
+      if (tab === 'needs-review') return ['Student', 'Strand', 'Best RIASEC Match', 'Preferred vs RIASEC', 'Flag Reason', 'Priority', 'Action'];
+      if (tab === 'completed') return ['Student', 'Strand', 'Best RIASEC Match', 'Preferred vs RIASEC', 'Completed At'];
       if (tab === 'pending') return ['Student', 'Strand', 'Registered', 'Status'];
-      return ['Student', 'Strand', 'Best Match', 'Status', 'Flag Reason', 'Action'];
+      return ['Student', 'Strand', 'Best RIASEC Match', 'Preferred vs RIASEC', 'Flag Reason', 'Action'];
     }
 
     function rowHtml(tab, r) {

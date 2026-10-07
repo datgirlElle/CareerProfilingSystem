@@ -119,6 +119,11 @@ check('same three letters in a different order -> same similarity, both candidat
 
 $single = CBFEngine::compute(['R' => 12, 'I' => 18, 'A' => 48, 'S' => 44, 'E' => 30, 'C' => 14], $programs);
 check('single best course: A-S-E student -> BA Communication is the only candidate', $single['candidates'] === [1]);
+check('alternatives = every course at the next-highest similarity', $r['alternatives'] === array_values(array_map(fn($x) => $x['id'],
+    array_filter($r['results'], fn($x) => $x['cosine'] === $r['results'][2]['cosine']))));
+check('alternatives never repeat a Best RIASEC Match course', !array_intersect($r['alternatives'], $r['candidates']));
+check('selectAlternatives on saved results', array_column(CBFEngine::selectAlternatives([['id' => 1, 'cosine' => 0.9], ['id' => 2, 'cosine' => 0.9], ['id' => 3, 'cosine' => 0.8], ['id' => 4, 'cosine' => 0.8], ['id' => 5, 'cosine' => 0.7]]), 'id') === [3, 4]);
+check('no alternatives when every course is tied at the top', CBFEngine::selectAlternatives([['id' => 1, 'cosine' => 0.9], ['id' => 2, 'cosine' => 0.9]]) === []);
 check('invalid RIASEC profile -> compute() refuses instead of guessing', throws(fn() => CBFEngine::compute(null, $programs)));
 check('no valid course at all -> no candidates',
     CBFEngine::compute($ircStudent, [['id' => 9, 'title' => 'x', 'hollandCode' => '']])['candidates'] === []);

@@ -4,12 +4,13 @@
  * Career Electives Worksheet is submitted).
  *
  * Students get exactly what the results page shows:
- *   bestMatch        course(s) common to the CBF candidates and the worksheet
- *   alternatives     the other CBF candidates (no particular order)
- *   preferredCourse  the worksheet's Preferred Course and where it stands
+ *   preferredCourse   the course the student selected (worksheet), shown on its own
+ *   bestRiasecMatch   CBF: course(s) with the highest cosine similarity to the student's
+ *                     RIASEC profile (ties listed together)
+ *   alternatives      CBF: course(s) at the next-highest cosine similarity
  *   each course carries its cosine similarity (0-1), never a percentage
+ *   finalBestMatch    null: needs the prediction model (WEKA), which is not available yet
  * Staff (studentId=...) also get `cbf`: every course's cosine calculation.
- * The prediction model (WEKA) is not available yet: sources.prediction = 'unavailable'.
  */
 
 require_once __DIR__ . '/_bootstrap.php';
@@ -69,14 +70,15 @@ $cosineOf = array_column($scores, 'cosine', 'programId');
 $preferredId = $row['stated_program_id'] !== null ? (int) $row['stated_program_id'] : null;
 
 // Results saved by this CBF version store each course's dot product; older results
-// (before the CBF revision) are read the same way but should be recomputed
-// (php db/recompute_recommendations.php).
+// (before the CBF revision) should be recomputed (php db/recompute_recommendations.php).
 $isCurrent = isset($scores[0]['dotProduct']);
-$candidateIds = $isCurrent ? (CBFData::parseIntArray($row['cbf_program_ids']) ?? []) : array_map('intval', array_column(CBFEngine::selectCandidates($scores, 'cosine'), 'programId'));
-$bestMatchIds = $isCurrent
-    ? (CBFData::parseIntArray($row['final_program_ids']) ?? [])
-    : ($preferredId !== null && in_array($preferredId, $candidateIds, true) ? [$preferredId] : []);
-$alternativeIds = array_values(array_filter($candidateIds, fn($id) => !in_array($id, $bestMatchIds, true)));
+// Best RIASEC Match: courses tied at the highest cosine similarity (CBF only).
+$bestIds = $isCurrent && $row['cbf_program_ids'] !== null
+    ? CBFData::parseIntArray($row['cbf_program_ids'])
+    : array_map('intval', array_column(CBFEngine::selectCandidates($scores, 'cosine'), 'programId'));
+// Alternative Courses: courses at the next-highest cosine similarity (CBF only).
+$alternativeIds = array_map('intval', array_column(CBFEngine::selectAlternatives($scores, 'cosine'), 'programId'));
+$candidateIds = array_merge($bestIds, $alternativeIds);
 
 $neededIds = array_merge($candidateIds, $preferredId !== null ? [$preferredId] : [], $isStaff ? array_column($scores, 'programId') : []);
 $programs = [];
@@ -108,16 +110,17 @@ $programsFor = fn(array $ids) => array_values(array_filter(array_map(fn($id) => 
 $response = [
     'hasRecommendation' => true,
     'computedAt' => $row['computed_at'],
-    'bestMatch' => $programsFor($bestMatchIds),          // CBF candidates ∩ worksheet
-    'alternatives' => $programsFor($alternativeIds),     // other CBF candidates (no particular order)
+    // CBF (RIASEC profile + course RIASEC codes + cosine similarity) only:
+    'bestRiasecMatch' => $programsFor($bestIds),         // tied courses all listed, never tie-broken
+    'alternatives' => $programsFor($alternativeIds),     // next-highest similarity
+    // The student's own selection (Career Electives Worksheet), shown separately; it never
+    // changes the CBF result.
     'preferredCourse' => $preferredId !== null && isset($programs[$preferredId])
-        ? $programs[$preferredId] + [
-            'inCbfCandidates' => in_array($preferredId, $candidateIds, true),
-            'isBestMatch' => in_array($preferredId, $bestMatchIds, true),
-        ]
+        ? $programs[$preferredId] + ['inBestRiasecMatch' => in_array($preferredId, $bestIds, true)]
         : null,
-    // Recommendation sources. The prediction model (WEKA) is not available yet, so the
-    // Best Match uses the CBF and the worksheet only and is not final.
+    // The final Best Match (CBF + prediction model + worksheet) needs the prediction model,
+    // which is not available yet, so it is not computed.
+    'finalBestMatch' => null,
     'sources' => ['cbf' => 'available', 'worksheet' => $preferredId !== null ? 'available' : 'empty', 'prediction' => 'unavailable'],
     'isComplete' => false,
     'electives' => $electives,
@@ -127,7 +130,8 @@ $response = [
 ];
 if ($isStaff) {
     $response['cbf'] = [
-        'candidates' => array_column($programsFor($candidateIds), 'title'),
+        'bestRiasecMatch' => array_column($programsFor($bestIds), 'title'),
+        'alternatives' => array_column($programsFor($alternativeIds), 'title'),
         'studentVector' => $scores[0]['studentVector'] ?? null,
         'studentMagnitude' => $scores[0]['studentMagnitude'] ?? null,
         'results' => array_map(fn($sc) => [

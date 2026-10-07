@@ -106,7 +106,7 @@ class CBFData
      * configured threshold. The caller manages the transaction.
      *
      * @return array{recommendationId: int, topProgramId: int, topScore: float, status: string, reason: ?string,
-     *               bestMatchTitles: string[], alternativeTitles: string[]}|null null if there are no active programs
+     *               bestRiasecMatchTitles: string[], alternativeTitles: string[]}|null null if there are no active programs
      * @throws InvalidArgumentException when the student's RIASEC profile is missing or invalid
      */
     public static function saveRecommendation(PDO $pdo, int $studentId, array $profile, ?int $statedProgramId, int $assessmentId, ?int $worksheetId): ?array
@@ -137,13 +137,12 @@ class CBFData
         $recInsert = $pdo->prepare(
             'INSERT INTO recommendations (student_id, stated_program_id, scores, top_program_id, top_score, source_assessment_id, source_worksheet_id,
                                           match_status, mismatch_reason, cbf_program_ids, prediction_program_ids, final_program_ids, model_version)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL) RETURNING id'
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL) RETURNING id'
         );
         $recInsert->execute([
             $studentId, $statedProgramId, json_encode($scoresForStorage), $topProgramId, $topScore, $assessmentId, $worksheetId,
             $result['status'], $result['reason'],
-            self::intArrayLiteral($cbf['candidateIds']),   // CBF candidates
-            self::intArrayLiteral($result['bestMatchIds']), // Best Match
+            self::intArrayLiteral($cbf['candidateIds']), // Best RIASEC Match (CBF); final Best Match stays NULL
         ]);
         $recommendationId = (int) $recInsert->fetchColumn();
 
@@ -165,7 +164,7 @@ class CBFData
         $named = fn(array $ids) => array_values(array_map(fn($id) => $titles[$id], $ids));
         return ['recommendationId' => $recommendationId, 'topProgramId' => $topProgramId, 'topScore' => $topScore,
             'status' => $result['status'], 'reason' => $result['reason'],
-            'bestMatchTitles' => $named($result['bestMatchIds']), 'alternativeTitles' => $named($result['alternativeIds'])];
+            'bestRiasecMatchTitles' => $named($result['bestRiasecMatchIds']), 'alternativeTitles' => $named($result['alternativeIds'])];
     }
 
     /** PostgreSQL INT[] literal, e.g. {3,4,6}. */

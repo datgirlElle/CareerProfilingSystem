@@ -8,13 +8,13 @@ require_once __DIR__ . '/EmailTemplate.php';
 /**
  * Automatic result email sent after the Career Electives Worksheet is submitted
  * (adviser/researcher decision):
- *   match    -> the Best Match and the Alternative Courses.
+ *   match    -> the Best RIASEC Match and the Alternative Courses.
  *   mismatch -> only asks the student to visit the Guidance Office; no course is named.
  */
 class ResultEmail
 {
     /**
-     * @param string[] $bestMatch    Best Match title(s)
+     * @param string[] $bestMatch    Best RIASEC Match title(s) (CBF)
      * @param string[] $alternatives Alternative Courses titles
      * @return array{subject: string, heading: string, bodyHtml: string, bodyText: string, ctaLabel: string, path: string}
      */
@@ -34,10 +34,10 @@ class ResultEmail
                 'subject' => 'Your ProfilePath career results',
                 'heading' => 'Your career results are ready',
                 'bodyHtml' => "{$p}Hi $safeName,</p>{$p}$intro</p>"
-                    . "{$p}Your Best Match: <strong style=\"color:#0f172a;\">" . implode(', ', array_map($esc, $bestMatch)) . '</strong></p>'
+                    . "{$p}Your Best RIASEC Match (the course most similar to your RIASEC profile): <strong style=\"color:#0f172a;\">" . implode(', ', array_map($esc, $bestMatch)) . '</strong></p>'
                     . $altHtml
                     . '<p style="margin:0;">You may visit the Guidance Office if you would like to discuss your results with a Guidance Counselor.</p>',
-                'bodyText' => "Hi $firstName,\n\n$intro\n\nYour Best Match: " . implode(', ', $bestMatch) . "\n"
+                'bodyText' => "Hi $firstName,\n\n$intro\n\nYour Best RIASEC Match (the course most similar to your RIASEC profile): " . implode(', ', $bestMatch) . "\n"
                     . ($alternatives ? "\nAlternative courses:\n" . implode('', array_map(fn($t) => "- $t\n", $alternatives)) : '')
                     . "\nYou may visit the Guidance Office if you would like to discuss your results with a Guidance Counselor.",
                 'ctaLabel' => 'View My Results',

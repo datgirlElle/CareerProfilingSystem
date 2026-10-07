@@ -202,7 +202,7 @@
             </a>
             <div>
               <h1 class="text-[32px] font-bold text-[#191c1e] tracking-tight">Career Results</h1>
-              <p class="text-sm text-[#5e3f3c] mt-1">Your RIASEC results, your Best Match and alternative courses.</p>
+              <p class="text-sm text-[#5e3f3c] mt-1">Your RIASEC profile, your preferred course, your Best RIASEC Match and alternative courses.</p>
             </div>
           </div>
           <div class="text-right shrink-0">
@@ -216,17 +216,26 @@
           <div id="cr-topTypes" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
         </div>
 
-        <!-- Best Match = courses common to the CBF candidates and the Career Electives Worksheet
-             (lib/RecommendationPipeline.php). The prediction model is not available yet. -->
+        <!-- 2. Preferred Course: what the student selected (Career Electives Worksheet). -->
         <section class="mb-8">
-          <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-2">Best Match</h2>
-          <p class="text-xs text-[#5e3f3c] mb-4">Based on your RIASEC profile and your Career Electives Worksheet.</p>
-          <div id="cr-bestMatch" class="flex flex-col gap-4"></div>
+          <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-2">Preferred Course</h2>
+          <p class="text-xs text-[#5e3f3c] mb-4">The course you selected on your Career Electives Worksheet.</p>
+          <div id="cr-preferred"></div>
         </section>
 
+        <!-- 3. Best RIASEC Match: CBF only (RIASEC profile + course RIASEC codes + cosine similarity).
+             Not the final Best Match, which will also need the prediction model. -->
+        <section class="mb-8">
+          <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-2">Best RIASEC Match</h2>
+          <p class="text-xs text-[#5e3f3c] mb-4">The course whose RIASEC profile is most similar to yours, found by comparing your RIASEC profile with every course using cosine similarity. Your preferred course is not used here.</p>
+          <p id="cr-tieNote" class="hidden text-xs text-[#191c1e] mb-3"></p>
+          <div id="cr-bestRiasec" class="flex flex-col gap-4"></div>
+        </section>
+
+        <!-- 4. Alternative Courses: the next most similar courses (CBF only). -->
         <section>
           <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-2">Alternative Courses</h2>
-          <p class="text-xs text-[#5e3f3c] mb-4" id="cr-altIntro">Other courses whose RIASEC profiles are as similar to yours as your Best Match. Listed in no particular order.</p>
+          <p class="text-xs text-[#5e3f3c] mb-4">The next most similar courses to your RIASEC profile. Listed in no particular order.</p>
           <div id="cr-alternatives" class="flex flex-col gap-4"></div>
         </section>
       </div>
@@ -586,37 +595,47 @@
       '</div>';
     }
 
-    // Best Match
-    const best = recommendation.bestMatch || [];
-    let bestHtml;
-    if (best.length) {
-      bestHtml = best.map(function(p) {
-        return programCardHtml(p,
-          preferred && p.id === preferred.id ? '<span class="' + BADGE + '" style="background-color:#ecfdf5;border-color:#a7f3d0;color:#047857;">Your Preferred Course</span>' : '',
-          'background-color:#f0fdf4;border-color:#bbf7d0;',
-          '<p class="text-xs text-[#191c1e] leading-relaxed">Your Preferred Course is also one of the courses most similar to your RIASEC profile.</p>');
-      }).join('');
+    // 2. Preferred Course: the student's own selection, compared with (never changing) the CBF result.
+    let prefHtml;
+    if (preferred && preferred.inBestRiasecMatch) {
+      prefHtml = programCardHtml(preferred,
+        '<span class="' + BADGE + '" style="background-color:#ecfdf5;border-color:#a7f3d0;color:#047857;">Also your Best RIASEC Match</span>',
+        'background-color:#f0fdf4;border-color:#bbf7d0;',
+        '<p class="text-xs text-[#191c1e] leading-relaxed">Your preferred course is what you selected, and it is also one of the courses most similar to your RIASEC profile.</p>');
     } else if (preferred) {
-      bestHtml = programCardHtml(preferred,
-        '<span class="' + BADGE + '" style="background-color:#fffbeb;border-color:#fde68a;color:#92400e;">Worth a second look</span>',
+      prefHtml = programCardHtml(preferred,
+        '<span class="' + BADGE + '" style="background-color:#fffbeb;border-color:#fde68a;color:#92400e;">Differs from your Best RIASEC Match</span>',
         'background-color:#fffbeb;border-color:#fde68a;',
-        '<p class="text-xs text-[#191c1e] leading-relaxed">This is your Preferred Course. It is not among the courses most similar to your RIASEC profile, so there is no Best Match yet. ' +
-        'That\'s completely okay: your interests are just one part of choosing a course. Compare it with the Alternative Courses below, and if you\'d like help deciding, we highly recommend talking with a Guidance Counselor.</p>' +
+        '<p class="text-xs text-[#191c1e] leading-relaxed">Your preferred course is what you selected. Your Best RIASEC Match below is the course whose profile is most similar to your RIASEC profile, and here they are different. ' +
+        'That\'s completely okay: your interests are just one part of choosing a course. If you\'d like help deciding, we highly recommend talking with a Guidance Counselor.</p>' +
         COUNSELOR_BTN);
     } else {
-      bestHtml = '<div class="border rounded-lg p-[17px] text-xs text-[#191c1e]" style="background-color:#fffbeb;border-color:#fde68a;">' +
-        'Complete your Career Electives Worksheet to see your Best Match.</div>';
+      prefHtml = '<div class="border rounded-lg p-[17px] text-xs text-[#191c1e]" style="background-color:#fffbeb;border-color:#fde68a;">' +
+        'You have not selected a preferred course yet. Complete your Career Electives Worksheet to add one.</div>';
     }
-    document.getElementById('cr-bestMatch').innerHTML = bestHtml;
+    document.getElementById('cr-preferred').innerHTML = prefHtml;
 
-    // Alternative Courses: the other CBF candidates (all with the same, highest similarity).
-    const alts = recommendation.alternatives || [];
-    if (!best.length) {
-      document.getElementById('cr-altIntro').textContent = 'Courses whose RIASEC profiles are most similar to yours. Listed in no particular order.';
+    // 3. Best RIASEC Match (CBF). Tied courses are all shown; the tie is never broken.
+    const best = recommendation.bestRiasecMatch || [];
+    const prefBadge = function(p) {
+      return preferred && p.id === preferred.id
+        ? '<span class="' + BADGE + '" style="background-color:#fff7ed;border-color:#fed7aa;color:#c2410c;">Your Preferred Course</span>' : '';
+    };
+    if (best.length > 1) {
+      const tie = document.getElementById('cr-tieNote');
+      tie.textContent = 'These ' + best.length + ' courses are tied: they have the same RIASEC letters, so they have the same cosine similarity.';
+      tie.classList.remove('hidden');
     }
+    document.getElementById('cr-bestRiasec').innerHTML = best.length
+      ? best.map(function(p) { return programCardHtml(p, prefBadge(p)); }).join('')
+      : '<div class="border rounded-lg p-[17px] text-xs text-[#191c1e]" style="background-color:#fff7ed;border-color:#fed7aa;">' +
+        'No course could be matched to your RIASEC profile. Please visit the Guidance Office for career counseling.</div>';
+
+    // 4. Alternative Courses (CBF): the next-highest cosine similarity.
+    const alts = recommendation.alternatives || [];
     document.getElementById('cr-alternatives').innerHTML = alts.length
-      ? alts.map(function(p) { return programCardHtml(p); }).join('')
-      : '<p class="text-xs text-[#5e3f3c]">No other course is as similar to your RIASEC profile.</p>';
+      ? alts.map(function(p) { return programCardHtml(p, prefBadge(p)); }).join('')
+      : '<p class="text-xs text-[#5e3f3c]">No alternative courses.</p>';
   }
 })();
 </script>

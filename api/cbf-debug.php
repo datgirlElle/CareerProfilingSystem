@@ -63,15 +63,19 @@ jsonResponse([
         'studentScores' => $cbf['studentScores'] ?? $profile['riasec'],
         'studentVector' => $cbf['studentVector'] ?? null,
         'studentMagnitude' => $cbf['studentMagnitude'] ?? null,
-        'results' => array_map(fn($r) => $r + ['isCandidate' => in_array($r['id'], $cbf['candidateIds'], true)], $cbf['results']),
+        'results' => array_map(fn($r) => $r + [
+            'isBestRiasecMatch' => in_array($r['id'], $cbf['candidateIds'], true),
+            'isAlternative' => in_array($r['id'], $cbf['alternatives'] ?? [], true),
+        ], $cbf['results']),
         'excluded' => $cbf['excluded'],
-        'candidates' => $named($cbf['candidateIds']),
+        'bestRiasecMatch' => $named($cbf['candidateIds']),
+        'alternatives' => $named($cbf['alternatives'] ?? []),
     ],
     'worksheet' => ['status' => $run['worksheet']['status'], 'preferredCourse' => $named($run['worksheet']['courseIds'])],
     'prediction' => $run['prediction'],
     'final' => [
-        'bestMatch' => $named($run['bestMatchIds']),
-        'alternatives' => $named($run['alternativeIds']),
+        'preferredInBestRiasecMatch' => array_map(fn($p) => $p['inBestRiasecMatch'], $run['preferred']),
+        'finalBestMatch' => null, // needs the prediction model
         'status' => $run['status'],
         'reason' => $run['reason'],
         'sourcesUsed' => $run['sourcesUsed'],

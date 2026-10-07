@@ -10,7 +10,8 @@
   table { border-collapse: collapse; width: 100%; }
   th, td { padding: 6px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 13px; white-space: nowrap; }
   th { background: #f1f5f9; font-weight: 600; color: #475569; }
-  tr.candidate td { background: #f0fdf4; }
+  tr.best td { background: #f0fdf4; }
+  tr.alt td { background: #eff6ff; }
   .mono { font-family: Consolas, 'Courier New', monospace; }
   .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
 </style>
@@ -38,7 +39,7 @@
     </div>
     <div class="card" style="overflow-x:auto;">
       <h2 class="font-semibold mb-2">2. Every course &rarr; course vector C &rarr; cosine similarity</h2>
-      <p class="text-xs text-slate-500 mb-2">Course vector: 1 if the letter is in the course's RIASEC code, 0 if not, in [R, I, A, S, E, C] order. Sorted by cosine similarity; highlighted rows are the CBF candidates (highest cosine similarity).</p>
+      <p class="text-xs text-slate-500 mb-2">Course vector: 1 if the letter is in the course's RIASEC code, 0 if not, in [R, I, A, S, E, C] order. Sorted by cosine similarity; green rows are the Best RIASEC Match (highest cosine similarity, ties kept), blue rows the Alternative Courses (next-highest).</p>
       <table>
         <thead><tr><th>#</th><th>Course</th><th>RIASEC</th><th>Course vector C</th><th>Dot product S·C</th><th>||S||</th><th>||C||</th><th>Cosine similarity</th></tr></thead>
         <tbody id="results"></tbody>
@@ -82,7 +83,7 @@
         '<p class="mt-2">Student vector S = ' + vec(cbf.studentVector) + ' &nbsp; ||S|| = <span class="mono">' + esc(cbf.studentMagnitude) + '</span></p>';
     }
     document.getElementById('results').innerHTML = cbf.results.map(function(r, i) {
-      return '<tr class="' + (r.isCandidate ? 'candidate' : '') + '"><td>' + (i + 1) + '</td><td>' + esc(r.title) + '</td><td class="mono">' + esc(r.hollandCode) + '</td>' +
+      return '<tr class="' + (r.isBestRiasecMatch ? 'best' : r.isAlternative ? 'alt' : '') + '"><td>' + (i + 1) + '</td><td>' + esc(r.title) + '</td><td class="mono">' + esc(r.hollandCode) + '</td>' +
         '<td>' + vec(r.courseVector) + '</td><td class="mono">' + esc(r.dotProduct) + '</td><td class="mono">' + esc(cbf.studentMagnitude) + '</td>' +
         '<td class="mono">' + esc(r.courseMagnitude) + '</td><td class="mono"><strong>' + Number(r.cosine).toFixed(4) + '</strong></td></tr>';
     }).join('');
@@ -90,13 +91,12 @@
       ? '<strong>Excluded (flagged):</strong> ' + cbf.excluded.map(function(x) { return esc(x.title) + ' (' + esc(x.hollandCode || 'no code') + '): ' + esc(x.reason); }).join('; ')
       : 'Excluded courses: none (every active course has a valid RIASEC mapping).';
     document.getElementById('sources').innerHTML =
-      '<p><strong>CBF candidates</strong> (highest cosine similarity): ' + list(cbf.candidates) + '</p>' +
-      '<p class="mt-1"><strong>Worksheet</strong> (Preferred Course): ' + (d.worksheet.status === 'available' ? list(d.worksheet.preferredCourse) : 'no worksheet result') + '</p>' +
-      '<p class="mt-1"><strong>Prediction model</strong>: ' + esc(d.prediction.reason) + '</p>' +
-      '<p class="mt-3"><strong>Best Match</strong> (CBF candidates &cap; worksheet): ' + list(d.final.bestMatch) + '</p>' +
-      '<p class="mt-1"><strong>Alternative Courses</strong>: ' + list(d.final.alternatives) + '</p>' +
-      '<p class="mt-1 text-xs text-slate-500">Sources used: ' + list(d.final.sourcesUsed) + '. Pending: ' + list(d.final.pendingSources) +
-        '. The final three-source Best Match is not complete until the prediction model is available.</p>';
+      '<p><strong>1. CBF &rarr; Best RIASEC Match</strong> (highest cosine similarity): ' + list(cbf.bestRiasecMatch) + '</p>' +
+      '<p class="mt-1"><strong>1. CBF &rarr; Alternative Courses</strong> (next-highest): ' + list(cbf.alternatives) + '</p>' +
+      '<p class="mt-1"><strong>2. Worksheet &rarr; Preferred Course</strong> (what the student selected; not used by the CBF): ' +
+        (d.worksheet.status === 'available' ? list(d.worksheet.preferredCourse) + (d.final.preferredInBestRiasecMatch[0] ? ', also a Best RIASEC Match' : ', differs from the Best RIASEC Match') : 'no worksheet result') + '</p>' +
+      '<p class="mt-1"><strong>3. Prediction model</strong>: ' + esc(d.prediction.reason) + '</p>' +
+      '<p class="mt-3 text-xs text-slate-500">Final Best Match (CBF + prediction model + worksheet): not computed until the prediction model is available.</p>';
     document.getElementById('output').classList.remove('hidden');
   }
 

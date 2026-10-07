@@ -21,7 +21,7 @@ $best = ['Bachelor of Science in Information Technology'];
 $alts = ['Bachelor of Science in Computer Science', 'Bachelor of Science in Medical Technology'];
 
 $m = ResultEmail::compose('Ana', 'match', $best, $alts);
-check('match email names the Best Match (HTML and text)', str_contains($m['bodyHtml'], 'Best Match') && str_contains($m['bodyText'], 'Your Best Match: ' . $best[0]));
+check('match email names the Best RIASEC Match (HTML and text)', str_contains($m['bodyHtml'], 'Best RIASEC Match') && str_contains($m['bodyText'], 'most similar to your RIASEC profile): ' . $best[0]));
 check('match email lists every alternative course', str_contains($m['bodyText'], "- {$alts[0]}") && str_contains($m['bodyText'], "- {$alts[1]}") && str_contains($m['bodyHtml'], $alts[1]));
 check('match email without alternatives has no alternatives heading', !str_contains(ResultEmail::compose('Ana', 'match', $best)['bodyText'], 'Alternative'));
 check('match email links to the results page', $m['path'] === '/results');

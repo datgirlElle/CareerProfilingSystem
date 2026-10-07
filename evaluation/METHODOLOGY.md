@@ -383,20 +383,21 @@ separate; none is given a numeric weight, and the worksheet never enters the cos
 | Source | Question | Method | Status |
 |---|---|---|---|
 | **1. CBF** | Which courses have RIASEC characteristics most similar to this student's RIASEC profile? | student vector (mean item scores) vs. every course's binary Holland-code vector, cosine similarity | active |
-| **2. Worksheet** | Which course does the student's Career Electives Worksheet indicate? | the Preferred Course | active |
+| **2. Worksheet** | Which course did the student select? | the Preferred Course, shown on its own; never changes the CBF result | active |
 | **3. Prediction model** | What course does the model predict from patterns in the training dataset? | WEKA decision tree | **not available** (no real dataset yet); excluded |
 
-- **CBF candidates:** every course tied at the highest cosine similarity. Because course vectors
-  are binary, courses with the same three letters (e.g. IRC, RIC, ICR) always have the same
-  similarity, so there are usually several candidates.
-- **Best Match (current):** the courses common to the available sources, i.e. CBF candidates ∩
-  the Preferred Course. **Alternative Courses:** the other CBF candidates.
-- **No common course:** no Best Match; the CBF candidates are shown as alternatives and the
-  student is encouraged to talk to a Guidance Counselor (status `mismatch`).
-- **Not final:** the result is stored and shown as incomplete (`pendingSources = prediction`)
-  until the prediction model exists; the three-way intersection is not executed.
+- **Best RIASEC Match (CBF only):** every course tied at the highest cosine similarity. Because
+  course vectors are binary, courses with the same three letters (e.g. IRC, RIC, ICR) always have
+  the same similarity; such ties are shown together and never broken.
+- **Alternative Courses (CBF only):** every course at the next-highest cosine similarity.
+- **Preferred Course:** the student's own selection, shown separately on the results page. It
+  never increases, decreases, forces or replaces a CBF result. The page says whether it is also a
+  Best RIASEC Match or differs from it (status `match` / `mismatch`).
+- **Final Best Match (CBF + prediction model + worksheet):** not computed. It needs the
+  prediction model and an adviser-approved combination rule; until then the result is stored
+  and shown as incomplete (`pendingSources = prediction`, `final_program_ids` NULL).
 - **Stored per result** (`recommendations`): every course's dot product, magnitudes and cosine
-  (`scores`), the CBF candidates (`cbf_program_ids`) and the Best Match (`final_program_ids`).
+  (`scores`) and the Best RIASEC Match (`cbf_program_ids`).
 - **Auditing:** the staff page `cbf-debug` (and `php db/cbf_debug.php <school_id>`) shows the
   student vector and, for every course, the course vector, dot product, magnitudes and cosine.
 - **Cosine similarity is not accuracy.** It is shown as "Cosine Similarity: 0.xxx", never as a

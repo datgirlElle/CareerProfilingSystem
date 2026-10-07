@@ -248,19 +248,24 @@
           <span id="recStatus" class="text-xs font-semibold px-2.5 py-1 rounded-md border"></span>
         </div>
         <div>
-          <p class="text-xs font-medium text-gray-600 mb-1">Best Match (CBF candidates ∩ worksheet)</p>
+          <p class="text-xs font-medium text-gray-600 mb-1">Preferred Course (worksheet: what the student selected)</p>
+          <p id="recPreferred" class="text-sm text-gray-800"></p>
+        </div>
+        <div>
+          <p class="text-xs font-medium text-gray-600 mb-1">Best RIASEC Match (CBF: highest cosine similarity)</p>
           <p id="recBest" class="text-sm text-gray-800"></p>
         </div>
         <div>
-          <p class="text-xs font-medium text-gray-600 mb-1">Alternative Courses (other CBF candidates)</p>
+          <p class="text-xs font-medium text-gray-600 mb-1">Alternative Courses (CBF: next-highest cosine similarity)</p>
           <p id="recAlternatives" class="text-sm text-gray-800"></p>
         </div>
         <details class="border-t border-gray-100 pt-3">
           <summary class="text-xs font-medium text-gray-600 cursor-pointer">Recommendation sources</summary>
           <dl class="mt-3 grid text-sm" style="grid-template-columns:minmax(120px,200px) 1fr;column-gap:16px;row-gap:8px;">
-            <dt class="text-gray-500">1. CBF (cosine similarity)</dt><dd id="recCbf" class="text-gray-800"></dd>
-            <dt class="text-gray-500">2. Worksheet</dt><dd id="recWorksheet" class="text-gray-800"></dd>
+            <dt class="text-gray-500">1. CBF (cosine similarity)</dt><dd class="text-gray-800">Best RIASEC Match and Alternative Courses above</dd>
+            <dt class="text-gray-500">2. Worksheet</dt><dd class="text-gray-800">Preferred Course above (shown separately; never changes the CBF result)</dd>
             <dt class="text-gray-500">3. Prediction model</dt><dd class="text-gray-800">Not available yet (WEKA dataset pending); not used.</dd>
+            <dt class="text-gray-500">Final Best Match</dt><dd class="text-gray-800">Not computed: needs the prediction model and an approved combination rule.</dd>
           </dl>
           <a id="recDebugLink" href="#" class="inline-block mt-3 text-xs font-medium text-blue-600 hover:underline">Show the full CBF calculation</a>
         </details>
@@ -463,17 +468,15 @@
     };
     const list = function(items) { return items && items.length ? items.join(', ') : 'None'; };
     const status = document.getElementById('recStatus');
-    status.textContent = r.matchStatus === 'mismatch' ? 'No Best Match: suggest counseling' : r.matchStatus === 'match' ? 'Best Match found' : '—';
+    status.textContent = r.matchStatus === 'mismatch' ? 'Preferred course differs from RIASEC match' : r.matchStatus === 'match' ? 'Preferred course matches RIASEC' : '—';
     status.className = 'text-xs font-semibold px-2.5 py-1 rounded-md border ' +
       (r.matchStatus === 'mismatch' ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-green-50 border-green-200 text-green-700');
-    document.getElementById('recBest').textContent = list(r.bestMatch.map(withCosine));
-    document.getElementById('recAlternatives').textContent = list(r.alternatives.map(withCosine));
-    const cbf = r.cbf || {};
-    document.getElementById('recCbf').textContent = 'Candidates (highest cosine similarity): ' + list(cbf.candidates) +
-      (r.needsRecompute ? ' (saved before the CBF revision; recompute to update)' : '');
-    document.getElementById('recWorksheet').textContent = r.preferredCourse
-      ? 'Preferred Course: ' + withCosine(r.preferredCourse) + (r.preferredCourse.inCbfCandidates ? ', among the CBF candidates' : ', not among the CBF candidates')
+    document.getElementById('recPreferred').textContent = r.preferredCourse
+      ? withCosine(r.preferredCourse) + (r.preferredCourse.inBestRiasecMatch ? ', also a Best RIASEC Match' : ', differs from the Best RIASEC Match')
       : 'No worksheet result';
+    document.getElementById('recBest').textContent = list(r.bestRiasecMatch.map(withCosine)) +
+      (r.bestRiasecMatch.length > 1 ? ' (tied: same RIASEC letters)' : '') + (r.needsRecompute ? ' (saved before the CBF revision; recompute to update)' : '');
+    document.getElementById('recAlternatives').textContent = list(r.alternatives.map(withCosine));
     document.getElementById('recDebugLink').href = 'cbf-debug?schoolId=' + encodeURIComponent(schoolId);
     document.getElementById('recommendationCard').classList.remove('hidden');
   }

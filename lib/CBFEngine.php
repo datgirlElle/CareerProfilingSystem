@@ -21,7 +21,10 @@
  *                      with the dot product and both magnitudes kept for auditing.
  *   4. Results         all courses sorted by cosine similarity (highest first; equal
  *                      values keep the program-list order).
- *   5. CBF candidates  every course tied at the highest cosine similarity.
+ *   5. Best RIASEC Match  every course tied at the highest cosine similarity (ties are
+ *                      kept, never broken: courses with the same three letters have the
+ *                      same vector and therefore the same similarity).
+ *   6. Alternatives    every course at the next-highest cosine similarity.
  *
  * Nothing else enters the calculation: no worksheet answers, no strand, no electives,
  * no prediction model, and no weights (no 70/30, no 1.00/0.67/0.33). The worksheet and
@@ -176,6 +179,7 @@ class CBFEngine
             : $b['cosine'] <=> $a['cosine']);
 
         $candidates = self::selectCandidates($results, 'cosine');
+        $alternatives = self::selectAlternatives($results, 'cosine');
         foreach ($results as &$r) {
             $r['cosine'] = round($r['cosine'], 4);
         }
@@ -188,12 +192,13 @@ class CBFEngine
             'results' => $results,
             'excluded' => $excluded,
             'candidates' => array_map(fn($c) => (int) $c['id'], $candidates),
+            'alternatives' => array_map(fn($c) => (int) $c['id'], $alternatives),
         ];
     }
 
     /**
-     * CBF candidates from results sorted by $key (highest first): every course tied at the
-     * highest cosine similarity. Also used by api/recommendations.php on saved results.
+     * Best RIASEC Match (CBF candidates) from results sorted by $key (highest first): every
+     * course tied at the highest cosine similarity. Also used by api/recommendations.php on saved results.
      */
     public static function selectCandidates(array $sorted, string $key = 'cosine'): array
     {
@@ -205,6 +210,21 @@ class CBFEngine
             return [];
         }
         return array_values(array_filter($sorted, fn($e) => abs((float) $e[$key] - $best) < self::TIE_EPSILON));
+    }
+
+    /**
+     * Alternative courses from results sorted by $key (highest first): every course at the
+     * next-highest cosine similarity after the Best RIASEC Match level. Also used by
+     * api/recommendations.php on saved results.
+     */
+    public static function selectAlternatives(array $sorted, string $key = 'cosine'): array
+    {
+        $top = self::selectCandidates($sorted, $key);
+        $rest = array_slice($sorted, count($top));
+        if (!$top || !$rest) {
+            return [];
+        }
+        return self::selectCandidates(array_values($rest), $key);
     }
 
     /**

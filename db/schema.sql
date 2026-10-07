@@ -137,9 +137,9 @@ CREATE TABLE recommendations (
     match_status            VARCHAR(10) CHECK (match_status IN ('match', 'mismatch')),
     mismatch_reason         VARCHAR(40),
     -- Pipeline stages (lib/RecommendationPipeline.php); NULL on results saved before they existed.
-    cbf_program_ids         INT[],              -- CBF candidates (highest cosine similarity)
+    cbf_program_ids         INT[],              -- Best RIASEC Match (CBF: highest cosine similarity)
     prediction_program_ids  INT[],              -- prediction model output; NULL while the model is not enabled
-    final_program_ids       INT[],              -- Best Match shown to the student (CBF candidates ∩ worksheet)
+    final_program_ids       INT[],              -- final Best Match (CBF + prediction + worksheet); NULL until the prediction model exists
     model_version           VARCHAR(80)         -- imported WEKA model used
 );
 

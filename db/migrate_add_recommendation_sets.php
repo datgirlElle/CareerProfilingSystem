@@ -1,9 +1,9 @@
 <?php
 // Stores each stage of the recommendation pipeline (lib/RecommendationPipeline.php)
 // with every saved recommendation:
-//   cbf_program_ids         CBF candidates (highest cosine similarity)
+//   cbf_program_ids         Best RIASEC Match (CBF: highest cosine similarity)
 //   prediction_program_ids  prediction model output (NULL while the model is not enabled)
-//   final_program_ids       Best Match shown to the student (CBF candidates ∩ worksheet)
+//   final_program_ids       final Best Match (CBF + prediction + worksheet); NULL until the prediction model exists
 //   model_version           imported WEKA model used (NULL while not enabled)
 // Existing rows stay NULL until db/recompute_recommendations.php is run.
 // Safe to run more than once.
