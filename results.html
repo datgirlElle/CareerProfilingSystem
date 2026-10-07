@@ -202,7 +202,7 @@
             </a>
             <div>
               <h1 class="text-[32px] font-bold text-[#191c1e] tracking-tight">Career Results</h1>
-              <p class="text-sm text-[#5e3f3c] mt-1">Degree programs that match your RIASEC interest areas.</p>
+              <p class="text-sm text-[#5e3f3c] mt-1" id="cr-subtitle">Degree programs that match your RIASEC interest areas.</p>
             </div>
           </div>
           <div class="text-right shrink-0">
@@ -218,10 +218,14 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <div class="lg:col-span-8">
-            <p class="text-sm text-[#5e3f3c] mb-4">Degree programs whose Holland Code matches your top 3 RIASEC interest areas. Listed in no particular order.</p>
-            <div id="cr-guidanceNotice" class="hidden bg-[#fff7ed] border border-[#fed7aa] rounded p-5 mb-4">
-              <p class="text-base font-semibold text-[#c2410c]">Please visit the Guidance Office</p>
-              <p class="text-sm text-[#5e3f3c] mt-1">Your results need a face-to-face session with a Guidance Counselor before you decide on a course.</p>
+            <div id="cr-matchesIntro">
+              <h2 class="text-2xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-2">Top Matches</h2>
+              <p class="text-sm text-[#5e3f3c] mb-4">Degree programs whose Holland Code matches your top 3 RIASEC interest areas. Listed in no particular order.</p>
+            </div>
+            <div id="cr-guidanceNotice" class="hidden bg-[#fff7ed] border border-[#fed7aa] rounded p-6">
+              <p class="text-xl font-semibold text-[#c2410c]">Please proceed to the Guidance Office</p>
+              <p class="text-base text-[#191c1e] mt-2 leading-relaxed">Your RIASEC results are not aligned with the course you chose on your Career Worksheet. Please visit the Center for Guidance and Counseling for a face-to-face session with a Guidance Counselor, who will discuss your results and course options with you.</p>
+              <a href="help-center?subject=Request%20for%20Academic%20Advising" class="inline-block mt-4 bg-[#bb0013] text-white text-sm font-semibold uppercase tracking-wide rounded px-4 py-2.5 hover:opacity-90">Schedule Counseling</a>
             </div>
             <div id="cr-topMatches" class="flex flex-col gap-4"></div>
           </div>
@@ -629,6 +633,15 @@
       '</div>';
     }
 
+    // Mismatch (team definition, CBFEngine::classify): no course is shown; the student is
+    // referred to the Guidance Office for face-to-face counseling.
+    if (recommendation.matchStatus === 'mismatch') {
+      document.getElementById('cr-matchesIntro').classList.add('hidden');
+      document.getElementById('cr-guidanceNotice').classList.remove('hidden');
+      document.getElementById('cr-subtitle').textContent = 'Your RIASEC results and next steps.';
+      return;
+    }
+
     // One list (adviser): every mapped program, then the preferred course at the end if it is not a match.
     let listHtml = recommendation.top3.map(function(p) { return programCardHtml(p, false); }).join('');
     if (!recommendation.top3.length) {
@@ -636,8 +649,6 @@
         'No degree program matched your RIASEC results. Please visit the Guidance Office for career counseling.</div>';
     }
     if (preferred) listHtml += programCardHtml(preferred, true);
-    // Mismatch (team definition, CBFEngine::classify): refer the student to the Guidance Office.
-    if (recommendation.matchStatus === 'mismatch') document.getElementById('cr-guidanceNotice').classList.remove('hidden');
     document.getElementById('cr-topMatches').innerHTML = listHtml;
 
     document.getElementById('cr-topMatches').addEventListener('click', async function(e) {
