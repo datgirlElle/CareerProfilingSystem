@@ -235,7 +235,7 @@
         </div>
       </div>
       <div>
-        <p class="text-xs font-semibold text-slate-500 uppercase">Top Matches</p>
+        <p class="text-xs font-semibold text-slate-500 uppercase">Best Match</p>
         <p id="reviewCareer" class="text-sm text-slate-800"></p>
       </div>
       <div>
@@ -358,10 +358,10 @@
     let debounceHandle = null;
 
     function headForTab(tab) {
-      if (tab === 'needs-review') return ['Student', 'Strand', 'Top Matches', 'Status', 'Flag Reason', 'Priority', 'Action'];
-      if (tab === 'completed') return ['Student', 'Strand', 'Top Matches', 'Status', 'Completed At'];
+      if (tab === 'needs-review') return ['Student', 'Strand', 'Best Match', 'Status', 'Flag Reason', 'Priority', 'Action'];
+      if (tab === 'completed') return ['Student', 'Strand', 'Best Match', 'Status', 'Completed At'];
       if (tab === 'pending') return ['Student', 'Strand', 'Registered', 'Status'];
-      return ['Student', 'Strand', 'Top Matches', 'Status', 'Flag Reason', 'Action'];
+      return ['Student', 'Strand', 'Best Match', 'Status', 'Flag Reason', 'Action'];
     }
 
     function rowHtml(tab, r) {

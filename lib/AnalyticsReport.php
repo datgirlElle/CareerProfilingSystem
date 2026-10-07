@@ -115,10 +115,10 @@ class AnalyticsReport
         $careerCounts = (function () use ($pdo, $hasStrand, $hasSection, $studentFilterClause) {
             $needsJoin = $hasStrand || $hasSection;
             [$clause, $params] = $studentFilterClause();
-            // Students whose Top Matches include each program (latest result per student;
-            // results saved before final_program_ids existed count their top CBF program).
-            $sql = "SELECT unnest(COALESCE(final_program_ids, ARRAY[top_program_id])) AS top_program_id, COUNT(*) AS cnt FROM (
-                        SELECT DISTINCT ON (r.student_id) r.student_id, r.top_program_id, r.final_program_ids
+            // Students whose CBF candidates (courses most similar to their RIASEC profile)
+            // include each program (latest result per student; older results: top CBF program).
+            $sql = "SELECT unnest(COALESCE(cbf_program_ids, ARRAY[top_program_id])) AS top_program_id, COUNT(*) AS cnt FROM (
+                        SELECT DISTINCT ON (r.student_id) r.student_id, r.top_program_id, r.cbf_program_ids
                         FROM recommendations r"
                 . ($needsJoin ? ' JOIN students s ON s.user_id = r.student_id' . $clause : '')
                 . " ORDER BY r.student_id, r.computed_at DESC
@@ -187,7 +187,7 @@ class AnalyticsReport
             // assessed students), so the cards read consistently at a glance.
             'completion' => ['rate' => $pct($assessedCount, $expectedTotal), 'count' => $assessedCount, 'total' => $expectedTotal],
             'worksheet' => ['rate' => $pct($worksheetCount, $expectedTotal), 'count' => $worksheetCount, 'total' => $expectedTotal],
-            // Share of students whose top match score meets the confidence
+            // Share of students whose highest cosine similarity meets the confidence
             // threshold (security_policies monitoring.lowConfidenceThreshold) —
             // a rate, not an average. "threshold" is exposed so the UI can say
             // exactly what the cut-off is.

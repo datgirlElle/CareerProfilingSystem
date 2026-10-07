@@ -76,7 +76,7 @@ function buildReportSections(array $data, string $currentAy): array
         ['title' => 'Enrollment & Completion', 'rows' => $enrollmentRows],
         ['title' => 'Assessment Roster — AY ' . $currentAy, 'rows' => $rosterRows],
         ['title' => 'Students by Strand', 'rows' => $strandRows],
-        ['title' => 'Programs Most Often in Students\' Top Matches (Institution-wide)', 'rows' => $careerRows],
+        ['title' => 'Programs Most Similar to Students\' RIASEC Profiles (CBF, Institution-wide)', 'rows' => $careerRows],
     ];
 }
 

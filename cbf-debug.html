@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CBF Calculation — Career Profiling System</title>
+<link rel="stylesheet" href="css/tailwind.css">
+<style>
+  body { background: #f8fafc; color: #0f172a; font-family: 'Segoe UI', Helvetica, Arial, sans-serif; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { padding: 6px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 13px; white-space: nowrap; }
+  th { background: #f1f5f9; font-weight: 600; color: #475569; }
+  tr.candidate td { background: #f0fdf4; }
+  .mono { font-family: Consolas, 'Courier New', monospace; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<!-- Staff-only (router.php). Shows that the CBF is actually computed for a student:
+     every value comes from api/cbf-debug.php, recomputed live. -->
+<div style="max-width:1100px;margin:0 auto;padding:24px 16px;">
+  <a href="admin-dashboard" class="text-sm text-blue-600 hover:underline">&larr; Back to Dashboard</a>
+  <h1 class="text-2xl font-bold mt-2">CBF Calculation</h1>
+  <p class="text-sm text-slate-500 mt-1 mb-4">Content-based filtering: the student's RIASEC profile compared with every course's RIASEC code using cosine similarity, cos(S, C) = (S · C) / (||S|| × ||C||). Cosine similarity is a 0-1 similarity score, not an accuracy or a percentage.</p>
+
+  <form id="lookupForm" class="card flex gap-3 items-end flex-wrap">
+    <label class="text-sm">Student LRN / School ID<br>
+      <input id="schoolId" class="border border-slate-300 rounded px-3 py-2 text-sm mt-1" style="min-width:240px;" required>
+    </label>
+    <button class="bg-[#ed1c24] text-white text-sm font-medium rounded px-4 py-2">Show calculation</button>
+  </form>
+
+  <p id="error" class="hidden card text-sm" style="color:#b91c1c;"></p>
+  <div id="output" class="hidden">
+    <div class="card">
+      <h2 class="font-semibold mb-2">1. Student RIASEC profile &rarr; student vector S</h2>
+      <div id="student" class="text-sm"></div>
+    </div>
+    <div class="card" style="overflow-x:auto;">
+      <h2 class="font-semibold mb-2">2. Every course &rarr; course vector C &rarr; cosine similarity</h2>
+      <p class="text-xs text-slate-500 mb-2">Course vector: 1 if the letter is in the course's RIASEC code, 0 if not, in [R, I, A, S, E, C] order. Sorted by cosine similarity; highlighted rows are the CBF candidates (highest cosine similarity).</p>
+      <table>
+        <thead><tr><th>#</th><th>Course</th><th>RIASEC</th><th>Course vector C</th><th>Dot product S·C</th><th>||S||</th><th>||C||</th><th>Cosine similarity</th></tr></thead>
+        <tbody id="results"></tbody>
+      </table>
+      <div id="excluded" class="text-sm mt-3"></div>
+    </div>
+    <div class="card">
+      <h2 class="font-semibold mb-2">3. Recommendation sources</h2>
+      <div id="sources" class="text-sm"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const esc = function(v) { return String(v).replace(/[&<>"']/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  const vec = function(v) { return '<span class="mono">[' + v.map(function(x) { return esc(x); }).join(', ') + ']</span>'; };
+  const list = function(a) { return a && a.length ? a.map(esc).join(', ') : 'None'; };
+
+  async function load(schoolId) {
+    const res = await fetch('api/cbf-debug.php?schoolId=' + encodeURIComponent(schoolId));
+    const d = await res.json().catch(function() { return {}; });
+    const err = document.getElementById('error');
+    if (!res.ok) {
+      err.textContent = d.error || 'Could not load the calculation.';
+      err.classList.remove('hidden');
+      document.getElementById('output').classList.add('hidden');
+      return;
+    }
+    err.classList.add('hidden');
+    const cbf = d.cbf;
+    const dims = d.dimensions;
+
+    if (cbf.status !== 'available') {
+      document.getElementById('student').innerHTML = '<p style="color:#b91c1c;">CBF not computed: ' + esc(cbf.reason) + '</p>';
+    } else {
+      document.getElementById('student').innerHTML =
+        '<table style="width:auto;"><tr><th></th>' + dims.map(function(x) { return '<th>' + x + '</th>'; }).join('') + '</tr>' +
+        '<tr><td>RIASEC total (10 items, 10-50)</td>' + dims.map(function(x) { return '<td class="mono">' + esc(cbf.studentScores[x]) + '</td>'; }).join('') + '</tr>' +
+        '<tr><td>S = mean item score (total &divide; 10)</td>' + cbf.studentVector.map(function(x) { return '<td class="mono">' + esc(x) + '</td>'; }).join('') + '</tr></table>' +
+        '<p class="mt-2">Student vector S = ' + vec(cbf.studentVector) + ' &nbsp; ||S|| = <span class="mono">' + esc(cbf.studentMagnitude) + '</span></p>';
+    }
+    document.getElementById('results').innerHTML = cbf.results.map(function(r, i) {
+      return '<tr class="' + (r.isCandidate ? 'candidate' : '') + '"><td>' + (i + 1) + '</td><td>' + esc(r.title) + '</td><td class="mono">' + esc(r.hollandCode) + '</td>' +
+        '<td>' + vec(r.courseVector) + '</td><td class="mono">' + esc(r.dotProduct) + '</td><td class="mono">' + esc(cbf.studentMagnitude) + '</td>' +
+        '<td class="mono">' + esc(r.courseMagnitude) + '</td><td class="mono"><strong>' + Number(r.cosine).toFixed(4) + '</strong></td></tr>';
+    }).join('');
+    document.getElementById('excluded').innerHTML = cbf.excluded.length
+      ? '<strong>Excluded (flagged):</strong> ' + cbf.excluded.map(function(x) { return esc(x.title) + ' (' + esc(x.hollandCode || 'no code') + '): ' + esc(x.reason); }).join('; ')
+      : 'Excluded courses: none (every active course has a valid RIASEC mapping).';
+    document.getElementById('sources').innerHTML =
+      '<p><strong>CBF candidates</strong> (highest cosine similarity): ' + list(cbf.candidates) + '</p>' +
+      '<p class="mt-1"><strong>Worksheet</strong> (Preferred Course): ' + (d.worksheet.status === 'available' ? list(d.worksheet.preferredCourse) : 'no worksheet result') + '</p>' +
+      '<p class="mt-1"><strong>Prediction model</strong>: ' + esc(d.prediction.reason) + '</p>' +
+      '<p class="mt-3"><strong>Best Match</strong> (CBF candidates &cap; worksheet): ' + list(d.final.bestMatch) + '</p>' +
+      '<p class="mt-1"><strong>Alternative Courses</strong>: ' + list(d.final.alternatives) + '</p>' +
+      '<p class="mt-1 text-xs text-slate-500">Sources used: ' + list(d.final.sourcesUsed) + '. Pending: ' + list(d.final.pendingSources) +
+        '. The final three-source Best Match is not complete until the prediction model is available.</p>';
+    document.getElementById('output').classList.remove('hidden');
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  document.getElementById('lookupForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const id = document.getElementById('schoolId').value.trim();
+    history.replaceState(null, '', '?schoolId=' + encodeURIComponent(id));
+    load(id);
+  });
+  if (params.get('schoolId')) {
+    document.getElementById('schoolId').value = params.get('schoolId');
+    load(params.get('schoolId'));
+  }
+})();
+</script>
+</body>
+</html>

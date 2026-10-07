@@ -36,6 +36,7 @@ const PROTECTED_PAGES = [
     'admin-notifications' => ['admin', 'counselor'],
     'monitoring' => ['admin', 'counselor'],
     'monitoring-details' => ['admin', 'counselor'],
+    'cbf-debug' => ['admin', 'counselor'],
     'profile' => ['admin', 'counselor'],
     'question-bank' => ['admin', 'counselor'],
     'retake-requests' => ['admin', 'counselor'],

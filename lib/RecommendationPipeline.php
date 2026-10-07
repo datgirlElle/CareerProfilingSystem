@@ -1,112 +1,128 @@
 <?php
 
 require_once __DIR__ . '/CBFEngine.php';
-require_once __DIR__ . '/PredictionModel.php';
 
 /**
- * The recommendation process, as approved by the adviser:
+ * Recommendation sources and the final recommendation.
  *
- *   Stage 1  Student profile   RIASEC scores (+ strand/electives) and the Preferred Course
- *                              from the Career Electives Worksheet
- *   Stage 2  CBF               cosine similarity between the student's RIASEC profile and
- *                              every program's Holland code -> CBF match set
- *   Stage 3  Prediction model  decision tree trained in WEKA -> predicted course
- *   Stage 4  Combination       Top Matches = CBF matches ∩ prediction
- *                              (no common course -> the CBF matches are shown, and the
- *                              student is referred to the Guidance Office)
- *   Stage 5  Preferred course  is it among the Top Matches? (shown in its own section;
- *                              it never changes the Top Matches)
- *   Stage 6  Output            finalIds = the one Top Matches list
+ *   Source 1  CBF                "Which courses have RIASEC characteristics most similar to
+ *                                 this student's RIASEC profile?" -> cosine similarity
+ *                                 (lib/CBFEngine.php) -> CBF candidates
+ *   Source 2  Worksheet          "Which course does the student's Career Electives Worksheet
+ *                                 indicate?" -> the Preferred Course
+ *   Source 3  Prediction model   WEKA decision tree. NOT AVAILABLE in this version: the real
+ *                                 dataset does not exist yet, so this source is always reported
+ *                                 as unavailable and never produces a course. The existing
+ *                                 WEKA code (lib/PredictionModel.php) is not called.
  *
- * No weights: the CBF uses binary RIASEC vectors and cosine similarity only, and the
- * preferred course has no numeric weight. Lists keep the program-list order; they are
- * sets, not rankings.
+ *   Final     Best Match = the course(s) common to the AVAILABLE sources (now: CBF candidates
+ *             ∩ worksheet). Alternative Courses = the other CBF candidates.
+ *             The result is marked incomplete (isComplete = false) because the prediction
+ *             model is still pending; once it exists, its courses join the intersection in
+ *             finalRecommendation() (see the marked place below).
+ *
+ * The sources are kept separate: the worksheet never enters the cosine calculation, and no
+ * source is given a numeric weight.
  */
 class RecommendationPipeline
 {
     /**
-     * Runs stages 2-6 for one student.
+     * Runs every source for one student.
      *
-     * @param array $profile CBFData::studentProfile()
+     * @param array $profile CBFData::studentProfile() (uses 'riasec')
      * @param array $programs CBFData::activePrograms()
      * @param int[] $preferredIds Preferred Course(s) from the worksheet, in the order entered
-     * @param array|null $model imported prediction model (default: config/prediction_model.json)
      */
-    public static function run(array $profile, array $programs, array $preferredIds, ?array $config = null, ?array $model = null): array
+    public static function run(array $profile, array $programs, array $preferredIds, ?array $config = null): array
     {
-        $config ??= CBFEngine::config();
+        $cbf = self::cbfRecommendation($profile['riasec'] ?? null, $programs, $config);
+        $worksheet = self::worksheetRecommendation($preferredIds, $programs);
+        $prediction = self::predictionRecommendation();
+        return ['cbf' => $cbf, 'worksheet' => $worksheet, 'prediction' => $prediction]
+            + self::finalRecommendation($cbf, $worksheet, $prediction);
+    }
 
-        // Stage 2: CBF (the stated program gets no weight: final_score.stated_program = 0)
-        $cbf = CBFEngine::recommend($profile, $programs, $preferredIds[0] ?? null, $config);
-        $cbfIds = array_map('intval', array_column($cbf['top3'], 'id'));
-
-        // Stage 3: prediction model (only when enabled; null = not available)
-        $predictionIds = null;
-        if ($config['decision_tree']['enabled'] ?? false) {
-            $top = CBFEngine::topRiasecLetters($profile['riasec'] ?? [], (int) ($config['student_top_n'] ?? 3));
-            $predictionIds = PredictionModel::predict($top, $programs, $model);
+    /** Source 1: CBF. status 'unavailable' (with reason) if the RIASEC profile is missing/invalid. */
+    public static function cbfRecommendation(?array $riasecScores, array $programs, ?array $config = null): array
+    {
+        try {
+            $r = CBFEngine::compute($riasecScores, $programs, $config);
+        } catch (InvalidArgumentException $e) {
+            return ['status' => 'unavailable', 'reason' => $e->getMessage(), 'candidateIds' => [], 'results' => [], 'excluded' => []];
         }
+        return ['status' => 'available', 'reason' => null, 'candidateIds' => $r['candidates']] + $r;
+    }
 
-        // Stages 4-6
-        return ['cbf' => $cbf, 'modelVersion' => $predictionIds !== null ? (($model ?? PredictionModel::load())['version'] ?? null) : null]
-            + self::combine($cbfIds, $predictionIds, $preferredIds, $config);
+    /** Source 2: Worksheet: the Preferred Course(s) that are active programs; 'empty' if none. */
+    public static function worksheetRecommendation(array $preferredIds, array $programs): array
+    {
+        $active = array_map('intval', array_column($programs, 'id'));
+        $ids = array_values(array_filter(array_unique(array_map('intval', $preferredIds)), fn($id) => in_array($id, $active, true)));
+        return ['status' => $ids ? 'available' : 'empty', 'courseIds' => $ids];
     }
 
     /**
-     * Stages 4-6 (pure; unit-tested in tests/pipeline_test.php).
-     *
-     * @param int[]      $cbfIds        CBF match set
-     * @param int[]|null $predictionIds prediction model output (null = model not available)
-     * @param int[]      $preferredIds  Preferred Course(s), in the order entered on the worksheet
-     * @return array{cbfIds:int[], predictionIds:?array, commonIds:?array, finalIds:int[], usedFallback:bool,
-     *               preferred:array<int,array{id:int,inTopMatches:bool}>, status:string, reason:?string, rule:string}
+     * Source 3: Prediction model: unavailable until the real dataset and trained model exist.
+     * Deliberately returns no course (no placeholder or sample prediction).
      */
-    public static function combine(array $cbfIds, ?array $predictionIds, array $preferredIds, ?array $config = null): array
+    public static function predictionRecommendation(): array
     {
-        $config ??= CBFEngine::config();
-        $cbfIds = array_values(array_unique(array_map('intval', $cbfIds)));
-        $useModel = ($config['decision_tree']['enabled'] ?? false) && $predictionIds !== null;
-        $rule = $useModel ? ($config['mismatch']['definition'] ?? 'no_common_course') : ($config['mismatch']['interim'] ?? 'preferred_not_matched');
+        return ['status' => 'unavailable', 'courseIds' => [],
+            'reason' => 'Prediction model (WEKA) not yet available: excluded from this version.'];
+    }
 
-        $commonIds = null;
-        $usedFallback = false;
-        if ($useModel) {
-            $predictionIds = array_values(array_unique(array_map('intval', $predictionIds)));
-            // Stage 4: common courses, in CBF (program-list) order
-            $commonIds = array_values(array_filter($cbfIds, fn($id) => in_array($id, $predictionIds, true)));
-            $finalIds = $commonIds ?: $cbfIds;
-            $usedFallback = !$commonIds && (bool) $cbfIds;
+    /**
+     * Final recommendation from the available sources (pure; tested in tests/pipeline_test.php).
+     *
+     * @return array{bestMatchIds:int[], alternativeIds:int[], commonIds:int[], preferred:array,
+     *               status:string, reason:?string, sourcesUsed:string[], pendingSources:string[], isComplete:bool}
+     */
+    public static function finalRecommendation(array $cbf, array $worksheet, array $prediction): array
+    {
+        $candidates = $cbf['status'] === 'available' ? $cbf['candidateIds'] : [];
+        $sourcesUsed = ['cbf'];
+        $common = $candidates;
+        if ($worksheet['status'] === 'available') {
+            $sourcesUsed[] = 'worksheet';
+            $common = array_values(array_filter($common, fn($id) => in_array($id, $worksheet['courseIds'], true)));
         } else {
-            $finalIds = $cbfIds; // until the model is connected, the Top Matches are the CBF matches
+            $common = []; // no worksheet: nothing to combine with yet
         }
+        // FUTURE (prediction model): when $prediction['status'] === 'available', add 'prediction' to
+        // $sourcesUsed and keep only the courses also in $prediction['courseIds'] here.
+        $pending = $prediction['status'] === 'available' ? [] : ['prediction'];
 
-        // Stage 5: Preferred Course(s) — status only, the Top Matches are not changed.
-        $preferred = [];
-        foreach (array_values(array_unique(array_map('intval', $preferredIds))) as $id) {
-            $preferred[] = ['id' => $id, 'inTopMatches' => in_array($id, $finalIds, true)];
-        }
+        $bestMatchIds = $common;
+        $alternativeIds = array_values(array_filter($candidates, fn($id) => !in_array($id, $bestMatchIds, true)));
 
-        // Match / mismatch (team definition)
-        if (!$cbfIds) {
+        $preferred = array_map(fn($id) => [
+            'id' => $id,
+            'inCbfCandidates' => in_array($id, $candidates, true),
+            'isBestMatch' => in_array($id, $bestMatchIds, true),
+        ], $worksheet['courseIds']);
+
+        if ($cbf['status'] !== 'available') {
+            [$status, $reason] = ['mismatch', 'no_cbf_result'];
+        } elseif (!$candidates) {
             [$status, $reason] = ['mismatch', 'no_cbf_match'];
-        } elseif ($rule === 'no_common_course') {
-            [$status, $reason] = $commonIds ? ['match', null] : ['mismatch', 'no_common_course'];
-        } elseif ($preferred && !$preferred[0]['inTopMatches']) {
+        } elseif ($worksheet['status'] !== 'available') {
+            [$status, $reason] = ['mismatch', 'no_worksheet'];
+        } elseif (!$bestMatchIds) {
             [$status, $reason] = ['mismatch', 'preferred_not_matched'];
         } else {
             [$status, $reason] = ['match', null];
         }
 
         return [
-            'cbfIds' => $cbfIds,
-            'predictionIds' => $useModel ? $predictionIds : null,
-            'commonIds' => $commonIds,
-            'finalIds' => $finalIds,
-            'usedFallback' => $usedFallback,
+            'bestMatchIds' => $bestMatchIds,
+            'alternativeIds' => $alternativeIds,
+            'commonIds' => $common,
             'preferred' => $preferred,
             'status' => $status,
             'reason' => $reason,
-            'rule' => $rule,
+            'sourcesUsed' => $sourcesUsed,
+            'pendingSources' => $pending,
+            'isComplete' => !$pending,
         ];
     }
 }

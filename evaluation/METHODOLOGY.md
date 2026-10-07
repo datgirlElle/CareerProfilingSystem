@@ -177,6 +177,15 @@ scores. §9 explains how evaluation handles ties, and §11 discusses this as a t
 
 ## 4. Student-vector generation
 
+> **CBF revision (web app, current).** Following the latest adviser discussion, the web app's
+> CBF (`lib/CBFEngine.php`) now uses the student's **actual RIASEC profile** as the student
+> vector: each type's **mean item score** (raw total ÷ 10, so 1.0–5.0) in [R, I, A, S, E, C]
+> order. Example: totals R45 I45 A45 S45 E35 C25 → S = [4.5, 4.5, 4.5, 4.5, 3.5, 2.5].
+> Course vectors stay binary (§3), and there are no weights of any kind. This replaces the
+> top-3 binary student vector described in item 3 below for the web app. The Python toolkit
+> in this folder (`cbf_eval.py`) and the WEKA dataset format were **not** changed in this
+> revision and still use the top-3 binary encoding; see §10a.
+
 1. **Source of scores.** The web app's questionnaire has 60 Likert items (1–5), 10 per RIASEC
    dimension. This gives six raw totals between 10 and 50 (`assessments.score_r … score_c`).
    - **[Assumption]** This item bank was written for the project (`db/seed_questions.php`), and
@@ -212,9 +221,9 @@ scores. §9 explains how evaluation handles ties, and §11 discusses this as a t
   that course. Report this as a threat (§11).
 - The course a student *states* on the Career Worksheet is an **intended** course, not an
   actual one. If it is used, call the label `IntendedCourse` and say so.
-- In that case, the web app's 0.30 stated-program bonus must **not** be part of the evaluated
-  CBF, because it would put the label into the input (leakage). The evaluated CBF here is
-  pure cosine similarity.
+- In that case, no stated-program bonus may be part of the evaluated CBF, because it would put
+  the label into the input (leakage). The web app's former 0.30 bonus has been removed; its CBF
+  is pure cosine similarity.
 
 ## 5. Cosine similarity
 
@@ -366,36 +375,32 @@ test students** at **matching output levels**:
 
   The switch is a single setting in `config/cbf.php` (`decision_tree.enabled`).
 
-## 10a. Recommendation pipeline (final Top Matches)
+## 10a. Recommendation sources (web app, CBF revision)
 
-Implemented in `lib/RecommendationPipeline.php`; every stage is stored with the result
-(`recommendations.cbf_program_ids`, `prediction_program_ids`, `final_program_ids`,
-`model_version`) and is visible to staff on the student profile, never to students.
+Implemented in `lib/RecommendationPipeline.php`. Three recommendation sources are kept
+separate; none is given a numeric weight, and the worksheet never enters the cosine formula.
 
-| Stage | Input | Output |
-|---|---|---|
-| 1. Student profile | RIASEC Assessment scores; Career Electives Worksheet | top-3 RIASEC letters; Preferred Course |
-| 2. CBF | binary RIASEC vector vs. each program's binary Holland-code vector, cosine similarity | **CBF match set**: every program tied at the highest similarity |
-| 3. Prediction model | the same six binary RIASEC attributes (x = 1, blank = 0) | **predicted course** (one class, from the J48 tree) |
-| 4. Combination | CBF match set, predicted course | **Top Matches = CBF ∩ prediction**; if empty, the CBF match set (fallback) |
-| 5. Preferred Course | Preferred Course, Top Matches | in / not in the Top Matches (own section; never changes the list) |
-| 6. Output | | one Top Matches list, program-list order, no ranks, no percentages |
+| Source | Question | Method | Status |
+|---|---|---|---|
+| **1. CBF** | Which courses have RIASEC characteristics most similar to this student's RIASEC profile? | student vector (mean item scores) vs. every course's binary Holland-code vector, cosine similarity | active |
+| **2. Worksheet** | Which course does the student's Career Electives Worksheet indicate? | the Preferred Course | active |
+| **3. Prediction model** | What course does the model predict from patterns in the training dataset? | WEKA decision tree | **not available** (no real dataset yet); excluded |
 
-- **No weights anywhere.** Cosine similarity on binary vectors; the Preferred Course has no
-  numeric weight (`final_score.stated_program = 0`); no 70/30, no 1.00/0.67/0.33.
-- **One predicted course.** J48 assigns one class per student, so the common set has at most
-  one course. Using several classes would need a probability cut-off that the methodology
-  would have to justify; this is not done.
-- **Same inputs as the trained model.** The model receives exactly the attributes of the
-  WEKA dataset (§7): the six RIASEC types marked x for the student's top 3. The Preferred
-  Course is never an input (it is the class in the dataset).
-- **Running the model in the system.** WEKA's printed J48 tree is imported with
-  `php db/import_weka_tree.php <saved result buffer>` into `config/prediction_model.json`
-  and evaluated in PHP (`lib/PredictionModel.php`). The import prints the prediction for all
-  20 possible top-3 combinations so they can be checked against WEKA; course names in the
-  class column are mapped to programs through `config/course_aliases.php`.
-- **Multiple Preferred Courses.** The worksheet stores one. If it is extended, they are kept in
-  the order entered, without duplicates, each marked in / not in the Top Matches.
+- **CBF candidates:** every course tied at the highest cosine similarity. Because course vectors
+  are binary, courses with the same three letters (e.g. IRC, RIC, ICR) always have the same
+  similarity, so there are usually several candidates.
+- **Best Match (current):** the courses common to the available sources, i.e. CBF candidates ∩
+  the Preferred Course. **Alternative Courses:** the other CBF candidates.
+- **No common course:** no Best Match; the CBF candidates are shown as alternatives and the
+  student is encouraged to talk to a Guidance Counselor (status `mismatch`).
+- **Not final:** the result is stored and shown as incomplete (`pendingSources = prediction`)
+  until the prediction model exists; the three-way intersection is not executed.
+- **Stored per result** (`recommendations`): every course's dot product, magnitudes and cosine
+  (`scores`), the CBF candidates (`cbf_program_ids`) and the Best Match (`final_program_ids`).
+- **Auditing:** the staff page `cbf-debug` (and `php db/cbf_debug.php <school_id>`) shows the
+  student vector and, for every course, the course vector, dot product, magnitudes and cosine.
+- **Cosine similarity is not accuracy.** It is shown as "Cosine Similarity: 0.xxx", never as a
+  percentage. Accuracy belongs to the future prediction-model evaluation.
 
 ## 11. Threats to validity
 

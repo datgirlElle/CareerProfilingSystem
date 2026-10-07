@@ -163,7 +163,7 @@
       <div class="flex items-start justify-between flex-wrap gap-4 mb-8">
         <div>
           <h1 class="text-2xl font-bold text-slate-900">Career Dataset</h1>
-          <p class="text-sm text-slate-500 mt-1">Manage the MMCL program dataset used to form students' Top Matches.</p>
+          <p class="text-sm text-slate-500 mt-1">Manage the MMCL program dataset and the RIASEC codes used by the content-based filtering (CBF).</p>
         </div>
         <div class="flex items-center gap-3">
           <div class="relative">
@@ -635,7 +635,7 @@
 
   function openDeleteModal(id, title) {
     pendingDeleteId = id;
-    deleteCareerText.textContent = `Deactivate "${title}"? It will no longer appear in students' Top Matches, but can be re-activated later.`;
+    deleteCareerText.textContent = `Deactivate "${title}"? It will no longer be compared with students' RIASEC profiles, but can be re-activated later.`;
     deleteModal.classList.remove('hidden');
   }
   function closeDeleteModal() {

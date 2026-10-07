@@ -1,48 +1,47 @@
 <?php
 
 /**
- * Content-Based Filtering (CBF) recommendation engine using Cosine Similarity.
+ * Content-Based Filtering (CBF) using Cosine Similarity.
  *
- * Process (one call to recommend() runs all of it):
- *   1. Student profile   — the six RIASEC scores from the student's assessment
- *   2. Student vector    — [R, I, A, S, E, C]: currently 1 for the student's top 3
- *                           RIASEC types and 0 for the rest (config student_vector;
- *                           alternative: the six scores scaled 0-1) (studentFeatures)
- *   3. Course vectors    — each course's final Holland code encoded per letter
- *                           position (config holland_rank_weights). Currently
- *                           binary: letter in the code = 1, absent = 0
- *                           (programFeatures / hollandCodeToVector)
- *   4. Cosine similarity  — cos(S, C) = (S · C) / (||S|| × ||C||) between the
- *                           student vector and EVERY course vector
- *   5. Ranking            — all courses sorted by similarity, highest first; the
- *                           student's mapped courses are every course tied at the
- *                           highest similarity (config match_rule, selectMatches)
- *   6. Explanation        — which of the student's top RIASEC types the course shares
+ *   User          = the student
+ *   User profile  = the student's RIASEC profile from the 60-item RIASEC Assessment
+ *   Items         = the MCL degree programs
+ *   Item profile  = each program's guidance-approved Holland (RIASEC) code
+ *   Similarity    = cosine similarity, cos(S, C) = (S · C) / (||S|| × ||C||)
  *
- * Weights, encoding, scaling and N all live in config/cbf.php. The engine also
- * supports optional strand/elective blocks and a stated-program bonus; the
- * current methodology sets those to 0 so the ranking is pure RIASEC cosine.
+ * Process (compute()):
+ *   1. Student vector  [R, I, A, S, E, C] = the student's six RIASEC results, each as the
+ *                      mean item score of that type (raw total ÷ 10 items, so 1.0-5.0).
+ *                      Dividing every value by the same number does not change cosine
+ *                      values; it only puts the vector on the answer scale (1-5).
+ *   2. Course vectors  [R, I, A, S, E, C] = 1 if the letter is in the program's code,
+ *                      0 if not (e.g. AES -> [0, 0, 1, 1, 1, 0]). Letter order carries
+ *                      no weight. A program without a valid code is flagged and skipped.
+ *   3. Cosine          computed between the student vector and EVERY valid course vector,
+ *                      with the dot product and both magnitudes kept for auditing.
+ *   4. Results         all courses sorted by cosine similarity (highest first; equal
+ *                      values keep the program-list order).
+ *   5. CBF candidates  every course tied at the highest cosine similarity.
  *
- * Why unit-length blocks scaled by sqrt(weight)? Because then, when both sides
- * have every block filled in, the cosine of the joined vectors is exactly
- *     Σ weight_k × cosine_k
- * i.e. a weighted average of the per-block similarities. The score stays ONE
- * true cosine similarity, yet each block's share of it can be reported
- * (the "contribution" values), which is what makes results explainable.
- * A block that is missing on either side is all zeros: it adds nothing to the
- * dot product and never causes a division by zero.
+ * Nothing else enters the calculation: no worksheet answers, no strand, no electives,
+ * no prediction model, and no weights (no 70/30, no 1.00/0.67/0.33). The worksheet and
+ * the prediction model are separate recommendation sources (lib/RecommendationPipeline.php).
  *
- * The engine only uses the student's own profile and the program dataset — no
- * other students' data or ratings — which is what makes it content-based.
+ * Cosine similarity is a similarity score between 0 and 1. It is not an accuracy and not
+ * a percentage, and must never be shown as one.
  */
 class CBFEngine
 {
+    /** Feature order used everywhere (student and course vectors). Never change it. */
     public const DIMENSIONS = ['R', 'I', 'A', 'S', 'E', 'C'];
 
     public const RIASEC_LABELS = [
         'R' => 'Realistic', 'I' => 'Investigative', 'A' => 'Artistic',
         'S' => 'Social', 'E' => 'Enterprising', 'C' => 'Conventional',
     ];
+
+    /** Equal cosine values (within this tolerance) are treated as ties. */
+    public const TIE_EPSILON = 1e-9;
 
     private static ?array $config = null;
 
@@ -52,405 +51,171 @@ class CBFEngine
         return self::$config ??= require __DIR__ . '/../config/cbf.php';
     }
 
-    /** Every elective in the configured clusters, in a fixed order (= vector dimension order). */
-    public static function electiveVocabulary(?array $config = null): array
-    {
-        $config ??= self::config();
-        return array_values(array_unique(array_merge(...array_values($config['elective_clusters']))));
-    }
-
-    /** Human-readable name of every dimension, per block — used by the debug views. */
-    public static function featureLabels(?array $config = null): array
-    {
-        $config ??= self::config();
-        return [
-            'riasec' => self::DIMENSIONS,
-            'strand' => $config['strands'],
-            'electives' => self::electiveVocabulary($config),
-        ];
-    }
-
     // ------------------------------------------------------------------
-    // Step 2: feature extraction — attribute values -> numeric vectors
+    // Vectors
     // ------------------------------------------------------------------
 
     /**
-     * A program's Holland code (e.g. "RIC") -> 6-dim RIASEC vector by rank:
-     * primary=3, secondary=2, tertiary=1, absent=0 → "RIC" = [3,2,0,0,0,1].
-     */
-    public static function hollandCodeToVector(string $code, ?array $rankWeights = null): array
-    {
-        $rankWeights ??= self::config()['holland_rank_weights'];
-        $weights = [];
-        $letters = str_split(strtoupper($code));
-        foreach (array_slice($letters, 0, count($rankWeights)) as $i => $letter) {
-            $weights[$letter] = $rankWeights[$i];
-        }
-        return array_map(fn($d) => $weights[$d] ?? 0, self::DIMENSIONS);
-    }
-
-    /** @param array<string,int> $scores keyed by R,I,A,S,E,C */
-    public static function scoresToVector(array $scores): array
-    {
-        return array_map(fn($d) => $scores[$d] ?? 0, self::DIMENSIONS);
-    }
-
-    /** Binary (1/0) vector: 1 where the vocabulary item is present in $values. */
-    public static function multiHot(array $vocabulary, array $values): array
-    {
-        $present = array_flip($values);
-        return array_map(fn($item) => isset($present[$item]) ? 1 : 0, $vocabulary);
-    }
-
-    /**
-     * Student profile -> feature blocks.
+     * Student RIASEC totals (R..C, each = sum of the type's items) -> student vector of
+     * mean item scores in [R, I, A, S, E, C] order.
      *
-     * @param array{riasec?: ?array<string,int>, strand?: ?string, electives?: ?array<string>} $profile
-     *        Any attribute may be missing/null; its block is then all zeros.
-     * @return array{riasec: array, strand: array, electives: array}
+     * @param array<string,int|float>|null $scores
+     * @throws InvalidArgumentException when a score is missing, not numeric or out of range
+     *         (no value is ever substituted)
      */
-    public static function studentFeatures(array $profile, ?array $config = null): array
+    public static function studentVector(?array $scores, ?array $config = null): array
     {
         $config ??= self::config();
-
-        $riasec = array_fill(0, 6, 0);
-        if (!empty($profile['riasec']) && ($config['student_vector'] ?? 'scores') === 'top_binary') {
-            // Top-N binary: 1 ("x") for the student's N highest RIASEC types, 0 otherwise.
-            $top = self::topRiasecLetters($profile['riasec'], $config['student_top_n'] ?? 3);
-            $riasec = self::multiHot(self::DIMENSIONS, $top);
-        } elseif (!empty($profile['riasec'])) {
-            // Raw totals (10..50) -> 0-1 scale. Dividing by the maximum does not
-            // change cosine values; subtracting the floor does (see config/cbf.php).
-            $riasec = self::scoresToVector($profile['riasec']);
-            $max = $config['riasec_max'];
-            if ($config['riasec_subtract_floor']) {
-                $floor = $config['riasec_floor'];
-                $riasec = array_map(fn($v) => max(0, $v - $floor) / (float) ($max - $floor), $riasec);
-            } else {
-                $riasec = array_map(fn($v) => $v / (float) $max, $riasec);
+        $items = (int) $config['riasec_items_per_type'];
+        [$min, $max] = [$items * $config['riasec_answer_min'], $items * $config['riasec_answer_max']];
+        if (!$scores) {
+            throw new InvalidArgumentException('The student has no RIASEC Assessment result.');
+        }
+        $vector = [];
+        foreach (self::DIMENSIONS as $d) {
+            $v = $scores[$d] ?? null;
+            if ($v === null || !is_numeric($v)) {
+                throw new InvalidArgumentException("The RIASEC score for $d is missing or not a number.");
             }
+            if ($v < $min || $v > $max) {
+                throw new InvalidArgumentException("The RIASEC score for $d ($v) is outside the valid range $min-$max.");
+            }
+            $vector[] = round($v / $items, 4);
         }
-
-        return [
-            'riasec' => $riasec,
-            'strand' => self::multiHot($config['strands'], isset($profile['strand']) ? [$profile['strand']] : []),
-            'electives' => self::multiHot(self::electiveVocabulary($config), $profile['electives'] ?? []),
-        ];
+        return $vector;
     }
 
     /**
-     * Program (career/course) record -> feature blocks, in the same layout as
-     * studentFeatures() so the two can be compared dimension by dimension.
-     *
-     * @param array{hollandCode?: ?string, relatedStrands?: ?array<string>, collegeCode?: ?string} $program
+     * A program's Holland code -> binary course vector in [R, I, A, S, E, C] order.
+     * Returns null for a missing or invalid code (anything other than three different
+     * RIASEC letters), so the program is flagged instead of given a made-up vector.
      */
-    public static function programFeatures(array $program, ?array $config = null): array
+    public static function courseVector(?string $hollandCode): ?array
     {
-        $config ??= self::config();
-        $hollandCode = $program['hollandCode'] ?? '';
-
-        return [
-            'riasec' => $hollandCode !== ''
-                ? self::hollandCodeToVector($hollandCode, $config['holland_rank_weights'])
-                : array_fill(0, 6, 0),
-            'strand' => self::multiHot($config['strands'], $program['relatedStrands'] ?? []),
-            'electives' => self::multiHot(
-                self::electiveVocabulary($config),
-                $config['college_electives'][$program['collegeCode'] ?? ''] ?? []
-            ),
-        ];
+        $code = strtoupper(trim((string) $hollandCode));
+        if (!preg_match('/^[RIASEC]{3}$/', $code) || count(array_unique(str_split($code))) !== 3) {
+            return null;
+        }
+        return array_map(fn($d) => str_contains($code, $d) ? 1 : 0, self::DIMENSIONS);
     }
 
-    // ------------------------------------------------------------------
-    // Step 3: weighting — join the blocks into one comparable vector
-    // ------------------------------------------------------------------
-
-    /** Configured block weights rescaled to sum to 1 (blocks weighted 0 are dropped). */
-    public static function normalizedWeights(?array $config = null): array
+    public static function dotProduct(array $a, array $b): float
     {
-        $config ??= self::config();
-        $weights = array_filter($config['weights'], fn($w) => $w > 0);
-        $total = array_sum($weights);
-        return $total > 0 ? array_map(fn($w) => $w / $total, $weights) : [];
+        $sum = 0.0;
+        foreach ($a as $i => $x) {
+            $sum += $x * $b[$i];
+        }
+        return $sum;
     }
 
-    private static function magnitude(array $v): float
+    public static function magnitude(array $v): float
     {
         return sqrt(array_sum(array_map(fn($x) => $x * $x, $v)));
     }
 
     /**
-     * Scale each block to unit length, multiply it by sqrt(weight), and join
-     * all blocks into one flat vector. An all-zero block stays all zeros.
+     * cos(A, B) = (A · B) / (||A|| × ||B||). null when either magnitude is 0: the
+     * similarity is undefined, and returning 0 would be a misleading value.
      */
-    public static function weightedVector(array $blocks, array $weights): array
+    public static function cosineSimilarity(array $a, array $b): ?float
     {
-        $vector = [];
-        foreach ($weights as $name => $w) {
-            $block = $blocks[$name];
-            $mag = self::magnitude($block);
-            foreach ($block as $x) {
-                $vector[] = $mag > 0 ? ($x / $mag) * sqrt($w) : 0.0;
+        $den = self::magnitude($a) * self::magnitude($b);
+        return $den > 0 ? self::dotProduct($a, $b) / $den : null;
+    }
+
+    // ------------------------------------------------------------------
+    // CBF over all courses
+    // ------------------------------------------------------------------
+
+    /**
+     * Runs the CBF for one student against every program.
+     *
+     * @param array<string,int|float>|null $riasecScores student's RIASEC totals keyed R..C
+     * @param array<int,array{id:int,title?:string,hollandCode:?string}> $programs all active programs
+     * @return array{studentScores:array, studentVector:float[], studentMagnitude:float,
+     *               results:array, excluded:array, candidates:array}
+     *         results: every valid course, highest cosine first, each with
+     *         courseVector, dotProduct, courseMagnitude and cosine.
+     * @throws InvalidArgumentException for an invalid RIASEC profile
+     */
+    public static function compute(?array $riasecScores, array $programs, ?array $config = null): array
+    {
+        $config ??= self::config();
+        $student = self::studentVector($riasecScores, $config);
+        $studentMagnitude = self::magnitude($student);
+
+        $results = [];
+        $excluded = [];
+        foreach ($programs as $p) {
+            $course = self::courseVector($p['hollandCode'] ?? null);
+            if ($course === null) {
+                $excluded[] = ['id' => $p['id'], 'title' => $p['title'] ?? null, 'hollandCode' => $p['hollandCode'] ?? null,
+                    'reason' => 'Missing or invalid RIASEC mapping (needs three different letters from R, I, A, S, E, C).'];
+                continue;
             }
-        }
-        return $vector;
-    }
-
-    // ------------------------------------------------------------------
-    // Step 4: cosine similarity
-    // ------------------------------------------------------------------
-
-    /**
-     * cos(A, B) = (A · B) / (||A|| × ||B||). Returns 0 (no similarity) when
-     * either vector has zero magnitude, instead of dividing by zero.
-     */
-    public static function cosineSimilarity(array $a, array $b): float
-    {
-        $dot = 0.0;
-        $magA = 0.0;
-        $magB = 0.0;
-        foreach ($a as $i => $x) {
-            $y = $b[$i] ?? 0;
-            $dot += $x * $y;
-            $magA += $x * $x;
-            $magB += $y * $y;
-        }
-        if ($magA <= 0 || $magB <= 0) {
-            return 0.0;
-        }
-        return $dot / (sqrt($magA) * sqrt($magB));
-    }
-
-    /**
-     * Compare one student with one program: overall cosine plus each block's
-     * own cosine and its contribution to the overall value
-     * (contribution_k = weight_k × cosine_k / (||A|| × ||B||); they sum to the overall cosine).
-     */
-    public static function compare(array $studentBlocks, array $programBlocks, ?array $config = null): array
-    {
-        $weights = self::normalizedWeights($config);
-        $studentVector = self::weightedVector($studentBlocks, $weights);
-        $programVector = self::weightedVector($programBlocks, $weights);
-        $cosine = self::cosineSimilarity($studentVector, $programVector);
-
-        $denominator = self::magnitude($studentVector) * self::magnitude($programVector);
-        $blocks = [];
-        foreach ($weights as $name => $w) {
-            $blockCosine = self::cosineSimilarity($studentBlocks[$name], $programBlocks[$name]);
-            $blocks[$name] = [
-                'weight' => round($w, 4),
-                'cosine' => round($blockCosine, 4),
-                'contribution' => $denominator > 0 ? round($w * $blockCosine / $denominator, 4) : 0.0,
+            $cosine = self::cosineSimilarity($student, $course);
+            if ($cosine === null) {
+                $excluded[] = ['id' => $p['id'], 'title' => $p['title'] ?? null, 'hollandCode' => $p['hollandCode'],
+                    'reason' => 'Zero-magnitude vector: cosine similarity is undefined.'];
+                continue;
+            }
+            $results[] = [
+                'id' => (int) $p['id'],
+                'title' => $p['title'] ?? null,
+                'hollandCode' => strtoupper($p['hollandCode']),
+                'courseVector' => $course,
+                'dotProduct' => round(self::dotProduct($student, $course), 4),
+                'courseMagnitude' => round(self::magnitude($course), 4),
+                'cosine' => $cosine,
             ];
         }
 
+        // Highest similarity first; equal values keep the program-list order (lower id).
+        usort($results, fn($a, $b) => abs($a['cosine'] - $b['cosine']) < self::TIE_EPSILON
+            ? $a['id'] <=> $b['id']
+            : $b['cosine'] <=> $a['cosine']);
+
+        $candidates = self::selectCandidates($results, 'cosine');
+        foreach ($results as &$r) {
+            $r['cosine'] = round($r['cosine'], 4);
+        }
+        unset($r);
+
         return [
-            'cosine' => $cosine,
-            'blocks' => $blocks,
-            'studentVector' => $studentVector,
-            'programVector' => $programVector,
+            'studentScores' => array_combine(self::DIMENSIONS, array_map(fn($d) => $riasecScores[$d], self::DIMENSIONS)),
+            'studentVector' => $student,
+            'studentMagnitude' => round($studentMagnitude, 4),
+            'results' => $results,
+            'excluded' => $excluded,
+            'candidates' => array_map(fn($c) => (int) $c['id'], $candidates),
         ];
     }
 
-    // ------------------------------------------------------------------
-    // Step 7: explainability — the actual attribute values that matched
-    // ------------------------------------------------------------------
-
-    /** Student's top N RIASEC letters (highest score first; ties keep R,I,A,S,E,C order). */
-    public static function topRiasecLetters(array $scores, int $n = 3): array
-    {
-        // Put the scores in R,I,A,S,E,C order first, so the stable sort breaks ties by that order.
-        $ranked = array_intersect_key(array_merge(array_flip(self::DIMENSIONS), $scores), array_flip(self::DIMENSIONS));
-        arsort($ranked);
-        return array_slice(array_keys($ranked), 0, $n);
-    }
-
-    /** Which strand / RIASEC types / electives the student and program share. */
-    public static function matchingFeatures(array $profile, array $program, ?array $config = null): array
-    {
-        $weights = self::normalizedWeights($config);
-        $matches = ['strand' => [], 'riasec' => [], 'electives' => []];
-
-        if (isset($weights['strand']) && !empty($profile['strand'])
-            && in_array($profile['strand'], $program['relatedStrands'] ?? [], true)) {
-            $matches['strand'] = [$profile['strand']];
-        }
-
-        if (isset($weights['riasec']) && !empty($profile['riasec']) && !empty($program['hollandCode'])) {
-            $studentTop = self::topRiasecLetters($profile['riasec']);
-            foreach (str_split(strtoupper($program['hollandCode'])) as $letter) {
-                if (in_array($letter, $studentTop, true)) {
-                    $matches['riasec'][] = self::RIASEC_LABELS[$letter];
-                }
-            }
-        }
-
-        if (isset($weights['electives'])) {
-            $config ??= self::config();
-            $programElectives = $config['college_electives'][$program['collegeCode'] ?? ''] ?? [];
-            $matches['electives'] = array_values(array_intersect($profile['electives'] ?? [], $programElectives));
-        }
-
-        return $matches;
-    }
-
-    /** Plain-language sentence built only from the features that really matched. */
-    public static function explain(array $matches, ?array $config = null): string
-    {
-        $join = function (array $items): string {
-            if (count($items) <= 1) {
-                return implode('', $items);
-            }
-            return implode(', ', array_slice($items, 0, -1)) . ' and ' . end($items);
-        };
-
-        $parts = [];
-        if ($matches['strand']) {
-            $parts[] = 'your ' . $matches['strand'][0] . ' strand';
-        }
-        if ($matches['riasec']) {
-            $parts[] = 'your ' . $join($matches['riasec']) . ' interest' . (count($matches['riasec']) > 1 ? 's' : '');
-        }
-        if ($matches['electives']) {
-            $parts[] = 'your ' . $join($matches['electives']) . ' elective' . (count($matches['electives']) > 1 ? 's' : '');
-        }
-
-        if (!$parts) {
-            // Name only the criteria that are actually used (weight > 0).
-            $labels = ['riasec' => 'top RIASEC types', 'strand' => 'strand', 'electives' => 'chosen electives'];
-            $active = array_values(array_intersect_key($labels, self::normalizedWeights($config)));
-            $list = count($active) > 1
-                ? implode(', ', array_slice($active, 0, -1)) . ', or ' . end($active)
-                : implode('', $active);
-            return 'This program shares none of your ' . $list . ', so its match is low.';
-        }
-        // Groups are separated with an Oxford comma, since the groups themselves contain "and".
-        $sentence = count($parts) > 2
-            ? implode(', ', array_slice($parts, 0, -1)) . ', and ' . end($parts)
-            : $join($parts);
-        return 'Recommended because this program matches ' . $sentence . '.';
-    }
-
-    // ------------------------------------------------------------------
-    // Steps 5-6: score every program and rank them
-    // ------------------------------------------------------------------
-
     /**
-     * @param array{riasec?: ?array<string,int>, strand?: ?string, electives?: ?array<string>} $profile
-     * @param array<int,array{id:int,hollandCode:string,relatedStrands?:array,collegeCode?:string}> $programs
-     *        the active program dataset — new programs are picked up automatically
-     * @param int|null $statedProgramId the program the student picked on the worksheet, if any
-     * @return array{all: array, top3: array, statedOutsideTop3: ?array}
+     * CBF candidates from results sorted by $key (highest first): every course tied at the
+     * highest cosine similarity. Also used by api/recommendations.php on saved results.
      */
-    public static function recommend(array $profile, array $programs, ?int $statedProgramId, ?array $config = null): array
+    public static function selectCandidates(array $sorted, string $key = 'cosine'): array
     {
-        $config ??= self::config();
-        $studentBlocks = self::studentFeatures($profile, $config);
-        $wSimilarity = $config['final_score']['similarity'];
-        $wStated = $config['final_score']['stated_program'];
-
-        $scored = array_map(function ($program) use ($profile, $studentBlocks, $statedProgramId, $config, $wSimilarity, $wStated) {
-            $comparison = self::compare($studentBlocks, self::programFeatures($program, $config), $config);
-            $indicator = ($statedProgramId !== null && $program['id'] === $statedProgramId) ? 1.0 : 0.0;
-            $matches = self::matchingFeatures($profile, $program, $config);
-            return $program + [
-                'cosine' => round($comparison['cosine'], 4),
-                'indicator' => $indicator,
-                'score' => round($wSimilarity * $comparison['cosine'] + $wStated * $indicator, 4),
-                'blocks' => $comparison['blocks'],
-                'matches' => $matches,
-                'explanation' => self::explain($matches, $config),
-            ];
-        }, $programs);
-
-        // Highest Final Match Score first; equal scores fall back to the higher
-        // cosine, then the lower program id, so the order is always reproducible.
-        usort($scored, fn($a, $b) => [$b['score'], $b['cosine'], $a['id']] <=> [$a['score'], $a['cosine'], $b['id']]);
-
-        // 'top3' holds the student's mapped courses (config match_rule; see selectMatches).
-        $top3 = self::selectMatches($scored, 'score', $config);
-        $statedInTop3 = $statedProgramId !== null && in_array($statedProgramId, array_column($top3, 'id'), true);
-
-        $statedEntry = null;
-        if ($statedProgramId !== null && !$statedInTop3) {
-            foreach ($scored as $s) {
-                if ($s['id'] === $statedProgramId) {
-                    $statedEntry = $s;
-                    break;
-                }
-            }
+        if (!$sorted) {
+            return [];
         }
-
-        return ['all' => $scored, 'top3' => $top3, 'statedOutsideTop3' => $statedEntry];
-    }
-
-    /**
-     * The student's mapped courses from a list already sorted by score (highest first).
-     *   match_rule 'highest': every entry tied at the highest score; none if that score is 0.
-     *   match_rule 'top_n'  : the first top_n entries.
-     * Used by recommend() and by api/recommendations.php on saved results, so both agree.
-     */
-    public static function selectMatches(array $sorted, string $scoreKey = 'score', ?array $config = null): array
-    {
-        $config ??= self::config();
-        if (($config['match_rule'] ?? 'top_n') !== 'highest') {
-            return array_slice($sorted, 0, $config['top_n'] ?? 3);
-        }
-        $best = $sorted ? (float) $sorted[0][$scoreKey] : 0.0;
+        $best = (float) $sorted[0][$key];
         if ($best <= 0) {
             return [];
         }
-        return array_values(array_filter($sorted, fn($e) => abs((float) $e[$scoreKey] - $best) < 1e-9));
+        return array_values(array_filter($sorted, fn($e) => abs((float) $e[$key] - $best) < self::TIE_EPSILON));
     }
 
     /**
-     * Developer/thesis view of one recommendation run: every intermediate value
-     * (raw feature blocks, weighted vectors, per-block cosines, final score) for
-     * the student and each program, in ranked order. Used by api/cbf-debug.php
-     * and db/cbf_debug.php — never shown to students.
+     * Student's top N RIASEC letters (highest score first; ties keep R,I,A,S,E,C order).
+     * Not used by the CBF calculation; kept for the dataset export and the prediction
+     * model code (lib/PredictionModel.php), which are outside the CBF.
      */
-    public static function trace(array $profile, array $programs, ?int $statedProgramId, ?array $config = null): array
+    public static function topRiasecLetters(array $scores, int $n = 3): array
     {
-        $config ??= self::config();
-        $weights = self::normalizedWeights($config);
-        $studentBlocks = self::studentFeatures($profile, $config);
-        $ranked = self::recommend($profile, $programs, $statedProgramId, $config)['all'];
-
-        $round = fn(array $v) => array_map(fn($x) => round($x, 4), $v);
-
-        return [
-            'config' => [
-                'weights' => array_map(fn($w) => round($w, 4), $weights),
-                'finalScore' => $config['final_score'],
-                'riasecSubtractFloor' => $config['riasec_subtract_floor'],
-                'studentVector' => $config['student_vector'] ?? 'scores',
-                'studentTopN' => $config['student_top_n'] ?? 3,
-            ],
-            'featureLabels' => array_intersect_key(self::featureLabels($config), $weights),
-            'student' => [
-                'profile' => $profile,
-                'featureBlocks' => array_intersect_key($studentBlocks, $weights),
-                'vector' => $round(self::weightedVector($studentBlocks, $weights)),
-            ],
-            'programs' => array_map(function ($entry, $rank) use ($config, $weights, $round) {
-                $programBlocks = self::programFeatures($entry, $config);
-                return [
-                    'rank' => $rank + 1,
-                    'id' => $entry['id'],
-                    'title' => $entry['title'] ?? null,
-                    'hollandCode' => $entry['hollandCode'],
-                    'relatedStrands' => $entry['relatedStrands'] ?? [],
-                    'collegeCode' => $entry['collegeCode'] ?? null,
-                    'featureBlocks' => array_intersect_key($programBlocks, $weights),
-                    'vector' => $round(self::weightedVector($programBlocks, $weights)),
-                    'cosine' => $entry['cosine'],
-                    'blocks' => $entry['blocks'],
-                    'indicator' => $entry['indicator'],
-                    'score' => $entry['score'],
-                    'matches' => $entry['matches'],
-                    'explanation' => $entry['explanation'],
-                ];
-            }, $ranked, array_keys($ranked)),
-        ];
+        $ranked = array_intersect_key(array_merge(array_flip(self::DIMENSIONS), $scores), array_flip(self::DIMENSIONS));
+        arsort($ranked);
+        return array_slice(array_keys($ranked), 0, $n);
     }
 }

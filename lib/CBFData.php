@@ -9,10 +9,10 @@ require_once __DIR__ . '/RecommendationPipeline.php';
  * api/worksheet-submit.php, api/cbf-debug.php and db/cbf_debug.php all build
  * the student profile and the program dataset the same way.
  *
- *   Student profile  <- students.strand
- *                     + assessments (latest attempt: score_r .. score_c)
- *                     + worksheets.electives (latest worksheet)
- *   Program dataset  <- programs (Active) + colleges.code
+ *   Student profile  <- assessments (latest attempt: score_r .. score_c) -> used by the CBF
+ *                     + worksheets (latest: Preferred Course, electives) -> worksheet source only
+ *                     + students.strand (stored; not used by the CBF)
+ *   Program dataset  <- programs (Active): title, Holland code (+ college code)
  */
 class CBFData
 {
@@ -99,51 +99,51 @@ class CBFData
     }
 
     /**
-     * Run the recommendation pipeline (lib/RecommendationPipeline.php: CBF, prediction
-     * model, common courses, Preferred Course) for one student and save the result as a
-     * new `recommendations` row (earlier rows are kept as history). Also raises the
-     * low-confidence monitoring flag when the top CBF similarity is below the
+     * Run the recommendation sources (lib/RecommendationPipeline.php: CBF, worksheet;
+     * prediction model unavailable) for one student and save the result as a new
+     * `recommendations` row (earlier rows are kept as history). Also raises the
+     * low-confidence monitoring flag when the highest cosine similarity is below the
      * configured threshold. The caller manages the transaction.
      *
-     * @return array{recommendationId: int, topProgramId: int, topScore: float, status: string, reason: ?string, finalTitles: string[]}|null null if there are no active programs
+     * @return array{recommendationId: int, topProgramId: int, topScore: float, status: string, reason: ?string,
+     *               bestMatchTitles: string[], alternativeTitles: string[]}|null null if there are no active programs
+     * @throws InvalidArgumentException when the student's RIASEC profile is missing or invalid
      */
     public static function saveRecommendation(PDO $pdo, int $studentId, array $profile, ?int $statedProgramId, int $assessmentId, ?int $worksheetId): ?array
     {
         $programs = self::activePrograms($pdo);
-        $config = CBFEngine::config();
-        $result = RecommendationPipeline::run($profile, $programs, $statedProgramId !== null ? [$statedProgramId] : [], $config);
-        $recommendation = $result['cbf'];
-        if (!$recommendation['all']) {
+        if (!$programs) {
             return null;
         }
-        // Internal only (monitoring threshold / history); never shown to students.
-        $topProgramId = (int) $recommendation['all'][0]['id'];
-        $topScore = (float) $recommendation['all'][0]['score'];
+        $result = RecommendationPipeline::run($profile, $programs, $statedProgramId !== null ? [$statedProgramId] : []);
+        $cbf = $result['cbf'];
+        if ($cbf['status'] !== 'available') {
+            throw new InvalidArgumentException($cbf['reason']);
+        }
+        if (!$cbf['results']) {
+            throw new InvalidArgumentException('No program has a valid RIASEC mapping.');
+        }
+        // Internal only (monitoring threshold / history); never shown as a percentage.
+        $topProgramId = (int) $cbf['results'][0]['id'];
+        $topScore = (float) $cbf['results'][0]['cosine'];
 
-        // Snapshot of every program's CBF result. blocks/matches/explanation make the
-        // recommendation explainable later without recomputing it; formula records
-        // the settings in force when it was computed (they are configurable).
-        $formula = $config['final_score'] + [
-            'student_vector' => $config['student_vector'] ?? 'scores',
-            'student_top_n' => $config['student_top_n'] ?? 3,
-        ];
-        $scoresForStorage = array_map(fn($s) => [
-            'programId' => $s['id'], 'cosine' => $s['cosine'], 'indicator' => $s['indicator'], 'score' => $s['score'],
-            'blocks' => $s['blocks'], 'matches' => $s['matches'], 'explanation' => $s['explanation'], 'formula' => $formula,
-        ], $recommendation['all']);
+        // Every course's CBF calculation, so the result can be audited later.
+        $scoresForStorage = array_map(fn($r) => [
+            'programId' => $r['id'], 'hollandCode' => $r['hollandCode'], 'courseVector' => $r['courseVector'],
+            'dotProduct' => $r['dotProduct'], 'courseMagnitude' => $r['courseMagnitude'], 'cosine' => $r['cosine'],
+            'studentVector' => $cbf['studentVector'], 'studentMagnitude' => $cbf['studentMagnitude'],
+        ], $cbf['results']);
 
         $recInsert = $pdo->prepare(
             'INSERT INTO recommendations (student_id, stated_program_id, scores, top_program_id, top_score, source_assessment_id, source_worksheet_id,
                                           match_status, mismatch_reason, cbf_program_ids, prediction_program_ids, final_program_ids, model_version)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id'
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL) RETURNING id'
         );
         $recInsert->execute([
             $studentId, $statedProgramId, json_encode($scoresForStorage), $topProgramId, $topScore, $assessmentId, $worksheetId,
             $result['status'], $result['reason'],
-            self::intArrayLiteral($result['cbfIds']),
-            $result['predictionIds'] !== null ? self::intArrayLiteral($result['predictionIds']) : null,
-            self::intArrayLiteral($result['finalIds']),
-            $result['modelVersion'],
+            self::intArrayLiteral($cbf['candidateIds']),   // CBF candidates
+            self::intArrayLiteral($result['bestMatchIds']), // Best Match
         ]);
         $recommendationId = (int) $recInsert->fetchColumn();
 
@@ -162,9 +162,10 @@ class CBFData
         }
 
         $titles = array_column($programs, 'title', 'id');
+        $named = fn(array $ids) => array_values(array_map(fn($id) => $titles[$id], $ids));
         return ['recommendationId' => $recommendationId, 'topProgramId' => $topProgramId, 'topScore' => $topScore,
             'status' => $result['status'], 'reason' => $result['reason'],
-            'finalTitles' => array_values(array_map(fn($id) => $titles[$id], $result['finalIds']))];
+            'bestMatchTitles' => $named($result['bestMatchIds']), 'alternativeTitles' => $named($result['alternativeIds'])];
     }
 
     /** PostgreSQL INT[] literal, e.g. {3,4,6}. */

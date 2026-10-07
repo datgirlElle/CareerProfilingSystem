@@ -41,17 +41,13 @@ function programTitles(PDO $pdo, array $ids): array
     return $titles;
 }
 
-/** Top Matches ids of a recommendation row (final_program_ids; older rows: the top CBF program). */
+/** Best Match ids of a recommendation row (final_program_ids; none for older rows). */
 function topMatchIds(array $r): array
 {
-    $ids = CBFData::parseIntArray($r['final_program_ids'] ?? null);
-    if ($ids !== null) {
-        return $ids;
-    }
-    return $r['top_program_id'] !== null ? [(int) $r['top_program_id']] : [];
+    return CBFData::parseIntArray($r['final_program_ids'] ?? null) ?? [];
 }
 
-/** "BS IT, BS CS (+3 more)" for a staff table cell. */
+/** Best Match titles for a staff table cell ("BS IT, BS CS (+3 more)"). */
 function topMatchesLabel(array $ids, array $titles, string $empty): string
 {
     if (!$ids) {
@@ -128,7 +124,7 @@ function buildFlagRows(PDO $pdo, string $status, float $threshold): array
         $topScore = $r['top_score'] !== null ? (float) $r['top_score'] : null;
         return $student + [
             'flagId' => (int) $r['flag_id'],
-            'career' => topMatchesLabel(topMatchIds($r), $titles, '—'),
+            'career' => topMatchesLabel(topMatchIds($r), $titles, $r['top_program_id'] !== null ? 'No Best Match' : '—'),
             'match' => statusLabel($r['match_status']),
             'reason' => $reasonLabels[$r['reason']] ?? $r['reason'],
             'priority' => priorityFor($r['reason'], $topScore, $threshold),
@@ -156,7 +152,7 @@ function buildCompletedRows(PDO $pdo): array
     $result = array_map(function ($r) use ($titles) {
         $student = decryptStudent(['user_id' => $r['student_id']] + $r);
         return $student + [
-            'career' => topMatchesLabel(topMatchIds($r), $titles, 'No worksheet yet'),
+            'career' => topMatchesLabel(topMatchIds($r), $titles, $r['top_program_id'] !== null ? 'No Best Match' : 'No worksheet yet'),
             'match' => statusLabel($r['match_status']),
             'time' => (new DateTime($r['completed_at']))->format('g:i A'),
         ];

@@ -77,7 +77,7 @@ try {
 
 AuditLogger::log($studentId, 'student', 'submit_worksheet', 'worksheet', (string) $worksheetId, "Top match score: $topScore");
 
-// Automatic result email: matched courses, or (mismatch) only a referral to the Guidance Office.
-$emailSent = ResultEmail::send($pdo, $studentId, $saved['status'], $saved['finalTitles']);
+// Automatic result email: Best Match and Alternative Courses, or (mismatch) only a referral to the Guidance Office.
+$emailSent = ResultEmail::send($pdo, $studentId, $saved['status'], $saved['bestMatchTitles'], $saved['alternativeTitles']);
 
 jsonResponse(['success' => true, 'worksheetId' => $worksheetId, 'recommendationId' => $recommendationId, 'emailSent' => $emailSent]);

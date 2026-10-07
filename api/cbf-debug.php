@@ -1,17 +1,17 @@
 <?php
 /**
- * Developer / thesis verification view of the CBF engine for one student:
- * student vector, every program vector, cosine similarity per block and
- * overall, Final Match Score, ranking, and matching features.
+ * CBF calculation view for one student (staff only), used to show that the content-based
+ * filtering is really computed: the student's RIASEC scores and vector, and for EVERY
+ * course its RIASEC code, course vector, dot product, magnitudes and cosine similarity,
+ * plus the recommendation sources (CBF candidates, worksheet, prediction model unavailable).
  *
  * GET api/cbf-debug.php?schoolId=<school id>   (or ?studentId=<user id>)
  *
- * Recomputed live from the student's CURRENT profile and program dataset, so
- * it can differ from the saved recommendation snapshot if either has changed
- * since the worksheet was submitted.
+ * Recomputed live from the student's CURRENT assessment and program dataset, so it can
+ * differ from the saved result if either has changed since the worksheet was submitted.
  *
- * Staff only: students also hold 'recommendations' access (to see their own
- * results), so the role is checked explicitly as well.
+ * Staff only: students also hold 'recommendations' access (to see their own results),
+ * so the role is checked explicitly as well.
  */
 
 require_once __DIR__ . '/_bootstrap.php';
@@ -49,15 +49,33 @@ AuditLogger::log((int) $user['id'], $user['role'], 'view_cbf_debug', 'student', 
 
 $programs = CBFData::activePrograms($pdo);
 $titles = array_column($programs, 'title', 'id');
-$named = fn(?array $ids) => $ids === null ? null : array_map(fn($id) => $titles[$id] ?? $id, $ids);
+$named = fn(array $ids) => array_map(fn($id) => $titles[$id] ?? $id, $ids);
 $run = RecommendationPipeline::run($profile, $programs, $profile['statedProgramId'] !== null ? [$profile['statedProgramId']] : []);
-jsonResponse(['studentId' => $studentId, 'pipeline' => [
-    'cbfMatches' => $named($run['cbfIds']),
-    'predictionModel' => $named($run['predictionIds']),
-    'modelVersion' => $run['modelVersion'],
-    'commonCourses' => $named($run['commonIds']),
-    'topMatches' => $named($run['finalIds']),
-    'usedFallback' => $run['usedFallback'],
-    'preferredCourse' => array_map(fn($p) => ['title' => $titles[$p['id']] ?? $p['id'], 'inTopMatches' => $p['inTopMatches']], $run['preferred']),
-    'status' => $run['status'], 'reason' => $run['reason'], 'rule' => $run['rule'],
-]] + CBFEngine::trace($profile, $programs, $profile['statedProgramId']));
+$cbf = $run['cbf'];
+
+jsonResponse([
+    'studentId' => $studentId,
+    'formula' => 'cos(S, C) = (S · C) / (||S|| × ||C||)',
+    'dimensions' => CBFEngine::DIMENSIONS,
+    'cbf' => [
+        'status' => $cbf['status'],
+        'reason' => $cbf['reason'],
+        'studentScores' => $cbf['studentScores'] ?? $profile['riasec'],
+        'studentVector' => $cbf['studentVector'] ?? null,
+        'studentMagnitude' => $cbf['studentMagnitude'] ?? null,
+        'results' => array_map(fn($r) => $r + ['isCandidate' => in_array($r['id'], $cbf['candidateIds'], true)], $cbf['results']),
+        'excluded' => $cbf['excluded'],
+        'candidates' => $named($cbf['candidateIds']),
+    ],
+    'worksheet' => ['status' => $run['worksheet']['status'], 'preferredCourse' => $named($run['worksheet']['courseIds'])],
+    'prediction' => $run['prediction'],
+    'final' => [
+        'bestMatch' => $named($run['bestMatchIds']),
+        'alternatives' => $named($run['alternativeIds']),
+        'status' => $run['status'],
+        'reason' => $run['reason'],
+        'sourcesUsed' => $run['sourcesUsed'],
+        'pendingSources' => $run['pendingSources'],
+        'isComplete' => $run['isComplete'],
+    ],
+]);

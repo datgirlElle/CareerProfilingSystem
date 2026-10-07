@@ -1,6 +1,6 @@
 <?php
 // Adds recommendations.match_status ('match' / 'mismatch') and mismatch_reason,
-// set by RecommendationPipeline::combine() whenever a recommendation is saved. Existing rows
+// set by RecommendationPipeline::finalRecommendation() whenever a recommendation is saved. Existing rows
 // stay NULL until db/recompute_recommendations.php is run. Safe to run more than once.
 
 require_once __DIR__ . '/../lib/Database.php';

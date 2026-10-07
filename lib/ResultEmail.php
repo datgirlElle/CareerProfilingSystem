@@ -8,32 +8,37 @@ require_once __DIR__ . '/EmailTemplate.php';
 /**
  * Automatic result email sent after the Career Electives Worksheet is submitted
  * (adviser/researcher decision):
- *   match    -> lists the student's matched degree programs.
+ *   match    -> the Best Match and the Alternative Courses.
  *   mismatch -> only asks the student to visit the Guidance Office; no course is named.
  */
 class ResultEmail
 {
-    /** @return array{subject: string, heading: string, bodyHtml: string, bodyText: string, ctaLabel: string, path: string} */
-    public static function compose(string $firstName, string $status, array $courseTitles): array
+    /**
+     * @param string[] $bestMatch    Best Match title(s)
+     * @param string[] $alternatives Alternative Courses titles
+     * @return array{subject: string, heading: string, bodyHtml: string, bodyText: string, ctaLabel: string, path: string}
+     */
+    public static function compose(string $firstName, string $status, array $bestMatch, array $alternatives = []): array
     {
         $safeName = htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8');
         $intro = 'Thank you for completing the RIASEC Assessment and the Career Electives Worksheet.';
         $p = '<p style="margin:0 0 12px 0;">';
+        $esc = fn($t) => htmlspecialchars($t, ENT_QUOTES, 'UTF-8');
 
-        if ($status === 'match' && $courseTitles) {
-            $items = implode('', array_map(
-                fn($t) => '<li style="margin:0 0 4px 0;">' . htmlspecialchars($t, ENT_QUOTES, 'UTF-8') . '</li>',
-                $courseTitles
-            ));
+        if ($status === 'match' && $bestMatch) {
+            $altHtml = $alternatives
+                ? "{$p}Alternative courses:</p>" . '<ul style="margin:0 0 12px 0;padding-left:20px;color:#0f172a;">'
+                    . implode('', array_map(fn($t) => '<li style="margin:0 0 4px 0;">' . $esc($t) . '</li>', $alternatives)) . '</ul>'
+                : '';
             return [
                 'subject' => 'Your ProfilePath career results',
                 'heading' => 'Your career results are ready',
                 'bodyHtml' => "{$p}Hi $safeName,</p>{$p}$intro</p>"
-                    . "{$p}Here are your Top Matches According to the Guidance (listed in no particular order):</p>"
-                    . '<ul style="margin:0 0 12px 0;padding-left:20px;color:#0f172a;font-weight:600;">' . $items . '</ul>'
+                    . "{$p}Your Best Match: <strong style=\"color:#0f172a;\">" . implode(', ', array_map($esc, $bestMatch)) . '</strong></p>'
+                    . $altHtml
                     . '<p style="margin:0;">You may visit the Guidance Office if you would like to discuss your results with a Guidance Counselor.</p>',
-                'bodyText' => "Hi $firstName,\n\n$intro\n\nHere are your Top Matches According to the Guidance (listed in no particular order):\n"
-                    . implode('', array_map(fn($t) => "- $t\n", $courseTitles))
+                'bodyText' => "Hi $firstName,\n\n$intro\n\nYour Best Match: " . implode(', ', $bestMatch) . "\n"
+                    . ($alternatives ? "\nAlternative courses:\n" . implode('', array_map(fn($t) => "- $t\n", $alternatives)) : '')
                     . "\nYou may visit the Guidance Office if you would like to discuss your results with a Guidance Counselor.",
                 'ctaLabel' => 'View My Results',
                 'path' => '/results',
@@ -52,7 +57,7 @@ class ResultEmail
     }
 
     /** Sends the result email to the student. Never throws; returns whether it was sent. */
-    public static function send(PDO $pdo, int $studentId, string $status, array $courseTitles): bool
+    public static function send(PDO $pdo, int $studentId, string $status, array $bestMatch, array $alternatives = []): bool
     {
         try {
             $stmt = $pdo->prepare('SELECT u.username, u.email, s.first_name_enc FROM users u JOIN students s ON s.user_id = u.id WHERE u.id = ?');
@@ -65,7 +70,7 @@ class ResultEmail
             $email = $row['email'] ?: ($row['username'] . '@mymail.mapua.edu.ph');
             $firstName = Crypto::dec($row['first_name_enc']);
 
-            $mail = self::compose($firstName, $status, $courseTitles);
+            $mail = self::compose($firstName, $status, $bestMatch, $alternatives);
             $link = rtrim((string) envValue('APP_URL'), '/') . $mail['path'];
             $bodyHtml = EmailTemplate::render(
                 $mail['heading'], $mail['bodyHtml'], $mail['ctaLabel'], $link, '',

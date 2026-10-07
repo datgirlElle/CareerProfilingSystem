@@ -53,11 +53,11 @@ if ($method === 'GET') {
     }
 
     if (isset($_GET['stats'])) {
-        // Institution-wide count of students whose Top Matches include each program,
-        // from the latest recommendation per student (older results: their top CBF program).
+        // Institution-wide count of students whose CBF candidates (courses most similar to
+        // their RIASEC profile) include each program; latest result per student.
         $counts = $pdo->query(
-            "SELECT unnest(COALESCE(final_program_ids, ARRAY[top_program_id])) AS program_id, COUNT(*) AS cnt FROM (
-                SELECT DISTINCT ON (student_id) student_id, top_program_id, final_program_ids
+            "SELECT unnest(COALESCE(cbf_program_ids, ARRAY[top_program_id])) AS program_id, COUNT(*) AS cnt FROM (
+                SELECT DISTINCT ON (student_id) student_id, top_program_id, cbf_program_ids
                 FROM recommendations ORDER BY student_id, computed_at DESC
              ) latest GROUP BY 1"
         )->fetchAll(PDO::FETCH_KEY_PAIR);

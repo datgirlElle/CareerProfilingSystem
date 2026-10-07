@@ -291,7 +291,7 @@
 
   const topTypes = assessment.topTypes || [];
   const topLetters = topTypes.map(function(t) { return LABEL_TO_LETTER[t] || t[0]; });
-  const statedProgram = recommendation.preferredCourse;  // Preferred Course, with inTopMatches
+  const statedProgram = recommendation.preferredCourse;  // Preferred Course, with isBestMatch
 
   document.getElementById('careerGoalText').textContent = statedProgram
     ? statedProgram.title + (statedProgram.isActive === false ? ' (no longer available)' : '')
@@ -304,28 +304,27 @@
   document.getElementById('profileLabels').textContent = topTypes.map(function(t) { return t === 'Investigate' ? 'Investigative' : t; }).join(', ');
   document.getElementById('topInterestArea').textContent = INTEREST_AREA[topLetters[0]] || '—';
 
-  // Aligned = the Preferred Course is among the Top Matches (lib/RecommendationPipeline.php).
-  const isAligned = !!(statedProgram && statedProgram.inTopMatches);
+  // Aligned = the Preferred Course is the Best Match: it is also among the courses most
+  // similar to the student's RIASEC profile (CBF). See lib/RecommendationPipeline.php.
+  const isAligned = !!(statedProgram && statedProgram.isBestMatch);
 
   const badge = document.getElementById('alignBadge');
   if (isAligned) {
     badge.className = 'inline-flex items-center gap-2 bg-[#ecfdf5] border border-[#a7f3d0] rounded px-4 py-2';
-    badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg><span class="text-xs font-bold text-[#047857] uppercase tracking-wide">In Your Top Matches</span>';
+    badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg><span class="text-xs font-bold text-[#047857] uppercase tracking-wide">Best Match</span>';
   } else {
     badge.className = 'inline-flex items-center gap-2 bg-orange-50 border border-orange-200 rounded px-4 py-2';
     badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.007M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span class="text-xs font-bold text-orange-700 uppercase tracking-wide">Worth a Second Look</span>';
   }
 
   const goalTitle = statedProgram ? statedProgram.title : 'your Preferred Course';
-  // No percentages are shown to students (adviser); only whether the Preferred Course
-  // is among the Top Matches.
+  const cosine = statedProgram && statedProgram.cosineSimilarity !== null && statedProgram.cosineSimilarity !== undefined
+    ? ' (Cosine Similarity: ' + statedProgram.cosineSimilarity.toFixed(3) + ')' : '';
   const analysis = isAligned
-    ? '"' + goalTitle + '" is one of your Top Matches: its Holland Code (' + statedProgram.hollandCode +
-      ') fits your top RIASEC interest areas.'
-    : '"' + goalTitle + (statedProgram && statedProgram.inGuidanceMapping
-        ? '" fits your RIASEC results, but the prediction model did not point to it, so it is not among your Top Matches. '
-        : '" doesn\'t closely match your RIASEC results, so it is not among your Top Matches. ') +
-      'That\'s okay. See your Career Results for your Top Matches, and if you\'d like help deciding, ' +
+    ? '"' + goalTitle + '" is your Best Match: its Holland Code (' + statedProgram.hollandCode +
+      ') is among the codes most similar to your RIASEC profile' + cosine + '.'
+    : '"' + goalTitle + '" is not among the courses most similar to your RIASEC profile' + cosine + ', so there is no Best Match yet. ' +
+      'That\'s okay. See your Career Results for the Alternative Courses, and if you\'d like help deciding, ' +
       'we highly recommend talking with a Guidance Counselor.';
   document.getElementById('analysisText').textContent = analysis;
 })();

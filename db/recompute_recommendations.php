@@ -1,7 +1,7 @@
 <?php
 /**
  * Recompute every student's recommendation with the CURRENT settings
- * (config/cbf.php and the imported prediction model). Results are saved only when a student submits the Career
+ * (config/cbf.php). Results are saved only when a student submits the Career
  * Worksheet, so after changing the method, existing students keep showing
  * their old scores until this is run.
  *
@@ -43,8 +43,8 @@ foreach ($students as $st) {
         $programs = CBFData::activePrograms($pdo);
         $r = RecommendationPipeline::run($profile, $programs, $profile['statedProgramId'] !== null ? [$profile['statedProgramId']] : []);
         $titles = array_column($programs, 'title', 'id');
-        printf("%s %s%s  Top Matches: %s\n", $label, $r['status'], $r['reason'] ? " ({$r['reason']})" : '',
-            implode(', ', array_map(fn($id) => $titles[$id], $r['finalIds'])));
+        printf("%s %s%s  Best Match: %s\n", $label, $r['status'], $r['reason'] ? " ({$r['reason']})" : '',
+            implode(', ', array_map(fn($id) => $titles[$id], $r['bestMatchIds'])) ?: '-');
         $done++;
         continue;
     }
@@ -55,7 +55,7 @@ foreach ($students as $st) {
             $pdo, (int) $st['user_id'], $profile, $profile['statedProgramId'], (int) $st['assessment_id'], (int) $st['worksheet_id']
         );
         $pdo->commit();
-        printf("%s %s%s  Top Matches: %s\n", $label, $saved['status'], $saved['reason'] ? " ({$saved['reason']})" : '', implode(', ', $saved['finalTitles']));
+        printf("%s %s%s  Best Match: %s\n", $label, $saved['status'], $saved['reason'] ? " ({$saved['reason']})" : '', implode(', ', $saved['bestMatchTitles']) ?: '-');
         $done++;
     } catch (Throwable $e) {
         $pdo->rollBack();
@@ -63,4 +63,4 @@ foreach ($students as $st) {
     }
 }
 
-echo ($dryRun ? "Dry run: $done students would be recomputed (nothing saved).\n" : "$done students recomputed with the current settings (config/cbf.php, prediction model).\n");
+echo ($dryRun ? "Dry run: $done students would be recomputed (nothing saved).\n" : "$done students recomputed with the current CBF settings (config/cbf.php).\n");
