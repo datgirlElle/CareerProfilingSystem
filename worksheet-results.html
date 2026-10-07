@@ -323,10 +323,10 @@
   // No percentages are shown to students (adviser); only whether the chosen
   // program is among the RIASEC-based Top Matches.
   const analysis = isAligned
-    ? '"' + goalTitle + '" is among your Top Matches: its Holland Code (' + (statedProgram ? statedProgram.hollandCode : '') +
+    ? '"' + goalTitle + '" is among your matched degree programs: its Holland Code (' + (statedProgram ? statedProgram.hollandCode : '') +
       ') matches your top RIASEC interest areas.'
     : (recommendation.statedOutsideTop3 !== null
-        ? '"' + goalTitle + '" is not among your Top Matches based on your RIASEC results. '
+        ? '"' + goalTitle + '" is not among your matched degree programs based on your RIASEC results. '
         : '') +
       'Please visit the Guidance Office to discuss your results with a Guidance Counselor.';
   document.getElementById('analysisText').textContent = analysis;
