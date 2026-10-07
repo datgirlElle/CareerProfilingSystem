@@ -435,7 +435,19 @@
   // where showing the fuller career-matches view once it exists is correct.
   const forceRiasecView = new URLSearchParams(window.location.search).get('view') === 'riasec';
 
-  const recommendation = await (await fetch('api/recommendations.php')).json();
+  const recRes = await fetch('api/recommendations.php');
+  const recommendation = await recRes.json().catch(function() { return {}; });
+  if (!recRes.ok) {
+    // Show the problem instead of a blank page (e.g. the database has not been updated yet).
+    const main = document.querySelector('main');
+    const box = document.createElement('div');
+    box.className = 'border rounded-lg p-[17px] m-6 text-sm text-[#191c1e]';
+    box.style.cssText = 'background-color:#fff7ed;border-color:#fed7aa;';
+    box.textContent = recommendation.error || 'Your results could not be loaded right now. Please try again later.';
+    main.prepend(box);
+    if (recommendation.setupHint) console.error(recommendation.setupHint);
+    return;
+  }
   if (recommendation.hasRecommendation && !forceRiasecView) {
     revealPanel('careerResultsView');
     await renderCareerResults(recommendation);

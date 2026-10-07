@@ -33,13 +33,20 @@ if ($requestedStudentId !== null && $requestedStudentId !== (int) $user['id']) {
 }
 $isStaff = $user['role'] !== 'student';
 
-$stmt = $pdo->prepare(
-    'SELECT id, computed_at, stated_program_id, scores, source_worksheet_id, match_status, mismatch_reason,
-            cbf_program_ids, prediction_program_ids, final_program_ids, model_version
-     FROM recommendations WHERE student_id = ? ORDER BY computed_at DESC LIMIT 1'
-);
-$stmt->execute([$studentId]);
-$row = $stmt->fetch();
+try {
+    $stmt = $pdo->prepare(
+        'SELECT id, computed_at, stated_program_id, scores, source_worksheet_id, match_status, mismatch_reason,
+                cbf_program_ids, prediction_program_ids, final_program_ids, model_version
+         FROM recommendations WHERE student_id = ? ORDER BY computed_at DESC LIMIT 1'
+    );
+    $stmt->execute([$studentId]);
+    $row = $stmt->fetch();
+} catch (PDOException $e) {
+    // Most likely a database that has not been migrated yet (missing pipeline columns).
+    error_log('[recommendations] ' . $e->getMessage());
+    jsonResponse(['error' => 'Your results could not be loaded right now. Please try again later or contact the Guidance Office.',
+        'setupHint' => 'Run: php db/migrate_add_recommendation_status.php && php db/migrate_add_recommendation_sets.php'], 500);
+}
 
 if (!$row) {
     jsonResponse(['hasRecommendation' => false]);
