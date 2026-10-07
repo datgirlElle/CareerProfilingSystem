@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/CBFData.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     jsonResponse(['error' => 'Method not allowed'], 405);
@@ -38,6 +39,32 @@ function programTitles(PDO $pdo, array $ids): array
         $titles[(int) $r['id']] = Crypto::dec($r['title_enc']);
     }
     return $titles;
+}
+
+/** Top Matches ids of a recommendation row (final_program_ids; older rows: the top CBF program). */
+function topMatchIds(array $r): array
+{
+    $ids = CBFData::parseIntArray($r['final_program_ids'] ?? null);
+    if ($ids !== null) {
+        return $ids;
+    }
+    return $r['top_program_id'] !== null ? [(int) $r['top_program_id']] : [];
+}
+
+/** "BS IT, BS CS (+3 more)" for a staff table cell. */
+function topMatchesLabel(array $ids, array $titles, string $empty): string
+{
+    if (!$ids) {
+        return $empty;
+    }
+    $names = array_map(fn($id) => $titles[$id] ?? '—', $ids);
+    $shown = array_slice($names, 0, 2);
+    return implode(', ', $shown) . (count($names) > 2 ? ' (+' . (count($names) - 2) . ' more)' : '');
+}
+
+function statusLabel(?string $status): string
+{
+    return $status === 'mismatch' ? 'Mismatch' : ($status === 'match' ? 'Match' : '—');
 }
 
 function priorityFor(string $reason, ?float $topScore, float $threshold): string
@@ -78,7 +105,7 @@ function buildFlagRows(PDO $pdo, string $status, float $threshold): array
 {
     $sql = "SELECT mf.id AS flag_id, mf.reason, mf.status, mf.created_at, mf.note,
                    s.user_id, s.school_id, s.strand, s.first_name_enc, s.last_name_enc,
-                   r.top_program_id, r.top_score
+                   r.top_program_id, r.top_score, r.final_program_ids, r.match_status
             FROM monitoring_flags mf
             JOIN students s ON s.user_id = mf.student_id
             LEFT JOIN recommendations r ON r.id = mf.recommendation_id
@@ -88,7 +115,7 @@ function buildFlagRows(PDO $pdo, string $status, float $threshold): array
     $stmt->execute([$status]);
     $rows = $stmt->fetchAll();
 
-    $titles = programTitles($pdo, array_map(fn($r) => $r['top_program_id'] !== null ? (int) $r['top_program_id'] : null, $rows));
+    $titles = programTitles($pdo, array_merge([], ...array_map('topMatchIds', $rows)));
 
     $reasonLabels = [
         'low_confidence' => 'Below minimum confidence threshold',
@@ -101,8 +128,8 @@ function buildFlagRows(PDO $pdo, string $status, float $threshold): array
         $topScore = $r['top_score'] !== null ? (float) $r['top_score'] : null;
         return $student + [
             'flagId' => (int) $r['flag_id'],
-            'career' => $r['top_program_id'] !== null ? ($titles[(int) $r['top_program_id']] ?? '—') : '—',
-            'match' => $topScore !== null ? (int) round($topScore * 100) . '%' : '—',
+            'career' => topMatchesLabel(topMatchIds($r), $titles, '—'),
+            'match' => statusLabel($r['match_status']),
             'reason' => $reasonLabels[$r['reason']] ?? $r['reason'],
             'priority' => priorityFor($r['reason'], $topScore, $threshold),
             'note' => $r['note'],
@@ -116,7 +143,7 @@ function buildFlagRows(PDO $pdo, string $status, float $threshold): array
 function buildCompletedRows(PDO $pdo): array
 {
     $sql = "SELECT a.student_id, a.completed_at, s.school_id, s.strand, s.first_name_enc, s.last_name_enc,
-                   r.top_program_id, r.top_score
+                   r.top_program_id, r.top_score, r.final_program_ids, r.match_status
             FROM assessments a
             JOIN students s ON s.user_id = a.student_id
             LEFT JOIN recommendations r ON r.student_id = a.student_id
@@ -124,14 +151,13 @@ function buildCompletedRows(PDO $pdo): array
             WHERE a.is_latest = TRUE AND a.completed_at::date = CURRENT_DATE
             ORDER BY a.completed_at DESC";
     $rows = $pdo->query($sql)->fetchAll();
-    $titles = programTitles($pdo, array_map(fn($r) => $r['top_program_id'] !== null ? (int) $r['top_program_id'] : null, $rows));
+    $titles = programTitles($pdo, array_merge([], ...array_map('topMatchIds', $rows)));
 
     $result = array_map(function ($r) use ($titles) {
         $student = decryptStudent(['user_id' => $r['student_id']] + $r);
-        $topScore = $r['top_score'] !== null ? (float) $r['top_score'] : null;
         return $student + [
-            'career' => $r['top_program_id'] !== null ? ($titles[(int) $r['top_program_id']] ?? '—') : 'No worksheet yet',
-            'match' => $topScore !== null ? (int) round($topScore * 100) . '%' : '—',
+            'career' => topMatchesLabel(topMatchIds($r), $titles, 'No worksheet yet'),
+            'match' => statusLabel($r['match_status']),
             'time' => (new DateTime($r['completed_at']))->format('g:i A'),
         ];
     }, $rows);

@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $user = Auth::requireLogin();
 if ($user['role'] !== 'student') {
-    jsonResponse(['success' => false, 'error' => 'Only students can submit the Career Worksheet.'], 403);
+    jsonResponse(['success' => false, 'error' => 'Only students can submit the Career Electives Worksheet.'], 403);
 }
 
 $body = readJsonBody();
@@ -19,7 +19,7 @@ $programId = (int) ($body['programId'] ?? 0);
 $electives = $body['electives'] ?? [];
 
 if ($programId <= 0) {
-    jsonResponse(['success' => false, 'error' => 'Please select the program you are considering.'], 400);
+    jsonResponse(['success' => false, 'error' => 'Please select your Preferred Course.'], 400);
 }
 if (!is_array($electives) || count($electives) === 0) {
     jsonResponse(['success' => false, 'error' => 'Please select at least one elective.'], 400);

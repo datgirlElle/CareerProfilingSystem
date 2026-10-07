@@ -120,7 +120,7 @@
         </a>
         <div>
           <h1 class="text-[32px] font-bold text-[#191c1e] tracking-tight">Worksheet Results</h1>
-          <p class="text-sm text-[#5e3f3c] mt-1">How your chosen career goal and electives line up with your RIASEC profile.</p>
+          <p class="text-sm text-[#5e3f3c] mt-1">How your Preferred Course and electives line up with your RIASEC results.</p>
         </div>
       </div>
 
@@ -129,10 +129,10 @@
         <!-- Your Worksheet -->
         <div class="lg:col-span-5">
           <div class="bg-white border border-[#e0e3e5] rounded-lg px-[17px] pt-[17px] pb-[39px]">
-            <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-4">Your Worksheet</h2>
-            <p class="text-xs text-[#5e3f3c] mb-4">The career goal you set out at the start of your worksheet.</p>
+            <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-4">Your Career Electives Worksheet</h2>
+            <p class="text-xs text-[#5e3f3c] mb-4">The course and electives you chose on your worksheet.</p>
 
-            <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">Chosen Career Goal</p>
+            <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">Preferred Course</p>
             <p class="text-base font-semibold text-[#191c1e] mb-4" id="careerGoalText">—</p>
 
             <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-2">Electives</p>
@@ -146,7 +146,7 @@
             <div class="flex items-start justify-between border-b border-[#e0e3e5] pb-2 gap-4 flex-wrap">
               <div>
                 <h2 class="text-xl font-semibold text-[#191c1e]">Alignment with RIASEC Results</h2>
-                <p class="text-xs text-[#5e3f3c] mt-1">How your chosen goal matches with your assessed personality traits.</p>
+                <p class="text-xs text-[#5e3f3c] mt-1">Whether your Preferred Course fits your RIASEC interest areas.</p>
               </div>
               <span id="alignBadge" class="inline-flex items-center gap-2 rounded px-4 py-2"></span>
             </div>
@@ -291,7 +291,7 @@
 
   const topTypes = assessment.topTypes || [];
   const topLetters = topTypes.map(function(t) { return LABEL_TO_LETTER[t] || t[0]; });
-  const statedProgram = recommendation.statedProgram;
+  const statedProgram = recommendation.preferredCourse;  // Preferred Course, with inTopMatches
 
   document.getElementById('careerGoalText').textContent = statedProgram
     ? statedProgram.title + (statedProgram.isActive === false ? ' (no longer available)' : '')
@@ -304,32 +304,29 @@
   document.getElementById('profileLabels').textContent = topTypes.map(function(t) { return t === 'Investigate' ? 'Investigative' : t; }).join(', ');
   document.getElementById('topInterestArea').textContent = INTEREST_AREA[topLetters[0]] || '—';
 
-  // Match / mismatch as stored with the result (CBFEngine::classify). Older results
-  // without a status fall back to: is the chosen program among the Top Matches?
-  const isAligned = recommendation.matchStatus
-    ? recommendation.matchStatus === 'match'
-    : recommendation.statedOutsideTop3 === null;
+  // Aligned = the Preferred Course is among the Top Matches (lib/RecommendationPipeline.php).
+  const isAligned = !!(statedProgram && statedProgram.inTopMatches);
 
   const badge = document.getElementById('alignBadge');
   if (isAligned) {
     badge.className = 'inline-flex items-center gap-2 bg-[#ecfdf5] border border-[#a7f3d0] rounded px-4 py-2';
-    badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg><span class="text-xs font-bold text-[#047857] uppercase tracking-wide">Match</span>';
+    badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg><span class="text-xs font-bold text-[#047857] uppercase tracking-wide">In Your Top Matches</span>';
   } else {
     badge.className = 'inline-flex items-center gap-2 bg-orange-50 border border-orange-200 rounded px-4 py-2';
     badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.007M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span class="text-xs font-bold text-orange-700 uppercase tracking-wide">Worth a Second Look</span>';
   }
 
-  const goalTitle = statedProgram ? statedProgram.title : 'your stated program';
-  // No percentages are shown to students (adviser); only whether the chosen
-  // program is among the RIASEC-based Top Matches.
+  const goalTitle = statedProgram ? statedProgram.title : 'your Preferred Course';
+  // No percentages are shown to students (adviser); only whether the Preferred Course
+  // is among the Top Matches.
   const analysis = isAligned
-    ? '"' + goalTitle + '" is among your matched degree programs: its Holland Code (' + (statedProgram ? statedProgram.hollandCode : '') +
-      ') matches your top RIASEC interest areas.'
-    : (recommendation.statedOutsideTop3 !== null
-        ? '"' + goalTitle + '" doesn\'t closely match your RIASEC results. '
-        : '') +
-      'That\'s okay. Check your Career Results for the courses that match your interests best, ' +
-      'and if you\'d like help deciding, we highly recommend talking with a Guidance Counselor.';
+    ? '"' + goalTitle + '" is one of your Top Matches: its Holland Code (' + statedProgram.hollandCode +
+      ') fits your top RIASEC interest areas.'
+    : '"' + goalTitle + (statedProgram && statedProgram.inGuidanceMapping
+        ? '" fits your RIASEC results, but the prediction model did not point to it, so it is not among your Top Matches. '
+        : '" doesn\'t closely match your RIASEC results, so it is not among your Top Matches. ') +
+      'That\'s okay. See your Career Results for your Top Matches, and if you\'d like help deciding, ' +
+      'we highly recommend talking with a Guidance Counselor.';
   document.getElementById('analysisText').textContent = analysis;
 })();
 </script>

@@ -14,6 +14,7 @@
 require_once __DIR__ . '/../lib/Database.php';
 require_once __DIR__ . '/../lib/CBFEngine.php';
 require_once __DIR__ . '/../lib/CBFData.php';
+require_once __DIR__ . '/../lib/RecommendationPipeline.php';
 
 if (PHP_SAPI !== 'cli') {
     exit("CLI only.\n");
@@ -98,3 +99,18 @@ foreach ($trace['programs'] as $p) {
         $trace['config']['finalScore']['stated_program'], $p['indicator'], $p['score']);
     echo '    ' . $p['explanation'] . "\n\n";
 }
+
+// Recommendation pipeline (lib/RecommendationPipeline.php): stages 2-6.
+$programs = CBFData::activePrograms($pdo);
+$titles = array_column($programs, 'title', 'id');
+$names = fn(?array $ids) => $ids === null ? '(model not enabled)' : ($ids ? implode(', ', array_map(fn($id) => $titles[$id], $ids)) : 'none');
+$run = RecommendationPipeline::run($profile, $programs, $profile['statedProgramId'] !== null ? [$profile['statedProgramId']] : []);
+echo "Recommendation pipeline\n";
+echo '  CBF match set     : ' . $names($run['cbfIds']) . "\n";
+echo '  Prediction model  : ' . $names($run['predictionIds']) . ($run['modelVersion'] ? " ({$run['modelVersion']})" : '') . "\n";
+echo '  Common courses    : ' . ($run['commonIds'] === null ? '-' : $names($run['commonIds'])) . "\n";
+echo '  Top Matches       : ' . $names($run['finalIds']) . ($run['usedFallback'] ? '  (no common course: CBF match set shown)' : '') . "\n";
+foreach ($run['preferred'] as $pref) {
+    echo '  Preferred Course  : ' . $titles[$pref['id']] . ($pref['inTopMatches'] ? ' (in Top Matches)' : ' (not in Top Matches)') . "\n";
+}
+echo "  Status            : {$run['status']}" . ($run['reason'] ? " ({$run['reason']})" : '') . "\n";

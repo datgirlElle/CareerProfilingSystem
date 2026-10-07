@@ -1,7 +1,7 @@
 <?php
 /**
- * Recompute every student's recommendation with the CURRENT CBF settings
- * (config/cbf.php). Results are saved only when a student submits the Career
+ * Recompute every student's recommendation with the CURRENT settings
+ * (config/cbf.php and the imported prediction model). Results are saved only when a student submits the Career
  * Worksheet, so after changing the method, existing students keep showing
  * their old scores until this is run.
  *
@@ -16,6 +16,7 @@
 require_once __DIR__ . '/../lib/Database.php';
 require_once __DIR__ . '/../lib/CBFEngine.php';
 require_once __DIR__ . '/../lib/CBFData.php';
+require_once __DIR__ . '/../lib/RecommendationPipeline.php';
 
 if (PHP_SAPI !== 'cli') {
     exit("CLI only.\n");
@@ -25,8 +26,7 @@ $dryRun = in_array('--dry-run', $argv, true);
 $pdo = Database::get();
 $students = $pdo->query(
     "SELECT s.user_id, s.school_id, a.id AS assessment_id,
-            (SELECT w.id FROM worksheets w WHERE w.student_id = s.user_id ORDER BY w.submitted_at DESC LIMIT 1) AS worksheet_id,
-            (SELECT r.top_score FROM recommendations r WHERE r.student_id = s.user_id ORDER BY r.computed_at DESC LIMIT 1) AS old_top_score
+            (SELECT w.id FROM worksheets w WHERE w.student_id = s.user_id ORDER BY w.submitted_at DESC LIMIT 1) AS worksheet_id
      FROM students s JOIN assessments a ON a.student_id = s.user_id AND a.is_latest = TRUE
      ORDER BY s.school_id"
 )->fetchAll();
@@ -38,11 +38,13 @@ foreach ($students as $st) {
     }
     $profile = CBFData::studentProfile($pdo, (int) $st['user_id']);
     $label = sprintf('%-15s', $st['school_id']);
-    $old = $st['old_top_score'] !== null ? sprintf('%.0f%%', $st['old_top_score'] * 100) : '—';
 
     if ($dryRun) {
-        $r = CBFEngine::recommend($profile, CBFData::activePrograms($pdo), $profile['statedProgramId']);
-        printf("%s top score %s -> %.0f%%  (%s)\n", $label, $old, $r['top3'][0]['score'] * 100, $r['top3'][0]['title']);
+        $programs = CBFData::activePrograms($pdo);
+        $r = RecommendationPipeline::run($profile, $programs, $profile['statedProgramId'] !== null ? [$profile['statedProgramId']] : []);
+        $titles = array_column($programs, 'title', 'id');
+        printf("%s %s%s  Top Matches: %s\n", $label, $r['status'], $r['reason'] ? " ({$r['reason']})" : '',
+            implode(', ', array_map(fn($id) => $titles[$id], $r['finalIds'])));
         $done++;
         continue;
     }
@@ -53,7 +55,7 @@ foreach ($students as $st) {
             $pdo, (int) $st['user_id'], $profile, $profile['statedProgramId'], (int) $st['assessment_id'], (int) $st['worksheet_id']
         );
         $pdo->commit();
-        printf("%s top score %s -> %.0f%%  %s%s\n", $label, $old, $saved['topScore'] * 100, $saved['status'], $saved['reason'] ? " ({$saved['reason']})" : '');
+        printf("%s %s%s  Top Matches: %s\n", $label, $saved['status'], $saved['reason'] ? " ({$saved['reason']})" : '', implode(', ', $saved['finalTitles']));
         $done++;
     } catch (Throwable $e) {
         $pdo->rollBack();
@@ -61,4 +63,4 @@ foreach ($students as $st) {
     }
 }
 
-echo ($dryRun ? "Dry run: $done students would be recomputed (nothing saved).\n" : "$done students recomputed with the current CBF settings.\n");
+echo ($dryRun ? "Dry run: $done students would be recomputed (nothing saved).\n" : "$done students recomputed with the current settings (config/cbf.php, prediction model).\n");

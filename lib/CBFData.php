@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/Crypto.php';
 require_once __DIR__ . '/CBFEngine.php';
+require_once __DIR__ . '/RecommendationPipeline.php';
 
 /**
  * Loads the inputs of the CBF engine from the existing tables, so that
@@ -98,26 +99,30 @@ class CBFData
     }
 
     /**
-     * Run the CBF for one student and save the result as a new `recommendations`
-     * row (earlier rows are kept as history). Also raises the low-confidence
-     * monitoring flag when the top score is below the configured threshold.
-     * The caller manages the transaction.
+     * Run the recommendation pipeline (lib/RecommendationPipeline.php: CBF, prediction
+     * model, common courses, Preferred Course) for one student and save the result as a
+     * new `recommendations` row (earlier rows are kept as history). Also raises the
+     * low-confidence monitoring flag when the top CBF similarity is below the
+     * configured threshold. The caller manages the transaction.
      *
      * @return array{recommendationId: int, topProgramId: int, topScore: float, status: string, reason: ?string, finalTitles: string[]}|null null if there are no active programs
      */
     public static function saveRecommendation(PDO $pdo, int $studentId, array $profile, ?int $statedProgramId, int $assessmentId, ?int $worksheetId): ?array
     {
-        $recommendation = CBFEngine::recommend($profile, self::activePrograms($pdo), $statedProgramId);
-        if (!$recommendation['top3']) {
+        $programs = self::activePrograms($pdo);
+        $config = CBFEngine::config();
+        $result = RecommendationPipeline::run($profile, $programs, $statedProgramId !== null ? [$statedProgramId] : [], $config);
+        $recommendation = $result['cbf'];
+        if (!$recommendation['all']) {
             return null;
         }
-        $topProgramId = (int) $recommendation['top3'][0]['id'];
-        $topScore = (float) $recommendation['top3'][0]['score'];
+        // Internal only (monitoring threshold / history); never shown to students.
+        $topProgramId = (int) $recommendation['all'][0]['id'];
+        $topScore = (float) $recommendation['all'][0]['score'];
 
-        // Snapshot of every program's result. blocks/matches/explanation make the
+        // Snapshot of every program's CBF result. blocks/matches/explanation make the
         // recommendation explainable later without recomputing it; formula records
         // the settings in force when it was computed (they are configurable).
-        $config = CBFEngine::config();
         $formula = $config['final_score'] + [
             'student_vector' => $config['student_vector'] ?? 'scores',
             'student_top_n' => $config['student_top_n'] ?? 3,
@@ -127,17 +132,18 @@ class CBFData
             'blocks' => $s['blocks'], 'matches' => $s['matches'], 'explanation' => $s['explanation'], 'formula' => $formula,
         ], $recommendation['all']);
 
-        // Match / mismatch (team definition). The decision tree is not connected yet,
-        // so its output is null and the interim rule applies (see CBFEngine::classify).
-        $outcome = CBFEngine::classify(array_column($recommendation['top3'], 'id'), null, $statedProgramId, $config);
-
         $recInsert = $pdo->prepare(
-            'INSERT INTO recommendations (student_id, stated_program_id, scores, top_program_id, top_score, source_assessment_id, source_worksheet_id, match_status, mismatch_reason)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id'
+            'INSERT INTO recommendations (student_id, stated_program_id, scores, top_program_id, top_score, source_assessment_id, source_worksheet_id,
+                                          match_status, mismatch_reason, cbf_program_ids, prediction_program_ids, final_program_ids, model_version)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id'
         );
         $recInsert->execute([
             $studentId, $statedProgramId, json_encode($scoresForStorage), $topProgramId, $topScore, $assessmentId, $worksheetId,
-            $outcome['status'], $outcome['reason'],
+            $result['status'], $result['reason'],
+            self::intArrayLiteral($result['cbfIds']),
+            $result['predictionIds'] !== null ? self::intArrayLiteral($result['predictionIds']) : null,
+            self::intArrayLiteral($result['finalIds']),
+            $result['modelVersion'],
         ]);
         $recommendationId = (int) $recInsert->fetchColumn();
 
@@ -155,10 +161,26 @@ class CBFData
             }
         }
 
-        $titles = array_column($recommendation['top3'], 'title', 'id');
+        $titles = array_column($programs, 'title', 'id');
         return ['recommendationId' => $recommendationId, 'topProgramId' => $topProgramId, 'topScore' => $topScore,
-            'status' => $outcome['status'], 'reason' => $outcome['reason'],
-            'finalTitles' => array_values(array_map(fn($id) => $titles[$id], $outcome['finalIds']))];
+            'status' => $result['status'], 'reason' => $result['reason'],
+            'finalTitles' => array_values(array_map(fn($id) => $titles[$id], $result['finalIds']))];
+    }
+
+    /** PostgreSQL INT[] literal, e.g. {3,4,6}. */
+    public static function intArrayLiteral(array $ids): string
+    {
+        return '{' . implode(',', array_map('intval', $ids)) . '}';
+    }
+
+    /** Parses a PostgreSQL INT[] value ("{3,4,6}") into ints; null stays null. */
+    public static function parseIntArray(?string $value): ?array
+    {
+        if ($value === null) {
+            return null;
+        }
+        $inner = trim($value, '{}');
+        return $inner === '' ? [] : array_map('intval', explode(',', $inner));
     }
 
     /** Every Active program, decrypted, in the shape CBFEngine::recommend() expects. */

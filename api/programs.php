@@ -45,7 +45,7 @@ if ($method === 'GET') {
             'name' => $r['name'],
         ], $pdo->query('SELECT id, code, name FROM colleges ORDER BY code')->fetchAll());
         // Feature vocabularies from config/cbf.php, so the admin forms and the
-        // Career Worksheet use exactly the lists the CBF engine compares on.
+        // Career Electives Worksheet use exactly the lists the CBF engine compares on.
         $cbfConfig = CBFEngine::config();
         $response['strands'] = $cbfConfig['strands'];
         $response['electiveClusters'] = $cbfConfig['elective_clusters'];
@@ -53,15 +53,15 @@ if ($method === 'GET') {
     }
 
     if (isset($_GET['stats'])) {
-        // Institution-wide count of students whose #1 recommendation is each program,
-        // from the latest recommendation snapshot per student.
+        // Institution-wide count of students whose Top Matches include each program,
+        // from the latest recommendation per student (older results: their top CBF program).
         $counts = $pdo->query(
-            "SELECT top_program_id, COUNT(*) AS cnt FROM (
-                SELECT DISTINCT ON (student_id) student_id, top_program_id
+            "SELECT unnest(COALESCE(final_program_ids, ARRAY[top_program_id])) AS program_id, COUNT(*) AS cnt FROM (
+                SELECT DISTINCT ON (student_id) student_id, top_program_id, final_program_ids
                 FROM recommendations ORDER BY student_id, computed_at DESC
-             ) latest GROUP BY top_program_id"
+             ) latest GROUP BY 1"
         )->fetchAll(PDO::FETCH_KEY_PAIR);
-        $totalStudentsWithRecs = array_sum($counts);
+        $totalStudentsWithRecs = (int) $pdo->query('SELECT COUNT(DISTINCT student_id) FROM recommendations')->fetchColumn();
         $response['stats'] = [
             'matchedCounts' => array_map('intval', $counts),
             'totalStudentsWithRecommendations' => $totalStudentsWithRecs,

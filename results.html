@@ -126,7 +126,7 @@
           <img src="images/admin/card-icon-briefcase.svg" alt="" class="w-6 h-6">
         </span>
         <h1 class="text-xl font-bold text-[#001a40]">No Results Yet</h1>
-        <p class="text-sm text-slate-500">Complete the RIASEC Career Interest Assessment to see your Holland Code profile here.</p>
+        <p class="text-sm text-slate-500">Complete the RIASEC Assessment to see your Holland Code profile here.</p>
         <a href="assessment" class="mt-2 bg-[#ed1c24] text-white text-sm font-medium rounded-md px-5 py-2.5 hover:opacity-90">Go to My Assessments</a>
       </div>
 
@@ -186,9 +186,9 @@
         <div class="bg-blue-50 border border-blue-100 rounded-lg p-5 mt-4 flex items-center justify-between gap-4 flex-wrap">
           <div>
             <p class="text-sm font-semibold text-blue-900" id="worksheetCtaTitle">Ready to see your matching degree programs?</p>
-            <p class="text-xs text-blue-800 mt-0.5" id="worksheetCtaBody">Complete the Career Worksheet to see the degree programs that match your RIASEC results.</p>
+            <p class="text-xs text-blue-800 mt-0.5" id="worksheetCtaBody">Complete the Career Electives Worksheet to see the degree programs that match your RIASEC results.</p>
           </div>
-          <a href="career-worksheet" id="worksheetCtaBtn" class="shrink-0 bg-[#001c43] text-white text-sm font-medium rounded-md px-5 py-2.5 hover:opacity-90">Go to Career Worksheet</a>
+          <a href="career-worksheet" id="worksheetCtaBtn" class="shrink-0 bg-[#001c43] text-white text-sm font-medium rounded-md px-5 py-2.5 hover:opacity-90">Go to Career Electives Worksheet</a>
         </div>
       </div>
 
@@ -202,7 +202,7 @@
             </a>
             <div>
               <h1 class="text-[32px] font-bold text-[#191c1e] tracking-tight">Career Results</h1>
-              <p class="text-sm text-[#5e3f3c] mt-1" id="cr-subtitle">Degree programs that match your RIASEC interest areas.</p>
+              <p class="text-sm text-[#5e3f3c] mt-1">Your RIASEC results, your Preferred Course and your Top Matches.</p>
             </div>
           </div>
           <div class="text-right shrink-0">
@@ -216,33 +216,31 @@
           <div id="cr-topTypes" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
         </div>
 
-        <div>
+        <!-- Preferred Course (Career Electives Worksheet): its own section, shown whether or not
+             it is among the Top Matches. It never changes the Top Matches. -->
+        <section id="cr-preferredSection" class="hidden mb-6">
+          <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-2">Your Preferred Course</h2>
+          <p class="text-xs text-[#5e3f3c] mb-4">The course you chose on your Career Electives Worksheet.</p>
+          <div id="cr-preferredCard"></div>
+        </section>
+
+        <!-- Shown when the guidance mapping and the prediction model have no course in common. -->
+        <div id="cr-guidanceNotice" class="hidden border rounded-lg p-[17px] mb-6 flex gap-3 items-start" style="background-color:#fffbeb;border-color:#fde68a;">
+          <span class="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style="background-color:#fef3c7;color:#b45309;" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+          </span>
           <div>
-            <div id="cr-guidanceNotice" class="hidden border rounded-lg p-[17px] mb-6 flex gap-3 items-start" style="background-color:#fffbeb;border-color:#fde68a;">
-              <span class="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style="background-color:#fef3c7;color:#b45309;" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-              </span>
-              <div>
-                <p class="text-base font-semibold" style="color:#92400e;">Hmm, this might be worth a second look</p>
-                <p class="text-xs text-[#191c1e] mt-2 leading-relaxed" id="cr-guidanceText"></p>
-                <p class="text-xs text-[#191c1e] mt-2 leading-relaxed">That's completely okay. Your interests are just one part of choosing a course. If you'd like help deciding, we highly recommend talking with a Guidance Counselor.</p>
-                <a href="help-center?subject=Request%20for%20Academic%20Advising" class="inline-block mt-3 border text-xs font-semibold rounded px-4 py-2 hover:opacity-80" style="border-color:#b45309;color:#92400e;background-color:#ffffff;">Talk to a Guidance Counselor</a>
-              </div>
-            </div>
-            <div id="cr-matchesIntro">
-              <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-2">Top Matches According to the Guidance</h2>
-              <p class="text-xs text-[#5e3f3c] mb-4">Degree programs whose Holland Code, as mapped by the Guidance Office, matches your top 3 RIASEC interest areas. Listed in no particular order.</p>
-            </div>
-            <div id="cr-topMatches" class="flex flex-col gap-4"></div>
-            <!-- Decision-tree (Weka) suggestions. Shown only when the API returns them,
-                 i.e. after the model is trained and decision_tree.enabled is set in config/cbf.php. -->
-            <div id="cr-modelSection" class="hidden mt-10">
-              <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-2">Suggestion of the Model</h2>
-              <p class="text-xs text-[#5e3f3c] mb-4">Degree programs suggested by the decision-tree model trained on student data.</p>
-              <div id="cr-modelMatches" class="flex flex-col gap-4"></div>
-            </div>
+            <p class="text-base font-semibold" style="color:#92400e;">Hmm, this might be worth a second look</p>
+            <p class="text-xs text-[#191c1e] mt-2 leading-relaxed">The guidance mapping of your RIASEC results and the prediction model did not point to the same course, so your Top Matches below come from the guidance mapping. If you'd like help deciding, we highly recommend talking with a Guidance Counselor.</p>
+            <a href="help-center?subject=Request%20for%20Academic%20Advising" class="inline-block mt-3 border text-xs font-semibold rounded px-4 py-2 hover:opacity-80" style="border-color:#b45309;color:#92400e;background-color:#ffffff;">Talk to a Guidance Counselor</a>
           </div>
         </div>
+
+        <section>
+          <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-2">Top Matches According to the Guidance</h2>
+          <p class="text-xs text-[#5e3f3c] mb-4" id="cr-matchesIntro">Degree programs whose Holland Code, as mapped by the Guidance Office, matches your top 3 RIASEC interest areas. Listed in no particular order.</p>
+          <div id="cr-topMatches" class="flex flex-col gap-4"></div>
+        </section>
       </div>
 
     </main>
@@ -447,7 +445,7 @@
   revealPanel('resultsView');
 
   if (recommendation.hasRecommendation) {
-    document.getElementById('worksheetCtaTitle').textContent = "You've already completed your Career Worksheet";
+    document.getElementById('worksheetCtaTitle').textContent = "You've already completed your Career Electives Worksheet";
     document.getElementById('worksheetCtaBody').textContent = 'View the degree programs that match your RIASEC results.';
     const ctaBtn = document.getElementById('worksheetCtaBtn');
     ctaBtn.textContent = 'View Career Results';
@@ -562,64 +560,69 @@
       return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="' + sizeClass + '">' + path + '</svg>';
     }
 
-    const preferred = recommendation.statedOutsideTop3;  // the worksheet program, when it is not a match
+    const preferred = recommendation.preferredCourse;  // Career Electives Worksheet, with inTopMatches
+    const BADGE = 'text-xs font-semibold rounded-full px-3.5 py-1.5 shrink-0 border';
 
-    function programCardHtml(p) {
+    function programCardHtml(p, extraHtml, style, bodyHtml) {
       const inactive = p.isActive === false ? ' <span class="inline-flex items-center bg-gray-100 text-gray-500 text-[11px] font-semibold px-2 py-0.5 rounded-full align-middle">No longer available</span>' : '';
-      const preferredBadge = p.id === recommendation.statedProgramId
-        ? '<span class="bg-[#fff7ed] border border-[#fed7aa] text-[#c2410c] text-xs font-semibold rounded-full px-3.5 py-1.5 shrink-0">Your preferred course</span>'
-        : '';
-      return '<div class="bg-white border ' + 'border-[#e0e3e5]' + ' rounded-lg p-[17px] flex flex-col gap-3">' +
+      return '<div class="border rounded-lg p-[17px] flex flex-col gap-3" style="' + (style || 'background-color:#ffffff;border-color:#e0e3e5;') + '">' +
         '<div class="flex items-start justify-between gap-4 flex-wrap">' +
           '<div class="flex items-start gap-3">' +
             '<span class="w-9 h-9 rounded-lg bg-[#eef1fb] text-[#0f2a6b] flex items-center justify-center shrink-0">' + collegeIconSvg(p.collegeCode, 'w-5 h-5') + '</span>' +
             '<div><h3 class="text-base font-semibold text-[#191c1e]">' + p.title + inactive + '</h3><p class="text-xs text-[#5e3f3c]">' + p.collegeName + '</p></div>' +
           '</div>' +
-          preferredBadge +
+          (extraHtml || '') +
         '</div>' +
         // No match sentences (adviser): only the program description staff wrote in Career Data Set, if any.
         (p.description ? '<p class="text-xs text-[#191c1e] leading-relaxed max-w-[720px]">' + p.description + '</p>' : '') +
+        (bodyHtml || '') +
       '</div>';
     }
 
-    // Mismatch (team definition, CBFEngine::classify): a gentle nudge above the matched
-    // courses; seeing a Guidance Counselor is recommended, not required.
-    if (recommendation.matchStatus === 'mismatch') {
-      const chosen = recommendation.statedProgram ? recommendation.statedProgram.title : null;
+    // Your Preferred Course: shown on its own, clearly, whether or not it is a Top Match.
+    if (preferred) {
       const code = document.getElementById('cr-code').textContent;
-      let nudge;
-      if (!recommendation.top3.length) {
-        nudge = 'Your RIASEC code (' + code + ') did not closely match any of our degree programs.';
-      } else if (chosen && preferred) {
-        nudge = 'The course you chose, ' + chosen + ', doesn\'t closely match your RIASEC code (' + code + '). ' +
-          'Below are the courses that match your interests best.';
+      let html;
+      if (preferred.inTopMatches) {
+        html = programCardHtml(preferred,
+          '<span class="' + BADGE + '" style="background-color:#ecfdf5;border-color:#a7f3d0;color:#047857;">Included in your Top Matches</span>',
+          'background-color:#f0fdf4;border-color:#bbf7d0;',
+          '<p class="text-xs text-[#191c1e] leading-relaxed">Great news: your Preferred Course is one of your Top Matches, so it fits your RIASEC interest areas.</p>');
       } else {
-        nudge = 'Your chosen course and your RIASEC code (' + code + ') may not be the closest fit. ' +
-          'Below are the courses that match your interests best.';
+        html = programCardHtml(preferred,
+          '<span class="' + BADGE + '" style="background-color:#fffbeb;border-color:#fde68a;color:#92400e;">Worth a second look</span>',
+          'background-color:#fffbeb;border-color:#fde68a;',
+          '<p class="text-xs text-[#191c1e] leading-relaxed">' + (preferred.inGuidanceMapping
+            ? 'Your Preferred Course fits your RIASEC code (' + code + '), but the prediction model did not point to it, so it is not among your Top Matches. '
+            : 'Your Preferred Course doesn\'t closely match your RIASEC code (' + code + '), so it is not among your Top Matches. ') +
+          'That\'s completely okay: your interests are just one part of choosing a course. Compare it with your Top Matches below, and if you\'d like help deciding, we highly recommend talking with a Guidance Counselor.</p>' +
+          (recommendation.basis === 'guidance_fallback' ? '' :  // the notice below has the same button
+          '<a href="help-center?subject=Request%20for%20Academic%20Advising" class="inline-block border text-xs font-semibold rounded px-4 py-2 hover:opacity-80" style="border-color:#b45309;color:#92400e;background-color:#ffffff;align-self:flex-start;">Talk to a Guidance Counselor</a>'));
       }
-      document.getElementById('cr-guidanceText').textContent = nudge;
+      document.getElementById('cr-preferredCard').innerHTML = html;
+      document.getElementById('cr-preferredSection').classList.remove('hidden');
+    }
+
+    // How the Top Matches were formed (lib/RecommendationPipeline.php).
+    if (recommendation.basis === 'guidance_and_model') {
+      document.getElementById('cr-matchesIntro').textContent =
+        'Degree programs supported by both the guidance mapping of your top 3 RIASEC interest areas and the prediction model. Listed in no particular order.';
+    } else if (recommendation.basis === 'guidance_fallback') {
       document.getElementById('cr-guidanceNotice').classList.remove('hidden');
     }
 
-    // Only the mapped programs are listed; a preferred course that is not a match is not shown
-    // here (adviser). When the preferred course is a match, it is moved to the top.
-    const matches = recommendation.top3.slice().sort(function(a, b) {
-      return (b.id === recommendation.statedProgramId) - (a.id === recommendation.statedProgramId);
-    });
-    let listHtml = matches.map(function(p) { return programCardHtml(p); }).join('');
-    if (!recommendation.top3.length) {
+    // Top Matches: one list, in program-list order (no ranking). A Preferred Course that is
+    // a Top Match stays in its place and is marked.
+    const matches = recommendation.topMatches || [];
+    let listHtml = matches.map(function(p) {
+      return programCardHtml(p, preferred && p.id === preferred.id
+        ? '<span class="' + BADGE + '" style="background-color:#fff7ed;border-color:#fed7aa;color:#c2410c;">Your Preferred Course</span>' : '');
+    }).join('');
+    if (!matches.length) {
       listHtml = '<div class="bg-[#fff7ed] border border-[#fed7aa] rounded-lg p-[17px] text-xs text-[#191c1e]">' +
         'No degree program matched your RIASEC results. Please visit the Guidance Office for career counseling.</div>';
     }
     document.getElementById('cr-topMatches').innerHTML = listHtml;
-
-    // Suggestion of the Model (decision tree); null until the model is connected.
-    if (Array.isArray(recommendation.modelSuggestions)) {
-      document.getElementById('cr-modelMatches').innerHTML = recommendation.modelSuggestions.length
-        ? recommendation.modelSuggestions.map(function(p) { return programCardHtml(p); }).join('')
-        : '<p class="text-xs text-[#5e3f3c]">The model did not suggest a degree program for your profile.</p>';
-      document.getElementById('cr-modelSection').classList.remove('hidden');
-    }
   }
 })();
 </script>

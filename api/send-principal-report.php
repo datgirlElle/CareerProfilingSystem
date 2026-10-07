@@ -41,7 +41,7 @@ function buildReportSections(array $data, string $currentAy): array
     $enrollmentRows = [
         ['Total Registered Students', (string) $data['totalStudents']],
         ['RIASEC Assessment Completion', $data['completion']['rate'] . '% (' . $data['completion']['count'] . ' of ' . $data['completion']['total'] . ')'],
-        ['Career Worksheet Completion', $data['worksheet']['rate'] . '% (' . $data['worksheet']['count'] . ' of ' . $data['worksheet']['total'] . ')'],
+        ['Career Electives Worksheet Completion', $data['worksheet']['rate'] . '% (' . $data['worksheet']['count'] . ' of ' . $data['worksheet']['total'] . ')'],
         ['High-Confidence Match Rate', $data['confidence']['rate'] . '% (' . $data['confidence']['count'] . ' of ' . $data['confidence']['total'] . ')'],
     ];
 
@@ -76,7 +76,7 @@ function buildReportSections(array $data, string $currentAy): array
         ['title' => 'Enrollment & Completion', 'rows' => $enrollmentRows],
         ['title' => 'Assessment Roster — AY ' . $currentAy, 'rows' => $rosterRows],
         ['title' => 'Students by Strand', 'rows' => $strandRows],
-        ['title' => 'Top Recommended Careers (Institution-wide)', 'rows' => $careerRows],
+        ['title' => 'Programs Most Often in Students\' Top Matches (Institution-wide)', 'rows' => $careerRows],
     ];
 }
 

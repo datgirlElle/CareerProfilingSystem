@@ -39,28 +39,29 @@ return [
         'stated_program' => 0.0,
     ],
 
-    // Which programs the CBF returns as the student's mapped courses ("Top Matches"):
-    //   'highest': every program tied at the student's highest similarity, e.g.
-    //              all programs sharing the student's three RIASEC letters. No cut
-    //              by list order; programs with the same code appear together.
-    //              Nothing is returned if the best similarity is 0.
+    // CBF match set: which programs count as CBF matches.
+    //   'highest': every program tied at the student's highest cosine similarity, e.g.
+    //              all programs sharing the student's three RIASEC letters. No cut by
+    //              list order. Nothing is returned if the best similarity is 0.
     //   'top_n'  : exactly the first top_n programs (ties cut by list order).
-    // Adviser's design: the CBF is the guidance-mapping component; its matches are
-    // later combined with the decision tree (final = courses common to both).
     'match_rule' => 'highest',
     'top_n'      => 3,
 
-    // Decision tree (Weka rules). Not connected yet; when it is, set enabled => true.
-    // Final suggestion = courses common to the decision tree's output and the CBF matches.
+    // Prediction model: the decision tree (J48) trained in WEKA, imported with
+    // php db/import_weka_tree.php into config/prediction_model.json (lib/PredictionModel.php).
+    // When enabled, Top Matches = CBF matches ∩ the model's predicted course
+    // (lib/RecommendationPipeline.php). While false (or before a model is imported),
+    // Top Matches = the CBF matches.
     'decision_tree' => [
         'enabled' => false,
     ],
 
-    // MISMATCH (team decision): the decision tree and the CBF mapping have no course in
-    // common -> refer the student to the Guidance Office (no course is suggested).
-    // Until the decision tree is enabled, the interim rule is used instead: the
-    // student's preferred (worksheet) course is not among the CBF matches.
-    // In both cases, a student with no matched course at all is a mismatch.
+    // MISMATCH (team decision): the prediction model and the CBF have no course in
+    // common. The student then sees the CBF matches ("Top Matches According to the
+    // Guidance") and is advised to see a Guidance Counselor.
+    // Until the model is enabled, the interim rule is used instead: the student's
+    // Preferred Course (worksheet) is not among the CBF matches.
+    // In both cases, a student with no CBF match at all is a mismatch.
     'mismatch' => [
         'definition' => 'no_common_course',      // used when decision_tree.enabled = true
         'interim'    => 'preferred_not_matched', // used until then

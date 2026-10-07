@@ -133,9 +133,14 @@ CREATE TABLE recommendations (
     top_score               NUMERIC(5, 4) NOT NULL,
     source_assessment_id    INT NOT NULL REFERENCES assessments(id),
     source_worksheet_id     INT REFERENCES worksheets(id),
-    -- Match/mismatch outcome (CBFEngine::classify); NULL on results saved before it existed.
+    -- Match/mismatch outcome (RecommendationPipeline::combine); NULL on results saved before it existed.
     match_status            VARCHAR(10) CHECK (match_status IN ('match', 'mismatch')),
-    mismatch_reason         VARCHAR(40)
+    mismatch_reason         VARCHAR(40),
+    -- Pipeline stages (lib/RecommendationPipeline.php); NULL on results saved before they existed.
+    cbf_program_ids         INT[],              -- CBF match set
+    prediction_program_ids  INT[],              -- prediction model output; NULL while the model is not enabled
+    final_program_ids       INT[],              -- Top Matches shown to the student
+    model_version           VARCHAR(80)         -- imported WEKA model used
 );
 
 CREATE TABLE monitoring_flags (

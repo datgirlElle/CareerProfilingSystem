@@ -17,6 +17,7 @@
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/CBFEngine.php';
 require_once __DIR__ . '/../lib/CBFData.php';
+require_once __DIR__ . '/../lib/RecommendationPipeline.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     jsonResponse(['error' => 'Method not allowed'], 405);
@@ -46,4 +47,17 @@ if ($profile === null) {
 
 AuditLogger::log((int) $user['id'], $user['role'], 'view_cbf_debug', 'student', (string) $studentId);
 
-jsonResponse(['studentId' => $studentId] + CBFEngine::trace($profile, CBFData::activePrograms($pdo), $profile['statedProgramId']));
+$programs = CBFData::activePrograms($pdo);
+$titles = array_column($programs, 'title', 'id');
+$named = fn(?array $ids) => $ids === null ? null : array_map(fn($id) => $titles[$id] ?? $id, $ids);
+$run = RecommendationPipeline::run($profile, $programs, $profile['statedProgramId'] !== null ? [$profile['statedProgramId']] : []);
+jsonResponse(['studentId' => $studentId, 'pipeline' => [
+    'cbfMatches' => $named($run['cbfIds']),
+    'predictionModel' => $named($run['predictionIds']),
+    'modelVersion' => $run['modelVersion'],
+    'commonCourses' => $named($run['commonIds']),
+    'topMatches' => $named($run['finalIds']),
+    'usedFallback' => $run['usedFallback'],
+    'preferredCourse' => array_map(fn($p) => ['title' => $titles[$p['id']] ?? $p['id'], 'inTopMatches' => $p['inTopMatches']], $run['preferred']),
+    'status' => $run['status'], 'reason' => $run['reason'], 'rule' => $run['rule'],
+]] + CBFEngine::trace($profile, $programs, $profile['statedProgramId']));

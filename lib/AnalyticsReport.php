@@ -115,12 +115,14 @@ class AnalyticsReport
         $careerCounts = (function () use ($pdo, $hasStrand, $hasSection, $studentFilterClause) {
             $needsJoin = $hasStrand || $hasSection;
             [$clause, $params] = $studentFilterClause();
-            $sql = "SELECT top_program_id, COUNT(*) AS cnt FROM (
-                        SELECT DISTINCT ON (r.student_id) r.student_id, r.top_program_id
+            // Students whose Top Matches include each program (latest result per student;
+            // results saved before final_program_ids existed count their top CBF program).
+            $sql = "SELECT unnest(COALESCE(final_program_ids, ARRAY[top_program_id])) AS top_program_id, COUNT(*) AS cnt FROM (
+                        SELECT DISTINCT ON (r.student_id) r.student_id, r.top_program_id, r.final_program_ids
                         FROM recommendations r"
                 . ($needsJoin ? ' JOIN students s ON s.user_id = r.student_id' . $clause : '')
                 . " ORDER BY r.student_id, r.computed_at DESC
-                    ) latest GROUP BY top_program_id ORDER BY cnt DESC LIMIT 5";
+                    ) latest GROUP BY 1 ORDER BY cnt DESC, 1 LIMIT 5";
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
             return $stmt->fetchAll();

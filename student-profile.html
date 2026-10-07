@@ -240,6 +240,31 @@
         </div>
       </div>
 
+      <!-- Recommendation (lib/RecommendationPipeline.php): what the student sees, plus the
+           intermediate sets for counselors/researchers. Never shown to students. -->
+      <div id="recommendationCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm p-6 flex flex-col gap-4 max-w-4xl mt-6">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <h2 class="text-base font-semibold text-gray-900">Recommendation</h2>
+          <span id="recStatus" class="text-xs font-semibold px-2.5 py-1 rounded-md border"></span>
+        </div>
+        <div>
+          <p class="text-xs font-medium text-gray-600 mb-1">Preferred Course (Career Electives Worksheet)</p>
+          <p id="recPreferred" class="text-sm text-gray-800"></p>
+        </div>
+        <div>
+          <p class="text-xs font-medium text-gray-600 mb-1">Top Matches (shown to the student, no particular order)</p>
+          <p id="recTopMatches" class="text-sm text-gray-800"></p>
+        </div>
+        <details class="border-t border-gray-100 pt-3">
+          <summary class="text-xs font-medium text-gray-600 cursor-pointer">How the Top Matches were formed</summary>
+          <dl class="mt-3 grid text-sm" style="grid-template-columns:minmax(120px,180px) 1fr;column-gap:16px;row-gap:8px;">
+            <dt class="text-gray-500">CBF match set</dt><dd id="recCbf" class="text-gray-800"></dd>
+            <dt class="text-gray-500">Prediction model</dt><dd id="recPrediction" class="text-gray-800"></dd>
+            <dt class="text-gray-500">Common courses</dt><dd id="recCommon" class="text-gray-800"></dd>
+          </dl>
+        </details>
+      </div>
+
       <div id="counselingNotesCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm p-6 flex flex-col gap-4 max-w-4xl mt-6">
         <h2 class="text-base font-semibold text-gray-900">Counseling Notes</h2>
         <div id="counselingNoteComposer" class="hidden flex-col gap-2">
@@ -427,6 +452,31 @@
       '</div>';
     }).join('');
   }
+  async function loadRecommendation(studentId) {
+    const res = await fetch('api/recommendations.php?studentId=' + studentId);
+    if (!res.ok) return;  // no access to recommendations for this role
+    const r = await res.json();
+    if (!r.hasRecommendation) return;
+    const list = function(items) { return items && items.length ? items.join(', ') : 'None'; };
+    const status = document.getElementById('recStatus');
+    status.textContent = r.matchStatus === 'mismatch' ? 'Mismatch: suggest counseling' : r.matchStatus === 'match' ? 'Match' : '—';
+    status.className = 'text-xs font-semibold px-2.5 py-1 rounded-md border ' +
+      (r.matchStatus === 'mismatch' ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-green-50 border-green-200 text-green-700');
+    document.getElementById('recPreferred').textContent = r.preferredCourse
+      ? r.preferredCourse.title + (r.preferredCourse.inTopMatches ? ' (in Top Matches)' : ' (not in Top Matches)')
+      : 'None';
+    document.getElementById('recTopMatches').textContent = list(r.topMatches.map(function(p) { return p.title; }));
+    const st = r.stages || {};
+    document.getElementById('recCbf').textContent = list(st.cbfMatches);
+    document.getElementById('recPrediction').textContent = st.predictionModel === null || st.predictionModel === undefined
+      ? 'Not enabled (Top Matches = CBF match set)'
+      : list(st.predictionModel) + (st.modelVersion ? ' (' + st.modelVersion + ')' : '');
+    document.getElementById('recCommon').textContent = st.commonCourses === null || st.commonCourses === undefined
+      ? '—'
+      : (st.commonCourses.length ? list(st.commonCourses) : 'None (Top Matches fall back to the CBF match set)');
+    document.getElementById('recommendationCard').classList.remove('hidden');
+  }
+
   async function loadCounselingNotes(studentId) {
     counselingNotesStudentId = studentId;
     const res = await fetch('api/counseling-notes.php?studentId=' + studentId);
@@ -583,6 +633,7 @@
         : '<p class="text-sm text-gray-500">No attempts yet.</p>';
 
       loadCounselingNotes(s.userId);
+      loadRecommendation(s.userId);
     }
   }
 

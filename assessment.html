@@ -142,7 +142,7 @@
         <!-- RIASEC Card -->
         <div class="bg-white border border-slate-200 rounded-lg shadow-[0px_2px_15px_0px_rgba(0,26,64,0.04)] p-[33px] flex items-center justify-between gap-8 flex-wrap">
           <div class="flex-1 min-w-[280px] flex flex-col gap-3">
-            <h2 class="text-lg font-semibold text-[#001a40]">RIASEC Career Interest Assessment</h2>
+            <h2 class="text-lg font-semibold text-[#001a40]">RIASEC Assessment</h2>
             <p class="text-base text-slate-500 max-w-[672px] leading-[26px]">A career interest inventory based on Holland's RIASEC theory. This must be completed first before the worksheet is unlocked.</p>
             <div class="pt-3">
               <span id="riasecStatusPill" class="inline-flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-full px-3.5 py-1.5">
@@ -156,14 +156,14 @@
           </div>
         </div>
 
-        <!-- Career Worksheet Card -->
+        <!-- Career Electives Worksheet Card -->
         <div id="worksheetCard" class="bg-white/60 border border-slate-200 rounded-lg shadow-[0px_2px_15px_0px_rgba(0,26,64,0.04)] p-[33px] flex items-center justify-between gap-8 flex-wrap opacity-90">
           <div class="flex-1 min-w-[280px] flex flex-col gap-3">
             <div class="flex items-center gap-2">
-              <h2 class="text-lg font-semibold text-[#001a40]">Career Worksheet</h2>
+              <h2 class="text-lg font-semibold text-[#001a40]">Career Electives Worksheet</h2>
               <svg id="worksheetTitleLock" class="w-3 h-4" viewBox="0 -960 960 960" fill="#64748B"><path d="M240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h40v-80q0-83 58.5-141.5T480-920q83 0 141.5 58.5T680-720v80h40q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Zm0-80h480v-400H240v400Zm296.5-143.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM360-640h240v-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80ZM240-160v-400 400Z"/></svg>
             </div>
-            <p class="text-base text-slate-500 max-w-[672px] leading-[26px]">Write down the career you are considering and choose electives aligned to your strand and your RIASEC results.</p>
+            <p class="text-base text-slate-500 max-w-[672px] leading-[26px]">Choose your Preferred Course and the electives aligned to your strand and your RIASEC results.</p>
             <div class="pt-3">
               <span id="worksheetStatusPill" class="inline-flex items-center gap-2 bg-slate-100 border border-slate-200 rounded-full px-3.5 py-1.5">
                 <svg class="w-2.5 h-3.5" viewBox="0 -960 960 960" fill="#64748B"><path d="M240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h40v-80q0-83 58.5-141.5T480-920q83 0 141.5 58.5T680-720v80h40q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Zm0-80h480v-400H240v400Zm296.5-143.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM360-640h240v-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80ZM240-160v-400 400Z"/></svg>
@@ -292,7 +292,7 @@
       }
       document.getElementById('examSchedulePanelList').innerHTML = items.map(function(s) {
         const date = new Date(s.examDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
-        const label = s.scheduleType === 'retake' ? '<span class="text-amber-600 font-medium">Retake Exam</span>' : 'Career Interest Assessment';
+        const label = s.scheduleType === 'retake' ? '<span class="text-amber-600 font-medium">Retake Exam</span>' : 'RIASEC Assessment';
         return '<div class="border-l-[3px] border-[#19427b] pl-4 py-1">' +
           '<p class="text-sm font-semibold text-[#001a40]">' + date + ' &middot; ' + escapeHtml(s.startTime) + '&ndash;' + escapeHtml(s.endTime) + '</p>' +
           '<p class="text-sm text-slate-600 mt-1">Room ' + escapeHtml(s.room) + ' &mdash; ' + label + '</p>' +
