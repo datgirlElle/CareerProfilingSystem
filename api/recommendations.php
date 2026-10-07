@@ -122,20 +122,15 @@ foreach ($scores as $s) {
     }
 }
 
-// Mismatch: the student is referred to the Guidance Office and is not shown any course
-// (adviser decision), so the matched courses are not sent to the student's own browser.
-// Staff viewing the student still get the full result.
-$hideCourses = $user['role'] === 'student' && $row['match_status'] === 'mismatch';
-
 jsonResponse([
     'hasRecommendation' => true,
     'computedAt' => $row['computed_at'],
     'statedProgramId' => $statedProgramId,
     'statedProgram' => $statedProgramScore !== null ? enrichEntry($statedProgramScore, $programs) : null,
     'electives' => $electives,
-    'topProgramId' => $hideCourses ? null : (int) $row['top_program_id'],
-    'topScore' => $hideCourses ? null : (float) $row['top_score'],
-    'top3' => $hideCourses ? [] : $top3,
+    'topProgramId' => (int) $row['top_program_id'],
+    'topScore' => (float) $row['top_score'],
+    'top3' => $top3,
     // 'match' / 'mismatch' (CBFEngine::classify); null on results saved before it existed.
     'matchStatus' => $row['match_status'],
     'mismatchReason' => $row['mismatch_reason'],

@@ -218,14 +218,20 @@
 
         <div>
           <div>
+            <div id="cr-guidanceNotice" class="hidden border rounded-lg p-6 mb-6 flex gap-4 items-start" style="background-color:#fffbeb;border-color:#fde68a;">
+              <span class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style="background-color:#fef3c7;color:#b45309;" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+              </span>
+              <div>
+                <p class="text-xl font-semibold" style="color:#92400e;">Hmm, this might be worth a second look</p>
+                <p class="text-base text-[#191c1e] mt-2 leading-relaxed" id="cr-guidanceText"></p>
+                <p class="text-base text-[#191c1e] mt-2 leading-relaxed">That's completely okay. Your interests are just one part of choosing a course. If you'd like help deciding, we highly recommend talking with a Guidance Counselor.</p>
+                <a href="help-center?subject=Request%20for%20Academic%20Advising" class="inline-block mt-4 border text-sm font-semibold rounded px-4 py-2.5 hover:opacity-80" style="border-color:#b45309;color:#92400e;background-color:#ffffff;">Talk to a Guidance Counselor</a>
+              </div>
+            </div>
             <div id="cr-matchesIntro">
               <h2 class="text-2xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-2">Top Matches</h2>
               <p class="text-sm text-[#5e3f3c] mb-4">Degree programs whose Holland Code matches your top 3 RIASEC interest areas. Listed in no particular order.</p>
-            </div>
-            <div id="cr-guidanceNotice" class="hidden bg-[#fff7ed] border border-[#fed7aa] rounded p-6">
-              <p class="text-xl font-semibold text-[#c2410c]">Please proceed to the Guidance Office</p>
-              <p class="text-base text-[#191c1e] mt-2 leading-relaxed">Your RIASEC results are not aligned with the course you chose on your Career Worksheet. Please visit the Center for Guidance and Counseling for a face-to-face session with a Guidance Counselor, who will discuss your results and course options with you.</p>
-              <a href="help-center?subject=Request%20for%20Academic%20Advising" class="inline-block mt-4 bg-[#bb0013] text-white text-sm font-semibold uppercase tracking-wide rounded px-4 py-2.5 hover:opacity-90">Schedule Counseling</a>
             </div>
             <div id="cr-topMatches" class="flex flex-col gap-4"></div>
           </div>
@@ -603,7 +609,7 @@
         ? '<span class="bg-[#fff7ed] border border-[#fed7aa] text-[#c2410c] text-xs font-semibold rounded-full px-3.5 py-1.5 shrink-0">Your preferred course</span>'
         : '';
       const body = isPreferredExtra
-        ? 'This is the course you chose on your Career Worksheet. It is not among your matched degree programs, so please visit the Guidance Office to discuss it with a Guidance Counselor.'
+        ? 'This is the course you chose on your Career Worksheet. It doesn\'t closely match your RIASEC code, but it\'s still an option. A Guidance Counselor can help you weigh it against the courses above.'
         : describeProgram(p);
       return '<div class="bg-white border ' + (isPreferredExtra ? 'border-[#fed7aa]' : 'border-[#e0e3e5]') + ' rounded p-5 flex flex-col gap-4">' +
         '<div class="flex items-start justify-between gap-4 flex-wrap">' +
@@ -626,13 +632,23 @@
       '</div>';
     }
 
-    // Mismatch (team definition, CBFEngine::classify): no course is shown; the student is
-    // referred to the Guidance Office for face-to-face counseling.
+    // Mismatch (team definition, CBFEngine::classify): a gentle nudge above the matched
+    // courses; seeing a Guidance Counselor is recommended, not required.
     if (recommendation.matchStatus === 'mismatch') {
-      document.getElementById('cr-matchesIntro').classList.add('hidden');
+      const chosen = recommendation.statedProgram ? recommendation.statedProgram.title : null;
+      const code = document.getElementById('cr-code').textContent;
+      let nudge;
+      if (!recommendation.top3.length) {
+        nudge = 'Your RIASEC code (' + code + ') did not closely match any of our degree programs.';
+      } else if (chosen && preferred) {
+        nudge = 'The course you chose, ' + chosen + ', doesn\'t closely match your RIASEC code (' + code + '). ' +
+          'Below are the courses that match your interests best.';
+      } else {
+        nudge = 'Your chosen course and your RIASEC code (' + code + ') may not be the closest fit. ' +
+          'Below are the courses that match your interests best.';
+      }
+      document.getElementById('cr-guidanceText').textContent = nudge;
       document.getElementById('cr-guidanceNotice').classList.remove('hidden');
-      document.getElementById('cr-subtitle').textContent = 'Your RIASEC results and next steps.';
-      return;
     }
 
     // One list (adviser): every mapped program, then the preferred course at the end if it is not a match.
