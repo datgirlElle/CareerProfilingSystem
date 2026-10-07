@@ -1,7 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
-require_once __DIR__ . '/../lib/Lrn.php';
+require_once __DIR__ . '/../lib/StudentNumber.php';
 require_once __DIR__ . '/../lib/AcademicYear.php';
 require_once __DIR__ . '/../lib/RosterCsv.php';
 require_once __DIR__ . '/../lib/XlsxReader.php';
@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
 }
 
-$user = Rbac::requireAccess('rac', 'full');
+$user = Rbac::requireRosterEditor();
 $pdo = Database::get();
 
 if (!isset($_FILES['roster'])) {
@@ -73,8 +73,39 @@ if (!$parsed['rows']) {
 $strand = $parsed['strand'];
 $section = $parsed['section'];
 
+// A section an administrator has deactivated is not being offered: reactivate it first.
+$inactive = $pdo->prepare('SELECT 1 FROM sections WHERE strand = ? AND LOWER(code) = LOWER(?) AND is_active = FALSE');
+$inactive->execute([$strand, $section]);
+if ($inactive->fetchColumn()) {
+    jsonResponse(['success' => false, 'error' => "Section $section ($strand) is deactivated. Reactivate it under Sections first, then upload its roster."], 409);
+}
+
 $pdo->beginTransaction();
 try {
+    // What is already on the roster this academic year, so the result can say what changed.
+    $existing = $pdo->prepare('SELECT school_id, strand, section FROM assessment_roster WHERE academic_year = ?');
+    $existing->execute([$currentAy]);
+    $before = [];
+    foreach ($existing->fetchAll() as $e) {
+        $before[$e['school_id']] = $e['strand'] . ' ' . $e['section'];
+    }
+    $here = $strand . ' ' . $section;
+    $moved = [];   // listed under another section until now
+    $added = 0;
+    foreach ($parsed['rows'] as $r) {
+        if (!isset($before[$r[0]])) {
+            $added++;
+        } elseif ($before[$r[0]] !== $here) {
+            $moved[] = $before[$r[0]];
+        }
+    }
+    $removed = 0;  // in this section before, not in this file
+    foreach ($before as $number => $where) {
+        if ($where === $here && !isset($parsed['rows'][$number])) {
+            $removed++;
+        }
+    }
+
     // A re-upload replaces just this section for the current AY, so the other
     // sections' rosters are left alone.
     $deleted = $pdo->prepare('DELETE FROM assessment_roster WHERE academic_year = ? AND strand = ? AND section = ?');
@@ -82,15 +113,20 @@ try {
 
     // A student already listed under another section this AY is moved here.
     $insert = $pdo->prepare(
-        'INSERT INTO assessment_roster (academic_year, school_id, name_enc, strand, section, uploaded_by)
-         VALUES (?, ?, ?, ?, ?, ?)
+        'INSERT INTO assessment_roster (academic_year, school_id, name_enc, strand, section, email, uploaded_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (academic_year, school_id) DO UPDATE
-            SET name_enc = EXCLUDED.name_enc, strand = EXCLUDED.strand, section = EXCLUDED.section,
+            SET name_enc = EXCLUDED.name_enc, strand = EXCLUDED.strand, section = EXCLUDED.section, email = EXCLUDED.email,
                 uploaded_by = EXCLUDED.uploaded_by, uploaded_at = NOW()'
     );
     foreach ($parsed['rows'] as $r) {
-        $insert->execute([$currentAy, $r[0], Crypto::enc($r[1]), $strand, $section, $user['id']]);
+        $insert->execute([$currentAy, $r[0], Crypto::enc($r[1]), $strand, $section, $r[2], $user['id']]);
     }
+
+    // The section list (exam schedules, filters, reports) follows the roster: a section that is
+    // on a roster but not in the list yet is added.
+    $pdo->prepare('INSERT INTO sections (strand, code, created_by) VALUES (?, ?, ?) ON CONFLICT DO NOTHING')
+        ->execute([$strand, $section, $user['id']]);
 
     $pdo->commit();
 } catch (Throwable $e) {
@@ -99,6 +135,20 @@ try {
     jsonResponse(['success' => false, 'error' => 'Failed to save the roster. Please try again.'], 500);
 }
 
-AuditLogger::log($user['id'], $user['role'], 'upload_roster', 'assessment_roster', $currentAy, count($parsed['rows']) . " student(s) in $strand $section for AY $currentAy");
+$count = count($parsed['rows']);
+$noEmail = count(array_filter($parsed['rows'], fn($r) => $r[2] === null));
+$movedFrom = array_count_values($moved);
+AuditLogger::log($user['id'], $user['role'], 'upload_roster', 'assessment_roster', $currentAy, "$count student(s) in $strand $section for AY $currentAy ($added new, " . count($moved) . " moved here, $removed removed)");
 
-jsonResponse(['success' => true, 'count' => count($parsed['rows']), 'academicYear' => $currentAy, 'strand' => $strand, 'section' => $section]);
+jsonResponse([
+    'success' => true,
+    'count' => $count,
+    'academicYear' => $currentAy,
+    'strand' => $strand,
+    'section' => $section,
+    'added' => $added,
+    'removed' => $removed,
+    'moved' => count($moved),
+    'movedFrom' => $movedFrom,
+    'withoutEmail' => $noEmail,
+]);

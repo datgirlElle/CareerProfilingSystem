@@ -28,11 +28,11 @@ $expected = [
     'recommendations' => ['admin' => 'full', 'counselor' => 'full',    'student' => 'full'],
     'counselor'       => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'monitoring'      => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
-    'announcements'   => ['admin' => 'full', 'counselor' => 'limited', 'student' => 'limited'],
-    // Only the administrator sets assessment schedules: counselors stay view-only even where the table says full.
-    'examinations'    => ['admin' => 'full', 'counselor' => 'limited', 'student' => 'none'],
+    // Guidance Counselors post announcements, set schedules and manage sections (a Guidance Facilitator is view-only in code).
+    'announcements'   => ['admin' => 'full', 'counselor' => 'full',    'student' => 'limited'],
+    'examinations'    => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'counselingNotes' => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
-    'sections'        => ['admin' => 'full', 'counselor' => 'limited', 'student' => 'none'],
+    'sections'        => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
 ];
 
 foreach ($expected as $module => $roles) {
@@ -40,6 +40,13 @@ foreach ($expected as $module => $roles) {
         check("$module/$role == $level", Rbac::accessLevel($module, $role) === $level);
     }
 }
+
+echo "
+=== Guidance Facilitator is view-only ===
+";
+check('the facilitator write list covers announcements, schedules and sections', Rbac::FACILITATOR_VIEW_ONLY === ['announcements', 'examinations', 'sections']);
+check('a student is never a facilitator', Rbac::isFacilitator(['id' => 0, 'role' => 'student']) === false);
+check('the administrator is never a facilitator', Rbac::isFacilitator(['id' => 1, 'role' => 'admin']) === false);
 
 check(
     'Unknown role for a valid module falls back to none',

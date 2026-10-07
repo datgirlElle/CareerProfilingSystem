@@ -3,6 +3,7 @@
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/Mailer.php';
 require_once __DIR__ . '/../lib/EmailTemplate.php';
+require_once __DIR__ . '/../lib/AcademicYear.php';
 
 $user = Rbac::requireAccess('announcements', 'limited');
 $pdo = Database::get();
@@ -11,10 +12,44 @@ const ANNOUNCEMENT_BODY_MAX = 2000;
 const REMIND_COOLDOWN_HOURS = 24;
 
 /**
- * Active students an announcement goes to, optionally only those who have not
- * seen it yet (used by "Remind Unread").
+ * "JUAN SANTOS" -> "Juan Santos" for a greeting, only when the whole name is in capitals (roster names are).
+ */
+function friendlyFirstName(string $name): string
+{
+    $name = trim($name);
+    return $name !== '' && mb_strtoupper($name, 'UTF-8') === $name ? mb_convert_case($name, MB_CASE_TITLE, 'UTF-8') : $name;
+}
+
+/**
+ * Students on this academic year's class roster, with an email, who have no account yet.
+ * They can't see announcements in the app, so an "everyone" announcement reaches them by email.
  *
- * @return array<int,array{email:string,first_name_enc:string}>
+ * @return array<int,array{email:string,first_name:string,registered:bool}>
+ */
+function rosterOnlyRecipients(PDO $pdo): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT r.email, r.name_enc FROM assessment_roster r
+         WHERE r.academic_year = ? AND r.email IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM students s WHERE LOWER(s.school_id) = LOWER(r.school_id))
+         ORDER BY r.id'
+    );
+    $stmt->execute([AcademicYear::current()]);
+    $out = [];
+    foreach ($stmt->fetchAll() as $r) {
+        // The roster stores "LASTNAME, FIRSTNAME MIDDLE"; greet by the part after the comma.
+        $parts = explode(',', (string) Crypto::dec($r['name_enc']), 2);
+        $out[] = ['email' => $r['email'], 'first_name' => friendlyFirstName($parts[1] ?? $parts[0]), 'registered' => false];
+    }
+    return $out;
+}
+
+/**
+ * Who an announcement is emailed to, optionally only those who have not seen it yet (used by
+ * "Remind Unread"). "Everyone" is every active registered student plus every student on this
+ * year's roster who has not registered yet (emailed at their roster address). One email per address.
+ *
+ * @return array<int,array{email:string,first_name:string,registered:bool}>
  */
 function announcementRecipients(PDO $pdo, int $announcementId, string $targetType, bool $onlyUnread = false): array
 {
@@ -22,49 +57,87 @@ function announcementRecipients(PDO $pdo, int $announcementId, string $targetTyp
         ? ' AND NOT EXISTS (SELECT 1 FROM announcement_reads r WHERE r.announcement_id = ' . (int) $announcementId . ' AND r.student_id = s.user_id)'
         : '';
     if ($targetType === 'all') {
-        return $pdo->query(
+        $rows = $pdo->query(
             "SELECT u.email, s.first_name_enc FROM students s
              JOIN users u ON u.id = s.user_id
              WHERE u.is_active = TRUE AND u.email IS NOT NULL" . $unread
         )->fetchAll();
+    } else {
+        $stmt = $pdo->prepare(
+            "SELECT u.email, s.first_name_enc FROM announcement_recipients ar
+             JOIN students s ON s.user_id = ar.student_id
+             JOIN users u ON u.id = s.user_id
+             WHERE ar.announcement_id = ? AND u.is_active = TRUE AND u.email IS NOT NULL" . $unread
+        );
+        $stmt->execute([$announcementId]);
+        $rows = $stmt->fetchAll();
     }
-    $stmt = $pdo->prepare(
-        "SELECT u.email, s.first_name_enc FROM announcement_recipients ar
-         JOIN students s ON s.user_id = ar.student_id
-         JOIN users u ON u.id = s.user_id
-         WHERE ar.announcement_id = ? AND u.is_active = TRUE AND u.email IS NOT NULL" . $unread
-    );
-    $stmt->execute([$announcementId]);
-    return $stmt->fetchAll();
+
+    $recipients = [];
+    $seen = [];
+    foreach ($rows as $r) {
+        $key = strtolower($r['email']);
+        if (isset($seen[$key])) {
+            continue;
+        }
+        $seen[$key] = true;
+        $recipients[] = ['email' => $r['email'], 'first_name' => friendlyFirstName((string) Crypto::dec($r['first_name_enc'])), 'registered' => true];
+    }
+    if ($targetType === 'all') {
+        foreach (rosterOnlyRecipients($pdo) as $r) {
+            $key = strtolower($r['email']);
+            if (!isset($seen[$key])) {
+                $seen[$key] = true;
+                $recipients[] = $r;
+            }
+        }
+    }
+    return $recipients;
 }
 
-/** @param array<int,array{email:string,first_name_enc:string}> $recipients */
-function sendAnnouncementEmails(array $recipients, string $title, string $bodyText, string $subjectPrefix = ''): void
+/**
+ * @param array<int,array{email:string,first_name:string,registered:bool}> $recipients
+ * @return array{registered:int,notRegistered:int,failed:int} how many were emailed
+ */
+function sendAnnouncementEmails(array $recipients, string $title, string $bodyText, string $subjectPrefix = ''): array
 {
+    $stats = ['registered' => 0, 'notRegistered' => 0, 'failed' => 0];
     if (!$recipients) {
-        return;
+        return $stats;
     }
     $safeTitle = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
     $safeBody = nl2br(htmlspecialchars($bodyText, ENT_QUOTES, 'UTF-8'));
     $appUrl = rtrim((string) getenv('APP_URL'), '/');
 
-    // A school-wide announcement can mean sending to every registered
-    // student, well past a single request's usual runtime — there's no
-    // background job queue in this project, so this raises the limit for
-    // just this request rather than risk it being killed mid-batch.
-    set_time_limit(300);
+    // A school-wide announcement can mean sending to every student on the roster, well
+    // past a single request's usual runtime — there's no background job queue in this
+    // project, so this raises the limit for just this request rather than risk it being
+    // killed mid-batch.
+    set_time_limit(600);
 
     foreach ($recipients as $r) {
-        $firstName = Crypto::dec($r['first_name_enc']);
+        $firstName = $r['first_name'];
+        $safeFirst = htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8');
+        // Someone without an account is invited to create one; a registered student is sent to sign in.
+        $cta = $r['registered'] ? 'View in ProfilePath' : 'Create your ProfilePath account';
+        $ctaUrl = $appUrl !== '' ? $appUrl . ($r['registered'] ? '/assessment' : '/registration') : '#';
+        $footer = $r['registered']
+            ? 'You are receiving this because you have a ProfilePath account.'
+            : 'You are receiving this because you are on the Guidance Office class roster. Register with your student number and this email address.';
         $bodyHtml = EmailTemplate::render(
             $safeTitle,
-            "<p style=\"margin:0 0 12px 0;\">Hi $firstName,</p><p style=\"margin:0;\">$safeBody</p>",
-            'View in ProfilePath',
-            $appUrl !== '' ? $appUrl . '/assessment' : '#',
-            'You are receiving this because you have a ProfilePath account.'
+            "<p style=\"margin:0 0 12px 0;\">Hi $safeFirst,</p><p style=\"margin:0;\">$safeBody</p>",
+            $cta,
+            $ctaUrl,
+            $footer
         );
-        Mailer::send($r['email'], $firstName, $subjectPrefix . $title, $bodyHtml, "Hi $firstName,\n\n$bodyText");
+        if (Mailer::send($r['email'], $firstName, $subjectPrefix . $title, $bodyHtml, "Hi $firstName,\n\n$bodyText\n\n$ctaUrl")) {
+            $stats[$r['registered'] ? 'registered' : 'notRegistered']++;
+        } else {
+            $stats['failed']++;
+        }
     }
+    return $stats;
 }
 
 /**
@@ -72,17 +145,20 @@ function sendAnnouncementEmails(array $recipients, string $title, string $bodyTe
  * claiming the row first (`emailed_at IS NULL` in the WHERE) so two staff
  * members loading this page at the same moment — or the immediate-send path
  * racing the lazy scheduled-send check below — can never send it twice.
+ *
+ * @return ?array{registered:int,notRegistered:int,failed:int} null when this call did not send it
  */
-function emailAnnouncement(PDO $pdo, int $announcementId, string $title, string $bodyText, string $targetType): void
+function emailAnnouncement(PDO $pdo, int $announcementId, string $title, string $bodyText, string $targetType): ?array
 {
     $claim = $pdo->prepare("UPDATE announcements SET emailed_at = NOW() WHERE id = ? AND emailed_at IS NULL AND status = 'sent'");
     $claim->execute([$announcementId]);
     if ($claim->rowCount() === 0) {
-        return; // already sent (or sent by a concurrent request), or still a draft
+        return null; // already sent (or sent by a concurrent request), or still a draft
     }
-    sendAnnouncementEmails(announcementRecipients($pdo, $announcementId, $targetType), $title, $bodyText);
+    $stats = sendAnnouncementEmails(announcementRecipients($pdo, $announcementId, $targetType), $title, $bodyText);
+    AuditLogger::log($GLOBALS['user']['id'] ?? null, $GLOBALS['user']['role'] ?? null, 'announcement_emailed', 'announcement', (string) $announcementId, "{$stats['registered']} registered and {$stats['notRegistered']} roster-only student(s) emailed, {$stats['failed']} failed");
+    return $stats;
 }
-
 /**
  * Validates the compose form. Sends the JSON error itself and exits when
  * something is wrong; a draft is allowed to be less complete (no audience yet).
@@ -176,6 +252,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         jsonResponse(['announcements' => $announcements]);
     }
 
+    // How many people "everyone" reaches, shown beside the audience choice when composing.
+    if (($_GET['audience'] ?? '') === '1') {
+        $registered = (int) $pdo->query('SELECT COUNT(*) FROM students s JOIN users u ON u.id = s.user_id WHERE u.is_active = TRUE AND u.email IS NOT NULL')->fetchColumn();
+        $rosterOnly = rosterOnlyRecipients($pdo);
+        $noEmail = $pdo->prepare(
+            'SELECT COUNT(*) FROM assessment_roster r WHERE r.academic_year = ? AND r.email IS NULL
+               AND NOT EXISTS (SELECT 1 FROM students s WHERE LOWER(s.school_id) = LOWER(r.school_id))'
+        );
+        $noEmail->execute([AcademicYear::current()]);
+        jsonResponse(['registered' => $registered, 'notRegistered' => count($rosterOnly), 'notRegisteredNoEmail' => (int) $noEmail->fetchColumn(), 'academicYear' => AcademicYear::current()]);
+    }
+
     // A scheduled announcement (publish_at in the future when created)
     // has no background job to email it the moment it comes due — the
     // closest this project has to a scheduler is: check for it here,
@@ -192,6 +280,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $activeStudents = (int) $pdo->query(
         'SELECT COUNT(*) FROM students s JOIN users u ON u.id = s.user_id WHERE u.is_active = TRUE'
     )->fetchColumn();
+    $rosterOnlyCount = count(rosterOnlyRecipients($pdo));
 
     // Staff management view: everything, including drafts and scheduled ones.
     $rows = $pdo->query(
@@ -218,7 +307,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $readPercents = [];
     $nextScheduled = null;
 
-    $announcements = array_map(function ($r) use ($activeStudents, $recipientIds, $now, &$summary, &$reachedAll, &$reachedIds, &$readPercents, &$nextScheduled) {
+    $announcements = array_map(function ($r) use ($activeStudents, $rosterOnlyCount, $recipientIds, $now, &$summary, &$reachedAll, &$reachedIds, &$readPercents, &$nextScheduled) {
         $id = (int) $r['id'];
         $isDraft = $r['status'] === 'draft';
         $isPublished = !$isDraft && strtotime($r['publish_at']) <= $now;
@@ -257,6 +346,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             'isPublished' => $isPublished,
             'createdByUsername' => $r['created_by_username'] ?? null,
             'audienceCount' => $audience,
+            // Students on the roster with no account yet: they get an "everyone" announcement by email only.
+            'rosterOnlyCount' => $r['target_type'] === 'all' ? $rosterOnlyCount : 0,
             'recipientIds' => $r['target_type'] === 'specific' ? ($recipientIds[$id] ?? []) : [],
             'readCount' => $read,
             'readPercent' => $readPercent,
@@ -340,11 +431,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Only an announcement published right now emails immediately; a
         // future publishAt is picked up by the lazy check in the GET branch
         // above once it's actually due. A draft is never emailed.
+        $emailed = null;
         if (!$isDraft && ($in['publishAt'] === null || strtotime($in['publishAt']) <= time())) {
-            emailAnnouncement($pdo, $announcementId, $in['title'], $in['bodyText'], $in['targetType']);
+            $emailed = emailAnnouncement($pdo, $announcementId, $in['title'], $in['bodyText'], $in['targetType']);
         }
 
-        jsonResponse(['success' => true, 'id' => $announcementId, 'draft' => $isDraft]);
+        jsonResponse(['success' => true, 'id' => $announcementId, 'draft' => $isDraft, 'emailed' => $emailed]);
     }
 
     // Edit a draft or a scheduled announcement that hasn't been emailed yet.
@@ -381,10 +473,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         AuditLogger::log($user['id'], $user['role'], 'update_announcement', 'announcement', (string) $id, "\"{$in['title']}\"" . ($isDraft ? ' (draft)' : ''));
 
+        $emailed = null;
         if (!$isDraft && ($in['publishAt'] === null || strtotime($in['publishAt']) <= time())) {
-            emailAnnouncement($pdo, $id, $in['title'], $in['bodyText'], $in['targetType']);
+            $emailed = emailAnnouncement($pdo, $id, $in['title'], $in['bodyText'], $in['targetType']);
         }
-        jsonResponse(['success' => true, 'id' => $id, 'draft' => $isDraft]);
+        jsonResponse(['success' => true, 'id' => $id, 'draft' => $isDraft, 'emailed' => $emailed]);
     }
 
     // Email a reminder to the students who haven't seen a published
@@ -407,9 +500,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             jsonResponse(['success' => false, 'error' => 'A reminder was already sent in the last ' . REMIND_COOLDOWN_HOURS . ' hours.'], 429);
         }
         $recipients = announcementRecipients($pdo, $id, $a['target_type'], true);
-        sendAnnouncementEmails($recipients, $a['title'], Crypto::dec($a['body_enc']), 'Reminder: ');
-        AuditLogger::log($user['id'], $user['role'], 'remind_announcement', 'announcement', (string) $id, count($recipients) . ' unread student(s)');
-        jsonResponse(['success' => true, 'sent' => count($recipients)]);
+        $stats = sendAnnouncementEmails($recipients, $a['title'], Crypto::dec($a['body_enc']), 'Reminder: ');
+        AuditLogger::log($user['id'], $user['role'], 'remind_announcement', 'announcement', (string) $id, count($recipients) . ' unread or not-yet-registered student(s), ' . $stats['failed'] . ' failed');
+        jsonResponse(['success' => true, 'sent' => $stats['registered'] + $stats['notRegistered'], 'notRegistered' => $stats['notRegistered'], 'failed' => $stats['failed']]);
     }
 
     jsonResponse(['success' => false, 'error' => 'Unknown type.'], 400);

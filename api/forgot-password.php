@@ -4,31 +4,31 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/Mailer.php';
 require_once __DIR__ . '/../lib/EmailTemplate.php';
 require_once __DIR__ . '/../lib/RateLimiter.php';
-require_once __DIR__ . '/../lib/Lrn.php';
+require_once __DIR__ . '/../lib/StudentNumber.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
 }
 
 $body = readJsonBody();
-// Students log in with their LRN, which IS their username (see
+// Students log in with their Student Number, which IS their username (see
 // api/register.php) — so a single username lookup covers every role,
 // students and admin/counselor staff accounts alike.
 $identifier = trim((string) ($body['schoolId'] ?? $body['identifier'] ?? ''));
 if ($identifier === '') {
-    jsonResponse(['success' => false, 'error' => 'Username or LRN is required.'], 400);
+    jsonResponse(['success' => false, 'error' => 'Username or Student Number is required.'], 400);
 }
 
 // Format check only — this rejects obvious garbage (injection-style
 // strings, symbols, spaces) before it reaches the database, but it does
 // NOT reveal whether an account actually exists. A plausible-looking but
-// nonexistent email/LRN/username still falls through to the same generic
+// nonexistent email/Student Number/username still falls through to the same generic
 // response below, same as always — anti-enumeration is preserved.
 $looksValid = filter_var($identifier, FILTER_VALIDATE_EMAIL)
-    || Lrn::isValid($identifier)                          // student LRN
+    || StudentNumber::isValid($identifier)                          // student Student Number
     || preg_match('/^[a-zA-Z0-9_.]{3,32}$/', $identifier); // staff username
 if (!$looksValid) {
-    jsonResponse(['success' => false, 'error' => 'Enter a valid email, LRN, or username.'], 400);
+    jsonResponse(['success' => false, 'error' => 'Enter a valid email, Student Number, or username.'], 400);
 }
 
 $pdo = Database::get();

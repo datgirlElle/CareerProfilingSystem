@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="js/csrf.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <title>Admin Dashboard — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -39,7 +40,7 @@
     <nav id="adminNav" data-active="admin-dashboard" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
     <script src="js/admin-nav.js"></script>
     <div class="border-t border-white/5 pt-[25px] pb-6">
-      <a href="login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+      <a href="staff-login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
         <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>
         Logout
       </a>
@@ -169,26 +170,38 @@
       </div>
 
       <!-- Sections at a glance -->
+      <div id="sectionCompletionCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-8">
+        <div class="border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-gray-900">Student Progress by Section</h2>
+            <p class="text-xs text-gray-500 mt-1">How many students in each section have registered and how many have been assessed, out of everyone expected in the section. The assessed bar is <span class="inline-flex items-center gap-1"><span style="width:10px;height:10px;border-radius:2px;background:#059669;display:inline-block"></span> green</span> when the section is at or above the target and <span class="inline-flex items-center gap-1"><span style="width:10px;height:10px;border-radius:2px;background:#dc2626;display:inline-block"></span> red</span> when it is below. Hover a bar for the numbers.</p>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-gray-600">Target: <span id="targetValue" class="font-semibold text-gray-900">80%</span></span>
+            <span id="targetEdit" class="hidden items-center gap-2">
+              <input type="number" id="targetInput" min="1" max="100" step="1" aria-label="Completion target in percent" class="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm">
+              <button type="button" id="targetSave" class="bg-[#0f2a6b] text-white text-xs font-semibold rounded-md px-3 py-2 hover:opacity-90">Save</button>
+            </span>
+          </div>
+        </div>
+        <p id="targetMessage" class="hidden px-6 pt-3 text-xs" aria-live="polite"></p>
+        <div class="px-6 pt-4"><p id="completionSummaryLine" class="text-sm text-gray-700"></p></div>
+        <div class="p-6 pt-3"><div id="completionChartBox" style="position:relative;height:260px"><canvas id="sectionCompletionChart" aria-label="Registered and assessed students by section, against the target"></canvas></div></div>
+      </div>
       <div id="sectionSummaryCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-8">
         <div class="border-b border-gray-200 px-6 py-4">
-          <h2 class="text-lg font-bold text-gray-900">Sections at a Glance</h2>
-          <p class="text-xs text-gray-500 mt-1">How many students each section has and where they stand.</p>
+          <h2 class="text-lg font-bold text-gray-900">Students by Section</h2>
+          <p class="text-xs text-gray-500 mt-1">Pick a section to see who has completed the assessment, who is pending, who has not registered and who is mismatched.</p>
         </div>
-        <div class="overflow-auto">
-          <table class="w-full text-left border-collapse">
-            <thead class="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th class="px-6 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Strand</th>
-                <th class="px-6 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Section</th>
-                <th class="px-6 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Students</th>
-                <th class="px-6 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Completed</th>
-                <th class="px-6 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Pending</th>
-                <th class="px-6 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Not Registered</th>
-                <th class="px-6 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Mismatched</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100" id="sectionSummaryBody"></tbody>
-          </table>
+        <div class="px-6 pb-6 border-t border-gray-100 pt-5">
+          <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-3">Who is where <span class="normal-case font-normal">&mdash; pick a section</span></p>
+          <div class="flex flex-wrap items-center gap-2 mb-3" id="sectionPicker"></div>
+          <div class="flex flex-wrap items-center gap-2 mb-4">
+            <span class="text-xs text-gray-500">Download for the section picked above:</span>
+            <button type="button" id="dlNotRegistered" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not registered (CSV)</button>
+            <button type="button" id="dlNotAssessed" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not assessed (CSV)</button>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" id="sectionPeople"></div>
         </div>
       </div>
       <!-- Data Table Section -->
@@ -204,6 +217,7 @@
               <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" viewBox="0 -960 960 960" fill="#64748B"><path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>
               <input type="text" id="studentSearch" placeholder="Search by name..." aria-label="Search by name" class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
             </div>
+            <button type="button" id="downloadListBtn" class="w-full sm:w-auto flex items-center justify-center gap-2 border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Download list (CSV)</button>
             <button type="button" id="emailListedBtn" class="hidden w-full sm:w-auto items-center justify-center gap-2 border border-[#0f2a6b] text-[#0f2a6b] rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-slate-50">Email these students</button>
             <div class="relative">
               <button type="button" id="filterBtn" class="w-full sm:w-auto flex items-center justify-center gap-2 border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
@@ -234,6 +248,22 @@
                       <option>Pending</option>
                       <option>Mismatched</option>
                       <option>Not Registered</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Registration</label>
+                    <select id="filterRegistration" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
+                      <option value="">All</option>
+                      <option value="registered">Registered</option>
+                      <option value="notRegistered">Not Registered</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Assessed</label>
+                    <select id="filterAssessment" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
+                      <option value="">All</option>
+                      <option value="assessed">Assessed</option>
+                      <option value="notAssessed">Not Assessed</option>
                     </select>
                   </div>
                   <div>
@@ -309,7 +339,7 @@
   const sessionData = await (await fetch('api/session.php')).json();
   const currentUser = sessionData.user;
   if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'counselor')) {
-    window.location.replace('login');
+    window.location.replace('staff-login');
     return;
   }
 
@@ -333,7 +363,7 @@
   }
   function performLogout() {
     fetch('api/logout.php', { method: 'POST' }).finally(function() {
-      window.location.href = 'login';
+      window.location.href = 'staff-login';
     });
   }
   document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
@@ -400,8 +430,176 @@
   const searchInput = document.getElementById('studentSearch');
   const noResults = document.getElementById('noResults');
   const tbody = document.getElementById('studentTbody');
-  const state = { search: '', strand: '', section: '', status: '', counseling: '' };
+  const state = { search: '', strand: '', section: '', status: '', counseling: '', registration: '', assessment: '' };
+  let sectionSelected = ''; // '' = all sections, otherwise "STRAND|SECTION"
+
+  // The names behind the numbers: who completed, who is still pending, who has not registered
+  // (on the roster but no account yet) and who is mismatched, for all sections or the chosen one.
+  function renderSectionPeople(secRows) {
+    if (sectionSelected && !secRows.some(function(s) { return s.strand + '|' + s.section === sectionSelected; })) sectionSelected = '';
+    const chip = function(active) {
+      return 'px-3 py-1.5 rounded-full text-xs font-medium border ' + (active ? 'bg-[#0f2a6b] text-white border-[#0f2a6b]' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50');
+    };
+    document.getElementById('sectionPicker').innerHTML =
+      '<button type="button" class="section-chip ' + chip(sectionSelected === '') + '" data-key="">All sections</button>' +
+      secRows.map(function(s) {
+        const key = s.strand + '|' + s.section;
+        return '<button type="button" class="section-chip ' + chip(sectionSelected === key) + '" data-key="' + escapeHtml(key) + '">' + escapeHtml(s.strand) + ' ' + escapeHtml(s.section) + '</button>';
+      }).join('');
+    const chosen = secRows.filter(function(s) { return !sectionSelected || s.strand + '|' + s.section === sectionSelected; });
+    const groups = [
+      { key: 'completed', title: 'Completed', dot: '#059669' },
+      { key: 'pending', title: 'Pending', dot: '#d97706' },
+      { key: 'notRegistered', title: 'Not Registered', dot: '#3b82f6', note: 'On the roster, no account yet' },
+      { key: 'mismatched', title: 'Mismatched', dot: '#9333ea', note: 'Chosen program not in Top Matches' }
+    ];
+    document.getElementById('sectionPeople').innerHTML = groups.map(function(g) {
+      const people = [];
+      chosen.forEach(function(s) {
+        s.people[g.key].forEach(function(p) { people.push({ name: p.name, userId: p.userId, where: s.section }); });
+      });
+      people.sort(function(a, b) { return a.name.localeCompare(b.name); });
+      const items = people.length ? people.map(function(p) {
+        const label = escapeHtml(p.name) + ' <span class="text-xs text-gray-400">' + escapeHtml(p.where) + '</span>';
+        return '<li class="py-1.5 text-sm text-gray-800">' + (p.userId ? '<a class="hover:underline" href="student-profile?id=' + p.userId + '">' + label + '</a>' : label) + '</li>';
+      }).join('') : '<li class="py-2 text-sm text-gray-400">None</li>';
+      return '<div class="border border-gray-200 rounded-lg">' +
+        '<div class="flex items-center justify-between px-4 py-3 border-b border-gray-100"><span class="flex items-center gap-2 text-sm font-semibold text-gray-900"><span style="width:10px;height:10px;border-radius:9999px;background:' + g.dot + '"></span>' + g.title + '</span>' +
+        '<span class="text-sm font-semibold text-gray-700">' + people.length + '</span></div>' +
+        (g.note ? '<p class="px-4 pt-2 text-xs text-gray-400">' + g.note + '</p>' : '') +
+        '<ul class="px-4 pb-2 divide-y divide-gray-100" style="max-height:240px;overflow-y:auto">' + items + '</ul></div>';
+    }).join('');
+  }
+  document.getElementById('sectionPicker').addEventListener('click', function(e) {
+    const b = e.target.closest('.section-chip');
+    if (!b) return;
+    sectionSelected = b.dataset.key;
+    renderSectionPeople(lastSectionRows);
+  });
+  let lastSectionRows = [];
   let debounceHandle = null;
+
+  // ---- Completion by section: red below the target, green at or above it.
+  let completionChart = null;
+  let completionTarget = 80;
+  const isAdminUser = currentUser.role === 'admin';
+  function renderCompletion(secRows, target) {
+    completionTarget = target;
+    const card = document.getElementById('sectionCompletionCard');
+    card.classList.toggle('hidden', secRows.length === 0);
+    document.getElementById('targetValue').textContent = target + '%';
+    const editBox = document.getElementById('targetEdit');
+    editBox.classList.toggle('hidden', !isAdminUser);
+    editBox.classList.toggle('flex', isAdminUser);
+    if (document.activeElement !== document.getElementById('targetInput')) document.getElementById('targetInput').value = target;
+    if (completionChart && !secRows.length) { completionChart.destroy(); completionChart = null; }
+    if (!secRows.length) return;
+
+    const rateOf = function(s) { return s.total > 0 ? s.completed / s.total * 100 : 0; };
+    const colorFor = function(rate) { return rate >= target ? '#059669' : '#dc2626'; };
+    const meeting = secRows.filter(function(s) { return rateOf(s) >= target; }).length;
+    document.getElementById('completionSummaryLine').textContent =
+      meeting + ' of ' + secRows.length + ' section' + (secRows.length === 1 ? '' : 's') + ' ' + (meeting === 1 ? 'is' : 'are') + ' at or above the ' + target + '% target.';
+
+    document.getElementById('completionChartBox').style.height = Math.max(240, secRows.length * 64 + 90) + 'px';
+    if (completionChart) { completionChart.destroy(); completionChart = null; }
+    const pctOfExpected = function(n, s) { return s.total > 0 ? Math.round(n / s.total * 1000) / 10 : 0; };
+    const targetLine = {
+      id: 'targetLine',
+      afterDatasetsDraw: function(chart) {
+        const ctx = chart.ctx, area = chart.chartArea, px = chart.scales.x.getPixelForValue(target);
+        ctx.save();
+        ctx.strokeStyle = '#0f2a6b'; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+        ctx.beginPath(); ctx.moveTo(px, area.top); ctx.lineTo(px, area.bottom); ctx.stroke();
+        ctx.setLineDash([]); ctx.fillStyle = '#0f2a6b'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('Target ' + target + '%', px, area.top - 8);
+        ctx.restore();
+      }
+    };
+    completionChart = new Chart(document.getElementById('sectionCompletionChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        // Two lines per section, so a section with nothing yet (no bar to see) still reads as "0 of 1".
+        labels: secRows.map(function(s) { return [s.strand + ' ' + s.section, s.registered + ' registered, ' + s.completed + ' assessed of ' + s.total]; }),
+        datasets: [
+          { label: 'Registered', data: secRows.map(function(s) { return pctOfExpected(s.registered, s); }), backgroundColor: '#93c5fd', borderRadius: 3 },
+          { label: 'Assessed', data: secRows.map(function(s) { return pctOfExpected(s.completed, s); }), backgroundColor: secRows.map(function(s) { return colorFor(rateOf(s)); }), borderRadius: 3 }
+        ]
+      },
+      options: {
+        indexAxis: 'y', maintainAspectRatio: false,
+        layout: { padding: { top: 22, right: 12 } },
+        scales: { x: { min: 0, max: 100, ticks: { callback: function(v) { return v + '%'; } } } },
+        plugins: {
+          // The Assessed bar changes color by section, so the legend is only drawn for its two names.
+          legend: { position: 'bottom', labels: { generateLabels: function() { return [
+            { text: 'Registered', fillStyle: '#93c5fd', strokeStyle: '#93c5fd', hidden: false, index: 0 },
+            { text: 'Assessed (green at or above target, red below)', fillStyle: '#059669', strokeStyle: '#059669', hidden: false, index: 1 }
+          ]; } } },
+          tooltip: { callbacks: { label: function(ctx) {
+            const s = secRows[ctx.dataIndex];
+            return ctx.datasetIndex === 0
+              ? ' Registered: ' + s.registered + ' of ' + s.total + ' (' + ctx.parsed.x + '%)'
+              : ' Assessed: ' + s.completed + ' of ' + s.total + ' (' + ctx.parsed.x + '%)';
+          } } }
+        }
+      },
+      plugins: [targetLine]
+    });
+  }
+
+  function showTargetMessage(text, isError) {
+    const el = document.getElementById('targetMessage');
+    el.textContent = text;
+    el.className = 'px-6 pt-3 text-xs ' + (isError ? 'text-[#ed1c24]' : 'text-green-600');
+    clearTimeout(showTargetMessage.timer);
+    showTargetMessage.timer = setTimeout(function() { el.classList.add('hidden'); }, 5000);
+  }
+  document.getElementById('targetSave').addEventListener('click', async function() {
+    const raw = document.getElementById('targetInput').value.trim();
+    if (!/^[0-9]+$/.test(raw) || Number(raw) < 1 || Number(raw) > 100) { showTargetMessage('Enter a whole number from 1 to 100.', true); return; }
+    this.disabled = true;
+    try {
+      const res = await fetch('api/completion-target.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target: Number(raw) }) });
+      const data = await res.json();
+      if (!data.success) { showTargetMessage(data.error || 'Could not save the target.', true); return; }
+      showTargetMessage('Target saved: ' + data.target + '%.', false);
+      renderCompletion(lastSectionRows, data.target);
+    } catch (e) {
+      showTargetMessage('Unable to reach the server. Please try again.', true);
+    } finally {
+      this.disabled = false;
+    }
+  });
+
+  // ---- Downloads: the list as a CSV (names, section, registered, assessed, email) for following up.
+  async function downloadCsv(extra) {
+    const params = new URLSearchParams(Object.assign({ format: 'csv' }, extra));
+    const summary = document.getElementById('paginationSummary');
+    try {
+      const res = await fetch('api/students.php?' + params.toString());
+      if (!res.ok) { summary.textContent = 'Could not download the list. Please try again.'; return; }
+      const match = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = match ? match[1] : 'students.csv';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    } catch (e) {
+      summary.textContent = 'Unable to reach the server. Please try again.';
+    }
+  }
+  document.getElementById('downloadListBtn').addEventListener('click', function() {
+    downloadCsv({ search: state.search, strand: state.strand, section: state.section, status: state.status, counseling: state.counseling, registration: state.registration, assessment: state.assessment });
+  });
+  function pickedSectionParams() {
+    if (!sectionSelected) return {};
+    const parts = sectionSelected.split('|');
+    return { strand: parts[0], section: parts[1] };
+  }
+  document.getElementById('dlNotRegistered').addEventListener('click', function() { downloadCsv(Object.assign({ registration: 'notRegistered' }, pickedSectionParams())); });
+  document.getElementById('dlNotAssessed').addEventListener('click', function() { downloadCsv(Object.assign({ assessment: 'notAssessed' }, pickedSectionParams())); });
 
   const STATUS_STYLE = {
     Completed: { bg: 'bg-[#f0fdf4] border-[#bbf7d0] text-emerald-500', dot: 'images/admin/dot-green.svg' },
@@ -458,6 +656,7 @@
     tbody.innerHTML = '<tr><td colspan="9" class="px-6 py-8 text-center text-sm text-gray-500">Loading…</td></tr>';
     const params = new URLSearchParams({
       all: '1', search: state.search, strand: state.strand, section: state.section, status: state.status, counseling: state.counseling,
+      registration: state.registration, assessment: state.assessment,
     });
     const data = await (await fetch('api/students.php?' + params.toString())).json();
 
@@ -471,19 +670,12 @@
     // Mismatched is a share of the students who finished the assessment.
     document.getElementById('cardMismatchedPct').textContent = data.summary.completedCount > 0 ? Math.round((data.summary.mismatchedCount / data.summary.completedCount) * 100) + '% of completed' : '—';
 
-    // Sections at a glance: a row per section with its shares.
+    // Sections at a glance: a pie of each section's share of all students.
     const secRows = data.sections || [];
     document.getElementById('sectionSummaryCard').classList.toggle('hidden', secRows.length === 0);
-    document.getElementById('sectionSummaryBody').innerHTML = secRows.map(function(s) {
-      const pct = s.total > 0 ? Math.round(s.completed / s.total * 100) : 0;
-      return '<tr><td class="px-6 py-3 text-sm text-gray-700">' + escapeHtml(s.strand) + '</td>' +
-        '<td class="px-6 py-3 text-sm font-medium text-gray-900">' + escapeHtml(s.section) + '</td>' +
-        '<td class="px-6 py-3 text-sm text-gray-700">' + s.total + '</td>' +
-        '<td class="px-6 py-3 text-sm text-gray-700">' + s.completed + ' <span class="text-xs text-emerald-600">(' + pct + '%)</span></td>' +
-        '<td class="px-6 py-3 text-sm text-gray-700">' + s.pending + '</td>' +
-        '<td class="px-6 py-3 text-sm text-gray-700">' + s.notRegistered + '</td>' +
-        '<td class="px-6 py-3 text-sm text-gray-700">' + s.mismatched + '</td></tr>';
-    }).join('');
+    lastSectionRows = secRows;
+    renderSectionPeople(secRows);
+    renderCompletion(secRows, data.completionTarget || 80);
     noResults.classList.toggle('hidden', data.students.length !== 0);
     tbody.innerHTML = data.students.length
       ? data.students.map((s, i) => renderRow(s, data.startIndex + i)).join('')
@@ -551,6 +743,8 @@
     state.section = document.getElementById('filterSection').value.trim();
     state.status = document.getElementById('filterStatus').value;
     state.counseling = document.getElementById('filterCounseling').value;
+    state.registration = document.getElementById('filterRegistration').value;
+    state.assessment = document.getElementById('filterAssessment').value;
         load();
     filterPanel.classList.add('hidden');
   });
@@ -560,8 +754,12 @@
     syncSectionFilter();
     document.getElementById('filterStatus').value = '';
     document.getElementById('filterCounseling').value = '';
+    document.getElementById('filterRegistration').value = '';
+    document.getElementById('filterAssessment').value = '';
     searchInput.value = '';
     state.search = '';
+    state.registration = '';
+    state.assessment = '';
     state.strand = '';
     state.section = '';
     state.status = '';

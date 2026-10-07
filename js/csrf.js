@@ -35,7 +35,14 @@
 
   function isLoginPage() {
     var path = window.location.pathname;
-    return path === '/' || path === '/login' || /\/?login(\.html)?$/.test(path);
+    return path === '/' || path === '/login' || /\/?(staff-)?login(\.html)?$/.test(path);
+  }
+
+  // Staff and students have separate sign-in pages; go back to the one this browser last used.
+  function loginUrl() {
+    var portal = null;
+    try { portal = localStorage.getItem('pp_portal'); } catch (e) {}
+    return (portal === 'staff' ? 'staff-login' : 'login') + '?expired=1';
   }
 
   function fetchSessionInfo(forceRefresh) {
@@ -75,7 +82,7 @@
       + 'box-shadow:0 2px 8px rgba(0,0,0,0.2);';
     document.body.appendChild(banner);
     setTimeout(function () {
-      window.location.href = 'login?expired=1';
+      window.location.href = loginUrl();
     }, REDIRECT_DELAY_MS);
   }
 
@@ -139,7 +146,7 @@
     if (response.status === 401 && !isLoginPage()) {
       response.clone().json().then(function (data) {
         if (data && data.error === 'Not authenticated') {
-          window.location.href = 'login?expired=1';
+          window.location.href = loginUrl();
         }
       }).catch(function () {
         // Non-JSON 401 body — nothing to key off of, leave it to the caller.

@@ -14,11 +14,41 @@ class Rbac
     private const MODULES = ['career', 'rac', 'recommendations', 'counselor', 'monitoring', 'announcements', 'examinations', 'counselingNotes', 'sections'];
 
     /**
-     * Only the administrator posts announcements and sets assessment schedules, so
-     * facilitators and counselors can't post conflicting ones: for everyone else these
-     * modules are view-only whatever the matrix says (see also api/security-config.php).
+     * A Guidance Facilitator (users.staff_position = 'facilitator') can look at these but never
+     * change them, whatever the matrix says: announcements, assessment schedules, sections.
+     * Class rosters follow the same rule (see requireRosterEditor). Guidance Counselors and the
+     * administrator (Head of Guidance) get whatever the matrix grants.
      */
-    public const ADMIN_ONLY_WRITE = ['announcements', 'examinations'];
+    public const FACILITATOR_VIEW_ONLY = ['announcements', 'examinations', 'sections'];
+
+    /** True for a signed-in Guidance Facilitator. */
+    public static function isFacilitator(array $user): bool
+    {
+        if (($user['role'] ?? '') !== 'counselor') {
+            return false;
+        }
+        $stmt = Database::get()->prepare('SELECT staff_position FROM users WHERE id = ?');
+        $stmt->execute([(int) $user['id']]);
+        return $stmt->fetchColumn() === 'facilitator';
+    }
+
+    private static function denyViewOnly(): void
+    {
+        http_response_code(403);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Guidance Facilitators have view-only access to this.']);
+        exit;
+    }
+
+    /** Uploading or replacing a class roster: Guidance Counselor and administrator only. */
+    public static function requireRosterEditor(): array
+    {
+        $user = self::requireAccess('rac', 'full');
+        if (self::isFacilitator($user)) {
+            self::denyViewOnly();
+        }
+        return $user;
+    }
 
     public static function accessLevel(string $module, string $role): string
     {
@@ -29,11 +59,7 @@ class Rbac
         $stmt = $pdo->prepare('SELECT access_level FROM security_rbac WHERE module = ? AND role = ?');
         $stmt->execute([$module, $role]);
         $level = $stmt->fetchColumn();
-        $level = $level !== false ? $level : 'none';
-        if ($role !== 'admin' && $level === 'full' && in_array($module, self::ADMIN_ONLY_WRITE, true)) {
-            return 'limited';
-        }
-        return $level;
+        return $level !== false ? $level : 'none';
     }
 
     /**
@@ -52,6 +78,9 @@ class Rbac
             header('Content-Type: application/json');
             echo json_encode(['error' => 'Insufficient permissions for this action.']);
             exit;
+        }
+        if ($minLevel === 'full' && in_array($module, self::FACILITATOR_VIEW_ONLY, true) && self::isFacilitator($user)) {
+            self::denyViewOnly();
         }
         return $user;
     }

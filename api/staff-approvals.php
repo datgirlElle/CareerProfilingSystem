@@ -4,6 +4,7 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/Mailer.php';
 require_once __DIR__ . '/../lib/EmailTemplate.php';
 require_once __DIR__ . '/../lib/StaffPosition.php';
+require_once __DIR__ . '/../lib/StaffSetupCode.php';
 
 // Account Management's staff section: guidance counselors sign up on their own
 // (api/staff-register.php) and an administrator approves, rejects or
@@ -25,6 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         'position' => StaffPosition::label($r['staff_position'] ?? null),
         'email' => $r['email'],
         'emailVerified' => $r['email_verified_at'] !== null,
+        'activated' => $r['email_verified_at'] !== null,
+        'username' => $r['username'],
         'isActive' => (bool) $r['is_active'],
         'status' => $r['approval_status'],
         'createdAt' => $r['created_at'],
@@ -53,24 +56,44 @@ function notifyStaff(array $target, string $displayName, string $subject, string
         return;
     }
     $safeName = htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8');
-    $link = rtrim((string) getenv('APP_URL'), '/') . '/login';
+    $link = rtrim((string) getenv('APP_URL'), '/') . '/staff-login';
     $html = EmailTemplate::render($heading, "<p style=\"margin:0 0 12px 0;\">Hi $safeName,</p><p style=\"margin:0;\">$message</p>", 'Go to Sign In', $link, '');
     Mailer::send($target['email'], $displayName, $subject, $html, "Hi $displayName,\n\n" . strip_tags($message) . "\n\n$link");
+}
+
+// Emails the temporary access code. The approver never sees a password or the code itself.
+function sendSetupCode(PDO $pdo, array $target, string $displayName): bool
+{
+    if (!$target['email']) {
+        return false;
+    }
+    $code = StaffSetupCode::issue($pdo, (int) $target['id']);
+    [$html, $text] = StaffSetupCode::emailBody($displayName, (string) $target['username'], $code);
+    return Mailer::send($target['email'], $displayName, 'Your ProfilePath account is approved', $html, $text);
 }
 
 if ($type === 'approve') {
     if ($target['approval_status'] === 'approved') {
         jsonResponse(['success' => false, 'error' => 'This account is already approved.'], 409);
     }
-    // Approval only follows a confirmed email, so a typo'd or someone else's
-    // address can never end up with a working staff account.
-    if ($target['email_verified_at'] === null) {
-        jsonResponse(['success' => false, 'error' => 'This person has not verified their email yet. Ask them to open the link we emailed, then approve.'], 409);
+    if (!$target['email']) {
+        jsonResponse(['success' => false, 'error' => 'This account has no email address to send the access code to.'], 409);
     }
-    $pdo->prepare("UPDATE users SET approval_status = 'approved', is_active = TRUE, updated_at = NOW() WHERE id = ?")->execute([$id]);
+    // Approved, but the person can't sign in until they enter the emailed code and create a
+    // password (api/staff-activate.php). Entering the code is what proves the inbox is theirs.
+    $pdo->prepare("UPDATE users SET approval_status = 'approved', is_active = TRUE, email_verified_at = NULL, updated_at = NOW() WHERE id = ?")->execute([$id]);
     AuditLogger::log($user['id'], 'admin', 'approve_staff_account', 'user', (string) $id, $displayName);
-    notifyStaff($target, $displayName, 'Your ProfilePath account was approved', 'Your account is approved', 'An administrator approved your staff account. You can now sign in.');
-    jsonResponse(['success' => true, 'status' => 'approved']);
+    $sent = sendSetupCode($pdo, $target, $displayName);
+    jsonResponse(['success' => true, 'status' => 'approved', 'emailSent' => $sent]);
+}
+
+if ($type === 'resendCode') {
+    if ($target['approval_status'] !== 'approved' || $target['email_verified_at'] !== null) {
+        jsonResponse(['success' => false, 'error' => 'A new code can only be sent to an approved account that has not been activated yet.'], 409);
+    }
+    $sent = sendSetupCode($pdo, $target, $displayName);
+    AuditLogger::log($user['id'], 'admin', 'resend_staff_setup_code', 'user', (string) $id, $displayName);
+    jsonResponse(['success' => true, 'emailSent' => $sent]);
 }
 
 if ($type === 'reject') {

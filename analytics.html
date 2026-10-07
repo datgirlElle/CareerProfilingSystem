@@ -41,7 +41,7 @@
     <nav id="adminNav" data-active="analytics" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
     <script src="js/admin-nav.js"></script>
     <div class="border-t border-white/5 pt-[25px] pb-6">
-      <a href="login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+      <a href="staff-login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
         <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>
         Logout
       </a>
@@ -140,6 +140,9 @@
           <a id="exportCsvBtn" href="#" class="flex items-center gap-2 bg-white border border-slate-300 rounded-md px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
             Export Results (CSV)
           </a>
+          <button type="button" id="exportExcelBtn" class="flex items-center gap-2 bg-white border border-slate-300 rounded-md px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50" title="A protected Excel report with charts. The password to edit it is emailed to you.">
+            Export Report (Excel)
+          </button>
           <button type="button" id="sendPrincipalReportBtn" class="hidden items-center gap-2 bg-[#19427b] text-white rounded-md px-4 py-2.5 text-sm font-medium shadow-sm hover:opacity-90">
             Send Report to Principal
           </button>
@@ -280,15 +283,6 @@
         </div>
       </div>
 
-      <!-- Assessment Completion by Section: taken vs not yet taken, as percentages, with the overall total below -->
-      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 mb-6">
-        <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-1">Assessment Completion by Section</p>
-        <p class="text-xs text-slate-500 mb-4">Percent of each section's students who have taken and not yet taken the assessment.</p>
-        <div id="sectionCompletionBox" style="position:relative;height:300px"><canvas id="sectionCompletionChart"></canvas></div>
-        <p id="sectionCompletionEmpty" class="hidden text-sm text-slate-400 text-center py-6">No sections yet.</p>
-        <p id="sectionCompletionOverall" class="text-sm text-slate-700 mt-4 pt-3 border-t border-slate-100"></p>
-      </div>
-
       <!-- Assessment Completion by Academic Year -->
       <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 mb-6">
         <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-4">Assessment Completion by Academic Year</p>
@@ -404,7 +398,7 @@
   const sessionData = await (await fetch('api/session.php')).json();
   const currentUser = sessionData.user;
   if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'counselor')) {
-    window.location.replace('login');
+    window.location.replace('staff-login');
     return;
   }
 
@@ -436,7 +430,7 @@
   }
   function performLogout() {
     fetch('api/logout.php', { method: 'POST' }).finally(function() {
-      window.location.href = 'login';
+      window.location.href = 'staff-login';
     });
   }
   document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
@@ -546,7 +540,6 @@
   Chart.defaults.font.size = 14; // charts were too small to read
   Chart.defaults.color = '#334155';
   let sectionChartInstance = null;
-  let sectionCompletionInstance = null;
   let yearChartInstance = null;
   let statsChartInstance = null;
   let careersChartInstance = null;
@@ -694,37 +687,6 @@
       });
     }
 
-    // Per section: percent taken and not yet taken (each bar adds up to 100%), overall total below.
-    const sectionRows = (stats.bySection || []).map(s => ({ section: s.section, taken: s.completed, total: Math.max(s.expected, s.completed) })).filter(s => s.total > 0);
-    document.getElementById('sectionCompletionEmpty').classList.toggle('hidden', sectionRows.length > 0);
-    document.getElementById('sectionCompletionBox').classList.toggle('hidden', sectionRows.length === 0);
-    if (sectionCompletionInstance) sectionCompletionInstance.destroy();
-    if (sectionRows.length) {
-      sectionCompletionInstance = new Chart(document.getElementById('sectionCompletionChart').getContext('2d'), {
-        type: 'bar',
-        data: {
-          labels: sectionRows.map(s => s.section + ' (' + s.taken + ' of ' + s.total + ')'),
-          datasets: [
-            { label: 'Taken', data: sectionRows.map(s => pctOf(s.taken, s.total)), backgroundColor: '#1b8a47' },
-            { label: 'Not yet taken', data: sectionRows.map(s => 100 - pctOf(s.taken, s.total)), backgroundColor: '#cbd5e1' }
-          ]
-        },
-        options: {
-          indexAxis: 'y',
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'bottom', labels: { font: { size: 13 } } },
-            tooltip: { callbacks: { label: (ctx) => ' ' + ctx.dataset.label + ': ' + ctx.parsed.x + '%' } }
-          },
-          scales: {
-            x: { stacked: true, min: 0, max: 100, ticks: { callback: (v) => v + '%', font: { size: 13 } } },
-            y: { stacked: true, ticks: { font: { size: 13 } } }
-          }
-        }
-      });
-    }
-    document.getElementById('sectionCompletionOverall').innerHTML =
-      '<span class="font-semibold">Overall:</span> ' + pctOf(takenAll, expectedAll) + '% taken (' + takenAll + ' of ' + expectedAll + ' students) &middot; ' + pctOf(notTakenAll, expectedAll) + '% not yet taken';
     const byYear = data.completionByYear || [];
     document.getElementById('yearChartEmpty').classList.toggle('hidden', byYear.length > 0);    document.getElementById('yearChart').classList.toggle('hidden', byYear.length === 0);
     if (yearChartInstance) yearChartInstance.destroy();
@@ -762,7 +724,49 @@
     }
   }
 
+  // "Export Report (Excel)": a protected workbook with charts. Its edit password is emailed to whoever
+  // downloads it, so the file is fetched here (rather than a plain link) to show what happened.
+  let lastExportFilter = { strand: '', section: '' };
+  function showExportToast(text, isError) {
+    const el = document.createElement('div');
+    el.className = 'fixed bottom-4 right-4 z-[60] max-w-sm px-4 py-3 rounded-lg shadow-lg text-sm font-medium whitespace-pre-wrap ' + (isError ? 'bg-[#ed1c24] text-white' : 'bg-green-600 text-white');
+    el.textContent = text;
+    document.body.appendChild(el);
+    setTimeout(function() { el.remove(); }, 9000);
+  }
+  document.getElementById('exportExcelBtn').addEventListener('click', async function() {
+    const btn = this, label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Preparing…';
+    try {
+      const params = new URLSearchParams({ strand: lastExportFilter.strand, section: lastExportFilter.section });
+      const res = await fetch('api/analytics-export-xlsx.php?' + params.toString());
+      if (!res.ok) {
+        let message = 'Could not export the report. Please try again.';
+        try { message = (await res.json()).error || message; } catch (e) {}
+        showExportToast(message, true);
+        return;
+      }
+      const match = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = match ? match[1] : 'report.xlsx';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+      const to = res.headers.get('X-Password-Emailed-To');
+      const localPassword = res.headers.get('X-Edit-Password'); // only when no email service is set up (local testing)
+      showExportToast(localPassword
+        ? 'Report downloaded. The email could not be sent here, so the edit password is: ' + localPassword
+        : 'Report downloaded. The password to edit it was emailed to ' + (to || 'you') + '.', false);
+    } catch (e) {
+      showExportToast('Unable to reach the server. Please try again.', true);
+    } finally {
+      btn.disabled = false; btn.textContent = label;
+    }
+  });
+
   function updateExportLink(data) {
+    lastExportFilter = { strand: data.strand || '', section: data.section || '' };
     const ay = data.assessmentStats && data.assessmentStats.academicYear ? data.assessmentStats.academicYear : '';
     const btn = document.getElementById('exportCsvBtn');
     if (!ay) {

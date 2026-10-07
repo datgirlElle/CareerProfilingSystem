@@ -225,6 +225,9 @@ CREATE TABLE assessment_roster (
     name_enc        TEXT NOT NULL,
     strand          VARCHAR(10) NOT NULL CHECK (strand IN ('STEM', 'ABM', 'ICT', 'HUMSS')),
     section         VARCHAR(20) NOT NULL,
+    -- The student's school email from the roster file: announcements are emailed here, registered or not,
+    -- and a registration for this Student Number must use it.
+    email           VARCHAR(255),
     uploaded_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     uploaded_by     INT REFERENCES users(id),
     UNIQUE (academic_year, school_id)
@@ -374,3 +377,18 @@ CREATE TABLE staff_sections (
     section VARCHAR(20) NOT NULL,
     PRIMARY KEY (user_id, strand, section)
 );
+
+-- Help Center FAQs the Guidance Office can add, edit, reorder and delete (api/faqs.php).
+-- audience 'student' shows on the student Help Center, 'staff' on the staff one.
+CREATE TABLE faqs (
+    id          SERIAL PRIMARY KEY,
+    audience    VARCHAR(10) NOT NULL CHECK (audience IN ('student', 'staff')),
+    question    VARCHAR(300) NOT NULL,
+    answer      TEXT NOT NULL,
+    sort_order  INT NOT NULL DEFAULT 0,
+    created_by  INT REFERENCES users(id) ON DELETE SET NULL,
+    updated_by  INT REFERENCES users(id) ON DELETE SET NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_faqs_audience_order ON faqs (audience, sort_order, id);

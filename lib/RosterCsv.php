@@ -1,6 +1,7 @@
 <?php
 
-require_once __DIR__ . '/Lrn.php';
+require_once __DIR__ . '/StudentNumber.php';
+require_once __DIR__ . '/Sections.php';
 
 /**
  * Reads a class-roster CSV in the template's layout: the strand and section
@@ -8,8 +9,12 @@ require_once __DIR__ . '/Lrn.php';
  *
  *   Strand:,STEM
  *   Section:,S1114
- *   LRN,Lastname,Firstname,Middle
- *   123456789012,Dela Cruz,Juan,Santos
+ *   Student Number,Student Name,Email
+ *   123456789012,"DELA CRUZ, JUAN SANTOS",jsdelacruz@live.mcl.edu.ph
+ *
+ * Names are kept in UPPER CASE as "LASTNAME, FIRSTNAME MIDDLE". Every student needs an email: announcements
+ * are emailed to it and the student must register with it. The older layout with separate Lastname,
+ * Firstname and Middle columns and an "LRN" header still loads, but it needs the Email column too.
  *
  * A file is exactly one section. api/roster-upload.php replaces that
  * section's students for the current academic year and leaves the rest alone.
@@ -17,12 +22,12 @@ require_once __DIR__ . '/Lrn.php';
 class RosterCsv
 {
     public const VALID_STRANDS = ['STEM', 'ABM', 'ICT', 'HUMSS'];
-    public const FORMAT_HELP = 'The file must start with "Strand:" and "Section:" rows, then a header row of LRN, Lastname, Firstname, Middle. Please download the roster template and use it.';
+    public const FORMAT_HELP = 'The file must start with "Strand:" and "Section:" rows, then a header row of Student Number, Student Name, Email. Please download the roster template and use it.';
 
     /**
      * @param resource $handle an open CSV file
-     * @return array{error:?string,strand:?string,section:?string,rows:array<string,array{0:string,1:string}>,details:array<int,string>}
-     *         rows are keyed by LRN: [LRN, "Lastname, Firstname Middle"]. On a
+     * @return array{error:?string,strand:?string,section:?string,rows:array<string,array{0:string,1:string,2:string}>,details:array<int,string>}
+     *         rows are keyed by Student Number: [number, "LASTNAME, FIRSTNAME MIDDLE", email]. On a
      *         problem with the file as a whole, `error` is set; per-row problems
      *         are listed in `details`.
      */
@@ -47,7 +52,7 @@ class RosterCsv
      * worksheet read by XlsxReader). Row n of the file is $lines[n - 1].
      *
      * @param array<int,array<int,mixed>> $lines
-     * @return array{error:?string,strand:?string,section:?string,rows:array<string,array{0:string,1:string}>,details:array<int,string>}
+     * @return array{error:?string,strand:?string,section:?string,rows:array<string,array{0:string,1:string,2:?string}>,details:array<int,string>}
      */
     public static function parseLines(array $lines): array
     {
@@ -106,11 +111,18 @@ class RosterCsv
             $result['error'] = 'Strand must be one of ' . implode(', ', self::VALID_STRANDS) . ($strand === '' ? ' (the Strand: row is empty).' : ' (found "' . $result['strand'] . '").');
             return $result;
         }
-        if ($section === '' || mb_strlen($section) > 20) {
-            $result['error'] = $section === '' ? 'The Section: row is empty. Enter the section code, for example S1114.' : 'Section code is too long.';
+        $section = Sections::normalizeCode($section);
+        if ($section === '') {
+            $result['error'] = 'The Section: row is empty. Enter the section code, for example S1114.';
+            return $result;
+        }
+        $sectionError = Sections::formatError($strand, $section);
+        if ($sectionError !== null) {
+            $result['error'] = $sectionError;
             return $result;
         }
         $result['strand'] = $strand;
+        $result['section'] = $section;
 
         $header = array_map(fn($h) => strtolower(preg_replace('/\s+/', ' ', trim((string) $h))), $lines[$headerLine]);
         $col = function (array $names) use ($header): ?int {
@@ -123,14 +135,18 @@ class RosterCsv
             return null;
         };
         $idxId = $col(['student number', 'studentnumber', 'learning id', 'learningid', 'lrn']); // the older names still work
+        $idxName = $col(['student name', 'studentname', 'name']);
         $idxLast = $col(['lastname', 'last name']);
         $idxFirst = $col(['firstname', 'first name']);
         $idxMiddle = $col(['middle', 'middle name', 'middlename']);
-        if ($idxId === null || $idxLast === null || $idxFirst === null) {
-            $result['error'] = self::FORMAT_HELP;
+        $idxEmail = $col(['email', 'email address', 'student email']);
+        $hasName = $idxName !== null || ($idxLast !== null && $idxFirst !== null);
+        if ($idxId === null || !$hasName || $idxEmail === null) {
+            $result['error'] = $idxId !== null && $hasName ? 'The file has no Email column. Every student needs their email, so please download the latest roster template and use it. ' . self::FORMAT_HELP : self::FORMAT_HELP;
             return $result;
         }
 
+        $seen = [];
         foreach ($lines as $num => $line) {
             if ($num <= $headerLine) {
                 continue;
@@ -138,23 +154,54 @@ class RosterCsv
             if (count(array_filter($line, fn($v) => trim((string) $v) !== '')) === 0) {
                 continue; // blank line
             }
-            $lrn = trim((string) ($line[$idxId] ?? ''));
-            if (preg_match('/^="?(\d+)"?$/', $lrn, $m)) {
-                $lrn = $m[1]; // the template's ="123..." trick that keeps Excel from turning an LRN into 1.23E+11
+            $number = trim((string) ($line[$idxId] ?? ''));
+            if (preg_match('/^="?(\d+)"?$/', $number, $m)) {
+                $number = $m[1]; // the template's ="123..." trick that keeps Excel from turning the number into 1.23E+11
             }
-            $last = trim((string) ($line[$idxLast] ?? ''));
-            $first = trim((string) ($line[$idxFirst] ?? ''));
-            $middle = $idxMiddle !== null ? trim((string) ($line[$idxMiddle] ?? '')) : '';
 
-            if ($lrn === '' || $last === '' || $first === '') {
-                $result['details'][] = "Row $num: missing a required value (LRN, Lastname and Firstname are needed).";
+            if ($idxName !== null) {
+                $name = trim(preg_replace('/\s+/u', ' ', (string) ($line[$idxName] ?? '')));
+                $name = preg_replace('/\s*,\s*/u', ', ', $name);
+                if ($name !== '' && !preg_match('/^[^,]+, ?[^,]+$/u', $name)) {
+                    $result['details'][] = "Row $num: write the Student Name as LASTNAME, FIRSTNAME MIDDLE (with the comma), for example DELA CRUZ, JUAN SANTOS.";
+                    continue;
+                }
+            } else {
+                $last = trim((string) ($line[$idxLast] ?? ''));
+                $first = trim((string) ($line[$idxFirst] ?? ''));
+                $middle = $idxMiddle !== null ? trim((string) ($line[$idxMiddle] ?? '')) : '';
+                $name = ($last !== '' && $first !== '') ? "$last, $first" . ($middle !== '' ? " $middle" : '') : '';
+            }
+
+            if ($number === '' || $name === '') {
+                $result['details'][] = "Row $num: missing a required value (Student Number and Student Name are needed).";
                 continue;
             }
-            if (!Lrn::isValid($lrn)) {
-                $result['details'][] = "Row $num: invalid LRN \"$lrn\" — " . Lrn::INVALID_MESSAGE;
+            if (!StudentNumber::isValid($number)) {
+                $result['details'][] = "Row $num: invalid Student Number \"$number\" — " . StudentNumber::INVALID_MESSAGE;
                 continue;
             }
-            $result['rows'][$lrn] = [$lrn, "$last, $first" . ($middle !== '' ? " $middle" : '')];
+
+            $email = strtolower(trim((string) ($line[$idxEmail] ?? '')));
+            if ($email === '') {
+                $result['details'][] = "Row $num: the student's email is required (their @" . StudentNumber::EMAIL_DOMAIN . " address).";
+                continue;
+            }
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 255) {
+                $result['details'][] = "Row $num: \"$email\" is not a valid email address.";
+                continue;
+            }
+            if (!str_ends_with($email, '@' . StudentNumber::EMAIL_DOMAIN)) {
+                $result['details'][] = "Row $num: the email must be the student's @" . StudentNumber::EMAIL_DOMAIN . " address (found \"$email\").";
+                continue;
+            }
+
+            if (isset($seen[$number])) {
+                $result['details'][] = "Row $num: Student Number $number is listed twice in this file (also on row {$seen[$number]}).";
+                continue;
+            }
+            $seen[$number] = $num;
+            $result['rows'][$number] = [$number, mb_strtoupper($name, 'UTF-8'), $email];
         }
 
         return $result;

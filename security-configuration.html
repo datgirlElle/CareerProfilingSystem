@@ -40,7 +40,7 @@
     <nav id="adminNav" data-active="security-configuration" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
     <script src="js/admin-nav.js"></script>
     <div class="border-t border-white/5 pt-[25px] pb-6">
-      <a href="login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+      <a href="staff-login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
         <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>
         Logout
       </a>
@@ -321,7 +321,7 @@
               <div class="border border-slate-200 rounded-lg p-[17px] flex items-start justify-between gap-3">
                 <div class="flex flex-col gap-1.5">
                   <p class="text-sm font-semibold text-slate-800">Roster Upload Checks</p>
-                  <p class="text-xs text-slate-500">Only CSV files up to 2 MB are accepted, and every LRN is validated before anything is saved.</p>
+                  <p class="text-xs text-slate-500">Only CSV files up to 2 MB are accepted, and every Student Number is validated before anything is saved.</p>
                 </div>
                 <span class="bg-green-50 border border-green-200 text-green-700 text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded w-fit shrink-0">Active</span>
               </div>
@@ -396,13 +396,13 @@
       <button type="button" id="rolesModalClose" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
     </div>
     <div class="px-6 py-5">
-      <p class="text-xs text-slate-500 mb-4">Administrator and Student access are fixed, and only the administrator can post announcements and set assessment schedules. Everything else in the Guidance Counselor / Facilitator column can be changed.</p>
+      <p class="text-xs text-slate-500 mb-4">Administrator (Head of Guidance) and Student access are fixed. The Guidance Counselor column can be changed. Guidance Facilitators are always view-only for announcements, assessment schedules, sections and class rosters, whatever is set here.</p>
       <table class="w-full text-left border-collapse">
         <thead>
           <tr>
             <th class="pb-3 text-xs font-semibold text-slate-500 uppercase">Module</th>
             <th class="pb-3 text-xs font-semibold text-slate-500 uppercase text-center">Administrator</th>
-            <th class="pb-3 text-xs font-semibold text-slate-500 uppercase text-center">Counselor / Facilitator</th>
+            <th class="pb-3 text-xs font-semibold text-slate-500 uppercase text-center">Guidance Counselor</th>
             <th class="pb-3 text-xs font-semibold text-slate-500 uppercase text-center">Student</th>
           </tr>
         </thead>
@@ -455,7 +455,7 @@
   const sessionData = await (await fetch('api/session.php')).json();
   const currentUser = sessionData.user;
   if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'counselor')) {
-    window.location.replace('login');
+    window.location.replace('staff-login');
     return;
   }
 
@@ -480,7 +480,7 @@
   }
   function performLogout() {
     fetch('api/logout.php', { method: 'POST' }).finally(function() {
-      window.location.href = 'login';
+      window.location.href = 'staff-login';
     });
   }
   document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
@@ -531,7 +531,7 @@
       { id: 'career', label: 'Career Profile Input', desc: 'Create and edit student profiles', icon: 'images/security/icon-module-career.svg', iconClass: 'w-[17.5px] h-4 mt-0.5' },
       { id: 'rac', label: 'RAC Assessment', desc: 'View and manage assessments', icon: 'images/security/icon-module-rac.svg', iconClass: 'w-[10.5px] h-4 mt-0.5' },
       { id: 'recommendations', label: 'Recommendations', desc: 'View recommendations only', icon: 'images/security/icon-module-recommendations.svg', iconClass: 'w-3.5 h-4 mt-0.5' },
-      { id: 'counselor', label: 'CGC Guidance Counselor', desc: 'Counselor and facilitator accounts', icon: 'images/security/icon-module-counselor.svg', iconClass: 'w-3 h-4 mt-0.5' },
+      { id: 'counselor', label: 'Guidance Counselor', desc: 'Counselor and facilitator accounts', icon: 'images/security/icon-module-counselor.svg', iconClass: 'w-3 h-4 mt-0.5' },
       { id: 'monitoring', label: 'Student Monitoring', desc: 'View student progress and status', icon: 'images/security/icon-module-monitoring.svg', iconClass: 'w-4 h-4 mt-0.5' },
       { id: 'announcements', label: 'Announcements', desc: 'Send updates to students', icon: 'images/security/icon-module-announcements.svg', iconClass: 'w-4 h-4 mt-0.5' },
       { id: 'examinations', label: 'Assessment Scheduling', desc: 'Assessment schedules and rooms', icon: 'images/security/icon-module-examinations.svg', iconClass: 'w-4 h-4 mt-0.5' },
@@ -704,10 +704,6 @@
           }
           // Student access is fixed too: students only ever need to take the assessment, view their results
           // and recommendations, request counseling and read announcements (backend enforces this as well).
-          if (r === 'counselor' && (m.id === 'announcements' || m.id === 'examinations')) {
-            // Only the administrator posts announcements and sets assessment schedules.
-            return '<td class="py-2.5 px-1 text-center"><span class="text-xs text-slate-400" title="Only the administrator can post announcements and set assessment schedules">View only (fixed)</span></td>';
-          }
           if (r === 'student') {
             return '<td class="py-2.5 px-1 text-center"><span class="text-xs text-slate-400" title="Student access cannot be changed">' + LEVEL_LABEL[state.rbac[m.id][r]] + ' (fixed)</span></td>';
           }

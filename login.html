@@ -52,7 +52,7 @@
           <img src="images/login/mmcl-crest.png" alt="Mapúa MCL crest" class="w-[140px] mb-2">
           <h2 class="text-[#001c43] text-2xl font-bold text-center">Welcome back!</h2>
           <p class="text-gray-500 text-sm text-center">
-            Sign in to continue to <span class="text-[#ed1c24] font-semibold">Career Profiling System</span>.
+            Student sign in. Continue to <span class="text-[#ed1c24] font-semibold">Career Profiling System</span>.
           </p>
         </div>
 
@@ -72,8 +72,10 @@
             <input
               type="text"
               name="username"
-              placeholder="Username"
-              aria-label="Username"
+              placeholder="Student Number"
+              aria-label="Student Number"
+              inputmode="numeric"
+              autocomplete="username"
               required
               class="w-full pl-10 pr-3 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
           </div>
@@ -111,9 +113,6 @@
         <!-- Footer -->
         <p class="text-sm text-gray-500 text-center">
           No account yet? <a href="registration" class="text-[#ed1c24] font-semibold hover:underline">Create an account</a>
-        </p>
-        <p class="text-sm text-gray-500 text-center -mt-3">
-          Guidance staff? <a href="staff-register" class="text-[#ed1c24] font-semibold hover:underline">Sign up for a staff account</a>
         </p>
         <p class="text-xs text-gray-500 text-center">
           Need help? Contact your <span class="text-gray-500">system administrator</span>.
@@ -185,11 +184,12 @@
         const res = await fetch('api/login.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
+          body: JSON.stringify({ username, password, portal: 'student' })
         });
         const data = await res.json();
 
         if (data.success) {
+          try { localStorage.setItem('pp_portal', 'student'); } catch (e) {}
           window.location.href = data.redirect;
           return;
         }

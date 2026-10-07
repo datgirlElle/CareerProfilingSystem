@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/CompletionTarget.php';
+
 /**
  * Single source of truth for the institution-wide analytics figures shown
  * on the Analytics Dashboard (api/analytics.php) and mirrored, verbatim,
@@ -267,6 +269,8 @@ class AnalyticsReport
                 'bySection' => $assessmentBySection,
             ],
             'completionByYear' => self::completionByYear($pdo),
+            // Sections at or above this percent show green on the completion graphs, below it red.
+            'completionTarget' => CompletionTarget::get($pdo),
         ];
     }
 

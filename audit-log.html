@@ -39,7 +39,7 @@
     <nav id="adminNav" data-active="audit-log" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
     <script src="js/admin-nav.js"></script>
     <div class="border-t border-white/5 pt-[25px] pb-6">
-      <a href="login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+      <a href="staff-login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
         <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>
         Logout
       </a>
@@ -111,10 +111,6 @@
           <p class="text-sm text-gray-500 mt-1">Track system activities and changes for security and compliance.</p>
         </div>
         <div class="flex items-center gap-3">
-          <button type="button" title="Showing activity from all time — date range filtering is not yet implemented" class="flex items-center gap-2 bg-white border border-gray-300 rounded-md px-4 py-2.5 text-sm font-medium text-gray-500 shadow-sm cursor-not-allowed">
-            All Time
-            <svg class="w-4 h-4 opacity-50" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M200-80q-33 0-56.5-23.5T120-160v-560q0-33 23.5-56.5T200-800h40v-80h80v80h320v-80h80v80h40q33 0 56.5 23.5T840-720v560q0 33-23.5 56.5T760-80H200Zm0-80h560v-400H200v400Zm0-480h560v-80H200v80Zm0 0v-80 80Zm280 240q-17 0-28.5-11.5T440-440q0-17 11.5-28.5T480-480q17 0 28.5 11.5T520-440q0 17-11.5 28.5T480-400Zm-188.5-11.5Q280-423 280-440t11.5-28.5Q303-480 320-480t28.5 11.5Q360-457 360-440t-11.5 28.5Q337-400 320-400t-28.5-11.5ZM640-400q-17 0-28.5-11.5T600-440q0-17 11.5-28.5T640-480q17 0 28.5 11.5T680-440q0 17-11.5 28.5T640-400ZM480-240q-17 0-28.5-11.5T440-280q0-17 11.5-28.5T480-320q17 0 28.5 11.5T520-280q0 17-11.5 28.5T480-240Zm-188.5-11.5Q280-263 280-280t11.5-28.5Q303-320 320-320t28.5 11.5Q360-297 360-280t-11.5 28.5Q337-240 320-240t-28.5-11.5ZM640-240q-17 0-28.5-11.5T600-280q0-17 11.5-28.5T640-320q17 0 28.5 11.5T680-280q0 17-11.5 28.5T640-240Z"/></svg>
-          </button>
           <div class="relative">
             <button type="button" id="filtersBtn" class="flex items-center gap-2 bg-white border border-gray-300 rounded-md px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm">
               <img src="images/audit/icon-filter.svg" alt="" class="w-4 h-4">
@@ -263,7 +259,7 @@
   const sessionData = await (await fetch('api/session.php')).json();
   const currentUser = sessionData.user;
   if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'counselor')) {
-    window.location.replace('login');
+    window.location.replace('staff-login');
     return;
   }
 
@@ -287,7 +283,7 @@
   }
   function performLogout() {
     fetch('api/logout.php', { method: 'POST' }).finally(function() {
-      window.location.href = 'login';
+      window.location.href = 'staff-login';
     });
   }
   document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
@@ -385,7 +381,7 @@
       }
       loadMoreBtn.disabled = true;
       const res = await fetch('api/audit-log.php?' + currentQuery());
-      if (res.status === 401) { window.location.replace('login'); return; }
+      if (res.status === 401) { window.location.replace('staff-login'); return; }
       if (res.status === 403) {
         tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-red-500">You do not have access to the audit log.</td></tr>';
         paginationSummary.textContent = '';

@@ -5,6 +5,7 @@ require_once __DIR__ . '/../lib/Sections.php';
 require_once __DIR__ . '/../lib/AcademicYear.php';
 require_once __DIR__ . '/../lib/Mismatch.php';
 require_once __DIR__ . '/../lib/StaffScope.php';
+require_once __DIR__ . '/../lib/CompletionTarget.php';
 
 $user = Rbac::requireRole('admin', 'counselor');
 $pdo = Database::get();
@@ -90,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 // Single-student lookup mode: student-profile.html loads a real record by the
-// student's internal user id (never the LRN, so it doesn't end up in the web
+// student's internal user id (never the Student Number, so it doesn't end up in the web
 // address or browser history) instead of everything being smuggled through
 // URL query params.
 $idLookup = (int) ($_GET['id'] ?? 0);
@@ -214,10 +215,13 @@ $strandFilter = (string) ($_GET['strand'] ?? '');
 $sectionFilter = trim((string) ($_GET['section'] ?? ''));
 $statusFilter = (string) ($_GET['status'] ?? '');
 $counselingFilter = (string) ($_GET['counseling'] ?? '');
+$registrationFilter = (string) ($_GET['registration'] ?? ''); // registered | notRegistered
+$assessmentFilter = (string) ($_GET['assessment'] ?? '');     // assessed | notAssessed
+$asCsv = ($_GET['format'] ?? '') === 'csv';
 
 $rows = $pdo->query(
     'SELECT s.user_id, s.school_id, s.first_name_enc, s.last_name_enc, s.strand, s.grade_level, s.section, s.registered_at,
-            u.is_active, a.top_types, a.completed_at
+            u.is_active, u.email, a.top_types, a.completed_at
      FROM students s
      JOIN users u ON u.id = s.user_id
      LEFT JOIN assessments a ON a.student_id = s.user_id AND a.is_latest = TRUE
@@ -271,6 +275,7 @@ $students = array_map(function ($r) use ($counseledIds, $mismatchIds) {
         'mismatched' => $hasAssessment && isset($mismatchIds[(int) $r['user_id']]),
         'registeredAt' => $r['registered_at'],
         'assessmentDate' => $r['completed_at'],
+        '_email' => $r['email'], // only for the CSV download; never sent in the list JSON
     ];
 }, $rows);
 
@@ -283,7 +288,7 @@ $students = array_map(function ($r) use ($counseledIds, $mismatchIds) {
 $currentAy = AcademicYear::current();
 if ($currentAy !== '') {
     $registeredSchoolIds = $allRegisteredSchoolIds;
-    $rosterStmt = $pdo->prepare('SELECT school_id, name_enc, strand, section FROM assessment_roster WHERE academic_year = ?');
+    $rosterStmt = $pdo->prepare('SELECT school_id, name_enc, strand, section, email FROM assessment_roster WHERE academic_year = ?');
     $rosterStmt->execute([$currentAy]);
     foreach ($rosterStmt->fetchAll() as $rr) {
         if (in_array($rr['school_id'], $registeredSchoolIds, true) || !StaffScope::allows($scope, $rr['strand'], $rr['section'])) {
@@ -302,6 +307,7 @@ if ($currentAy !== '') {
             'mismatched' => false,
             'registeredAt' => null,
             'assessmentDate' => null,
+            '_email' => $rr['email'],
         ];
     }
 }
@@ -317,21 +323,40 @@ $sectionSummary = [];
 foreach ($students as $s) {
     $key = $s['strand'] . '|' . $s['section'];
     if (!isset($sectionSummary[$key])) {
-        $sectionSummary[$key] = ['strand' => $s['strand'], 'section' => $s['section'], 'total' => 0, 'completed' => 0, 'pending' => 0, 'notRegistered' => 0, 'mismatched' => 0];
+        $sectionSummary[$key] = [
+            'strand' => $s['strand'], 'section' => $s['section'], 'total' => 0, 'completed' => 0, 'pending' => 0, 'notRegistered' => 0, 'mismatched' => 0,
+            // Who is in each group, so staff can see the names and not just the counts.
+            'people' => ['completed' => [], 'pending' => [], 'notRegistered' => [], 'mismatched' => []],
+        ];
     }
     $sectionSummary[$key]['total']++;
+    $person = ['name' => $s['name'], 'userId' => $s['userId']]; // userId is null for a roster student with no account yet
     if ($s['status'] === 'Completed') {
         $sectionSummary[$key]['completed']++;
+        $sectionSummary[$key]['people']['completed'][] = $person;
     } elseif ($s['status'] === 'Not Registered') {
         $sectionSummary[$key]['notRegistered']++;
+        $sectionSummary[$key]['people']['notRegistered'][] = $person;
     } else {
         $sectionSummary[$key]['pending']++;
+        $sectionSummary[$key]['people']['pending'][] = $person;
     }
     if ($s['mismatched']) {
         $sectionSummary[$key]['mismatched']++;
+        $sectionSummary[$key]['people']['mismatched'][] = $person;
     }
 }
 ksort($sectionSummary);
+foreach ($sectionSummary as &$sec) {
+    $sec['registered'] = $sec['total'] - $sec['notRegistered'];
+    // Assessed out of everyone expected in the section (registered or on the roster).
+    $sec['completionRate'] = $sec['total'] > 0 ? round($sec['completed'] / $sec['total'] * 100, 1) : 0.0;
+    foreach ($sec['people'] as &$list) {
+        usort($list, fn($a, $b) => strcasecmp($a['name'], $b['name']));
+    }
+    unset($list);
+}
+unset($sec);
 $filtered = $students;
 if ($search !== '') {
     $needle = mb_strtolower($search);
@@ -352,12 +377,53 @@ if ($statusFilter === 'Mismatched') {
 if ($counselingFilter !== '') {
     $filtered = array_values(array_filter($filtered, fn($s) => $s['counseling'] === $counselingFilter));
 }
+if ($registrationFilter === 'registered') {
+    $filtered = array_values(array_filter($filtered, fn($s) => $s['status'] !== 'Not Registered'));
+} elseif ($registrationFilter === 'notRegistered') {
+    $filtered = array_values(array_filter($filtered, fn($s) => $s['status'] === 'Not Registered'));
+}
+if ($assessmentFilter === 'assessed') {
+    $filtered = array_values(array_filter($filtered, fn($s) => $s['status'] === 'Completed'));
+} elseif ($assessmentFilter === 'notAssessed') {
+    $filtered = array_values(array_filter($filtered, fn($s) => $s['status'] !== 'Completed')); // pending or not registered
+}
+
+// A downloadable copy of the list as filtered (every row, not just one page), for following up with
+// students who haven't registered or haven't taken the assessment.
+if ($asCsv) {
+    usort($filtered, fn($a, $b) => [$a['strand'], $a['section'], $a['name']] <=> [$b['strand'], $b['section'], $b['name']]);
+    // A cell that starts with = + - or @ would be run as a formula by Excel.
+    $safe = fn($v) => is_string($v) && $v !== '' && strpos('=+-@', $v[0]) !== false ? "'" . $v : (string) $v;
+    $parts = array_filter([
+        $registrationFilter === 'notRegistered' ? 'not-registered' : ($registrationFilter === 'registered' ? 'registered' : ''),
+        $assessmentFilter === 'notAssessed' ? 'not-assessed' : ($assessmentFilter === 'assessed' ? 'assessed' : ''),
+        $strandFilter, $sectionFilter,
+    ]);
+    $fileName = 'students-' . (preg_replace('/[^A-Za-z0-9._-]+/', '-', implode('-', $parts)) ?: 'all') . '-' . date('Y-m-d') . '.csv';
+    AuditLogger::log($user['id'], $user['role'], 'export_student_list', 'student', null, count($filtered) . " row(s): $fileName");
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $fileName . '"');
+    $out = fopen('php://output', 'w');
+    fwrite($out, "\xEF\xBB\xBF"); // so Excel reads names with Ñ and accents correctly
+    fputcsv($out, ['Name', 'Strand', 'Section', 'Registered', 'Assessed', 'Assessment Date', 'Email'], escape: '\\');
+    foreach ($filtered as $s) {
+        fputcsv($out, [
+            $safe($s['name']), $s['strand'], $s['section'],
+            $s['status'] === 'Not Registered' ? 'No' : 'Yes',
+            $s['status'] === 'Completed' ? 'Yes' : 'No',
+            $s['assessmentDate'] ? date('Y-m-d', strtotime((string) $s['assessmentDate'])) : '',
+            $safe((string) ($s['_email'] ?? '')),
+        ], escape: '\\');
+    }
+    fclose($out);
+    exit;
+}
 
 $total = count($filtered);
 $totalPages = max(1, (int) ceil($total / $pageSize));
 $page = min($page, $totalPages);
 $offset = ($page - 1) * $pageSize;
-$pageRows = array_slice($filtered, $offset, $pageSize);
+$pageRows = array_map(function ($s) { unset($s['_email']); return $s; }, array_slice($filtered, $offset, $pageSize));
 
 jsonResponse([
     'students' => $pageRows,
@@ -367,6 +433,7 @@ jsonResponse([
     'totalPages' => $totalPages,
     'startIndex' => $total > 0 ? $offset + 1 : 0,
     'sections' => array_values($sectionSummary),
+    'completionTarget' => CompletionTarget::get($pdo),
     'summary' => [
         'totalStudents' => $totalStudents,
         'completedCount' => $completedCount,

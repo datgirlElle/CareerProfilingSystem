@@ -29,20 +29,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $body = readJsonBody();
     $type = $body['type'] ?? '';
 
-    // Adding a section needs Limited access to the 'sections' module;
-    // deactivating/reactivating one needs Full, since it changes what new
-    // registrations and exam schedules can pick. Defaults: admin Full,
-    // counselor Limited (db/seed_security_defaults.php).
+    // Adding, deactivating or reactivating a section needs Full access to the 'sections' module
+    // (administrator and Guidance Counselor by default; a Guidance Facilitator is view-only).
     if ($type === 'create') {
-        $user = Rbac::requireAccess('sections', 'limited');
+        $user = Rbac::requireAccess('sections', 'full');
         $strand = (string) ($body['strand'] ?? '');
         $code = trim((string) ($body['code'] ?? ''));
 
         if (!in_array($strand, Sections::STRANDS, true)) {
             jsonResponse(['success' => false, 'error' => 'Invalid strand.'], 400);
         }
-        if ($code === '' || mb_strlen($code) > 20) {
-            jsonResponse(['success' => false, 'error' => 'Enter a section code (up to 20 characters).'], 400);
+        $code = Sections::normalizeCode($code);
+        if ($code === '') {
+            jsonResponse(['success' => false, 'error' => 'Enter a section code, for example S1114.'], 400);
+        }
+        $formatError = Sections::formatError($strand, $code);
+        if ($formatError !== null) {
+            jsonResponse(['success' => false, 'error' => $formatError], 400);
         }
 
         $existing = $pdo->prepare('SELECT 1 FROM sections WHERE strand = ? AND LOWER(code) = LOWER(?)');

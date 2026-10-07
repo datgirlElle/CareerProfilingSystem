@@ -62,23 +62,6 @@
 
           <p id="formMessage" class="hidden text-sm rounded-md px-3.5 py-2.5"></p>
 
-          <div class="grid grid-cols-2 gap-4">
-            <input
-              type="text"
-              name="first_name"
-              placeholder="First Name"
-              aria-label="First Name"
-              required
-              class="w-full px-3.5 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
-            <input
-              type="text"
-              name="last_name"
-              placeholder="Last Name"
-              aria-label="Last Name"
-              required
-              class="w-full px-3.5 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
-          </div>
-
           <div class="relative">
             <span class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-4">
               <img src="images/login/icon-user.svg" alt="" class="w-full h-full">
@@ -89,8 +72,8 @@
               inputmode="numeric"
               maxlength="12"
               autocomplete="off"
-              placeholder="LRN (10–12 digits)"
-              aria-label="LRN"
+              placeholder="Student Number (10–12 digits)"
+              aria-label="Student Number"
               required
               class="w-full pl-10 pr-3 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
           </div>
@@ -103,50 +86,14 @@
               id="emailInput"
               type="email"
               name="email"
-              placeholder="Email Address"
+              placeholder="Student Email (@live.mcl.edu.ph)"
               aria-label="Email Address"
               required
               class="w-full pl-10 pr-3 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
             <p id="emailHint" class="hidden text-xs text-[#ed1c24] mt-1.5" aria-live="polite">Please enter a valid email address.</p>
           </div>
 
-          <div class="grid grid-cols-2 gap-4 items-start">
-            <div class="relative">
-              <select
-                id="strandSelect"
-                name="strand"
-                aria-label="Strand"
-                required
-                class="w-full px-3.5 py-3.5 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent bg-white">
-                <option value="">Select Strand</option>
-                <option value="STEM">STEM</option>
-                <option value="ABM">ABM</option>
-                <option value="ICT">ICT</option>
-                <option value="HUMSS">HUMSS</option>
-              </select>
-              <img src="images/login/icon-arrow-right.svg" alt="" class="absolute right-4 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rotate-90 pointer-events-none opacity-50">
-            </div>
-
-            <div class="flex gap-2 h-[52px]">
-              <input type="radio" id="grade11" name="grade_level" value="11" required class="hidden peer/g11">
-              <label for="grade11" class="grade-btn flex-1 flex items-center justify-center border border-gray-300 rounded-md text-sm text-gray-600 cursor-pointer peer-checked/g11:bg-[#ed1c24] peer-checked/g11:text-white peer-checked/g11:border-[#ed1c24] font-medium">Grade 11</label>
-              <input type="radio" id="grade12" name="grade_level" value="12" class="hidden peer/g12">
-              <label for="grade12" class="grade-btn flex-1 flex items-center justify-center border border-gray-300 rounded-md text-sm text-gray-600 cursor-pointer peer-checked/g12:bg-[#ed1c24] peer-checked/g12:text-white peer-checked/g12:border-[#ed1c24] font-medium">Grade 12</label>
-            </div>
-          </div>
-
-          <div class="relative">
-            <select
-              id="sectionSelect"
-              name="section"
-              aria-label="Section"
-              required
-              disabled
-              class="w-full px-3.5 py-3.5 border border-gray-300 rounded-md text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent bg-white disabled:bg-gray-50 disabled:text-gray-400">
-              <option value="">Select Strand first</option>
-            </select>
-            <img src="images/login/icon-arrow-right.svg" alt="" class="absolute right-4 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rotate-90 pointer-events-none opacity-50">
-          </div>
+          <p class="text-xs text-gray-500 bg-slate-50 border border-slate-200 rounded-md px-3.5 py-2.5" style="margin-top:-0.25rem">Your name, strand and section come from the class roster uploaded by the Guidance Office. Use the student email the Guidance Office has on file for you.</p>
 
           <div class="relative">
             <span class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-4">
@@ -168,7 +115,7 @@
           <label class="flex items-start gap-2.5 text-xs text-gray-500 leading-relaxed cursor-pointer">
             <input type="checkbox" id="policyAgreeCheckbox" name="policy_agree" required class="mt-0.5 w-4 h-4 shrink-0 rounded border-gray-300 text-[#ed1c24] focus:ring-[#ed1c24] focus:ring-offset-0">
             <span>
-              I agree to the <a href="terms" class="text-[#ed1c24] hover:underline">Terms of Use</a> and confirm that my personal information (name, LRN, and assessment results) will be encrypted and used only for career profiling and guidance purposes at MMCL, consistent with the <a href="privacy" class="text-[#ed1c24] hover:underline">Data Privacy Policy</a>.
+              I agree to the <a href="terms" class="text-[#ed1c24] hover:underline">Terms of Use</a> and confirm that my personal information (name, Student Number, and assessment results) will be encrypted and used only for career profiling and guidance purposes at MMCL, consistent with the <a href="privacy" class="text-[#ed1c24] hover:underline">Data Privacy Policy</a>.
             </span>
           </label>
 
@@ -231,37 +178,6 @@
     icon.alt = willShow ? 'Hide password' : 'Show password';
   });
 
-  // Section is an admin-managed list (Security Configuration's Section
-  // Management, api/sections.php), one strand each — the dropdown is
-  // cascading (disabled/empty until a Strand is picked) rather than free
-  // text, matching the server-side Sections::isValid() allow-list in
-  // api/register.php.
-  (async function() {
-    let sectionsByStrand = {};
-    try {
-      const res = await fetch('api/sections.php');
-      const data = await res.json();
-      sectionsByStrand = data.sectionsByStrand || {};
-    } catch (err) {
-      // Leave sectionsByStrand empty — the dropdown just stays on "Select
-      // Strand first" for every strand, same as a strand with no sections.
-    }
-    const strandSelect = document.getElementById('strandSelect');
-    const sectionSelect = document.getElementById('sectionSelect');
-    strandSelect.addEventListener('change', function() {
-      const sections = sectionsByStrand[strandSelect.value] || [];
-      sectionSelect.innerHTML = '';
-      if (!sections.length) {
-        sectionSelect.disabled = true;
-        sectionSelect.appendChild(new Option('Select Strand first', ''));
-        return;
-      }
-      sectionSelect.disabled = false;
-      sectionSelect.appendChild(new Option('Select Section', ''));
-      sections.forEach(code => sectionSelect.appendChild(new Option(code, code)));
-    });
-  })();
-
   // Live feedback on blur, rather than only after a full form submit attempt.
   (function() {
     const emailInput = document.getElementById('emailInput');
@@ -297,8 +213,9 @@
     // people to click "Create Account" again and hit a "already exists"
     // error, confused about whether the first attempt had worked.
     const successModal = document.getElementById('successModal');
-    function openSuccessModal(email, verifyLink) {
+    function openSuccessModal(email, verifyLink, who) {
       document.getElementById('successMessage').textContent =
+        (who && who.name ? 'Welcome, ' + who.name + ' (' + who.strand + ' ' + who.section + '). ' : '') +
         'We\'ve sent a verification link to ' + email + '. Click it before you can sign in.';
       const linkBox = document.getElementById('successVerifyLinkBox');
       if (verifyLink) {
@@ -323,22 +240,17 @@
     document.getElementById('registerForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       const form = e.target;
-      const firstName = form.first_name.value.trim();
-      const lastName = form.last_name.value.trim();
       const schoolId = form.school_id.value.trim();
       const email = form.email.value.trim();
-      const strand = form.strand.value;
-      const gradeLevel = form.querySelector('input[name="grade_level"]:checked');
-      const section = form.section.value.trim();
       const password = form.password.value;
       const privacyConsent = document.getElementById('policyAgreeCheckbox').checked;
 
-      if (!firstName || !lastName || !schoolId || !email || !strand || !gradeLevel || !section || !password) {
+      if (!schoolId || !email || !password) {
         showMessage('Please fill out all fields.', true);
         return;
       }
       if (!/^[0-9]{10,12}$/.test(schoolId)) {
-        showMessage('LRN must be 10 to 12 digits (numbers only, no spaces or symbols).', true);
+        showMessage('Student Number must be 10 to 12 digits (numbers only, no spaces or symbols).', true);
         return;
       }
       if (!privacyConsent) {
@@ -362,13 +274,7 @@
         const res = await fetch('api/register.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            firstName, lastName, schoolId, email, strand,
-            gradeLevel: gradeLevel.value,
-            section,
-            password,
-            privacyConsent
-          })
+          body: JSON.stringify({ schoolId, email, password, privacyConsent })
         });
         const data = await res.json();
 
@@ -377,7 +283,7 @@
           return;
         }
 
-        openSuccessModal(email, data.verifyLink || null);
+        openSuccessModal(email, data.verifyLink || null, data);
         form.reset();
       } catch (err) {
         showMessage('Unable to reach the server. Please try again.', true);

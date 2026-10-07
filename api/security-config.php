@@ -16,7 +16,7 @@ const RBAC_MODULES = ['career', 'rac', 'recommendations', 'counselor', 'monitori
 const RBAC_ROLES = ['admin', 'counselor', 'student'];
 const RBAC_LEVELS = ['full', 'limited', 'none'];
 
-function loadRbac(PDO $pdo): array
+function loadRbac(PDO $pdo, bool $viewerIsFacilitator = false): array
 {
     $rows = $pdo->query('SELECT module, role, access_level FROM security_rbac')->fetchAll();
     $rbac = [];
@@ -26,8 +26,8 @@ function loadRbac(PDO $pdo): array
     foreach ($rows as $r) {
         if (isset($rbac[$r['module']])) {
             $level = $r['access_level'];
-            // Announcements and assessment scheduling are the administrator's alone (lib/Rbac.php).
-            if ($r['role'] !== 'admin' && $level === 'full' && in_array($r['module'], Rbac::ADMIN_ONLY_WRITE, true)) {
+            // A Guidance Facilitator is view-only for these (lib/Rbac.php): show them that, so the pages hide the write controls.
+            if ($viewerIsFacilitator && $r['role'] === 'counselor' && $level === 'full' && in_array($r['module'], Rbac::FACILITATOR_VIEW_ONLY, true)) {
                 $level = 'limited';
             }
             $rbac[$r['module']][$r['role']] = $level;
@@ -101,7 +101,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $pendingFlags = (int) $pdo->query("SELECT COUNT(*) FROM monitoring_flags WHERE status = 'pending'")->fetchColumn();
 
     jsonResponse([
-        'rbac' => loadRbac($pdo),
+        'rbac' => loadRbac($pdo, Rbac::isFacilitator($user)),
+        // Uploading class rosters: administrator or Guidance Counselor with Full access to the roster module.
+        'canEditRoster' => Rbac::accessLevel('rac', $user['role']) === 'full' && !Rbac::isFacilitator($user),
         'lastUpdated' => $lastUpdated,
         'overview' => [
             'lockouts7d' => $lockouts7d,
@@ -144,9 +146,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($role === 'admin' || $role === 'student') {
                 $skippedAdmin = $skippedAdmin || $role === 'admin';
                 continue;
-            }
-            if (in_array($module, Rbac::ADMIN_ONLY_WRITE, true) && $level === 'full') {
-                continue; // never grant a non-admin write access to these
             }
             $stmt->execute([$level, $user['id'], $module, $role]);
         }

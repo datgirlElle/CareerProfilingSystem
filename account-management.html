@@ -39,7 +39,7 @@
     <nav id="adminNav" data-active="account-management" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
     <script src="js/admin-nav.js"></script>
     <div class="border-t border-white/5 pt-[25px] pb-6">
-      <a href="login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+      <a href="staff-login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
         <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>
         Logout
       </a>
@@ -115,7 +115,7 @@
           <div class="border-b border-gray-200 px-5 py-5 flex items-start justify-between gap-3 flex-wrap">
             <div>
               <h2 class="text-base font-semibold text-gray-900">Staff Accounts</h2>
-              <p class="text-xs text-gray-500 mt-1">Guidance counselors and facilitators sign up on their own (both get the same access), confirm their email, then wait here for your approval before they can sign in.</p>
+              <p class="text-xs text-gray-500 mt-1">Guidance counselors and facilitators sign up on their own (no password) and wait here for your approval. After you approve, they are emailed a temporary access code to create their own password. You never see it.</p>
             </div>
             <span id="pendingBadge" class="hidden text-xs font-semibold bg-amber-50 border border-amber-200 text-amber-700 rounded-full px-3 py-1"></span>
           </div>
@@ -143,7 +143,8 @@
         <section class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           <div class="border-b border-gray-200 px-5 py-5">
             <h2 class="text-base font-semibold text-gray-900">Sections</h2>
-            <p class="text-xs text-gray-500 mt-1">Sections offered per strand, used at registration, assessment scheduling, and student records. Deactivating one keeps existing students' data intact but stops it being offered for new registrations.</p>
+            <p class="text-xs text-gray-500 mt-1">Sections offered per strand, used for the class roster, assessment scheduling, and student records. Deactivating one keeps existing students' data intact but stops it being offered for new schedules and roster uploads.</p>
+            <p class="text-xs text-gray-500 mt-1">A section code is <span class="font-medium text-gray-700">one letter and four digits</span>, like S1114. The letter matches the strand (S for STEM, A for ABM, I for ICT, H for HUMSS) and the first two digits are the grade level (11 or 12).</p>
           </div>
           <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4" id="sectionsContainer">
             <p class="text-xs text-gray-400">Loading…</p>
@@ -159,8 +160,8 @@
           </div>
           <div class="p-5 flex flex-col gap-4">
             <ol class="text-sm text-gray-600 list-decimal pl-5 flex flex-col gap-1">
-              <li>Download the template. Type the Strand and Section once at the top, then list the students under LRN (10 to 12 digits), Lastname, Firstname and Middle.</li>
-              <li>Save it as a .csv or Excel (.xlsx) file and upload it here. Each file is one section; upload a section again to replace just that section's list.</li>
+              <li>Download the template. Type the Strand and Section once at the top (a section code is one letter and four digits, like S1114: S for STEM, A for ABM, I for ICT, H for HUMSS). Then list each student's Student Number (10 to 12 digits), Student Name as LASTNAME, FIRSTNAME MIDDLE, and the student's email (@live.mcl.edu.ph). The email is required for every student.</li>
+              <li>Save it as a .csv or Excel (.xlsx) file and upload it here. Each file is one section; upload a section again to replace just that section's list. Students can register only if their Student Number is on the roster, and the Academic Year is set automatically.</li>
             </ol>
             <div class="flex items-center gap-3 flex-wrap">
               <a id="downloadTemplateBtn" href="api/roster-template.php" class="inline-flex items-center gap-2 bg-white border border-gray-300 rounded-md px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
@@ -284,7 +285,7 @@
   const sessionData = await (await fetch('api/session.php')).json();
   const currentUser = sessionData.user;
   if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'counselor')) {
-    window.location.replace('login');
+    window.location.replace('staff-login');
     return;
   }
   const isAdmin = currentUser.role === 'admin';
@@ -309,7 +310,7 @@
   document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
   document.getElementById('logoutCancelBtn').addEventListener('click', closeLogoutModal);
   document.getElementById('logoutConfirmBtn').addEventListener('click', function() {
-    fetch('api/logout.php', { method: 'POST' }).finally(function() { window.location.href = 'login'; });
+    fetch('api/logout.php', { method: 'POST' }).finally(function() { window.location.href = 'staff-login'; });
   });
   logoutModal.addEventListener('click', function(e) { if (e.target.id === 'logoutConfirmModal') closeLogoutModal(); });
 
@@ -354,9 +355,10 @@
 
     function staffBadge(a) {
       if (a.status === 'pending') {
-        return a.emailVerified
-          ? '<span class="inline-flex bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">Awaiting approval</span>'
-          : '<span class="inline-flex bg-slate-100 border border-slate-200 text-slate-600 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">Email not verified</span>';
+        return '<span class="inline-flex bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">Awaiting approval</span>';
+      }
+      if (a.status === 'approved' && !a.activated) {
+        return '<span class="inline-flex bg-sky-50 border border-sky-200 text-sky-700 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">Waiting for access code</span>';
       }
       if (a.status === 'rejected') {
         return '<span class="inline-flex bg-red-50 border border-red-200 text-red-600 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">Rejected</span>';
@@ -369,16 +371,19 @@
       const btn = 'staff-action text-xs font-semibold rounded-md px-3 py-1.5 border ';
       const data = ' data-id="' + a.id + '" data-name="' + escapeHtml(a.fullName || a.email) + '"';
       if (a.status === 'pending') {
-        const disabled = a.emailVerified ? '' : ' disabled title="Waiting for this person to verify their email"';
-        const cls = a.emailVerified ? '' : ' opacity-50 cursor-not-allowed';
         return '<div class="flex items-center justify-center gap-2">' +
-          '<button type="button" class="' + btn + 'text-white bg-emerald-600 border-emerald-600 hover:opacity-90' + cls + '" data-action="approve"' + data + disabled + '>Approve</button>' +
+          '<button type="button" class="' + btn + 'text-white bg-emerald-600 border-emerald-600 hover:opacity-90" data-action="approve"' + data + '>Approve</button>' +
           '<button type="button" class="' + btn + 'text-[#ed1c24] border-[#ed1c24] hover:bg-red-50" data-action="reject"' + data + '>Reject</button>' +
         '</div>';
       }
       if (a.status === 'rejected') {
-        const cls = a.emailVerified ? '' : ' opacity-50 cursor-not-allowed';
-        return '<button type="button" class="' + btn + 'text-emerald-600 border-emerald-300 hover:bg-emerald-50' + cls + '" data-action="approve"' + data + (a.emailVerified ? '' : ' disabled') + '>Approve instead</button>';
+        return '<button type="button" class="' + btn + 'text-emerald-600 border-emerald-300 hover:bg-emerald-50" data-action="approve"' + data + '>Approve instead</button>';
+      }
+      if (!a.activated) {
+        return '<div class="flex items-center justify-center gap-2">' +
+          '<button type="button" class="' + btn + 'text-[#19427b] border-[#19427b] hover:bg-slate-50" data-action="resendCode"' + data + '>Resend code</button>' +
+          '<button type="button" class="' + btn + 'text-[#ed1c24] border-[#ed1c24] hover:bg-red-50" data-action="toggleActive"' + data + ' data-active="1">Deactivate</button>' +
+        '</div>';
       }
       return '<button type="button" class="' + btn + (a.isActive ? 'text-[#ed1c24] border-[#ed1c24] hover:bg-red-50' : 'text-emerald-600 border-emerald-300 hover:bg-emerald-50') + '" data-action="toggleActive"' + data + ' data-active="' + (a.isActive ? '1' : '0') + '">' + (a.isActive ? 'Deactivate' : 'Activate') + '</button>';
     }
@@ -407,7 +412,7 @@
       badge.classList.toggle('hidden', pending === 0);
       staffTbody.innerHTML = accounts.length ? accounts.map(function(a) {
         return '<tr>' +
-          '<td class="px-5 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">' + (a.fullName ? escapeHtml(a.fullName) : '—') + '</td>' +
+          '<td class="px-5 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">' + (a.fullName ? escapeHtml(a.fullName) : '—') + (a.username && a.username.indexOf('staff-') !== 0 ? '<span class="block text-xs font-normal text-gray-400">' + escapeHtml(a.username) + '</span>' : '') + '</td>' +
           '<td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(a.position || 'Guidance Counselor') + '</td>' +
           '<td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">' + (a.email ? escapeHtml(a.email) : '—') + '</td>' +
           '<td class="px-5 py-4 text-sm text-gray-500">' + sectionsCell(a) + '</td>' +
@@ -424,7 +429,8 @@
       const action = btn.dataset.action;
       const name = btn.dataset.name;
       const prompts = {
-        approve: 'Approve "' + name + '"? They will be emailed and can sign in right away.',
+        approve: 'Approve "' + name + '"? They will be emailed a temporary access code to create their own password. You will not see the password.',
+        resendCode: 'Email "' + name + '" a new temporary access code? Any earlier code stops working.',
         reject: 'Reject the sign-up of "' + name + '"? They will be emailed and will not be able to sign in.',
         toggleActive: (btn.dataset.active === '1' ? 'Deactivate' : 'Activate') + ' "' + name + '"?'
       };
@@ -436,7 +442,7 @@
       });
       const data = await res.json();
       if (!data.success) { showToast(data.error || 'Could not update this account.', true); btn.disabled = false; return; }
-      showToast(action === 'approve' ? 'Account approved.' : action === 'reject' ? 'Sign-up rejected.' : 'Account updated.', false);
+      showToast(action === 'approve' ? (data.emailSent === false ? 'Approved, but the email could not be sent. Use Resend code.' : 'Approved. A temporary access code was emailed.') : action === 'resendCode' ? (data.emailSent === false ? 'The email could not be sent. Try again.' : 'A new access code was emailed.') : action === 'reject' ? 'Sign-up rejected.' : 'Account updated.', false);
       await loadStaff();
     });
 
@@ -500,16 +506,20 @@
 
   // ---------- Sections ----------
   const SECTION_STRANDS = ['STEM', 'ABM', 'ICT', 'HUMSS'];
+  const SECTION_LETTER = { STEM: 'S', ABM: 'A', ICT: 'I', HUMSS: 'H' };
   let sectionsData = [];
   let rbac = null;
+  let canEditRoster = false;
   function showSectionsStatus(text, isError) {
     const el = document.getElementById('sectionsStatus');
     el.textContent = text;
     el.className = 'text-xs px-5 pb-4' + (isError ? ' text-[#ed1c24]' : ' text-green-600');
     el.classList.remove('hidden');
-    setTimeout(() => el.classList.add('hidden'), 3000);
+    clearTimeout(showSectionsStatus.timer);
+    // An error is a sentence to read, so it stays up longer than a confirmation.
+    showSectionsStatus.timer = setTimeout(() => el.classList.add('hidden'), isError ? 9000 : 3000);
   }
-  // Limited = can add sections; Full = can also deactivate/reactivate.
+  // Full = can add and deactivate/reactivate sections (a Guidance Facilitator only ever sees Limited).
   // Comes from the 'sections' row of Security Configuration's permission table.
   function sectionsLevel() {
     return (rbac && rbac.sections && rbac.sections[currentUser.role]) || 'none';
@@ -528,7 +538,7 @@
   function renderSections() {
     const container = document.getElementById('sectionsContainer');
     const level = sectionsLevel();
-    const canAdd = level === 'limited' || level === 'full';
+    const canAdd = level === 'full';
     const canToggle = level === 'full';
     const addDisabledAttr = canAdd ? '' : ' disabled';
     const addDisabledCls = canAdd ? '' : ' opacity-60 cursor-not-allowed';
@@ -546,7 +556,7 @@
         '<p class="text-sm font-semibold text-gray-800">' + strand + '</p>' +
         '<div class="flex flex-wrap gap-2">' + pills + '</div>' +
         '<div class="flex items-center gap-2">' +
-          '<input type="text" maxlength="20" class="add-section-input flex-1 min-w-0 border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed1c24]' + addDisabledCls + '" placeholder="New section, e.g. S1115" aria-label="New ' + strand + ' section code" data-strand="' + strand + '"' + addDisabledAttr + '>' +
+          '<input type="text" maxlength="5" autocapitalize="characters" spellcheck="false" class="add-section-input flex-1 min-w-0 border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed1c24]' + addDisabledCls + '" placeholder="New section, e.g. S1115" aria-label="New ' + strand + ' section code" data-strand="' + strand + '"' + addDisabledAttr + '>' +
           '<button type="button" class="add-section-btn px-4 py-2 text-xs font-semibold text-white bg-[#0f2a6b] rounded-md hover:opacity-90 shrink-0' + addDisabledCls + '" data-strand="' + strand + '"' + addDisabledAttr + '>Add</button>' +
         '</div>' +
       '</div>';
@@ -573,8 +583,19 @@
       const strand = btn.dataset.strand;
       const input = container.querySelector('.add-section-input[data-strand="' + strand + '"]');
       async function add() {
-        const code = input.value.trim();
+        const code = input.value.replace(/\s+/g, '').toUpperCase();
+        input.value = code;
         if (!code) return;
+        // The same rule the server applies (lib/Sections.php), so a typo is caught before it is sent.
+        const letter = SECTION_LETTER[strand];
+        if (!/^[A-Z](1[12])[0-9]{2}$/.test(code)) {
+          showSectionsStatus('"' + code + '" is not a valid section code. Use one letter and four digits, like ' + letter + '1114 (the first two digits are the grade level, 11 or 12).', true);
+          return;
+        }
+        if (code.charAt(0) !== letter) {
+          showSectionsStatus(strand + ' sections start with ' + letter + ', like ' + letter + code.slice(1) + '. "' + code + '" starts with ' + code.charAt(0) + '.', true);
+          return;
+        }
         btn.disabled = true;
         const res = await fetch('api/sections.php', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -595,8 +616,18 @@
   }
 
   try {
-    rbac = (await (await fetch('api/security-config.php')).json()).rbac;
+    const cfg = await (await fetch('api/security-config.php')).json();
+    rbac = cfg.rbac;
+    canEditRoster = !!cfg.canEditRoster;
   } catch (e) { rbac = null; }
+  if (!canEditRoster) {
+    // View-only (Guidance Facilitator): no template download or upload, just what has been uploaded.
+    ['downloadTemplateBtn', 'uploadRosterBtn'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
+    const note = document.createElement('p');
+    note.className = 'text-xs text-gray-500';
+    note.textContent = 'You have view-only access to the class roster. A Guidance Counselor or the Head of Guidance uploads it.';
+    document.getElementById('rosterResult').before(note);
+  }
   await loadSections();
 
   // ---------- Class roster ----------
@@ -647,7 +678,15 @@
         showRosterResult((data.error || 'Upload failed.') + (data.details ? '\n\n' + data.details.join('\n') : ''), true);
       } else {
         loadRosterSections();
-        showRosterResult('Roster uploaded: ' + data.count + ' student(s) in ' + data.strand + ' ' + data.section + ' for Academic Year ' + data.academicYear + '.', false);
+        const lines = ['Roster uploaded: ' + data.count + ' student(s) in ' + data.strand + ' ' + data.section + ' for Academic Year ' + data.academicYear + '.'];
+        lines.push(data.added + ' new, ' + (data.count - data.added - data.moved) + ' already on this section, ' + data.moved + ' moved here from another section, ' + data.removed + ' removed from this section.');
+        if (data.moved && data.movedFrom) {
+          lines.push('Moved from: ' + Object.keys(data.movedFrom).map(function(k) { return k + ' (' + data.movedFrom[k] + ')'; }).join(', ') + '.');
+        }
+        if (data.withoutEmail) {
+          lines.push(data.withoutEmail + ' student(s) have no email in the file, so announcement emails cannot reach them until the roster is updated with their emails.');
+        }
+        showRosterResult(lines.join('\n'), false);
       }
     } catch (err) {
       showRosterResult('Unable to reach the server. Please try again.', true);

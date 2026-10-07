@@ -51,7 +51,7 @@
           <img src="images/login/mmcl-crest.png" alt="Mapúa MCL crest" class="w-[140px] mb-2">
           <h2 class="text-[#001c43] text-2xl font-bold text-center">Staff Sign Up</h2>
           <p class="text-gray-500 text-sm text-center">
-            For Guidance Counselors and Guidance Facilitators using the <span class="text-[#ed1c24] font-semibold">Career Profiling System</span>. An administrator will approve your account before you can sign in.
+            For Guidance Counselors and Guidance Facilitators using the <span class="text-[#ed1c24] font-semibold">Career Profiling System</span>. The Head of Guidance will approve your account, then email you a temporary access code to create your password.
           </p>
         </div>
 
@@ -59,22 +59,17 @@
 
           <p id="formMessage" class="hidden text-sm rounded-md px-3.5 py-2.5"></p>
 
-          <div class="relative">
-            <span class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-4">
-              <img src="images/login/icon-user.svg" alt="" class="w-full h-full">
-            </span>
-            <input
-              type="text"
-              name="full_name"
-              maxlength="150"
-              autocomplete="name"
-              placeholder="Cruz, Juan D."
-              aria-label="Full Name (Last Name, First Name, M.I.)"
-              aria-describedby="fullNameHelp"
-              required
-              class="w-full pl-10 pr-3 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+          <div class="flex flex-col gap-3">
+            <input type="text" name="last_name" maxlength="60" autocomplete="family-name" placeholder="Last Name" aria-label="Last Name" required
+              class="w-full px-3.5 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+            <div class="flex gap-3">
+              <input type="text" name="first_name" maxlength="60" autocomplete="given-name" placeholder="First Name" aria-label="First Name" required
+                class="flex-1 min-w-0 px-3.5 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+              <input type="text" name="middle_initial" maxlength="2" autocomplete="off" placeholder="M.I." aria-label="Middle Initial (optional)"
+                class="w-24 shrink-0 px-3.5 py-3.5 border border-gray-300 rounded-md text-sm text-center placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+            </div>
           </div>
-          <p id="fullNameHelp" class="text-xs text-gray-500" style="margin-top:-0.75rem">Enter your name as <span class="font-medium text-gray-600">Last Name, First Name, M.I.</span> For example: Cruz, Juan D.</p>
+          <p class="text-xs text-gray-500" style="margin-top:-0.75rem">Middle initial is one letter and optional. Your name will appear as, for example, <span class="font-medium text-gray-600">Cruz, Juan D.</span></p>
 
           <fieldset>
             <legend class="text-xs font-medium text-gray-600 mb-2">I am a</legend>
@@ -82,7 +77,7 @@
               <label class="flex-1"><input type="radio" name="position" value="counselor" required class="peer hidden"><span class="block text-center border border-gray-300 rounded-md py-3 text-sm font-medium text-gray-700 cursor-pointer peer-checked:bg-[#ed1c24] peer-checked:text-white peer-checked:border-[#ed1c24]">Guidance Counselor</span></label>
               <label class="flex-1"><input type="radio" name="position" value="facilitator" class="peer hidden"><span class="block text-center border border-gray-300 rounded-md py-3 text-sm font-medium text-gray-700 cursor-pointer peer-checked:bg-[#ed1c24] peer-checked:text-white peer-checked:border-[#ed1c24]">Guidance Facilitator</span></label>
             </div>
-            <p class="text-xs text-gray-500 mt-2">Counselors and facilitators get the same access to the system. Your choice only sets the title shown beside your name.</p>
+            <p class="text-xs text-gray-500 mt-2">Guidance Counselors manage rosters, sections, schedules and announcements. Guidance Facilitators can view them but not change them.</p>
           </fieldset>
 
 
@@ -100,25 +95,28 @@
               required
               class="w-full pl-10 pr-3 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
           </div>
-          <p id="emailHelp" class="text-xs text-gray-500" style="margin-top:-0.75rem">Use your school email (@mcl.edu.ph) with your initials and last name, for example jdcruz@mcl.edu.ph. The part before the @ is your username.</p>
+          <p id="emailHelp" class="text-xs text-gray-500" style="margin-top:-0.75rem">Use your school email address (@mcl.edu.ph). Your temporary access code will be sent here after approval.</p>
 
-          <!-- The show/hide eye on these two fields is added by js/password-toggle.js -->
-          <input
-            type="password"
-            name="password"
-            autocomplete="new-password"
-            placeholder="Password"
-            aria-label="Password"
-            required
-            class="w-full px-3.5 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
-          <input
-            type="password"
-            name="confirm_password"
-            autocomplete="new-password"
-            placeholder="Confirm Password"
-            aria-label="Confirm Password"
-            required
-            class="w-full px-3.5 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-4">
+              <img src="images/login/icon-user.svg" alt="" class="w-full h-full">
+            </span>
+            <input
+              type="text"
+              name="username"
+              maxlength="20"
+              autocomplete="username"
+              autocapitalize="none"
+              spellcheck="false"
+              placeholder="Username"
+              aria-label="Username"
+              aria-describedby="usernameHelp"
+              required
+              class="w-full pl-10 pr-3 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+          </div>
+          <p id="usernameHelp" class="text-xs text-gray-500" style="margin-top:-0.75rem">3 to 20 letters and numbers, no spaces or symbols. You will sign in with this (or your email) once your password is set.</p>
+
+          <p class="text-xs text-gray-500 bg-slate-50 border border-slate-200 rounded-md px-3.5 py-2.5">You will create your password after approval, using the temporary access code we email you.</p>
 
           <label class="flex items-start gap-2.5 text-xs text-gray-500 leading-relaxed cursor-pointer">
             <input type="checkbox" id="policyAgreeCheckbox" required class="mt-0.5 w-4 h-4 shrink-0 rounded border-gray-300 text-[#ed1c24] focus:ring-[#ed1c24] focus:ring-offset-0">
@@ -133,7 +131,7 @@
         </form>
 
         <p class="text-sm text-gray-500 text-center">
-          Already have an account? <a href="login" class="text-[#ed1c24] font-semibold hover:underline">Sign in</a>
+          Already have an account? <a href="staff-login" class="text-[#ed1c24] font-semibold hover:underline">Sign in</a>
         </p>
         <p class="text-xs text-gray-400 text-center">
           <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
@@ -158,10 +156,7 @@
     </div>
     <h3 class="text-lg font-semibold text-[#001c43]">Sign-up Received</h3>
     <p id="successMessage" class="text-sm text-gray-500 leading-relaxed"></p>
-    <div id="successVerifyLinkBox" class="hidden w-full bg-amber-50 border border-amber-100 rounded-md px-3.5 py-2.5 text-left break-all">
-      <p class="text-xs text-amber-800">The verification email couldn't be delivered. Use this link directly: <a id="successVerifyLinkAnchor" href="#" class="font-semibold underline"></a></p>
-    </div>
-    <a href="login" class="w-full py-3 rounded-md bg-[#ed1c24] text-white text-sm font-medium shadow hover:opacity-90 transition text-center">
+        <a href="staff-login" class="w-full py-3 rounded-md bg-[#ed1c24] text-white text-sm font-medium shadow hover:opacity-90 transition text-center">
       Back to Sign In
     </a>
   </div>
@@ -178,16 +173,9 @@
     }
 
     var successModal = document.getElementById('successModal');
-    function openSuccessModal(email, verifyLink) {
+    function openSuccessModal(email) {
       document.getElementById('successMessage').textContent =
-        'We\'ve sent a verification link to ' + email + '. Verify your email, then an administrator will review your account. You can sign in once it is approved.';
-      var linkBox = document.getElementById('successVerifyLinkBox');
-      if (verifyLink) {
-        var anchor = document.getElementById('successVerifyLinkAnchor');
-        anchor.href = verifyLink;
-        anchor.textContent = verifyLink;
-        linkBox.classList.remove('hidden');
-      }
+        'Your sign-up is waiting for the Head of Guidance to review it. Once it is approved, we will send a temporary access code to ' + email + '. Use it to create your password and sign in.';
       successModal.classList.remove('hidden');
       setTimeout(function() { successModal.classList.add('is-open'); }, 16);
     }
@@ -195,15 +183,16 @@
     document.getElementById('staffForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       var form = e.target;
-      var fullName = form.full_name.value.trim();
+      var lastName = form.last_name.value.trim();
+      var firstName = form.first_name.value.trim();
+      var middleInitial = form.middle_initial.value.trim();
       var positionInput = form.querySelector('input[name="position"]:checked');
       var position = positionInput ? positionInput.value : '';
       var email = form.email.value.trim();
-      var password = form.password.value;
-      var confirm = form.confirm_password.value;
+      var username = form.username.value.trim();
       var privacyConsent = document.getElementById('policyAgreeCheckbox').checked;
 
-      if (!fullName || !email || !password || !confirm) {
+      if (!lastName || !firstName || !email || !username) {
         showMessage('Please fill out all fields.');
         return;
       }
@@ -211,17 +200,22 @@
         showMessage('Choose whether you are a Guidance Counselor or a Guidance Facilitator.');
         return;
       }
-      // Last Name, First Name, M.I. — the same rule the server applies (lib/StaffName.php)
-      if (!/^[\p{L}][\p{L}\p{M}'’. -]*,\s*[\p{L}][\p{L}\p{M}'’. -]*$/u.test(fullName)) {
-        showMessage('Enter your name as Last Name, First Name, M.I. — for example Cruz, Juan D.');
+      // The same rule the server applies (lib/StaffName.php)
+      var namePart = /^[\p{L}][\p{L}\p{M}'’. -]*$/u;
+      if (!namePart.test(lastName) || !namePart.test(firstName) || lastName.indexOf(',') >= 0 || firstName.indexOf(',') >= 0) {
+        showMessage('Enter your last name and first name using letters only.');
+        return;
+      }
+      if (middleInitial && !/^\p{L}\.?$/u.test(middleInitial)) {
+        showMessage('Your middle initial should be a single letter, for example D.');
         return;
       }
       if (!/@mcl\.edu\.ph$/i.test(email)) {
         showMessage('Use your school email address ending in @mcl.edu.ph. Personal emails such as Gmail are not accepted.');
         return;
       }
-      if (password !== confirm) {
-        showMessage('The two passwords do not match.');
+      if (!/^(?=.*[A-Za-z])[A-Za-z0-9]{3,20}$/.test(username)) {
+        showMessage('Choose a username of 3 to 20 letters and numbers, with at least one letter (no spaces or symbols).');
         return;
       }
       if (!privacyConsent) {
@@ -237,14 +231,14 @@
         var res = await fetch('api/staff-register.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fullName: fullName, position: position, email: email, password: password, privacyConsent: privacyConsent })
+          body: JSON.stringify({ lastName: lastName, firstName: firstName, middleInitial: middleInitial, position: position, email: email, username: username, privacyConsent: privacyConsent })
         });
         var data = await res.json();
         if (!data.success) {
           showMessage(data.error || 'Sign-up failed. Please try again.');
           return;
         }
-        openSuccessModal(email, data.verifyLink || null);
+        openSuccessModal(email);
         form.reset();
       } catch (err) {
         showMessage('Unable to reach the server. Please try again.');

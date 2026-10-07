@@ -34,7 +34,7 @@ function actionLabel(string $action, array $labels): string
     return $labels[$action] ?? ucwords(str_replace('_', ' ', $action));
 }
 
-/** Who did it: staff by username, a student by name (their username is their LRN, which staff don't see). */
+/** Who did it: staff by username, a student by name (their username is their Student Number, which staff don't see). */
 function actorLabel(array $r): string
 {
     if (($r['actor_role'] ?? null) === 'student') {

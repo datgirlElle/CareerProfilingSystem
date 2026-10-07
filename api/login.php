@@ -11,6 +11,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $body = readJsonBody();
 $username = trim((string) ($body['username'] ?? ''));
 $password = (string) ($body['password'] ?? '');
+// Students and guidance staff have separate sign-in pages; each says which one it is.
+$portal = (string) ($body['portal'] ?? '');
 
 if ($username === '' || $password === '') {
     jsonResponse(['success' => false, 'error' => 'Username and password are required.'], 400);
@@ -31,7 +33,7 @@ function lockoutPolicy(PDO $pdo): array
 $stmt = $pdo->prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?)');
 $stmt->execute([$username]);
 $user = $stmt->fetch();
-// Staff sign in with their email (they have no username to remember); students keep using their LRN.
+// Staff sign in with their email (they have no username to remember); students keep using their Student Number.
 if (!$user && strpos($username, '@') !== false) {
     $byEmail = $pdo->prepare("SELECT * FROM users WHERE LOWER(email) = LOWER(?) AND role IN ('admin', 'counselor') ORDER BY id LIMIT 1");
     $byEmail->execute([$username]);
@@ -67,6 +69,16 @@ if (!password_verify($password, $user['password_hash'])) {
 
     AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Incorrect password');
     jsonResponse($genericError, 401);
+}
+
+// Checked after the password, so the wrong page reveals nothing to someone who doesn't know it.
+if ($portal === 'staff' && $user['role'] === 'student') {
+    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Student tried the staff sign in');
+    jsonResponse(['success' => false, 'error' => 'This is the staff sign in. Students, please use the student sign in page.'], 403);
+}
+if ($portal === 'student' && $user['role'] !== 'student') {
+    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Staff tried the student sign in');
+    jsonResponse(['success' => false, 'error' => 'This sign in is for students only.'], 403);
 }
 
 // Staff who signed up themselves wait for an admin: they confirm their email

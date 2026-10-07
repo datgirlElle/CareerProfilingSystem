@@ -39,7 +39,7 @@
     <nav id="adminNav" data-active="announcements" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
     <script src="js/admin-nav.js"></script>
     <div class="border-t border-white/5 pt-[25px] pb-6">
-      <a href="login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+      <a href="staff-login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
         <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>
         Logout
       </a>
@@ -215,6 +215,7 @@
                 <label class="flex-1"><input type="radio" name="target" value="all" checked class="peer hidden"><span class="block text-center border border-slate-300 rounded-md py-2 text-sm cursor-pointer peer-checked:bg-[#ed1c24] peer-checked:text-white peer-checked:border-[#ed1c24]" id="targetAllLabel">@everyone</span></label>
                 <label class="flex-1"><input type="radio" name="target" value="specific" class="peer hidden"><span class="block text-center border border-slate-300 rounded-md py-2 text-sm cursor-pointer peer-checked:bg-[#ed1c24] peer-checked:text-white peer-checked:border-[#ed1c24]" id="targetSpecificLabel">Specific Students</span></label>
               </div>
+              <p id="everyoneNote" class="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-md px-3 py-2 mb-1">Loading who this reaches…</p>
               <div id="studentPicker" class="hidden">
                 <div id="selectedChips" class="flex flex-wrap gap-1.5 mb-2"></div>
                 <div class="relative">
@@ -337,7 +338,7 @@
   const sessionData = await (await fetch('api/session.php')).json();
   const currentUser = sessionData.user;
   if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'counselor')) {
-    window.location.replace('login');
+    window.location.replace('staff-login');
     return;
   }
 
@@ -374,7 +375,7 @@
   }
   function performLogout() {
     fetch('api/logout.php', { method: 'POST' }).finally(function() {
-      window.location.href = 'login';
+      window.location.href = 'staff-login';
     });
   }
   document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
@@ -461,11 +462,11 @@
     return chip('Draft', 'bg-slate-100 border-slate-200 text-slate-600');
   }
   function audienceChip(a) {
-    if (a.targetType === 'all') return chip('@everyone (' + a.audienceCount.toLocaleString() + ')', 'bg-white border-slate-200 text-slate-600');
+    if (a.targetType === 'all') return chip('@everyone (' + a.audienceCount.toLocaleString() + (a.rosterOnlyCount ? ' + ' + a.rosterOnlyCount.toLocaleString() + ' on roster' : '') + ')', 'bg-white border-slate-200 text-slate-600');
     return chip(a.audienceCount ? a.audienceCount + ' student' + (a.audienceCount === 1 ? '' : 's') : 'No audience yet', 'bg-white border-slate-200 text-slate-600');
   }
   function remindState(a) {
-    if (a.state !== 'published' || a.audienceCount === 0 || a.readCount >= a.audienceCount) return null;
+    if (a.state !== 'published' || (a.audienceCount === 0 && !a.rosterOnlyCount) || (a.readCount >= a.audienceCount && !a.rosterOnlyCount)) return null;
     if (a.lastRemindedAt) {
       const last = new Date(String(a.lastRemindedAt).replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00'));
       if (Date.now() - last.getTime() < 24 * 3600 * 1000) return 'cooldown';
@@ -572,14 +573,15 @@
     } else if (rem) {
       const a = all.find(function(x) { return x.id === Number(rem.dataset.id); });
       const unread = a ? a.audienceCount - a.readCount : 0;
-      if (!(await showConfirm('Email a reminder to the ' + unread + ' student' + (unread === 1 ? '' : 's') + ' who have not seen "' + (a ? a.title : 'this announcement') + '" yet? You can do this once every 24 hours.'))) return;
+      const rosterOnly = a ? (a.rosterOnlyCount || 0) : 0;
+      if (!(await showConfirm('Email a reminder about "' + (a ? a.title : 'this announcement') + '" to the ' + unread + ' registered student' + (unread === 1 ? '' : 's') + ' who have not seen it' + (rosterOnly ? ' and the ' + rosterOnly + ' roster student' + (rosterOnly === 1 ? '' : 's') + ' who have not registered yet' : '') + '? You can do this once every 24 hours.'))) return;
       rem.disabled = true;
       const res = await fetch('api/announcements.php', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'remind', id: Number(rem.dataset.id) })
       });
       const data = await res.json();
-      showToast(data.success ? 'Reminder sent to ' + data.sent + ' student' + (data.sent === 1 ? '' : 's') + '.' : (data.error || 'Could not send the reminder.'), !data.success);
+      showToast(data.success ? 'Reminder sent to ' + data.sent + ' student' + (data.sent === 1 ? '' : 's') + (data.failed ? ' (' + data.failed + ' could not be delivered)' : '') + '.' : (data.error || 'Could not send the reminder.'), !data.success);
       await loadAnnouncements();
     } else if (edit) {
       startEdit(Number(edit.dataset.id));
@@ -640,13 +642,37 @@
   publishAtInput.addEventListener('focus', refreshPublishAtMin);
   setInterval(refreshPublishAtMin, 60000);
 
+  // "Everyone" is emailed to every registered student and to every student on this year's roster
+  // who hasn't registered yet, so say how many that is before anything is sent.
+  let audienceInfo = null;
+  const everyoneNote = document.getElementById('everyoneNote');
+  function updateEveryoneNote() {
+    const isAll = document.querySelector('input[name="target"]:checked').value === 'all';
+    everyoneNote.classList.toggle('hidden', !isAll);
+    if (!isAll) return;
+    if (!audienceInfo) { everyoneNote.textContent = 'Everyone is emailed, including students on the roster who have not registered yet.'; return; }
+    const total = audienceInfo.registered + audienceInfo.notRegistered;
+    let text = 'Everyone: ' + audienceInfo.registered + ' registered student' + (audienceInfo.registered === 1 ? '' : 's') +
+      ' and ' + audienceInfo.notRegistered + ' roster student' + (audienceInfo.notRegistered === 1 ? '' : 's') + ' who have not registered yet (emailed at the address on the roster) = ' + total + ' email' + (total === 1 ? '' : 's') + '.';
+    if (audienceInfo.notRegisteredNoEmail) {
+      text += ' ' + audienceInfo.notRegisteredNoEmail + ' roster student' + (audienceInfo.notRegisteredNoEmail === 1 ? ' has' : 's have') + ' no email on the roster and will not be reached.';
+    }
+    everyoneNote.textContent = text;
+  }
+  fetch('api/announcements.php?audience=1').then(function(r) { return r.json(); }).then(function(d) {
+    if (d && typeof d.registered === 'number') audienceInfo = d;
+    updateEveryoneNote();
+  }).catch(function() {});
+
   function setAudience(value) {
     document.querySelector('input[name="target"][value="' + value + '"]').checked = true;
     document.getElementById('studentPicker').classList.toggle('hidden', value !== 'specific');
+    updateEveryoneNote();
   }
   document.querySelectorAll('input[name="target"]').forEach(function(radio) {
     radio.addEventListener('change', function() {
       document.getElementById('studentPicker').classList.toggle('hidden', radio.value !== 'specific' || !radio.checked);
+      updateEveryoneNote();
     });
   });
 
@@ -782,6 +808,12 @@
       studentIds: targetType === 'specific' ? Array.from(selectedStudentIds) : [],
     };
 
+    // Sending is not undoable: an email to everyone goes out right away, so confirm it first.
+    if (!isDraft && targetType === 'all' && !publishAtInput.value && audienceInfo) {
+      const total = audienceInfo.registered + audienceInfo.notRegistered;
+      if (!(await showConfirm('Send "' + body.title + '" now? It will be emailed to ' + total + ' student' + (total === 1 ? '' : 's') + ' (' + audienceInfo.registered + ' registered, ' + audienceInfo.notRegistered + ' not registered yet).'))) return;
+    }
+
     const buttons = e.target.querySelectorAll('button[type="submit"]');
     buttons.forEach(function(b) { b.disabled = true; });
     const res = await fetch('api/announcements.php', {
@@ -797,7 +829,12 @@
     }
 
     const scheduled = !isDraft && publishAtInput.value;
-    const message = isDraft ? 'Draft saved.' : (scheduled ? 'Announcement scheduled.' : 'Announcement sent.');
+    let message = isDraft ? 'Draft saved.' : (scheduled ? 'Announcement scheduled. It will be emailed when it is due.' : 'Announcement sent.');
+    if (data.emailed) {
+      const n = data.emailed.registered + data.emailed.notRegistered;
+      message += ' Emailed ' + n + ' student' + (n === 1 ? '' : 's') + (data.emailed.notRegistered ? ' (' + data.emailed.notRegistered + ' not registered yet)' : '') + '.';
+      if (data.emailed.failed) message += ' ' + data.emailed.failed + ' email' + (data.emailed.failed === 1 ? '' : 's') + ' could not be delivered.';
+    }
     resetComposer();
     successEl.textContent = message;
     successEl.classList.remove('hidden');
