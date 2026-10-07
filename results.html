@@ -230,10 +230,17 @@
               </div>
             </div>
             <div id="cr-matchesIntro">
-              <h2 class="text-2xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-2">Top Matches</h2>
-              <p class="text-sm text-[#5e3f3c] mb-4">Degree programs whose Holland Code matches your top 3 RIASEC interest areas. Listed in no particular order.</p>
+              <h2 class="text-2xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-2">Top Matches According to the Guidance</h2>
+              <p class="text-sm text-[#5e3f3c] mb-4">Degree programs whose Holland Code, as mapped by the Guidance Office, matches your top 3 RIASEC interest areas. Listed in no particular order.</p>
             </div>
             <div id="cr-topMatches" class="flex flex-col gap-4"></div>
+            <!-- Decision-tree (Weka) suggestions. Shown only when the API returns them,
+                 i.e. after the model is trained and decision_tree.enabled is set in config/cbf.php. -->
+            <div id="cr-modelSection" class="hidden mt-10">
+              <h2 class="text-2xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-2">Suggestion of the Model</h2>
+              <p class="text-sm text-[#5e3f3c] mb-4">Degree programs suggested by the decision-tree model trained on student data.</p>
+              <div id="cr-modelMatches" class="flex flex-col gap-4"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -660,7 +667,17 @@
     if (preferred) listHtml += programCardHtml(preferred, true);
     document.getElementById('cr-topMatches').innerHTML = listHtml;
 
-    document.getElementById('cr-topMatches').addEventListener('click', async function(e) {
+    // Suggestion of the Model (decision tree); null until the model is connected.
+    if (Array.isArray(recommendation.modelSuggestions)) {
+      recommendation.modelSuggestions.forEach(function(p) { allPrograms[p.id] = p; });
+      document.getElementById('cr-modelMatches').innerHTML = recommendation.modelSuggestions.length
+        ? recommendation.modelSuggestions.map(function(p) { return programCardHtml(p, false); }).join('')
+        : '<p class="text-base text-[#5e3f3c]">The model did not suggest a degree program for your profile.</p>';
+      document.getElementById('cr-modelSection').classList.remove('hidden');
+    }
+
+    // Parent of both lists, so cards in the model section work too.
+    document.getElementById('cr-topMatches').parentElement.addEventListener('click', async function(e) {
       const detailsBtn = e.target.closest('.view-details-btn');
       if (detailsBtn) {
         const program = allPrograms[Number(detailsBtn.dataset.id)];

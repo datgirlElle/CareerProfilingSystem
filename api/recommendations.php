@@ -131,6 +131,9 @@ jsonResponse([
     'topProgramId' => (int) $row['top_program_id'],
     'topScore' => (float) $row['top_score'],
     'top3' => $top3,
+    // "Suggestion of the Model": decision-tree (Weka) output, shown in its own section on
+    // the results page. null until the model is trained and connected (decision_tree.enabled).
+    'modelSuggestions' => null,
     // 'match' / 'mismatch' (CBFEngine::classify); null on results saved before it existed.
     'matchStatus' => $row['match_status'],
     'mismatchReason' => $row['mismatch_reason'],
