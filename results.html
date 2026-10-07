@@ -567,22 +567,6 @@
         (saved ? 'Saved ✓' : 'Save Career') + '</button>';
     }
 
-    function describeProgram(p) {
-      // Prefer the real program description staff wrote in Career Data Set.
-      if (p.description) return p.description;
-      return 'This program\'s Holland Code (' + p.hollandCode + ') matches your top RIASEC interest areas.';
-    }
-
-    // How a program was matched (no percentages are shown to students, per adviser).
-    function matchMethodText(program) {
-      const f = program.formula || {};
-      if (f.student_vector === 'top_binary') {
-        return 'Matched by comparing your top ' + (f.student_top_n || 3) + ' RIASEC interest areas with the letters of this program\'s Holland Code (' +
-          program.hollandCode + ') using cosine similarity.';
-      }
-      return 'Matched by comparing your RIASEC results with this program\'s Holland Code (' + program.hollandCode + ') using cosine similarity.';
-    }
-
     // No per-program images/icons exist in the data (or schema) — this maps
     // each program's college to one of a small set of generic category
     // icons instead, so cards get real iconography without needing an
@@ -615,9 +599,7 @@
       const preferredBadge = isPreferredExtra
         ? '<span class="bg-[#fff7ed] border border-[#fed7aa] text-[#c2410c] text-xs font-semibold rounded-full px-3.5 py-1.5 shrink-0">Your preferred course</span>'
         : '';
-      const body = isPreferredExtra
-        ? 'This is the course you chose on your Career Worksheet. It doesn\'t closely match your RIASEC code, but it\'s still an option. A Guidance Counselor can help you weigh it against the courses above.'
-        : describeProgram(p);
+      const body = 'This is the course you chose on your Career Worksheet. It doesn\'t closely match your RIASEC code, but it\'s still an option. A Guidance Counselor can help you weigh it against the courses above.';
       return '<div class="bg-white border ' + (isPreferredExtra ? 'border-[#fed7aa]' : 'border-[#e0e3e5]') + ' rounded p-5 flex flex-col gap-4">' +
         '<div class="flex items-start justify-between gap-4 flex-wrap">' +
           '<div class="flex items-start gap-3">' +
@@ -626,8 +608,10 @@
           '</div>' +
           preferredBadge +
         '</div>' +
-        '<p class="text-base text-[#191c1e] leading-relaxed max-w-[720px]">' + body + '</p>' +
-        (!isPreferredExtra && p.explanation ? '<p class="text-sm text-[#5e3f3c] leading-relaxed max-w-[720px]">' + p.explanation + '</p>' : '') +
+        // No match sentences (adviser): the preferred course keeps its note; other cards show
+        // only the program description staff wrote in Career Data Set, if any.
+        (isPreferredExtra ? '<p class="text-base text-[#191c1e] leading-relaxed max-w-[720px]">' + body + '</p>'
+          : p.description ? '<p class="text-base text-[#191c1e] leading-relaxed max-w-[720px]">' + p.description + '</p>' : '') +
         '<div class="bg-[#f2f4f6] border border-[#e0e3e5] rounded p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">' +
           '<div><p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-2">Holland Code</p><p class="text-base text-[#191c1e]">' + p.hollandCode + '</p></div>' +
           '<div><p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-2">College</p><p class="text-base text-[#191c1e]">' + p.collegeCode + ' — ' + p.collegeName + '</p></div>' +
@@ -682,12 +666,10 @@
       if (detailsBtn) {
         const program = allPrograms[Number(detailsBtn.dataset.id)];
         document.getElementById('detailsModalTitle').textContent = program.title + (program.isActive === false ? ' — No longer available' : '');
-        const overview = describeProgram(program);
+        // Program description only; no match sentences (adviser).
         document.getElementById('detailsModalBody').innerHTML =
-          '<p>' + overview + '</p>' +
-          (program.explanation ? '<p class="text-sm text-[#191c1e] mt-3">' + program.explanation + '</p>' : '') +
-          '<p class="text-xs text-[#5e3f3c] mt-3">' + program.collegeCode + ' — ' + program.collegeName + ' &middot; Holland Code: ' + program.hollandCode + '</p>' +
-          '<p class="text-xs text-slate-400 mt-3 pt-3 border-t border-gray-100">' + matchMethodText(program) + '</p>';
+          (program.description ? '<p class="mb-3">' + program.description + '</p>' : '') +
+          '<p class="text-xs text-[#5e3f3c]">' + program.collegeCode + ' — ' + program.collegeName + ' &middot; Holland Code: ' + program.hollandCode + '</p>';
         openDetailsModal();
         return;
       }
