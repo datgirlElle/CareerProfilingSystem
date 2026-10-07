@@ -257,22 +257,6 @@
   </div>
 </div>
 
-<!-- Program Details Modal -->
-<div id="detailsModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-lg">
-    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-      <h3 class="text-lg font-bold text-gray-900" id="detailsModalTitle">—</h3>
-      <button type="button" id="detailsModalClose" class="text-gray-500 hover:text-gray-600 text-xl leading-none">&times;</button>
-    </div>
-    <div class="px-6 py-5">
-      <div class="text-sm text-gray-600 leading-relaxed" id="detailsModalBody">—</div>
-    </div>
-    <div class="px-6 py-4 border-t border-gray-100 flex justify-end">
-      <button type="button" id="detailsModalOk" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Close</button>
-    </div>
-  </div>
-</div>
-
 <div id="logoutConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
   <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
     <h3 class="text-lg font-semibold text-black">Log Out?</h3>
@@ -556,17 +540,6 @@
       '</div>';
     }).join('');
 
-    const savedData = await (await fetch('api/saved-programs.php')).json();
-    let savedIds = savedData.programIds || [];
-    function isSaved(id) { return savedIds.indexOf(id) !== -1; }
-
-    function saveBtnHtml(program) {
-      const saved = isSaved(program.id);
-      return '<button type="button" class="save-career-btn border text-xs font-semibold text-center tracking-wide uppercase px-4 py-2 rounded ' +
-        (saved ? 'border-green-600 text-green-700 bg-green-50' : 'border-[#495e88] text-[#495e88]') + '" data-id="' + program.id + '">' +
-        (saved ? 'Saved ✓' : 'Save Career') + '</button>';
-    }
-
     // No per-program images/icons exist in the data (or schema) — this maps
     // each program's college to one of a small set of generic category
     // icons instead, so cards get real iconography without needing an
@@ -589,10 +562,7 @@
       return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="' + sizeClass + '">' + path + '</svg>';
     }
 
-    const allPrograms = {};
-    recommendation.top3.forEach(function(p) { allPrograms[p.id] = p; });
     const preferred = recommendation.statedOutsideTop3;  // the worksheet program, when it is not a match
-    if (preferred) allPrograms[preferred.id] = preferred;
 
     function programCardHtml(p, isPreferredExtra) {
       const inactive = p.isActive === false ? ' <span class="inline-flex items-center bg-gray-100 text-gray-500 text-[11px] font-semibold px-2 py-0.5 rounded-full align-middle">No longer available</span>' : '';
@@ -612,14 +582,6 @@
         // only the program description staff wrote in Career Data Set, if any.
         (isPreferredExtra ? '<p class="text-xs text-[#191c1e] leading-relaxed max-w-[720px]">' + body + '</p>'
           : p.description ? '<p class="text-xs text-[#191c1e] leading-relaxed max-w-[720px]">' + p.description + '</p>' : '') +
-        '<div class="bg-[#f2f4f6] border border-[#e0e3e5] rounded p-3 grid grid-cols-1 sm:grid-cols-2 gap-4">' +
-          '<div><p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">Holland Code</p><p class="text-sm font-medium text-[#191c1e]">' + p.hollandCode + '</p></div>' +
-          '<div><p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">College</p><p class="text-sm font-medium text-[#191c1e]">' + p.collegeCode + ' — ' + p.collegeName + '</p></div>' +
-        '</div>' +
-        '<div class="flex gap-3">' +
-          '<button type="button" class="view-details-btn bg-[#bb0013] text-white text-xs font-semibold text-center tracking-wide uppercase px-4 py-2 rounded hover:opacity-90" data-id="' + p.id + '">View Program Details</button>' +
-          saveBtnHtml(p) +
-        '</div>' +
       '</div>';
     }
 
@@ -653,55 +615,11 @@
 
     // Suggestion of the Model (decision tree); null until the model is connected.
     if (Array.isArray(recommendation.modelSuggestions)) {
-      recommendation.modelSuggestions.forEach(function(p) { allPrograms[p.id] = p; });
       document.getElementById('cr-modelMatches').innerHTML = recommendation.modelSuggestions.length
         ? recommendation.modelSuggestions.map(function(p) { return programCardHtml(p, false); }).join('')
-        : '<p class="text-base text-[#5e3f3c]">The model did not suggest a degree program for your profile.</p>';
+        : '<p class="text-xs text-[#5e3f3c]">The model did not suggest a degree program for your profile.</p>';
       document.getElementById('cr-modelSection').classList.remove('hidden');
     }
-
-    // Parent of both lists, so cards in the model section work too.
-    document.getElementById('cr-topMatches').parentElement.addEventListener('click', async function(e) {
-      const detailsBtn = e.target.closest('.view-details-btn');
-      if (detailsBtn) {
-        const program = allPrograms[Number(detailsBtn.dataset.id)];
-        document.getElementById('detailsModalTitle').textContent = program.title + (program.isActive === false ? ' — No longer available' : '');
-        // Program description only; no match sentences (adviser).
-        document.getElementById('detailsModalBody').innerHTML =
-          (program.description ? '<p class="mb-3">' + program.description + '</p>' : '') +
-          '<p class="text-xs text-[#5e3f3c]">' + program.collegeCode + ' — ' + program.collegeName + ' &middot; Holland Code: ' + program.hollandCode + '</p>';
-        openDetailsModal();
-        return;
-      }
-      const saveBtn = e.target.closest('.save-career-btn');
-      if (saveBtn) {
-        const programId = Number(saveBtn.dataset.id);
-        const res = await fetch('api/saved-programs.php', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ programId: programId })
-        });
-        const data = await res.json();
-        savedIds = data.saved ? savedIds.concat([programId]) : savedIds.filter(function(id) { return id !== programId; });
-        saveBtn.outerHTML = saveBtnHtml(allPrograms[programId]);
-        const newBtn = document.querySelector('.save-career-btn[data-id="' + programId + '"]');
-        if (newBtn) newBtn.classList.add('option-selected-pop');
-      }
-    });
-
-    const modal = document.getElementById('detailsModal');
-    function closeDetailsModal() {
-      modal.classList.remove('is-open');
-      setTimeout(function() { modal.classList.add('hidden'); }, 260);
-    }
-    document.getElementById('detailsModalClose').addEventListener('click', closeDetailsModal);
-    document.getElementById('detailsModalOk').addEventListener('click', closeDetailsModal);
-    modal.addEventListener('click', function(e) { if (e.target.id === 'detailsModal') closeDetailsModal(); });
-    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeDetailsModal(); });
-  }
-
-  function openDetailsModal() {
-    const modal = document.getElementById('detailsModal');
-    modal.classList.remove('hidden');
-    setTimeout(function() { modal.classList.add('is-open'); }, 16);
   }
 })();
 </script>
