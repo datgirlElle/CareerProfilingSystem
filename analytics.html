@@ -482,7 +482,7 @@
   const strandFilter = document.getElementById('strandFilter');
   const sectionFilter = document.getElementById('sectionFilter');
 
-  filtersBtn.addEventListener('click', (e) => { e.stopPropagation(); filtersPanel.classList.toggle('hidden'); });
+  filtersBtn.addEventListener('click', (e) => { e.stopPropagation(); filtersPanel.classList.toggle('hidden'); if (!filtersPanel.classList.contains('hidden')) refreshSections(); });
   filtersPanel.addEventListener('click', (e) => e.stopPropagation());
   document.addEventListener('click', () => filtersPanel.classList.add('hidden'));
 
@@ -502,6 +502,18 @@
     sectionFilter.value = sections.includes(previous) ? previous : '';
   }
   strandFilter.addEventListener('change', renderSectionOptions);
+  // Read the section list again each time the panel opens, so a section added a moment ago is already there.
+  async function refreshSections() {
+    try {
+      const res = await fetch('api/sections.php?all=1');
+      if (!res.ok) return;
+      const map = { STEM: [], ABM: [], ICT: [], HUMSS: [] };
+      (await res.json()).sections.forEach(s => { (map[s.strand] = map[s.strand] || []).push(s.code); });
+      Object.keys(map).forEach(k => map[k].sort());
+      sectionsByStrand = map;
+      renderSectionOptions();
+    } catch (e) { /* keep the list we have */ }
+  }
 
   document.getElementById('applyStrandFilter').addEventListener('click', () => {
     filtersPanel.classList.add('hidden');

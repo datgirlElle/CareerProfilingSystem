@@ -159,7 +159,7 @@
               </div>
               <div class="flex items-center gap-2">
                 <span class="inline-flex w-4 h-4 items-center justify-center rounded-full border border-amber-500"><img src="images/security/icon-dash-orange.svg" alt="" class="w-1.5 h-0.5"></span>
-                <span class="text-xs text-slate-500">Limited Access</span>
+                <span class="text-xs text-slate-500">View Only</span>
               </div>
               <div class="flex items-center gap-2">
                 <span class="inline-flex w-4 h-4 items-center justify-center rounded-full border border-red-500"><img src="images/security/icon-x-red.svg" alt="" class="w-2 h-2"></span>
@@ -536,10 +536,10 @@
       { id: 'announcements', label: 'Announcements', desc: 'Send updates to students', icon: 'images/security/icon-module-announcements.svg', iconClass: 'w-4 h-4 mt-0.5' },
       { id: 'examinations', label: 'Assessment Scheduling', desc: 'Assessment schedules and rooms', icon: 'images/security/icon-module-examinations.svg', iconClass: 'w-4 h-4 mt-0.5' },
       { id: 'counselingNotes', label: 'Counseling Notes', desc: 'Session notes on student profiles', icon: 'images/security/icon-module-counseling-notes.svg', iconClass: 'w-3.5 h-4 mt-0.5' },
-      { id: 'sections', label: 'Section Management', desc: 'Account Management. Limited: add sections. Full: also deactivate them', icon: 'images/security/icon-people.svg', iconClass: 'w-4 h-4 mt-0.5' }
+      { id: 'sections', label: 'Section Management', desc: 'Account Management. Full: add and deactivate sections. View Only: look at them', icon: 'images/security/icon-people.svg', iconClass: 'w-4 h-4 mt-0.5' }
     ];
     const ROLES = ['admin', 'counselor', 'student'];
-    const LEVEL_LABEL = { full: 'Full Access', limited: 'Limited Access', none: 'No Access' };
+    const LEVEL_LABEL = { full: 'Full Access', limited: 'View Only', none: 'No Access' };
     let state = null;
 
     async function loadState() {
@@ -677,7 +677,7 @@
 
     function permIcon(level) {
       if (level === 'full') return '<span class="inline-flex w-5 h-5 items-center justify-center rounded-full border border-green-600"><img src="images/security/icon-check-green.svg" alt="Full Access" class="w-2.5 h-2"></span>';
-      if (level === 'limited') return '<span class="inline-flex w-5 h-5 items-center justify-center rounded-full border border-amber-500"><img src="images/security/icon-dash-orange.svg" alt="Limited Access" class="w-2 h-0.5"></span>';
+      if (level === 'limited') return '<span class="inline-flex w-5 h-5 items-center justify-center rounded-full border border-amber-500"><img src="images/security/icon-dash-orange.svg" alt="View Only" class="w-2 h-0.5"></span>';
       return '<span class="inline-flex w-5 h-5 items-center justify-center rounded-full border border-red-500"><img src="images/security/icon-x-red.svg" alt="No Access" class="w-2.5 h-2.5"></span>';
     }
 

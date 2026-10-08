@@ -59,7 +59,13 @@ class Rbac
         $stmt = $pdo->prepare('SELECT access_level FROM security_rbac WHERE module = ? AND role = ?');
         $stmt->execute([$module, $role]);
         $level = $stmt->fetchColumn();
-        return $level !== false ? $level : 'none';
+        $level = $level !== false ? $level : 'none';
+        // Students read the announcements sent to them (and mark them read); they never post, edit or delete one,
+        // so even a tampered table row can't give them more than view-only here.
+        if ($role === 'student' && $module === 'announcements' && $level === 'full') {
+            return 'limited';
+        }
+        return $level;
     }
 
     /**

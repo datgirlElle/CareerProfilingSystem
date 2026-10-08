@@ -59,6 +59,16 @@ class ExamSchedule
         return $conflicts;
     }
 
+    /** "13:30" -> "1:30 PM", "12:00" -> "12:00 NN" (noon), "00:15" -> "12:15 AM". Never 24-hour time. */
+    public static function formatTime(string $hhmm): string
+    {
+        [$h, $m] = array_map('intval', explode(':', substr($hhmm, 0, 5)));
+        if ($h === 12 && $m === 0) {
+            return '12:00 NN';
+        }
+        return sprintf('%d:%02d %s', $h % 12 === 0 ? 12 : $h % 12, $m, $h >= 12 ? 'PM' : 'AM');
+    }
+
     /** @param string $examDate Y-m-d  @param string $endTime H:i or H:i:s */
     public static function hasEnded(string $examDate, string $endTime, ?DateTimeImmutable $now = null): bool
     {

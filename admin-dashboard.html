@@ -174,7 +174,13 @@
         <div class="border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h2 class="text-lg font-bold text-gray-900">Student Progress by Section</h2>
-            <p class="text-xs text-gray-500 mt-1">How many students in each section have registered and how many have been assessed, out of everyone expected in the section. The assessed bar is <span class="inline-flex items-center gap-1"><span style="width:10px;height:10px;border-radius:2px;background:#059669;display:inline-block"></span> green</span> when the section is at or above the target and <span class="inline-flex items-center gap-1"><span style="width:10px;height:10px;border-radius:2px;background:#dc2626;display:inline-block"></span> red</span> when it is below. Hover a bar for the numbers.</p>
+            <p class="text-xs text-gray-500 mt-1">Registered and assessed students in each section.</p>
+            <div class="text-xs text-gray-600" style="display:flex;flex-wrap:wrap;align-items:center;margin-top:8px;row-gap:4px" aria-label="Chart colors">
+              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#93c5fd;display:inline-block"></span>Registered</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#059669;display:inline-block"></span>Assessed, on target</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#dc2626;display:inline-block"></span>Assessed, below target</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:16px;border-top:2px dashed #0f2a6b;display:inline-block"></span>Target</span>
+            </div>
           </div>
           <div class="flex items-center gap-2 text-sm">
             <span class="text-gray-600">Target: <span id="targetValue" class="font-semibold text-gray-900">80%</span></span>
@@ -188,24 +194,30 @@
         <div class="px-6 pt-4"><p id="completionSummaryLine" class="text-sm text-gray-700"></p></div>
         <div class="p-6 pt-3"><div id="completionChartBox" style="position:relative;height:260px"><canvas id="sectionCompletionChart" aria-label="Registered and assessed students by section, against the target"></canvas></div></div>
       </div>
-      <div id="sectionSummaryCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-8">
-        <div class="border-b border-gray-200 px-6 py-4">
-          <h2 class="text-lg font-bold text-gray-900">Students by Section</h2>
-          <p class="text-xs text-gray-500 mt-1">Pick a section to see who has completed the assessment, who is pending, who has not registered and who is mismatched.</p>
-        </div>
-        <div class="px-6 pb-6 border-t border-gray-100 pt-5">
-          <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-3">Who is where <span class="normal-case font-normal">&mdash; pick a section</span></p>
-          <div class="flex flex-wrap items-center gap-2 mb-3" id="sectionPicker"></div>
-          <div class="flex flex-wrap items-center gap-2 mb-4">
-            <span class="text-xs text-gray-500">Download for the section picked above:</span>
-            <button type="button" id="dlNotRegistered" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not registered (CSV)</button>
-            <button type="button" id="dlNotAssessed" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not assessed (CSV)</button>
+      <div id="statusCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-8">
+        <div class="border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-gray-900">Student Status</h2>
+            <p class="text-xs text-gray-500 mt-1">Assessed, pending and not registered students.</p>
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" id="sectionPeople"></div>
+          <div class="flex items-center gap-2">
+            <label for="statusSection" class="text-sm text-gray-600">Section</label>
+            <select id="statusSection" class="border border-gray-300 rounded-md px-3 py-2 text-sm"></select>
+          </div>
+        </div>
+        <div class="p-6">
+          <div id="statusChartBox" style="position:relative;height:300px"><canvas id="statusChart" aria-label="Assessed, pending and not registered students"></canvas></div>
+          <p id="statusEmpty" class="hidden text-sm text-gray-500 text-center py-10">No students in this section yet.</p>
+        </div>
+        <div class="px-6 pb-6 flex flex-wrap items-center gap-2">
+          <span class="text-xs text-gray-500">Download for the section picked above:</span>
+          <button type="button" id="dlNotRegistered" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not registered (CSV)</button>
+          <button type="button" id="dlNotAssessed" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not assessed (CSV)</button>
         </div>
       </div>
       <!-- Data Table Section -->
-      <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+      <!-- No overflow-hidden here: the Filters drop-down hangs below its button and must be able to extend past a short table. -->
+      <div class="bg-white border border-gray-200 rounded-xl shadow-sm">
 
         <div class="border-b border-gray-200 flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between px-4 sm:px-6 py-5 gap-3">
           <div>
@@ -238,7 +250,9 @@
                   </div>
                   <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Section</label>
-                    <input type="text" id="filterSection" placeholder="Choose a strand first" disabled class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed">
+                    <select id="filterSection" aria-label="Section" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
+                      <option value="">All Sections</option>
+                    </select>
                   </div>
                   <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Assessment Status</label>
@@ -431,50 +445,46 @@
   const noResults = document.getElementById('noResults');
   const tbody = document.getElementById('studentTbody');
   const state = { search: '', strand: '', section: '', status: '', counseling: '', registration: '', assessment: '' };
-  let sectionSelected = ''; // '' = all sections, otherwise "STRAND|SECTION"
+  let statusSection = ''; // '' = all sections, otherwise "STRAND|SECTION"
+  let statusChart = null;
 
-  // The names behind the numbers: who completed, who is still pending, who has not registered
-  // (on the roster but no account yet) and who is mismatched, for all sections or the chosen one.
-  function renderSectionPeople(secRows) {
-    if (sectionSelected && !secRows.some(function(s) { return s.strand + '|' + s.section === sectionSelected; })) sectionSelected = '';
-    const chip = function(active) {
-      return 'px-3 py-1.5 rounded-full text-xs font-medium border ' + (active ? 'bg-[#0f2a6b] text-white border-[#0f2a6b]' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50');
-    };
-    document.getElementById('sectionPicker').innerHTML =
-      '<button type="button" class="section-chip ' + chip(sectionSelected === '') + '" data-key="">All sections</button>' +
-      secRows.map(function(s) {
-        const key = s.strand + '|' + s.section;
-        return '<button type="button" class="section-chip ' + chip(sectionSelected === key) + '" data-key="' + escapeHtml(key) + '">' + escapeHtml(s.strand) + ' ' + escapeHtml(s.section) + '</button>';
-      }).join('');
-    const chosen = secRows.filter(function(s) { return !sectionSelected || s.strand + '|' + s.section === sectionSelected; });
-    const groups = [
-      { key: 'completed', title: 'Completed', dot: '#059669' },
-      { key: 'pending', title: 'Pending', dot: '#d97706' },
-      { key: 'notRegistered', title: 'Not Registered', dot: '#3b82f6', note: 'On the roster, no account yet' },
-      { key: 'mismatched', title: 'Mismatched', dot: '#9333ea', note: 'Chosen program not in Top Matches' }
-    ];
-    document.getElementById('sectionPeople').innerHTML = groups.map(function(g) {
-      const people = [];
-      chosen.forEach(function(s) {
-        s.people[g.key].forEach(function(p) { people.push({ name: p.name, userId: p.userId, where: s.section }); });
-      });
-      people.sort(function(a, b) { return a.name.localeCompare(b.name); });
-      const items = people.length ? people.map(function(p) {
-        const label = escapeHtml(p.name) + ' <span class="text-xs text-gray-400">' + escapeHtml(p.where) + '</span>';
-        return '<li class="py-1.5 text-sm text-gray-800">' + (p.userId ? '<a class="hover:underline" href="student-profile?id=' + p.userId + '">' + label + '</a>' : label) + '</li>';
-      }).join('') : '<li class="py-2 text-sm text-gray-400">None</li>';
-      return '<div class="border border-gray-200 rounded-lg">' +
-        '<div class="flex items-center justify-between px-4 py-3 border-b border-gray-100"><span class="flex items-center gap-2 text-sm font-semibold text-gray-900"><span style="width:10px;height:10px;border-radius:9999px;background:' + g.dot + '"></span>' + g.title + '</span>' +
-        '<span class="text-sm font-semibold text-gray-700">' + people.length + '</span></div>' +
-        (g.note ? '<p class="px-4 pt-2 text-xs text-gray-400">' + g.note + '</p>' : '') +
-        '<ul class="px-4 pb-2 divide-y divide-gray-100" style="max-height:240px;overflow-y:auto">' + items + '</ul></div>';
+  // A pie of where the students stand (assessed, pending, not registered) for all sections or the chosen one.
+  function renderStatus(secRows) {
+    document.getElementById('statusCard').classList.toggle('hidden', secRows.length === 0);
+    if (statusSection && !secRows.some(function(s) { return s.strand + '|' + s.section === statusSection; })) statusSection = '';
+    const select = document.getElementById('statusSection');
+    select.innerHTML = '<option value="">All sections</option>' + secRows.map(function(s) {
+      const key = s.strand + '|' + s.section;
+      return '<option value="' + escapeHtml(key) + '"' + (key === statusSection ? ' selected' : '') + '>' + escapeHtml(s.strand) + ' ' + escapeHtml(s.section) + '</option>';
     }).join('');
+
+    const chosen = secRows.filter(function(s) { return !statusSection || s.strand + '|' + s.section === statusSection; });
+    const sum = function(k) { return chosen.reduce(function(n, s) { return n + s[k]; }, 0); };
+    const counts = [sum('completed'), sum('pending'), sum('notRegistered')];
+    const total = counts[0] + counts[1] + counts[2];
+    if (statusChart) { statusChart.destroy(); statusChart = null; }
+    document.getElementById('statusChartBox').classList.toggle('hidden', total === 0);
+    document.getElementById('statusEmpty').classList.toggle('hidden', total !== 0);
+    if (!total) return;
+    const names = ['Assessed', 'Pending', 'Not registered'];
+    statusChart = new Chart(document.getElementById('statusChart').getContext('2d'), {
+      type: 'pie',
+      data: {
+        labels: names.map(function(n, i) { return n + ': ' + counts[i] + ' (' + Math.round(counts[i] / total * 100) + '%)'; }),
+        datasets: [{ data: counts, backgroundColor: ['#059669', '#d97706', '#3b82f6'], borderColor: '#ffffff', borderWidth: 2 }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { boxWidth: 12, padding: 14, font: { size: 13 } } },
+          tooltip: { callbacks: { label: function(ctx) { return ' ' + names[ctx.dataIndex] + ': ' + counts[ctx.dataIndex] + ' of ' + total + ' students'; } } }
+        }
+      }
+    });
   }
-  document.getElementById('sectionPicker').addEventListener('click', function(e) {
-    const b = e.target.closest('.section-chip');
-    if (!b) return;
-    sectionSelected = b.dataset.key;
-    renderSectionPeople(lastSectionRows);
+  document.getElementById('statusSection').addEventListener('change', function() {
+    statusSection = this.value;
+    renderStatus(lastSectionRows);
   });
   let lastSectionRows = [];
   let debounceHandle = null;
@@ -531,11 +541,7 @@
         layout: { padding: { top: 22, right: 12 } },
         scales: { x: { min: 0, max: 100, ticks: { callback: function(v) { return v + '%'; } } } },
         plugins: {
-          // The Assessed bar changes color by section, so the legend is only drawn for its two names.
-          legend: { position: 'bottom', labels: { generateLabels: function() { return [
-            { text: 'Registered', fillStyle: '#93c5fd', strokeStyle: '#93c5fd', hidden: false, index: 0 },
-            { text: 'Assessed (green at or above target, red below)', fillStyle: '#059669', strokeStyle: '#059669', hidden: false, index: 1 }
-          ]; } } },
+          legend: { display: false },
           tooltip: { callbacks: { label: function(ctx) {
             const s = secRows[ctx.dataIndex];
             return ctx.datasetIndex === 0
@@ -594,8 +600,8 @@
     downloadCsv({ search: state.search, strand: state.strand, section: state.section, status: state.status, counseling: state.counseling, registration: state.registration, assessment: state.assessment });
   });
   function pickedSectionParams() {
-    if (!sectionSelected) return {};
-    const parts = sectionSelected.split('|');
+    if (!statusSection) return {};
+    const parts = statusSection.split('|');
     return { strand: parts[0], section: parts[1] };
   }
   document.getElementById('dlNotRegistered').addEventListener('click', function() { downloadCsv(Object.assign({ registration: 'notRegistered' }, pickedSectionParams())); });
@@ -670,11 +676,9 @@
     // Mismatched is a share of the students who finished the assessment.
     document.getElementById('cardMismatchedPct').textContent = data.summary.completedCount > 0 ? Math.round((data.summary.mismatchedCount / data.summary.completedCount) * 100) + '% of completed' : '—';
 
-    // Sections at a glance: a pie of each section's share of all students.
     const secRows = data.sections || [];
-    document.getElementById('sectionSummaryCard').classList.toggle('hidden', secRows.length === 0);
     lastSectionRows = secRows;
-    renderSectionPeople(secRows);
+    renderStatus(secRows);
     renderCompletion(secRows, data.completionTarget || 80);
     noResults.classList.toggle('hidden', data.students.length !== 0);
     tbody.innerHTML = data.students.length
@@ -727,20 +731,38 @@
             load();
     }, 300);
   });
-  // The section filter only makes sense within a strand, so it stays off while All Strands is selected.
-  function syncSectionFilter() {
+  // The Section filter is a drop-down of the sections the Head of Guidance / counselors maintain (Account
+  // Management), read fresh each time the panel opens so a section added a moment ago is already there.
+  // With All Strands it lists every section; with one strand, just that strand's.
+  let sectionOptions = []; // [{ strand, code, isActive }]
+  function renderSectionFilter() {
     const sec = document.getElementById('filterSection');
-    const hasStrand = document.getElementById('filterStrand').value !== '';
-    sec.disabled = !hasStrand;
-    sec.placeholder = hasStrand ? 'e.g. S1114' : 'Choose a strand first';
-    if (!hasStrand) sec.value = '';
+    const strand = document.getElementById('filterStrand').value;
+    const previous = sec.value;
+    const list = sectionOptions.filter(function(s) { return !strand || s.strand === strand; });
+    sec.innerHTML = '<option value="">All Sections</option>' + list.map(function(s) {
+      return '<option value="' + escapeHtml(s.code) + '">' + escapeHtml(s.code) + (strand ? '' : ' (' + escapeHtml(s.strand) + ')') + (s.isActive ? '' : ' (inactive)') + '</option>';
+    }).join('');
+    sec.value = list.some(function(s) { return s.code === previous; }) ? previous : '';
   }
-  document.getElementById('filterStrand').addEventListener('change', syncSectionFilter);
-  syncSectionFilter();
-
+  async function refreshSectionFilter() {
+    try {
+      let res = await fetch('api/sections.php?all=1');
+      if (!res.ok) res = await fetch('api/sections.php'); // no access to the full list: fall back to the active ones
+      const data = await res.json();
+      sectionOptions = data.sections
+        ? data.sections
+        : Object.keys(data.sectionsByStrand || {}).flatMap(function(strand) { return data.sectionsByStrand[strand].map(function(code) { return { strand: strand, code: code, isActive: true }; }); });
+      sectionOptions.sort(function(a, b) { return a.strand.localeCompare(b.strand) || a.code.localeCompare(b.code); });
+    } catch (e) { /* keep the list we already have */ }
+    renderSectionFilter();
+  }
+  document.getElementById('filterStrand').addEventListener('change', renderSectionFilter);
+  document.getElementById('filterBtn').addEventListener('click', refreshSectionFilter);
+  refreshSectionFilter();
   document.getElementById('applyFilters').addEventListener('click', () => {
     state.strand = document.getElementById('filterStrand').value;
-    state.section = document.getElementById('filterSection').value.trim();
+    state.section = document.getElementById('filterSection').value;
     state.status = document.getElementById('filterStatus').value;
     state.counseling = document.getElementById('filterCounseling').value;
     state.registration = document.getElementById('filterRegistration').value;
@@ -751,7 +773,7 @@
   document.getElementById('clearFilters').addEventListener('click', () => {
     document.getElementById('filterStrand').value = '';
     document.getElementById('filterSection').value = '';
-    syncSectionFilter();
+    renderSectionFilter();
     document.getElementById('filterStatus').value = '';
     document.getElementById('filterCounseling').value = '';
     document.getElementById('filterRegistration').value = '';

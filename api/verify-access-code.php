@@ -92,7 +92,7 @@ foreach ($candidates as $c) {
 }
 if ($matchedScheduleId === null) {
     if ($notStartedMatch !== null) {
-        $opens = (new DateTimeImmutable($notStartedMatch['exam_date'] . ' ' . substr($notStartedMatch['start_time'], 0, 5), new DateTimeZone('Asia/Manila')))->format('F j, Y \\a\\t g:i A');
+        $opens = (new DateTimeImmutable($notStartedMatch['exam_date'], new DateTimeZone('Asia/Manila')))->format('F j, Y') . ' at ' . ExamSchedule::formatTime($notStartedMatch['start_time']);
         AuditLogger::log($user['id'], 'student', 'access_code_failed', 'assessment', null, 'Assessment has not started yet');
         jsonResponse(['success' => false, 'error' => "This assessment has not started yet. It opens on $opens."], 403);
     }

@@ -41,9 +41,16 @@ foreach ($expected as $module => $roles) {
     }
 }
 
-echo "
-=== Guidance Facilitator is view-only ===
-";
+echo "\n=== a student can only view announcements ===\n";
+$pdoCap = Database::get();
+$pdoCap->beginTransaction();
+$pdoCap->prepare("UPDATE security_rbac SET access_level = 'full' WHERE module = 'announcements' AND role = 'student'")->execute();
+check('even if the table is tampered to Full, a student is capped at view-only on announcements', Rbac::accessLevel('announcements', 'student') === 'limited');
+check('the cap is only for students: the counselor row is untouched', Rbac::accessLevel('announcements', 'counselor') === 'full');
+$pdoCap->rollBack();
+check('the real student row is view-only', Rbac::accessLevel('announcements', 'student') === 'limited');
+
+echo "\n=== Guidance Facilitator is view-only ===\n";
 check('the facilitator write list covers announcements, schedules and sections', Rbac::FACILITATOR_VIEW_ONLY === ['announcements', 'examinations', 'sections']);
 check('a student is never a facilitator', Rbac::isFacilitator(['id' => 0, 'role' => 'student']) === false);
 check('the administrator is never a facilitator', Rbac::isFacilitator(['id' => 1, 'role' => 'admin']) === false);

@@ -392,3 +392,34 @@ CREATE TABLE faqs (
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_faqs_audience_order ON faqs (audience, sort_order, id);
+
+-- Announcement templates the Guidance Counselor types and keeps (api/announcement-templates.php), so a new
+-- announcement can start from one.
+CREATE TABLE announcement_templates (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(80) NOT NULL,
+    title       VARCHAR(255) NOT NULL,
+    body        TEXT NOT NULL,
+    created_by  INT REFERENCES users(id) ON DELETE SET NULL,
+    updated_by  INT REFERENCES users(id) ON DELETE SET NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- The emailed 6-digit codes behind "Forgot password" (api/password-reset.php). A correct code returns a one-time
+-- reset token; both are stored hashed. Replaces the old emailed-link flow (password_reset_tokens, now unused).
+CREATE TABLE password_reset_codes (
+    id                SERIAL PRIMARY KEY,
+    user_id           INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    portal            VARCHAR(10) NOT NULL CHECK (portal IN ('student', 'staff')),
+    code_hash         VARCHAR(255) NOT NULL,
+    attempts          INT NOT NULL DEFAULT 0,
+    expires_at        TIMESTAMPTZ NOT NULL,
+    verified_at       TIMESTAMPTZ,
+    reset_token_hash  VARCHAR(255),
+    reset_expires_at  TIMESTAMPTZ,
+    used_at           TIMESTAMPTZ,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_password_reset_codes_user ON password_reset_codes (user_id, id);
+CREATE INDEX idx_password_reset_codes_token ON password_reset_codes (reset_token_hash);

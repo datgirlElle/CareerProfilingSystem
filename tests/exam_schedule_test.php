@@ -62,5 +62,13 @@ check('a session later today -> upcoming, with its start', (function () use ($se
 check('only past sessions -> ended', ExamSchedule::windowFor([$session], $at('2026-10-12 11:00:00'))['state'] === 'ended');
 check('several sessions: the soonest upcoming one is reported', (function () use ($session, $at) { $later = ['examDate' => '2026-10-14', 'startTime' => '13:00', 'endTime' => '15:00']; $w = ExamSchedule::windowFor([$later, $session], $at('2026-10-11 09:00:00')); return $w['state'] === 'upcoming' && $w['examDate'] === '2026-10-12'; })());
 check('a past session plus a future one -> upcoming, not ended', ExamSchedule::windowFor([$session, ['examDate' => '2026-10-20', 'startTime' => '08:00', 'endTime' => '10:00']], $at('2026-10-13 09:00:00'))['state'] === 'upcoming');
+echo "\n=== times are written 12-hour, never 24-hour ===\n";
+check('morning: 08:30 -> 8:30 AM', ExamSchedule::formatTime('08:30') === '8:30 AM');
+check('afternoon: 13:45 -> 1:45 PM', ExamSchedule::formatTime('13:45') === '1:45 PM');
+check('noon: 12:00 -> 12:00 NN', ExamSchedule::formatTime('12:00') === '12:00 NN');
+check('just after noon is PM, not NN: 12:05 -> 12:05 PM', ExamSchedule::formatTime('12:05') === '12:05 PM');
+check('midnight: 00:00 -> 12:00 AM and 00:15 -> 12:15 AM', ExamSchedule::formatTime('00:00') === '12:00 AM' && ExamSchedule::formatTime('00:15') === '12:15 AM');
+check('late evening: 23:59 -> 11:59 PM', ExamSchedule::formatTime('23:59') === '11:59 PM');
+check('seconds from the database are ignored: 09:00:00 -> 9:00 AM', ExamSchedule::formatTime('09:00:00') === '9:00 AM');
 echo "\n=== Summary: $passed passed, $failures failed ===\n";
 exit($failures > 0 ? 1 : 0);

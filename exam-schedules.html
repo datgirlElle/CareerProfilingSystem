@@ -38,6 +38,7 @@
     </div>
     <nav id="adminNav" data-active="exam-schedules" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
     <script src="js/admin-nav.js"></script>
+    <script src="js/time-format.js"></script>
     <div class="border-t border-white/5 pt-[25px] pb-6">
       <a href="staff-login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
         <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>
@@ -181,27 +182,19 @@
             <div>
               <label class="block text-xs font-medium text-slate-600 mb-1" for="fExamDate">Assessment Date</label>
               <input type="date" id="fExamDate" required class="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
-              <div class="flex items-center gap-2 mt-2">
-                <button type="button" class="quick-date px-2.5 py-1 text-xs font-medium text-slate-600 border border-slate-300 rounded-full hover:bg-slate-50" data-offset="today">Today</button>
-                <button type="button" class="quick-date px-2.5 py-1 text-xs font-medium text-slate-600 border border-slate-300 rounded-full hover:bg-slate-50" data-offset="tomorrow">Tomorrow</button>
-                <button type="button" class="quick-date px-2.5 py-1 text-xs font-medium text-slate-600 border border-slate-300 rounded-full hover:bg-slate-50" data-offset="monday">Next Monday</button>
-              </div>
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="flex flex-col gap-3">
               <div>
-                <label class="block text-xs font-medium text-slate-600 mb-1" for="fStartTime">Start Time</label>
-                <input type="time" id="fStartTime" required step="1800" class="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+                <span class="block text-xs font-medium text-slate-600 mb-1" id="fStartTimeLabel">Start Time</span>
+                <div id="fStartTimeBox"></div>
+                <input type="hidden" id="fStartTime">
               </div>
               <div>
-                <label class="block text-xs font-medium text-slate-600 mb-1" for="fEndTime">End Time</label>
-                <input type="time" id="fEndTime" required step="1800" class="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+                <span class="block text-xs font-medium text-slate-600 mb-1" id="fEndTimeLabel">End Time</span>
+                <div id="fEndTimeBox"></div>
+                <input type="hidden" id="fEndTime">
               </div>
-            </div>
-            <div class="flex items-center gap-2 -mt-2">
-              <span class="text-xs text-slate-500">Duration:</span>
-              <button type="button" class="quick-duration px-2.5 py-1 text-xs font-medium text-slate-600 border border-slate-300 rounded-full hover:bg-slate-50" data-minutes="60">1h</button>
-              <button type="button" class="quick-duration px-2.5 py-1 text-xs font-medium text-slate-600 border border-slate-300 rounded-full hover:bg-slate-50" data-minutes="120">2h</button>
-              <button type="button" class="quick-duration px-2.5 py-1 text-xs font-medium text-slate-600 border border-slate-300 rounded-full hover:bg-slate-50" data-minutes="180">3h</button>
+              <p class="text-xs text-slate-500 -mt-1">Times are written like 8:00 AM, 12:00 NN (noon) or 1:30 PM.</p>
             </div>
             <p id="createDateError" class="hidden text-xs text-[#ed1c24]"></p>
             <div>
@@ -438,7 +431,7 @@
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
-                <p class="text-sm font-semibold text-slate-900">${escapeHtml(s.startTime)}–${escapeHtml(s.endTime)} · ${escapeHtml(s.room)}</p>
+                <p class="text-sm font-semibold text-slate-900">${escapeHtml(TimeFmt.format(s.startTime))}–${escapeHtml(TimeFmt.format(s.endTime))} · ${escapeHtml(s.room)}</p>
                 ${statusChip(s)}
               </div>
               <p class="text-xs text-slate-500 mt-0.5">${escapeHtml(scopeLabel(s))}</p>
@@ -487,7 +480,7 @@
     banner.innerHTML = '<p class="font-semibold">Room conflict check: ' + conflicts.length + ' overlap' + (conflicts.length === 1 ? '' : 's') + ' found</p>' +
       '<ul class="list-disc pl-5 mt-1 text-xs flex flex-col gap-0.5">' + conflicts.map(function(c) {
         return '<li>' + escapeHtml(c.room) + ' on ' + escapeHtml(formatDate(c.examDate)) + ': ' +
-          escapeHtml(c.a.startTime) + '–' + escapeHtml(c.a.endTime) + ' overlaps ' + escapeHtml(c.b.startTime) + '–' + escapeHtml(c.b.endTime) + '</li>';
+          escapeHtml(TimeFmt.format(c.a.startTime)) + '–' + escapeHtml(TimeFmt.format(c.a.endTime)) + ' overlaps ' + escapeHtml(TimeFmt.format(c.b.startTime)) + '–' + escapeHtml(TimeFmt.format(c.b.endTime)) + '</li>';
       }).join('') + '</ul>';
   }
 
@@ -502,7 +495,7 @@
       return b.examDate === date && roomKey(b.room) === roomKey(room) && start < b.endTime && b.startTime < end;
     });
     if (clash) {
-      hint.textContent = room.trim().replace(/\s+/g, ' ') + ' is already booked ' + clash.startTime + '–' + clash.endTime + ' on that date.';
+      hint.textContent = room.trim().replace(/\s+/g, ' ') + ' is already booked ' + TimeFmt.format(clash.startTime) + '–' + TimeFmt.format(clash.endTime) + ' on that date.';
       hint.classList.remove('hidden');
     } else {
       hint.classList.add('hidden');
@@ -592,41 +585,9 @@
   fExamDateEl.addEventListener('change', applyDateGuard);
   applyDateGuard();
 
-  // Quick-fill helpers: date shortcuts and "end time = start + 1/2/3 hours".
-  function ymd(d) {
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-  }
-  document.querySelectorAll('.quick-date').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      const d = new Date();
-      if (btn.dataset.offset === 'tomorrow') d.setDate(d.getDate() + 1);
-      if (btn.dataset.offset === 'monday') d.setDate(d.getDate() + (((1 - d.getDay() + 7) % 7) || 7));
-      fExamDateEl.value = ymd(d);
-      document.getElementById('createDateError').classList.add('hidden');
-      applyDateGuard();
-      updateRoomConflictHint();
-    });
-  });
-  document.querySelectorAll('.quick-duration').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      const errorEl = document.getElementById('createDateError');
-      errorEl.classList.add('hidden');
-      if (!fStartTimeEl.value) {
-        errorEl.textContent = 'Pick a start time first, then choose a duration.';
-        errorEl.classList.remove('hidden');
-        return;
-      }
-      const parts = fStartTimeEl.value.split(':');
-      const end = Number(parts[0]) * 60 + Number(parts[1]) + Number(btn.dataset.minutes);
-      if (end >= 24 * 60) {
-        errorEl.textContent = 'That duration would run past midnight. Pick an earlier start time.';
-        errorEl.classList.remove('hidden');
-        return;
-      }
-      fEndTimeEl.value = String(Math.floor(end / 60)).padStart(2, '0') + ':' + String(end % 60).padStart(2, '0');
-      updateRoomConflictHint();
-    });
-  });
+  // Start and end time: hour / minute / AM-PM-NN drop-downs (js/time-format.js), never 24-hour time.
+  const startPicker = TimeFmt.picker(document.getElementById('fStartTimeBox'), fStartTimeEl, 'Start');
+  const endPicker = TimeFmt.picker(document.getElementById('fEndTimeBox'), fEndTimeEl, 'End');
   [fExamDateEl, fStartTimeEl, fEndTimeEl, document.getElementById('fRoom')].forEach(function(el) {
     el.addEventListener('input', updateRoomConflictHint);
     el.addEventListener('change', updateRoomConflictHint);
@@ -634,16 +595,27 @@
 
   const fStrandEl = document.getElementById('fStrand');
   const fSectionEl = document.getElementById('fSection');
+  // With All strands the drop-down lists every section ("S1114 (STEM)"); picking one fills in its strand.
+  // With one strand it lists just that strand's sections.
   function updateSectionOptions() {
-    const sections = SECTIONS_BY_STRAND[fStrandEl.value] || [];
+    const strand = fStrandEl.value;
+    const previous = fSectionEl.value;
+    const entries = [];
+    Object.keys(SECTIONS_BY_STRAND).forEach(function(s) {
+      if (!strand || s === strand) SECTIONS_BY_STRAND[s].forEach(function(code) { entries.push({ strand: s, code: code }); });
+    });
     fSectionEl.innerHTML = '<option value="">All Sections</option>';
-    if (!sections.length) {
-      fSectionEl.disabled = true;
-      return;
-    }
-    fSectionEl.disabled = false;
-    sections.forEach(code => fSectionEl.appendChild(new Option(code, code)));
+    entries.forEach(function(e) { fSectionEl.appendChild(new Option(strand ? e.code : e.code + ' (' + e.strand + ')', e.code)); });
+    fSectionEl.disabled = entries.length === 0;
+    fSectionEl.value = entries.some(function(e) { return e.code === previous; }) ? previous : '';
   }
+  fSectionEl.addEventListener('change', function() {
+    if (!fSectionEl.value || fStrandEl.value) return;
+    for (const s of Object.keys(SECTIONS_BY_STRAND)) {
+      if (SECTIONS_BY_STRAND[s].indexOf(fSectionEl.value) !== -1) { fStrandEl.value = s; break; }
+    }
+    updateSectionOptions();
+  });
   fStrandEl.addEventListener('change', updateSectionOptions);
 
   document.getElementById('createForm').addEventListener('submit', async (e) => {
@@ -657,6 +629,11 @@
 
     const examDate = document.getElementById('fExamDate').value;
     const startTime = document.getElementById('fStartTime').value;
+    if (!startTime || !document.getElementById('fEndTime').value) {
+      dateErrorEl.textContent = 'Choose both the start time and the end time (hour, minutes and AM, PM or NN).';
+      dateErrorEl.classList.remove('hidden');
+      return;
+    }
     if (examDate < todayStr()) {
       dateErrorEl.textContent = 'Assessment date can\'t be in the past.';
       dateErrorEl.classList.remove('hidden');

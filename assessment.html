@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="js/csrf.js"></script>
+<script src="js/time-format.js"></script>
 <title>My Assessments — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -302,7 +303,7 @@
         const date = new Date(s.examDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
         const label = 'Career Interest Assessment';
         return '<div class="border-l-[3px] border-[#19427b] pl-4 py-1">' +
-          '<p class="text-sm font-semibold text-[#001a40]">' + date + ' &middot; ' + escapeHtml(s.startTime) + '&ndash;' + escapeHtml(s.endTime) + '</p>' +
+          '<p class="text-sm font-semibold text-[#001a40]">' + date + ' &middot; ' + escapeHtml(TimeFmt.format(s.startTime)) + '&ndash;' + escapeHtml(TimeFmt.format(s.endTime)) + '</p>' +
           '<p class="text-sm text-slate-600 mt-1">Room ' + escapeHtml(s.room) + ' &mdash; ' + label + '</p>' +
         '</div>';
       }).join('');
@@ -347,7 +348,7 @@
         btn.className = 'inline-block bg-slate-200 text-slate-400 text-[15px] font-semibold rounded-md px-8 py-3.5 pointer-events-none';
         const fmt = function(d, hhmm) {
           const when = new Date(d + 'T' + hhmm + ':00');
-          return when.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) + ' at ' + when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+          return when.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) + ' at ' + TimeFmt.format(hhmm);
         };
         const note = document.getElementById('riasecWindowNote');
         document.getElementById('riasecStatusText').textContent = w.state === 'upcoming' ? 'Not open yet' : (w.state === 'ended' ? 'Session ended' : 'Not scheduled');

@@ -6,6 +6,23 @@
  */
 class PasswordPolicy
 {
+    /**
+     * The rules in force (Security Configuration), so a page can show the same checklist the server will enforce.
+     *
+     * @return array{minLength:int,requireUpper:bool,requireLower:bool,requireNumber:bool,requireSymbol:bool}
+     */
+    public static function rules(PDO $pdo): array
+    {
+        $rows = $pdo->query("SELECT key, value FROM security_policies WHERE key LIKE 'password.%'")->fetchAll(PDO::FETCH_KEY_PAIR);
+        return [
+            'minLength' => (int) ($rows['password.minLength'] ?? 8),
+            'requireUpper' => ($rows['password.requireUpper'] ?? 'true') === 'true',
+            'requireLower' => ($rows['password.requireLower'] ?? 'true') === 'true',
+            'requireNumber' => ($rows['password.requireNumber'] ?? 'true') === 'true',
+            'requireSymbol' => ($rows['password.requireSymbol'] ?? 'true') === 'true',
+        ];
+    }
+
     /** @return array<int,string> human-readable problems; empty when the password is acceptable */
     public static function errors(PDO $pdo, string $password): array
     {
