@@ -19,13 +19,13 @@ function check(string $label, bool $condition): void
 }
 
 // tests/fixtures/roster_excel.xlsx was saved by Excel: Strand STEM, Section ZZXLSX,
-// three students — one LRN typed as a plain number (what breaks in a CSV), one as
+// three students — one Student Number typed as a plain number (what breaks in a CSV), one as
 // text, one with accents after an empty row.
 echo "=== a roster saved from Excel as .xlsx ===\n";
 $rows = XlsxReader::readRows(__DIR__ . '/fixtures/roster_excel.xlsx');
 check('rows are read with their sheet row numbers (the empty row 6 is kept)', count($rows) === 7 && $rows[5] === []);
 check('header row is read', $rows[2] === ['Learning ID', 'Lastname', 'Firstname', 'Middle']);
-check('a number-formatted 12-digit LRN comes back as whole digits', $rows[3][0] === '444400000001');
+check('a number-formatted 12-digit Student Number comes back as whole digits', $rows[3][0] === '444400000001');
 $rows[1][1] = 'S1114'; // the fixture's own section code is a test marker, not a valid one
 // The fixture was saved before the Email column existed: add it, as the current template has.
 $rows[2][4] = 'Email';

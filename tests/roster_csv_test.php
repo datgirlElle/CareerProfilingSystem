@@ -45,8 +45,8 @@ $r = parseText("Strand:,STEM\nSection:,S1114\nStudent Number,Student Name\n12345
 check('a file with no Email column is refused and asks for the latest template', $r['error'] !== null && strpos($r['error'], 'no Email column') !== false);
 
 echo "\n=== older layouts still load, with an Email column ===\n";
-$old = parseText("Strand:,STEM\nSection:,S1114\nLRN,Lastname,Firstname,Middle,Email\n123456789012,Dela Cruz,Juan,Santos,jsdelacruz@live.mcl.edu.ph\n210987654321,Reyes,Ana,,anareyes@live.mcl.edu.ph\n");
-check('the LRN header with separate Lastname / Firstname / Middle columns works', $old['error'] === null && count($old['rows']) === 2);
+$old = parseText("Strand:,STEM\nSection:,S1114\nLearning ID,Lastname,Firstname,Middle,Email\n123456789012,Dela Cruz,Juan,Santos,jsdelacruz@live.mcl.edu.ph\n210987654321,Reyes,Ana,,anareyes@live.mcl.edu.ph\n");
+check('the older header with separate Lastname / Firstname / Middle columns works', $old['error'] === null && count($old['rows']) === 2);
 check('the separate columns are joined and upper-cased', $old['rows']['123456789012'][1] === 'DELA CRUZ, JUAN SANTOS' && $old['rows']['210987654321'][1] === 'REYES, ANA');
 $old = parseText("Strand:,STEM\nSection:,S1114\nLearning ID,Lastname,Firstname,Middle,Email\n123456789012,A,B,,ab@live.mcl.edu.ph\n");
 check('the Learning ID header also works', $old['error'] === null && count($old['rows']) === 1);
@@ -61,6 +61,8 @@ check('"Strand: ABM" in one cell works', $r['error'] === null && $r['strand'] ==
 echo "\n=== problems are reported ===\n";
 $r = parseText("LRN,First Name,Last Name,Strand,Section\n123456789012,Juan,Dela Cruz,STEM,S1114\n");
 check('the old five-column file is rejected with the template message', $r['error'] === RosterCsv::FORMAT_HELP);
+$r = parseText("Strand:,STEM\nSection:,S1114\nLRN,Student Name,Email\n123456789012,\"A, B\",ab@live.mcl.edu.ph\n");
+check('a file whose number column is headed LRN is not accepted: the column is Student Number', $r['error'] !== null && empty($r['rows']));
 $r = parseText("Strand:,PE\nSection:,S1114\nStudent Number,Student Name,Email\n123456789012,\"A, B\",ab@live.mcl.edu.ph\n");
 check('an unknown strand is rejected', $r['error'] !== null && strpos($r['error'], 'Strand must be') === 0);
 $r = parseText("Strand:,STEM\nSection:,\nStudent Number,Student Name,Email\n123456789012,\"A, B\",ab@live.mcl.edu.ph\n");

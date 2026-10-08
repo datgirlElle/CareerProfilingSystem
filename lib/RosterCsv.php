@@ -14,7 +14,7 @@ require_once __DIR__ . '/Sections.php';
  *
  * Names are kept in UPPER CASE as "LASTNAME, FIRSTNAME MIDDLE". Every student needs an email: announcements
  * are emailed to it and the student must register with it. The older layout with separate Lastname,
- * Firstname and Middle columns and an "LRN" header still loads, but it needs the Email column too.
+ * Firstname and Middle columns (headed "Learning ID") still loads, but it needs the Email column too.
  *
  * A file is exactly one section. api/roster-upload.php replaces that
  * section's students for the current academic year and leaves the rest alone.
@@ -134,7 +134,7 @@ class RosterCsv
             }
             return null;
         };
-        $idxId = $col(['student number', 'studentnumber', 'learning id', 'learningid', 'lrn']); // the older names still work
+        $idxId = $col(['student number', 'studentnumber', 'learning id', 'learningid']); // the older name still works
         $idxName = $col(['student name', 'studentname', 'name']);
         $idxLast = $col(['lastname', 'last name']);
         $idxFirst = $col(['firstname', 'first name']);
@@ -211,6 +211,6 @@ class RosterCsv
     private static function isHeader(array $line): bool
     {
         $first = strtolower(preg_replace('/\s+/', ' ', trim((string) ($line[0] ?? ''))));
-        return in_array($first, ['student number', 'studentnumber', 'learning id', 'learningid', 'lrn'], true);
+        return in_array($first, ['student number', 'studentnumber', 'learning id', 'learningid'], true);
     }
 }
