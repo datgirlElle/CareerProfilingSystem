@@ -53,6 +53,7 @@ check('a student is still not cut off from other modules (Recommendations stays 
 
 echo "\n=== Guidance Facilitator is view-only ===\n";
 check('the facilitator write list covers announcements, schedules and sections', Rbac::FACILITATOR_VIEW_ONLY === ['announcements', 'examinations', 'sections']);
+check('guidance counselors and facilitators can both edit and remove Question Bank questions (rac is not view-only for facilitators)', !in_array('rac', Rbac::FACILITATOR_VIEW_ONLY, true));
 check('a student is never a facilitator', Rbac::isFacilitator(['id' => 0, 'role' => 'student']) === false);
 check('the administrator is never a facilitator', Rbac::isFacilitator(['id' => 1, 'role' => 'admin']) === false);
 
