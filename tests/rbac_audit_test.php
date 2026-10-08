@@ -29,7 +29,7 @@ $expected = [
     'counselor'       => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'monitoring'      => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     // Guidance Counselors post announcements, set schedules and manage sections (a Guidance Facilitator is view-only in code).
-    'announcements'   => ['admin' => 'full', 'counselor' => 'full',    'student' => 'limited'],
+    'announcements'   => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'examinations'    => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'counselingNotes' => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'sections'        => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
@@ -41,14 +41,15 @@ foreach ($expected as $module => $roles) {
     }
 }
 
-echo "\n=== a student can only view announcements ===\n";
+echo "\n=== a student has no access to sending announcements ===\n";
 $pdoCap = Database::get();
 $pdoCap->beginTransaction();
 $pdoCap->prepare("UPDATE security_rbac SET access_level = 'full' WHERE module = 'announcements' AND role = 'student'")->execute();
-check('even if the table is tampered to Full, a student is capped at view-only on announcements', Rbac::accessLevel('announcements', 'student') === 'limited');
+check('even if the table is tampered to Full, a student has no access to announcements', Rbac::accessLevel('announcements', 'student') === 'none');
 check('the cap is only for students: the counselor row is untouched', Rbac::accessLevel('announcements', 'counselor') === 'full');
 $pdoCap->rollBack();
-check('the real student row is view-only', Rbac::accessLevel('announcements', 'student') === 'limited');
+check('the real student row is No Access', Rbac::accessLevel('announcements', 'student') === 'none');
+check('a student is still not cut off from other modules (Recommendations stays Full)', Rbac::accessLevel('recommendations', 'student') === 'full');
 
 echo "\n=== Guidance Facilitator is view-only ===\n";
 check('the facilitator write list covers announcements, schedules and sections', Rbac::FACILITATOR_VIEW_ONLY === ['announcements', 'examinations', 'sections']);

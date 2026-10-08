@@ -60,10 +60,11 @@ class Rbac
         $stmt->execute([$module, $role]);
         $level = $stmt->fetchColumn();
         $level = $level !== false ? $level : 'none';
-        // Students read the announcements sent to them (and mark them read); they never post, edit or delete one,
-        // so even a tampered table row can't give them more than view-only here.
-        if ($role === 'student' && $module === 'announcements' && $level === 'full') {
-            return 'limited';
+        // The Announcements permission is about sending them. A student has none, whatever the table says, even if a
+        // row is tampered with. (Students still read the announcements sent to them: api/announcements.php serves
+        // that to a student without this permission.)
+        if ($role === 'student' && $module === 'announcements') {
+            return 'none';
         }
         return $level;
     }

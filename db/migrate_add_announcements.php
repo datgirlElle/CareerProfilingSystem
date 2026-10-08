@@ -27,7 +27,7 @@ $rbacStmt = $pdo->prepare(
     'INSERT INTO security_rbac (module, role, access_level) VALUES (?, ?, ?)
      ON CONFLICT (module, role) DO NOTHING'
 );
-foreach (['admin' => 'full', 'counselor' => 'limited', 'student' => 'limited'] as $role => $level) {
+foreach (['admin' => 'full', 'counselor' => 'limited', 'student' => 'none'] as $role => $level) {
     $rbacStmt->execute(['announcements', $role, $level]);
 }
 

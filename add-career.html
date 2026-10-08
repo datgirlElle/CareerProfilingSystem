@@ -58,7 +58,6 @@
       </button>
       <div class="flex items-center gap-6">
 
-        <!-- Academic Year badge -->
         <div id="ayBadge" class="hidden sm:flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-full px-3 py-1">
           <span class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">AY</span>
           <span id="ayBadgeValue" class="text-xs font-semibold text-slate-700">—</span>
@@ -67,7 +66,7 @@
         <!-- Notifications -->
         <div class="relative">
           <button type="button" id="notifBtn" data-shared-toggle class="relative w-5 h-5">
-            <img src="images/admin/icon-bell.svg" alt="Notifications" class="w-full h-full">
+            <svg class="w-full h-full" viewBox="0 -960 960 960" fill="#64748B"><path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"/></svg>
             <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#ed1c24] text-white text-[10px] font-bold flex items-center justify-center"></span>
           </button>
           <div id="notifPanel" class="hidden fixed left-4 right-4 top-[76px] z-50 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+12px)] sm:w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
@@ -89,8 +88,8 @@
               <img src="images/admin/icon-avatar.svg" alt="" class="w-3.5 h-4">
             </span>
             <span class="text-left">
-              <span class="block text-sm font-semibold text-gray-800">Admin User</span>
-              <span class="block text-xs text-gray-500">Administrator</span>
+              <span class="block text-sm font-semibold text-gray-800" id="headerUserName">&nbsp;</span>
+              <span class="block text-xs text-gray-500" id="headerUserRole">&nbsp;</span>
             </span>
             <img src="images/admin/icon-chevron-down.svg" alt="" class="w-3.5 h-2">
           </button>

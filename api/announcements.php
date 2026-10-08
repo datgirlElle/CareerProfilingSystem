@@ -5,7 +5,13 @@ require_once __DIR__ . '/../lib/Mailer.php';
 require_once __DIR__ . '/../lib/EmailTemplate.php';
 require_once __DIR__ . '/../lib/AcademicYear.php';
 
-$user = Rbac::requireAccess('announcements', 'limited');
+// Sending announcements is staff-only (the Announcements permission). A student has no access to that permission,
+// but still reads the announcements sent to them and marks them read: that is all a student can do here, because
+// every write below needs Full access.
+$user = Auth::requireLogin();
+if ($user['role'] !== 'student') {
+    $user = Rbac::requireAccess('announcements', 'limited');
+}
 $pdo = Database::get();
 
 const ANNOUNCEMENT_BODY_MAX = 2000;

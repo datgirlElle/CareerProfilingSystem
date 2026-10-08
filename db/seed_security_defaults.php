@@ -10,7 +10,7 @@ $rbac = [
     'recommendations' => ['admin' => 'full', 'counselor' => 'full',    'student' => 'full'],
     'counselor'       => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'monitoring'      => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
-    'announcements'   => ['admin' => 'full', 'counselor' => 'limited', 'student' => 'limited'],
+    'announcements'   => ['admin' => 'full', 'counselor' => 'limited', 'student' => 'none'],
     'examinations'    => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'counselingNotes' => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     // limited = add sections; full = add and deactivate/reactivate them.
