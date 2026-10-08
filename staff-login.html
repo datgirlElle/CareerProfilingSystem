@@ -12,11 +12,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   body{ font-family:'Inter', sans-serif; }
-  /* tablet widths: the left panel is narrow, so the two school logos stack instead of shrinking */
+  body { overflow-x: hidden; }
+  /* tablet widths (768-1023): the left panel is narrow, so the two school logos go in a strip across the top, side by side */
+  .login-topbar { display:none; }
   @media (min-width:768px) and (max-width:1023px) {
-    .login-brand { flex-direction:column; align-items:flex-start; gap:12px !important; }
-    .login-brand span { display:none; }
-    .login-brand img { flex:none !important; width:auto; height:auto; max-width:100%; max-height:46px !important; }
+    .login-topbar { display:flex; align-items:center; gap:16px; position:absolute; top:28px; left:32px; right:32px; z-index:2; }
+    .login-topbar img { height:auto; width:auto; object-fit:contain; min-width:0; }
+    .login-topbar .lt-mmcl { max-height:54px; max-width:44%; }
+    .login-topbar .lt-cgc { max-height:46px; max-width:48%; }
+    .login-brand { display:none !important; }
   }
 </style>
 <link rel="stylesheet" href="css/motion.css">
@@ -36,9 +40,16 @@
 
   <div class="relative flex w-full min-h-screen">
 
+    <!-- Logos across the top at tablet widths -->
+    <div class="login-topbar" aria-hidden="false">
+      <img class="lt-mmcl" src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna">
+      <span aria-hidden="true" style="flex:0 0 1px;height:44px;background:#c3cad8"></span>
+      <img class="lt-cgc" src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling">
+    </div>
+
     <!-- Left: Branding -->
     <div class="hidden md:flex flex-1 relative overflow-hidden">
-      <div class="relative mt-16 mb-auto max-w-md px-8" data-reveal="left">
+      <div class="relative max-w-md px-8" style="margin-top:auto;margin-bottom:auto;padding-top:40px;padding-bottom:40px" data-reveal="left">
         <div class="login-brand flex items-center mb-6" style="gap:14px;width:100%">
           <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" style="flex:1.1 1 0;min-width:0;max-height:56px;height:auto;object-fit:contain;object-position:left">
           <span aria-hidden="true" style="flex:0 0 1px;height:44px;background:#c3cad8"></span>

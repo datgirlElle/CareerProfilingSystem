@@ -107,7 +107,7 @@ CREATE TABLE assessment_questions (
     id                  SERIAL PRIMARY KEY,
     dimension           CHAR(1) NOT NULL CHECK (dimension IN ('R', 'I', 'A', 'S', 'E', 'C')),
     question_text_enc   TEXT NOT NULL,
-    order_index         INT NOT NULL CHECK (order_index BETWEEN 1 AND 10),
+    order_index         INT NOT NULL CHECK (order_index >= 1),
     is_active           BOOLEAN NOT NULL DEFAULT TRUE,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),

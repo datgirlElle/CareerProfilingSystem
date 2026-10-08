@@ -138,12 +138,13 @@
         <div class="flex-1 h-2.5 rounded-full bg-slate-200 overflow-hidden">
           <div id="overallProgressBar" class="h-full rounded-full bg-[#ed1c24] transition-all duration-300" style="width:0%"></div>
         </div>
-        <span class="text-sm font-semibold text-[#5e3f3c] shrink-0" id="overallProgressText">1/60</span>
+        <span class="text-sm font-semibold text-[#5e3f3c] shrink-0" id="overallProgressText">&nbsp;</span>
       </div>
 
       <!-- Question Card -->
       <div id="questionCard" class="content-swap bg-white border border-[#e0e3e5] rounded-lg p-6 md:p-8 min-h-[420px] flex flex-col">
         <p class="text-xs font-semibold tracking-[0.6px] text-[#495e88] uppercase mb-3" id="questionMeta">Realistic - Question 1 out of 10</p>
+        <p class="hidden text-sm text-[#5e3f3c] mb-1" id="questionPrompt">How much would you enjoy this activity?</p>
         <h2 class="text-[#191c1e] text-lg md:text-xl font-medium mb-8" id="questionText">—</h2>
 
         <div id="optionsList" class="flex flex-col gap-3 max-w-[900px] mx-auto w-full"></div>
@@ -162,6 +163,7 @@
         </div>
       </div>
 
+      <p class="text-xs text-gray-400 text-center mt-6 max-w-2xl mx-auto">Assessment questions are from the <a href="https://www.onetcenter.org/" target="_blank" rel="noopener noreferrer" class="underline hover:text-gray-600">O*NET Mini Interest Profiler</a> by the National Center for O*NET Development for the U.S. Department of Labor, Employment and Training Administration (USDOL/ETA), used under the CC BY 4.0 license. O*NET&reg; is a trademark of USDOL/ETA. ProfilePath is not endorsed by or affiliated with O*NET.</p>
     </main>
 
       <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
@@ -274,22 +276,40 @@
 
   const questionsRes = await fetch('api/assessment-questions.php');
   const questionsData = await questionsRes.json();
+  if (!questionsRes.ok || !questionsData.questions || questionsData.questions.length === 0) {
+    document.getElementById('questionCard').innerHTML =
+      '<p class="text-[#191c1e] text-lg font-medium text-center my-auto">' +
+      (questionsData.error || 'The assessment is not available right now. Please check back soon.') + '</p>';
+    return;
+  }
   const dimensionLabels = Object.fromEntries(DIMENSIONS.map(function(d) { return [d.code, d.label]; }));
+  // The questions staff keep in the Question Bank can change, so numbers are by position within each type.
+  const positionInDim = {};
   const QUESTIONS = questionsData.questions.map(function(q) {
-    return { id: q.id, dimension: q.dimension, label: dimensionLabels[q.dimension], indexInDim: q.orderIndex, text: q.text };
+    positionInDim[q.dimension] = (positionInDim[q.dimension] || 0) + 1;
+    return { id: q.id, dimension: q.dimension, label: dimensionLabels[q.dimension], indexInDim: positionInDim[q.dimension], text: q.text };
   });
   const TOTAL = QUESTIONS.length;
+  const dimTotal = positionInDim;
+  function dimRange(dimIndex) {
+    const code = DIMENSIONS[dimIndex].code;
+    const first = QUESTIONS.findIndex(function(q) { return q.dimension === code; });
+    return { start: first, end: first + (dimTotal[code] || 0) };
+  }
+  const QUESTION_SET = QUESTIONS.map(function(q) { return q.id; }).join(',');
 
   const PROGRESS_KEY = 'assessmentProgress_' + currentUser.schoolId;
 
   function loadProgress() {
     try {
       const saved = JSON.parse(localStorage.getItem(PROGRESS_KEY));
-      if (saved && Array.isArray(saved.answers) && saved.answers.length === TOTAL) return saved;
+      // Saved answers only count if the questions are still the same ones (staff may have changed the bank since).
+      if (saved && saved.set === QUESTION_SET && Array.isArray(saved.answers) && saved.answers.length === TOTAL) return saved;
     } catch (e) {}
-    return { answers: new Array(TOTAL).fill(null) };
+    return { set: QUESTION_SET, answers: new Array(TOTAL).fill(null) };
   }
   function saveProgress(state) {
+    state.set = QUESTION_SET;
     localStorage.setItem(PROGRESS_KEY, JSON.stringify(state));
   }
 
@@ -298,8 +318,9 @@
   if (currentIndex === -1) currentIndex = TOTAL - 1;
 
   function isDimensionComplete(dimIndex) {
-    const start = dimIndex * 10;
-    for (let i = start; i < start + 10; i++) {
+    const range = dimRange(dimIndex);
+    if (range.end === range.start) return false;
+    for (let i = range.start; i < range.end; i++) {
       if (state.answers[i] === null) return false;
     }
     return true;
@@ -334,7 +355,7 @@
     wrap.querySelectorAll('.dim-tab').forEach(function(tab) {
       if (tab.dataset.completed !== 'true') return;
       tab.addEventListener('click', function() {
-        goToIndex(parseInt(tab.dataset.dimIndex, 10) * 10);
+        goToIndex(dimRange(parseInt(tab.dataset.dimIndex, 10)).start);
       });
     });
   }
@@ -420,7 +441,9 @@
 
   function renderQuestion() {
     const q = QUESTIONS[currentIndex];
-    document.getElementById('questionMeta').textContent = q.label + ' - Question ' + q.indexInDim + ' out of 10';
+    document.getElementById('questionMeta').textContent = q.label + ' - Question ' + q.indexInDim + ' out of ' + dimTotal[q.dimension];
+    // O*NET-style items are activities ("Build kitchen cabinets"); statements that already start with "I " need no prompt.
+    document.getElementById('questionPrompt').classList.toggle('hidden', /^I\s/.test(q.text));
     document.getElementById('questionText').textContent = q.text;
     // Pinned to the furthest point actually reached, not the question being
     // viewed — going back to review an earlier answer shouldn't make the

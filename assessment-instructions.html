@@ -142,8 +142,8 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="#001c43" stroke-width="2" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             </span>
             <div>
-              <p class="text-sm font-semibold text-[#191c1e] mb-1">60 Statements</p>
-              <p class="text-sm text-[#5e3f3c]">10 statements each for 6 interest areas: Realistic, Investigative, Artistic, Social, Enterprising, and Conventional.</p>
+              <p class="text-sm font-semibold text-[#191c1e] mb-1" id="statementTitle">Statements</p>
+              <p class="text-sm text-[#5e3f3c]" id="statementDesc">Statements for 6 interest areas: Realistic, Investigative, Artistic, Social, Enterprising, and Conventional.</p>
             </div>
           </div>
 
@@ -190,7 +190,7 @@
 
         <div class="bg-orange-50 border border-orange-100 rounded-lg p-4 flex gap-3 items-start mb-6">
           <svg viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2" class="w-5 h-5 shrink-0 mt-0.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
-          <p class="text-sm text-orange-800">Once you begin, you'll need to answer every question in order — you can't skip ahead or submit until all 60 are complete.</p>
+          <p class="text-sm text-orange-800">Once you begin, you'll need to answer every question in order — you can't skip ahead or submit until all of them are complete.</p>
         </div>
 
         <label class="flex items-start gap-2.5 text-sm text-[#5e3f3c] leading-relaxed mb-4 cursor-pointer">
@@ -210,6 +210,7 @@
 
       </div>
 
+      <p class="text-xs text-gray-400 text-center mt-6 max-w-2xl mx-auto">Assessment questions are from the <a href="https://www.onetcenter.org/" target="_blank" rel="noopener noreferrer" class="underline hover:text-gray-600">O*NET Mini Interest Profiler</a> by the National Center for O*NET Development for the U.S. Department of Labor, Employment and Training Administration (USDOL/ETA), used under the CC BY 4.0 license. O*NET&reg; is a trademark of USDOL/ETA. ProfilePath is not endorsed by or affiliated with O*NET.</p>
     </main>
 
       <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
@@ -432,6 +433,19 @@
 })();
 </script>
 
+<script>
+// How many questions the assessment has right now (staff can change the Question Bank).
+fetch('api/assessment-questions.php').then(function (r) { return r.json(); }).then(function (d) {
+  var qs = d && d.questions ? d.questions : [];
+  if (!qs.length) return;
+  var perType = {};
+  qs.forEach(function (q) { perType[q.dimension] = (perType[q.dimension] || 0) + 1; });
+  var counts = Object.keys(perType).map(function (k) { return perType[k]; });
+  var each = counts.every(function (c) { return c === counts[0]; }) ? counts[0] : null;
+  document.getElementById('statementTitle').textContent = qs.length + ' Statements';
+  if (each) document.getElementById('statementDesc').textContent = each + ' statements each for 6 interest areas: Realistic, Investigative, Artistic, Social, Enterprising, and Conventional.';
+}).catch(function () {});
+</script>
 <script src="js/motion.js" defer></script>
 <script src="js/notifications.js" defer></script>
 </body>

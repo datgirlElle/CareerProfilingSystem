@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/QuestionBank.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -19,8 +20,8 @@ if (empty($_SESSION['assessmentUnlocked'])) {
 $body = readJsonBody();
 $answers = $body['answers'] ?? null;
 
-if (!is_array($answers) || count($answers) !== 60) {
-    jsonResponse(['success' => false, 'error' => 'Expected exactly 60 answers.'], 400);
+if (!is_array($answers) || count($answers) === 0) {
+    jsonResponse(['success' => false, 'error' => 'No answers were sent.'], 400);
 }
 foreach ($answers as $a) {
     if (!is_int($a) || $a < 1 || $a > 5) {
@@ -36,13 +37,24 @@ $questions = $pdo->query(
      ORDER BY array_position(ARRAY['R','I','A','S','E','C'], dimension), order_index"
 )->fetchAll(PDO::FETCH_COLUMN);
 
-if (count($questions) !== 60) {
-    jsonResponse(['success' => false, 'error' => 'Question bank is not in its expected 60-question state.'], 500);
+// Staff can add and remove questions, so the count is whatever is active now. The assessment is only open while every
+// type has the same number of active questions; refuse a submission that was taken against a different set.
+$perType = array_count_values($questions);
+if (!QuestionBank::balance($perType)['ok']) {
+    jsonResponse(['success' => false, 'error' => 'The assessment is being updated by the Guidance Office. Please try again later.'], 409);
+}
+if (count($answers) !== count($questions)) {
+    jsonResponse(['success' => false, 'error' => 'The questions were updated while you were answering. Please start the assessment again.'], 409);
 }
 
-$totals = ['R' => 0, 'I' => 0, 'A' => 0, 'S' => 0, 'E' => 0, 'C' => 0];
+// Each type's score is put on the same 10-50 scale every earlier result used (50 = 5 on every question of that type).
+$raw = ['R' => 0, 'I' => 0, 'A' => 0, 'S' => 0, 'E' => 0, 'C' => 0];
 foreach ($questions as $i => $dimension) {
-    $totals[$dimension] += $answers[$i];
+    $raw[$dimension] += $answers[$i];
+}
+$totals = [];
+foreach ($raw as $dimension => $sum) {
+    $totals[$dimension] = QuestionBank::scaleScore($sum, (int) ($perType[$dimension] ?? 0));
 }
 
 $labels = ['R' => 'Realistic', 'I' => 'Investigative', 'A' => 'Artistic', 'S' => 'Social', 'E' => 'Enterprising', 'C' => 'Conventional'];
