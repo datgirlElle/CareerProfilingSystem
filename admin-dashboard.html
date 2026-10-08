@@ -15,6 +15,22 @@
   body{ font-family:'Inter', sans-serif; }
 </style>
 <link rel="stylesheet" href="css/motion.css">
+<style>
+  /* Student Assessment Overview header: search + buttons. On a phone they stack full width; from 640px up they sit in a
+     row and wrap onto a second line (never overlap or squeeze) when the card is narrow. */
+  .ov-controls { display:flex; flex-direction:column; gap:12px; width:100%; min-width:0; }
+  .ov-search { width:100%; }
+  .ov-btn { width:100%; white-space:nowrap; }
+  .ov-filter { width:100%; }
+  #filterPanel { left:0; right:0; width:auto; }
+  @media (min-width:640px) {
+    .ov-controls { flex-direction:row; flex-wrap:wrap; align-items:center; width:auto; max-width:100%; }
+    .ov-search { flex:1 1 220px; min-width:200px; max-width:320px; width:auto; }
+    .ov-btn { width:auto; flex:0 0 auto; }
+    .ov-filter { width:auto; flex:0 0 auto; }
+    #filterPanel { left:auto; right:0; width:288px; max-width:calc(100vw - 2rem); }
+  }
+</style>
 </head>
 <body class="bg-[#f9fafb]">
 <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -224,15 +240,15 @@
             <h2 class="text-lg font-bold text-gray-900">Student Assessment Overview</h2>
             <a href="student-accounts" class="text-xs font-medium text-[#495e88] hover:underline">View account status &amp; activation &rarr;</a>
           </div>
-          <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div class="relative w-full sm:w-64">
+          <div class="ov-controls">
+            <div class="relative ov-search">
               <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" viewBox="0 -960 960 960" fill="#64748B"><path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>
               <input type="text" id="studentSearch" placeholder="Search by name..." aria-label="Search by name" class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
             </div>
-            <button type="button" id="downloadListBtn" class="w-full sm:w-auto flex items-center justify-center gap-2 border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Download list (CSV)</button>
-            <button type="button" id="emailListedBtn" class="hidden w-full sm:w-auto items-center justify-center gap-2 border border-[#0f2a6b] text-[#0f2a6b] rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-slate-50">Email these students</button>
-            <div class="relative">
-              <button type="button" id="filterBtn" class="w-full sm:w-auto flex items-center justify-center gap-2 border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <button type="button" id="downloadListBtn" class="ov-btn flex items-center justify-center gap-2 border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Download list (CSV)</button>
+            <button type="button" id="emailListedBtn" class="ov-btn hidden items-center justify-center gap-2 border border-[#0f2a6b] text-[#0f2a6b] rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-slate-50">Email these students</button>
+            <div class="relative ov-filter">
+              <button type="button" id="filterBtn" class="ov-btn flex items-center justify-center gap-2 border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
                 <svg class="w-3.5 h-3.5" viewBox="0 -960 960 960" fill="#64748B"><path d="M400-240v-80h160v80H400ZM240-440v-80h480v80H240ZM120-640v-80h720v80H120Z"/></svg>
                 Filters
               </button>
