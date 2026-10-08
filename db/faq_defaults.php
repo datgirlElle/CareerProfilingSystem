@@ -8,7 +8,7 @@ return [
         ['Can I pause and come back later?', 'Yes. Your answers are saved automatically as you go, so you can close the page and continue from where you left off.'],
         ['Can I retake the assessment?', 'Right now each account keeps a single result. If you believe your results don\'t reflect you accurately, message the Guidance Office below and a counselor can help.'],
         ['What is the Career Worksheet?', 'It unlocks after you finish the RIASEC assessment. You\'ll write down a career you\'re considering and pick electives aligned to your strand and results.'],
-        ['How do I change my password?', 'Go to Settings, then Change Password. You\'ll set a new password and confirm it with a one-time verification code.'],
+        ['How do I change my password?', 'Open My Profile from the menu at the top right, then click Edit next to Password. Enter your current password and choose a new one.'],
     ],
     'staff' => [
         ['How do I resolve a counseling request?', 'Open the request card and click "Mark Resolved" once you’ve followed up with the student. It moves to the Resolved tab and the student gets a notification that their request was resolved.'],

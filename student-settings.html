@@ -144,6 +144,14 @@
           <p id="photoError" class="hidden text-xs text-[#ed1c24] px-6 pt-3"></p>
           <div class="px-6 py-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
+              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-1">Full Name</p>
+              <p class="text-sm text-gray-800 break-words" id="profileFullName">—</p>
+            </div>
+            <div>
+              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-1">Email</p>
+              <p class="text-sm text-gray-800 break-words" id="profileEmail">—</p>
+            </div>
+            <div>
               <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-1">Student Number</p>
               <p class="text-sm text-gray-800" id="profileSchoolId">—</p>
             </div>
@@ -172,14 +180,14 @@
         <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mt-6">
           <div class="border-b border-gray-200 px-6 py-5">
             <h2 class="text-base font-bold text-gray-900">Security</h2>
-            <p class="text-xs text-gray-500 mt-1">Manage your password and account security.</p>
+            <p class="text-xs text-gray-500 mt-1">Your password is kept private, so only dots are shown. Use Edit to set a new one.</p>
           </div>
           <div class="px-6 py-5 flex items-center justify-between gap-4">
-            <div>
-              <p class="text-sm font-medium text-gray-800">Password</p>
-              <p class="text-xs text-gray-500">Change your password. You'll need to enter your current password to confirm it's really you.</p>
+            <div class="min-w-0">
+              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-1">Password</p>
+              <p class="text-lg text-gray-800" style="letter-spacing:0.18em" aria-label="Password hidden">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</p>
             </div>
-            <a href="change-password" class="shrink-0 border border-gray-300 text-gray-700 text-sm font-medium rounded-md px-5 py-2.5 hover:bg-gray-50">Change Password</a>
+            <button type="button" id="editPasswordBtn" class="shrink-0 border border-gray-300 text-gray-700 text-sm font-medium rounded-md px-5 py-2.5 hover:bg-gray-50">Edit</button>
           </div>
         </div>
       </div>
@@ -273,6 +281,14 @@
     document.getElementById('profileName').textContent = currentUser.firstName + ' ' + currentUser.lastName;
     document.getElementById('profileMeta').textContent = currentUser.strand + ' • Grade ' + currentUser.gradeLevel + (currentUser.section ? ' • ' + currentUser.section : '');
     document.getElementById('profileSchoolId').textContent = currentUser.schoolId;
+    document.getElementById('profileFullName').textContent = currentUser.firstName + ' ' + currentUser.lastName;
+    fetch('api/my-account.php').then(function (r) { return r.json(); }).then(function (a) {
+      if (!a || !a.success) return;
+      document.getElementById('profileEmail').textContent = a.email || '—';
+      if (a.memberSince && document.getElementById('profileSince').textContent === '—') {
+        document.getElementById('profileSince').textContent = new Date(a.memberSince).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      }
+    }).catch(function () {});
     document.getElementById('profileStrand').textContent = currentUser.strand;
     document.getElementById('profileGrade').textContent = 'Grade ' + currentUser.gradeLevel;
     document.getElementById('profileSection').textContent = currentUser.section || '—';
@@ -341,5 +357,7 @@
 
 <script src="js/motion.js" defer></script>
 <script src="js/notifications.js" defer></script>
+<script src="js/password-modal.js" defer></script>
+<script src="js/password-toggle.js" defer></script>
 </body>
 </html>

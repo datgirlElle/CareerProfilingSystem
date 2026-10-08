@@ -37,13 +37,20 @@ if (!in_array($portal, PasswordReset::PORTALS, true)) {
 $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 $loginUrl = rtrim((string) getenv('APP_URL'), '/') . ($portal === 'staff' ? '/staff-login' : '/student-login');
 
-/** The account a student or staff sign-in page may recover. Staff must be approved and activated. */
+/**
+ * The account a student or staff sign-in page may recover. Staff must be approved and activated. Accounts made
+ * before the access-code activation existed (the administrator, and counselors with no staff position) already have
+ * a working password and were never marked verified, so they count as activated too; a newer account that has not
+ * used its access code yet still has to do that first.
+ */
 function findAccount(PDO $pdo, string $portal, string $email): ?array
 {
     $sql = $portal === 'staff'
         ? "SELECT id, role, username, email, full_name, password_hash FROM users
            WHERE LOWER(email) = ? AND role IN ('admin', 'counselor') AND is_active = TRUE
-             AND approval_status = 'approved' AND email_verified_at IS NOT NULL ORDER BY id LIMIT 1"
+             AND approval_status = 'approved'
+             AND (email_verified_at IS NOT NULL OR role = 'admin' OR staff_position IS NULL)
+           ORDER BY id LIMIT 1"
         : "SELECT id, role, username, email, NULL AS full_name, password_hash FROM users
            WHERE LOWER(email) = ? AND role = 'student' AND is_active = TRUE AND email_verified_at IS NOT NULL ORDER BY id LIMIT 1";
     $stmt = $pdo->prepare($sql);
@@ -238,7 +245,8 @@ if ($action === 'reset') {
     $userId = (int) $row['id'];
     $pdo->beginTransaction();
     try {
-        $pdo->prepare('UPDATE users SET password_hash = ?, failed_login_attempts = 0, locked_until = NULL, updated_at = NOW() WHERE id = ?')
+        // A correct code also proves the person controls this inbox.
+        $pdo->prepare('UPDATE users SET password_hash = ?, failed_login_attempts = 0, locked_until = NULL, email_verified_at = COALESCE(email_verified_at, NOW()), updated_at = NOW() WHERE id = ?')
             ->execute([password_hash($password, PASSWORD_BCRYPT), $userId]);
         $pdo->prepare('UPDATE password_reset_codes SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL')->execute([$userId]);
         // Whoever was signed in with the old password is signed out.
