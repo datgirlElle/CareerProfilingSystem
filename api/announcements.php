@@ -126,7 +126,7 @@ function sendAnnouncementEmails(array $recipients, string $title, string $bodyTe
         $safeFirst = htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8');
         // Someone without an account is invited to create one; a registered student is sent to sign in.
         $cta = $r['registered'] ? 'View in ProfilePath' : 'Create your ProfilePath account';
-        $ctaUrl = $appUrl !== '' ? $appUrl . ($r['registered'] ? '/assessment' : '/registration') : '#';
+        $ctaUrl = $appUrl !== '' ? $appUrl . ($r['registered'] ? '/assessment' : '/student-register') : '#';
         $footer = $r['registered']
             ? 'You are receiving this because you have a ProfilePath account.'
             : 'You are receiving this because you are on the Guidance Office class roster. Register with your student number and this email address.';

@@ -35,14 +35,14 @@
 
   function isLoginPage() {
     var path = window.location.pathname;
-    return path === '/' || path === '/login' || /\/?(staff-)?login(\.html)?$/.test(path);
+    return path === '/' || /\/?(staff-|student-)?login(\.html)?$/.test(path);
   }
 
   // Staff and students have separate sign-in pages; go back to the one this browser last used.
   function loginUrl() {
     var portal = null;
     try { portal = localStorage.getItem('pp_portal'); } catch (e) {}
-    return (portal === 'staff' ? 'staff-login' : 'login') + '?expired=1';
+    return (portal === 'staff' ? 'staff-login' : 'student-login') + '?expired=1';
   }
 
   function fetchSessionInfo(forceRefresh) {

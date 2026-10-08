@@ -88,7 +88,7 @@ if ($isStaff) {
             'type' => 'help_request',
             'title' => 'New counseling request',
             'text' => "$who: " . (Crypto::dec($row['subject_enc']) ?: 'No subject'),
-            'link' => 'help-requests',
+            'link' => 'counseling-requests',
             'ts' => $row['sent_at'],
         ];
     }
@@ -113,7 +113,7 @@ if ($isStaff) {
             'type' => 'help_resolved',
             'title' => 'Counseling request resolved',
             'text' => 'Your counseling request "' . (Crypto::dec($row['subject_enc']) ?: 'General inquiry') . '" has been resolved.',
-            'link' => 'help-center',
+            'link' => 'student-help-center',
             'ts' => $row['resolved_at'],
         ];
     }

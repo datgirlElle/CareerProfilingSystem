@@ -23,7 +23,7 @@ class ResultEmail
                 'heading' => 'Please visit the Guidance Office',
                 'message' => 'Thank you for completing the RIASEC career assessment and the Career Worksheet. Please visit the Guidance Office so a counselor can talk with you about your results and your career options.',
                 'cta' => 'Go to ProfilePath',
-                'ctaPath' => '/login',
+                'ctaPath' => '/student-login',
             ];
         }
         sort($topTitles, SORT_NATURAL | SORT_FLAG_CASE); // no ranking is implied

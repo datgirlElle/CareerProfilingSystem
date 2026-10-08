@@ -32,13 +32,13 @@
     { title: 'Assessment', items: [
       { id: 'career-dataset', href: 'career-dataset', label: 'Career Dataset', icon: 'database' },
       { id: 'question-bank', href: 'question-bank', label: 'Question Bank', icon: 'quiz' },
-      { id: 'exam-schedules', href: 'exam-schedules', label: 'Assessment Scheduling', icon: 'calendar' },
+      { id: 'assessment-scheduling', href: 'assessment-scheduling', label: 'Assessment Scheduling', icon: 'calendar' },
       { id: 'monitoring', href: 'monitoring', label: 'Monitoring', icon: 'monitoring' }
     ] },
     { title: 'Student Support', items: [
       { id: 'announcements', href: 'announcements', label: 'Announcements', icon: 'announcements' },
-      { id: 'help-requests', href: 'help-requests', label: 'Counseling Requests', icon: 'headset' },
-      { id: 'admin-help-center', href: 'admin-help-center', label: 'Help Center', icon: 'help' }
+      { id: 'counseling-requests', href: 'counseling-requests', label: 'Counseling Requests', icon: 'headset' },
+      { id: 'staff-help-center', href: 'staff-help-center', label: 'Help Center', icon: 'help' }
     ] },
     { title: 'Administration', items: [
       { id: 'account-management', href: 'account-management', label: 'Account Management', icon: 'manage' },

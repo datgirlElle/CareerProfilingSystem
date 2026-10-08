@@ -29,7 +29,7 @@ check('a match links to Career Results', $match['ctaPath'] === '/results');
 $mis = ResultEmail::build(true, $titles);
 check('a mismatch asks the student to visit the Guidance Office', strpos($mis['message'], 'visit the Guidance Office') !== false);
 check('a mismatch names no course', strpos($mis['message'], 'BS ') === false);
-check('a mismatch links to sign in', $mis['ctaPath'] === '/login');
+check('a mismatch links to sign in', $mis['ctaPath'] === '/student-login');
 
 echo "\n=== Summary: $passed passed, $failures failed ===\n";
 exit($failures > 0 ? 1 : 0);

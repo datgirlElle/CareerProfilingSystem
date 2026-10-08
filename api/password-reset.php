@@ -35,7 +35,7 @@ if (!in_array($portal, PasswordReset::PORTALS, true)) {
     jsonResponse(['success' => false, 'error' => 'Something went wrong. Please go back to the sign-in page and try again.'], 400);
 }
 $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-$loginUrl = rtrim((string) getenv('APP_URL'), '/') . ($portal === 'staff' ? '/staff-login' : '/login');
+$loginUrl = rtrim((string) getenv('APP_URL'), '/') . ($portal === 'staff' ? '/staff-login' : '/student-login');
 
 /** The account a student or staff sign-in page may recover. Staff must be approved and activated. */
 function findAccount(PDO $pdo, string $portal, string $email): ?array

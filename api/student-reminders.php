@@ -49,7 +49,7 @@ $stmt->execute($params);
 $rows = $stmt->fetchAll();
 
 $mismatchIds = $kind === 'mismatch' ? Mismatch::studentIds($pdo) : [];
-$link = rtrim((string) getenv('APP_URL'), '/') . '/login';
+$link = rtrim((string) getenv('APP_URL'), '/') . '/student-login';
 
 $sent = $skippedToday = $failed = 0;
 $targets = 0;

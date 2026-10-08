@@ -8,7 +8,7 @@ SecurityHeaders::send();
 $user = Auth::currentUser();
 
 if ($user === null) {
-    header('Location: login');
+    header('Location: student-login');
 } elseif ($user['role'] === 'student') {
     header('Location: assessment');
 } else {
