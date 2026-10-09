@@ -579,6 +579,46 @@
         : '<p class="text-xs text-[#5e3f3c]">Cosine Similarity: <span class="font-semibold text-[#191c1e]">' + p.cosineSimilarity.toFixed(3) + '</span></p>';
     }
 
+    // Saved Careers: the heart button on each Best RIASEC Match / Alternative Courses card
+    // adds or removes the course (api/saved-programs.php, shown on the Saved Careers page).
+    let savedIds = [];
+    try {
+      savedIds = ((await (await fetch('api/saved-programs.php')).json()).programIds || []).map(Number);
+    } catch (e) { savedIds = []; }
+    const HEART = '<svg viewBox="0 0 24 24" stroke-width="2" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>';
+    function favBtnHtml(p) {
+      const saved = savedIds.indexOf(p.id) !== -1;
+      const title = String(p.title).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+      return '<button type="button" class="fav-btn w-9 h-9 rounded-full border flex items-center justify-center shrink-0 hover:opacity-80" data-id="' + p.id + '" data-title="' + title + '"' +
+        ' aria-pressed="' + saved + '" title="' + (saved ? 'Remove from Saved Careers' : 'Add to Saved Careers') + '"' +
+        ' aria-label="' + (saved ? 'Remove ' : 'Add ') + title + (saved ? ' from' : ' to') + ' Saved Careers"' +
+        ' style="' + (saved ? 'border-color:#fecaca;background-color:#fef2f2;color:#ed1c24;fill:#ed1c24;stroke:#ed1c24;' : 'border-color:#e0e3e5;background-color:#ffffff;color:#5e3f3c;fill:none;stroke:#5e3f3c;') + '">' +
+        HEART + '</button>';
+    }
+    function rightSideHtml(p, badgeHtml) {
+      return '<div class="flex items-center gap-2 shrink-0">' + (badgeHtml || '') + favBtnHtml(p) + '</div>';
+    }
+    document.getElementById('careerResultsView').addEventListener('click', async function(e) {
+      const btn = e.target.closest('.fav-btn');
+      if (!btn || btn.disabled) return;
+      btn.disabled = true;
+      const programId = Number(btn.dataset.id);
+      try {
+        const res = await fetch('api/saved-programs.php', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ programId: programId })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          savedIds = data.saved ? savedIds.concat([programId]) : savedIds.filter(function(id) { return id !== programId; });
+          document.querySelectorAll('.fav-btn[data-id="' + programId + '"]').forEach(function(b) {
+            b.outerHTML = favBtnHtml({ id: programId, title: b.dataset.title });
+          });
+          return;
+        }
+      } catch (err) { /* keep the button as it was */ }
+      btn.disabled = false;
+    });
+
     function programCardHtml(p, extraHtml, style, bodyHtml) {
       const inactive = p.isActive === false ? ' <span class="inline-flex items-center bg-gray-100 text-gray-500 text-[11px] font-semibold px-2 py-0.5 rounded-full align-middle">No longer available</span>' : '';
       return '<div class="border rounded-lg p-[17px] flex flex-col gap-3" style="' + (style || 'background-color:#ffffff;border-color:#e0e3e5;') + '">' +
@@ -627,14 +667,14 @@
       tie.classList.remove('hidden');
     }
     document.getElementById('cr-bestRiasec').innerHTML = best.length
-      ? best.map(function(p) { return programCardHtml(p, prefBadge(p)); }).join('')
+      ? best.map(function(p) { return programCardHtml(p, rightSideHtml(p, prefBadge(p))); }).join('')
       : '<div class="border rounded-lg p-[17px] text-xs text-[#191c1e]" style="background-color:#fff7ed;border-color:#fed7aa;">' +
         'No course could be matched to your RIASEC profile. Please visit the Guidance Office for career counseling.</div>';
 
     // 4. Alternative Courses (CBF): the next-highest cosine similarity.
     const alts = recommendation.alternatives || [];
     document.getElementById('cr-alternatives').innerHTML = alts.length
-      ? alts.map(function(p) { return programCardHtml(p, prefBadge(p)); }).join('')
+      ? alts.map(function(p) { return programCardHtml(p, rightSideHtml(p, prefBadge(p))); }).join('')
       : '<p class="text-xs text-[#5e3f3c]">No alternative courses.</p>';
   }
 })();
