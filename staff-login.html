@@ -12,17 +12,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   body{ font-family:'Inter', sans-serif; }
-  body { overflow-x: hidden; }
-  /* tablet widths (768-1023): the left panel is narrow, so the two school logos go in a strip across the top, side by side */
-  .login-topbar { display:none; }
-  @media (min-width:768px) and (max-width:1023px) {
-    .login-topbar { display:flex; align-items:center; gap:16px; position:absolute; top:28px; left:32px; right:32px; z-index:2; }
-    .login-topbar img { height:auto; width:auto; object-fit:contain; min-width:0; }
-    .login-topbar .lt-mmcl { max-height:54px; max-width:44%; }
-    .login-topbar .lt-cgc { max-height:46px; max-width:48%; }
-    .login-brand { display:none !important; }
-  }
 </style>
+<link rel="stylesheet" href="css/sign-in.css">
 <link rel="stylesheet" href="css/motion.css">
 </head>
 <body class="min-h-screen">
@@ -55,12 +46,19 @@
           <span aria-hidden="true" style="flex:0 0 1px;height:44px;background:#c3cad8"></span>
           <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" style="flex:1 1 0;min-width:0;max-height:48px;height:auto;object-fit:contain;object-position:left">
         </div>
-        <h1 class="text-[#001c43] text-3xl font-medium leading-tight">Career Profiling System</h1>
+        <div class="login-hero-card" style="background:rgba(255,255,255,.9);border-radius:16px;padding:22px 24px;box-shadow:0 10px 30px -14px rgba(15,23,42,.35)">
+        <h1 class="text-[#001c43] leading-tight" style="font-size:40px"><span class="font-bold">Profile</span><span class="font-bold text-[#ed1c24]">Path</span></h1>
+        <p class="text-[#001c43] font-medium leading-snug mt-1" style="font-size:21px">Career Profiling System</p>
         <div class="w-16 h-1 bg-[#ed1c24] mt-4 mb-4"></div>
         <p class="text-[#001c43] text-lg leading-relaxed">
           Empowering students. Guiding futures.
           Data-driven insights for informed career decisions.
         </p>
+        <a href="#about" class="scroll-cue" style="display:inline-flex;align-items:center;gap:8px;margin-top:22px;padding:10px 18px;border-radius:9999px;background:rgba(255,255,255,.92);color:#001c43;font-size:14px;font-weight:600;box-shadow:0 8px 24px -12px rgba(15,23,42,.4);text-decoration:none">
+          Learn about ProfilePath
+          <svg class="cue-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </a>
+        </div>
       </div>
     </div>
 
@@ -86,7 +84,7 @@
         <!-- Form -->
         <form id="loginForm" class="flex flex-col gap-5">
 
-          <p id="verifiedBanner" class="hidden"></p>
+          <p id="verifiedBanner" class="hidden text-sm text-green-700 bg-green-50 border border-green-100 rounded-md px-3.5 py-2.5"></p>
           <p id="loginError" class="hidden text-sm text-[#ed1c24] bg-red-50 border border-red-100 rounded-md px-3.5 py-2.5">
             <span id="loginErrorText"></span>
           </p>
@@ -141,6 +139,10 @@
         <p class="text-sm text-gray-500 text-center">
           New staff member? <a href="staff-register" class="text-[#ed1c24] font-semibold hover:underline">Sign up for a staff account</a>
         </p>
+        <p class="text-xs text-gray-500 text-center">
+          Need help? Contact your <span class="text-gray-500">system administrator</span>.
+        </p>
+        <a href="#about" class="md:hidden text-sm font-semibold text-center text-[#001c43]" style="text-decoration:none">Learn about ProfilePath <span class="cue-arrow" style="display:inline-block">&#8595;</span></a>
         <p class="text-xs text-gray-400 text-center">
           <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
           <span class="mx-1.5">&middot;</span>
@@ -155,7 +157,82 @@
   </div>
 </div>
 
+<section id="about" style="background:#fff">
+  <div class="ab-wrap">
+    <div class="ab-grid2">
+      <div data-reveal="up">
+        <p class="ab-eyebrow">About ProfilePath</p>
+        <h2 class="ab-h2">Guidance work, supported by student data</h2>
+        <div class="ab-rule"></div>
+        <p class="ab-p">ProfilePath is the career profiling system of the Center for Guidance and Counseling (CGC) of Mapúa Malayan Colleges Laguna. Guidance staff use it to schedule the career interest assessment, follow student results and support students with counseling.</p>
+      </div>
+      <div class="ab-card" data-reveal="up" style="transition-delay:150ms">
+        <h3>What guidance staff can do</h3>
+        <ul class="ab-list">
+            <li><span class="ab-tick" style="transition-delay:300ms" aria-hidden="true">&#10003;</span><span>Schedule the career interest assessment and give students the access code.</span></li>
+            <li><span class="ab-tick" style="transition-delay:440ms" aria-hidden="true">&#10003;</span><span>Review class results and see which students may need extra support.</span></li>
+            <li><span class="ab-tick" style="transition-delay:580ms" aria-hidden="true">&#10003;</span><span>Answer counseling and academic advising requests.</span></li>
+            <li><span class="ab-tick" style="transition-delay:720ms" aria-hidden="true">&#10003;</span><span>Post announcements and keep the assessment questions up to date.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how" style="background:#f1f5f9">
+  <div class="ab-wrap">
+    <div data-reveal="up">
+      <p class="ab-eyebrow">How it works</p>
+      <h2 class="ab-h2">From sign-up to supporting students in four steps</h2>
+      <div class="ab-rule"></div>
+    </div>
+    <div class="ab-steps">
+        <div class="ab-step" data-reveal="up" style="transition-delay:0ms">
+          <div class="ab-num">1</div>
+          <h3>Sign up</h3>
+          <p>Create a staff account with your school email address.</p>
+        </div>
+        <div class="ab-step" data-reveal="up" style="transition-delay:120ms">
+          <div class="ab-num">2</div>
+          <h3>Get approved</h3>
+          <p>The Head of Guidance approves your account in Account Management.</p>
+        </div>
+        <div class="ab-step" data-reveal="up" style="transition-delay:240ms">
+          <div class="ab-num">3</div>
+          <h3>Activate</h3>
+          <p>Use the one-time access code emailed to you to set your password.</p>
+        </div>
+        <div class="ab-step" data-reveal="up" style="transition-delay:360ms">
+          <div class="ab-num">4</div>
+          <h3>Support students</h3>
+          <p>Open your dashboard to follow results, schedule assessments and answer requests.</p>
+        </div>
+    </div>
+  </div>
+</section>
+
+<section class="ab-cta">
+  <div class="ab-wrap" style="padding-top:64px;padding-bottom:48px">
+    <div data-reveal="up">
+      <h2 style="font-size:clamp(24px,3vw,32px);font-weight:700;line-height:1.25">Ready to get started?</h2>
+      <p style="margin:12px 0 26px;font-size:16px;opacity:.8">Sign in with your username or school email.</p>
+      <a href="#main-content" class="ab-btn" id="backToSignIn">Sign in</a>
+      <p style="margin-top:16px;font-size:14px;opacity:.8">New staff member? <a href="staff-register" style="color:#fff;font-weight:600;text-decoration:underline">Sign up for a staff account</a></p>
+    </div>
+    <p style="margin-top:48px;font-size:12px;opacity:.6">
+      <a href="terms" style="color:inherit">Terms of Use</a> &middot;
+      <a href="privacy" style="color:inherit">Data Privacy</a> &middot;
+      <a href="accessibility" style="color:inherit">Accessibility</a>
+    </p>
+  </div>
+</section>
+
 <script>
+  // the Sign in button at the bottom takes you back up to the form
+  document.getElementById('backToSignIn').addEventListener('click', function () {
+    var input = document.querySelector('input[name="username"]');
+    if (input) setTimeout(function () { input.focus({ preventScroll: true }); }, 500);
+  });
   document.getElementById('togglePassword').addEventListener('click', function () {
     const input = document.getElementById('password');
     const icon = document.getElementById('togglePasswordIcon');
