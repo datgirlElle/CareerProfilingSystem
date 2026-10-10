@@ -1,84 +1,71 @@
 <?php
 
-require_once __DIR__ . '/Database.php';
-require_once __DIR__ . '/Crypto.php';
 require_once __DIR__ . '/Mailer.php';
 require_once __DIR__ . '/EmailTemplate.php';
+require_once __DIR__ . '/RateLimiter.php';
+require_once __DIR__ . '/Mismatch.php';
 
 /**
- * Automatic result email sent after the Career Electives Worksheet is submitted
- * (adviser/researcher decision):
- *   match    -> the Best RIASEC Match and the Alternative Courses.
- *   mismatch -> only asks the student to visit the Guidance Office; no course is named.
+ * The email a student gets automatically once their worksheet is in, with no staff action.
+ * A match (the program their career leads to is also one of their Best RIASEC Match programs)
+ * gets a thank-you listing the Best RIASEC Match programs; a mismatch gets a request to visit
+ * the Guidance Office and no course is named. It is sent once a day at most, and a failure to send never stops the
+ * student from submitting.
  */
 class ResultEmail
 {
-    /**
-     * @param string[] $bestMatch    Best RIASEC Match title(s) (CBF)
-     * @param string[] $alternatives Alternative Courses titles
-     * @return array{subject: string, heading: string, bodyHtml: string, bodyText: string, ctaLabel: string, path: string}
-     */
-    public static function compose(string $firstName, string $status, array $bestMatch, array $alternatives = []): array
+    /** The text of the email: ['subject','heading','message','cta','ctaPath']. */
+    public static function build(bool $mismatch, array $topTitles): array
     {
-        $safeName = htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8');
-        $intro = 'Thank you for completing the RIASEC Assessment and the Career Electives Worksheet.';
-        $p = '<p style="margin:0 0 12px 0;">';
-        $esc = fn($t) => htmlspecialchars($t, ENT_QUOTES, 'UTF-8');
-
-        if ($status === 'match' && $bestMatch) {
-            $altHtml = $alternatives
-                ? "{$p}Alternative courses:</p>" . '<ul style="margin:0 0 12px 0;padding-left:20px;color:#0f172a;">'
-                    . implode('', array_map(fn($t) => '<li style="margin:0 0 4px 0;">' . $esc($t) . '</li>', $alternatives)) . '</ul>'
-                : '';
+        if ($mismatch) {
             return [
-                'subject' => 'Your ProfilePath career results',
-                'heading' => 'Your career results are ready',
-                'bodyHtml' => "{$p}Hi $safeName,</p>{$p}$intro</p>"
-                    . "{$p}Your Best RIASEC Match (the course most similar to your RIASEC profile): <strong style=\"color:#0f172a;\">" . implode(', ', array_map($esc, $bestMatch)) . '</strong></p>'
-                    . $altHtml
-                    . '<p style="margin:0;">You may visit the Guidance Office if you would like to discuss your results with a Guidance Counselor.</p>',
-                'bodyText' => "Hi $firstName,\n\n$intro\n\nYour Best RIASEC Match (the course most similar to your RIASEC profile): " . implode(', ', $bestMatch) . "\n"
-                    . ($alternatives ? "\nAlternative courses:\n" . implode('', array_map(fn($t) => "- $t\n", $alternatives)) : '')
-                    . "\nYou may visit the Guidance Office if you would like to discuss your results with a Guidance Counselor.",
-                'ctaLabel' => 'View My Results',
-                'path' => '/results',
+                'subject' => 'Please visit the Guidance Office',
+                'heading' => 'Please visit the Guidance Office',
+                'message' => 'Thank you for completing the RIASEC career assessment and the Career Worksheet. Please visit the Guidance Office so a counselor can talk with you about your results and your career options.',
+                'cta' => 'Go to ProfilePath',
+                'ctaPath' => '/student-login',
             ];
         }
-
+        sort($topTitles, SORT_NATURAL | SORT_FLAG_CASE); // no ranking is implied
         return [
-            'subject' => 'Your ProfilePath career results',
-            'heading' => 'Please visit the Guidance Office',
-            'bodyHtml' => "{$p}Hi $safeName,</p>{$p}$intro</p>"
-                . '<p style="margin:0;">Please visit the Center for Guidance and Counseling to discuss your results with a Guidance Counselor.</p>',
-            'bodyText' => "Hi $firstName,\n\n$intro\n\nPlease visit the Center for Guidance and Counseling to discuss your results with a Guidance Counselor.",
-            'ctaLabel' => 'See Guidance Office Hours',
-            'path' => '/help-center',
+            'subject' => 'Your career assessment results',
+            'heading' => 'Thank you for completing your assessment',
+            'message' => 'Thank you for completing the RIASEC career assessment and the Career Worksheet. Your Best RIASEC Match (the MMCL programs most similar to your RIASEC profile): ' . implode(', ', $topTitles) . '. You can see the careers that fit each program under Career Results in ProfilePath.',
+            'cta' => 'View My Results',
+            'ctaPath' => '/results',
         ];
     }
 
-    /** Sends the result email to the student. Never throws; returns whether it was sent. */
-    public static function send(PDO $pdo, int $studentId, string $status, array $bestMatch, array $alternatives = []): bool
+    /** @return bool true if an email went out */
+    public static function send(PDO $pdo, int $studentId, bool $mismatch, array $topTitles): bool
     {
         try {
-            $stmt = $pdo->prepare('SELECT u.username, u.email, s.first_name_enc FROM users u JOIN students s ON s.user_id = u.id WHERE u.id = ?');
-            $stmt->execute([$studentId]);
-            $row = $stmt->fetch();
-            if (!$row) {
+            $row = $pdo->prepare(
+                'SELECT u.email, s.first_name_enc FROM users u JOIN students s ON s.user_id = u.id
+                 WHERE u.id = ? AND u.email IS NOT NULL AND u.email_verified_at IS NOT NULL AND u.is_active = TRUE'
+            );
+            $row->execute([$studentId]);
+            $r = $row->fetch();
+            if (!$r) {
                 return false;
             }
-            // Same fallback as forgot-password.php for accounts without an email on file.
-            $email = $row['email'] ?: ($row['username'] . '@mymail.mapua.edu.ph');
-            $firstName = Crypto::dec($row['first_name_enc']);
-
-            $mail = self::compose($firstName, $status, $bestMatch, $alternatives);
-            $link = rtrim((string) envValue('APP_URL'), '/') . $mail['path'];
-            $bodyHtml = EmailTemplate::render(
-                $mail['heading'], $mail['bodyHtml'], $mail['ctaLabel'], $link, '',
-                'You are receiving this because you submitted the Career Electives Worksheet on ProfilePath.'
-            );
-            return Mailer::send($email, $firstName, $mail['subject'], $bodyHtml, $mail['bodyText'] . "\n\n$link");
+            $key = 'result-email:' . $studentId;
+            if (RateLimiter::tooMany($key, 1, 1440)) {
+                return false; // already emailed in the last day
+            }
+            $first = (string) Crypto::dec($r['first_name_enc']);
+            $mail = self::build($mismatch, $topTitles);
+            $link = rtrim((string) getenv('APP_URL'), '/') . $mail['ctaPath'];
+            $safeFirst = htmlspecialchars($first, ENT_QUOTES, 'UTF-8');
+            $safeMsg = htmlspecialchars($mail['message'], ENT_QUOTES, 'UTF-8');
+            $html = EmailTemplate::render($mail['heading'], "<p style=\"margin:0 0 12px 0;\">Hi $safeFirst,</p><p style=\"margin:0;\">$safeMsg</p>", $mail['cta'], $link, '');
+            $ok = Mailer::send($r['email'], $first, $mail['subject'], $html, "Hi $first,\n\n" . $mail['message'] . "\n\n$link");
+            if (!$ok) {
+                $pdo->prepare('DELETE FROM rate_limit_hits WHERE rate_key = ?')->execute([$key]);
+            }
+            return $ok;
         } catch (Throwable $e) {
-            error_log('[ResultEmail] ' . $e->getMessage());
+            error_log('[result-email] failed: ' . $e->getMessage());
             return false;
         }
     }

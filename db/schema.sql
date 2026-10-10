@@ -14,6 +14,14 @@ CREATE TABLE users (
     email_verified_at       TIMESTAMPTZ,
     avatar_data_url         TEXT,
     is_active               BOOLEAN NOT NULL DEFAULT TRUE,
+    -- Counselors sign up themselves and start 'pending' until an admin approves
+    -- them (Account Management). Everyone else is always 'approved'.
+    approval_status         VARCHAR(10) NOT NULL DEFAULT 'approved' CHECK (approval_status IN ('pending', 'approved', 'rejected')),
+    full_name               VARCHAR(150),
+    -- 'counselor' or 'facilitator', chosen at staff sign-up. Both are the same
+    -- system role (role = 'counselor') with identical access; this is only the
+    -- title shown next to the name. NULL (older accounts) reads as counselor.
+    staff_position          VARCHAR(12) CHECK (staff_position IS NULL OR staff_position IN ('counselor', 'facilitator')),
     failed_login_attempts   INT NOT NULL DEFAULT 0,
     locked_until            TIMESTAMPTZ,
     notifications_read_at   TIMESTAMPTZ,
@@ -24,8 +32,9 @@ CREATE TABLE users (
 -- Students self-register with a MMCL-issued email (see api/register.php's
 -- domain check) but that only proves the string LOOKS right — this proves
 -- they actually control the inbox before the account can log in. NULL =
--- not verified yet. Only enforced for role='student'; admin/counselor
--- accounts are staff-vetted through a different path (api/staff-accounts.php).
+-- not verified yet. Enforced for role='student'; counselors who sign up
+-- themselves verify their email too and are then approved by an admin
+-- (users.approval_status, api/staff-approvals.php).
 CREATE TABLE email_verification_tokens (
     id          SERIAL PRIMARY KEY,
     user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -50,6 +59,22 @@ CREATE TABLE colleges (
     name    VARCHAR(255) NOT NULL
 );
 
+-- Admin-manageable section list, one strand each (see lib/Sections.php,
+-- the server-side source of truth for every place a section is accepted:
+-- registration, exam scheduling, staff section-corrections). Deactivated
+-- rather than deleted when a section stops being offered, so a student
+-- already registered under it keeps valid historical data — it just stops
+-- being offered for new registrations/schedules.
+CREATE TABLE sections (
+    id          SERIAL PRIMARY KEY,
+    strand      VARCHAR(10) NOT NULL CHECK (strand IN ('STEM', 'ABM', 'ICT', 'HUMSS')),
+    code        VARCHAR(20) NOT NULL,
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by  INT REFERENCES users(id),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX idx_sections_strand_code ON sections (strand, LOWER(code));
+
 CREATE TABLE students (
     user_id         INT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     school_id       VARCHAR(50) NOT NULL UNIQUE,
@@ -72,6 +97,10 @@ CREATE TABLE programs (
     description_enc     TEXT,
     -- SHS strands aligned with this program (CBF "strand" feature); '{}' = not specified.
     related_strands     TEXT[] NOT NULL DEFAULT '{}',
+    -- Careers this program leads to, shown to students on Career Results and
+    -- offered on the Career Worksheet. Plain reference data (like colleges),
+    -- not student data, so it is not encrypted and can be loaded with SQL.
+    careers             TEXT[] NOT NULL DEFAULT '{}',
     status              VARCHAR(10) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Inactive')),
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -81,7 +110,7 @@ CREATE TABLE assessment_questions (
     id                  SERIAL PRIMARY KEY,
     dimension           CHAR(1) NOT NULL CHECK (dimension IN ('R', 'I', 'A', 'S', 'E', 'C')),
     question_text_enc   TEXT NOT NULL,
-    order_index         INT NOT NULL CHECK (order_index BETWEEN 1 AND 10),
+    order_index         INT NOT NULL CHECK (order_index >= 1),
     is_active           BOOLEAN NOT NULL DEFAULT TRUE,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -109,7 +138,10 @@ CREATE TABLE worksheets (
     id                  SERIAL PRIMARY KEY,
     student_id          INT NOT NULL REFERENCES students(user_id) ON DELETE CASCADE,
     attempt_number      INT NOT NULL,
-    stated_program_id   INT NOT NULL REFERENCES programs(id),
+    -- NULL when the career the student typed couldn't be linked to a program
+    -- (see lib/CareerMatcher.php).
+    stated_program_id   INT REFERENCES programs(id),
+    stated_career       VARCHAR(120),
     electives           TEXT[] NOT NULL DEFAULT '{}',
     top_types           JSONB NOT NULL,
     submitted_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -204,6 +236,9 @@ CREATE TABLE assessment_roster (
     name_enc        TEXT NOT NULL,
     strand          VARCHAR(10) NOT NULL CHECK (strand IN ('STEM', 'ABM', 'ICT', 'HUMSS')),
     section         VARCHAR(20) NOT NULL,
+    -- The student's school email from the roster file: announcements are emailed here, registered or not,
+    -- and a registration for this Student Number must use it.
+    email           VARCHAR(255),
     uploaded_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     uploaded_by     INT REFERENCES users(id),
     UNIQUE (academic_year, school_id)
@@ -219,8 +254,21 @@ CREATE TABLE announcements (
     -- Set once its email batch has gone out (see api/announcements.php's
     -- emailAnnouncement()); NULL until then, so it's never sent twice.
     emailed_at      TIMESTAMPTZ,
+    -- A draft is never shown to students or emailed until it is sent.
+    status          VARCHAR(10) NOT NULL DEFAULT 'sent' CHECK (status IN ('draft', 'sent')),
+    -- When "Remind Unread" last emailed the students who hadn't seen it.
+    last_reminded_at TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Which student saw which announcement (shown on their Assessments page or
+-- the full Notifications page); drives the "% read" figure on the staff page.
+CREATE TABLE announcement_reads (
+    announcement_id INT NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
+    student_id      INT NOT NULL REFERENCES students(user_id) ON DELETE CASCADE,
+    read_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (announcement_id, student_id)
 );
 
 -- Only populated when announcements.target_type = 'specific'.
@@ -234,14 +282,37 @@ CREATE TABLE help_requests (
     id                  SERIAL PRIMARY KEY,
     student_id          INT REFERENCES students(user_id) ON DELETE SET NULL,
     school_id_snapshot  VARCHAR(50),
-    name                VARCHAR(255),
-    subject             VARCHAR(255),
+    name_enc            TEXT,
+    subject_enc         TEXT,
     message_enc         TEXT,
     sent_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     status              VARCHAR(10) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'resolved')),
     resolved_by         INT REFERENCES users(id),
     resolved_at         TIMESTAMPTZ
 );
+
+-- Generic sliding-window rate limiter (lib/RateLimiter.php), reused by
+-- forgot-password, RIASEC access-code verification, and any future
+-- endpoint that needs simple abuse throttling.
+CREATE TABLE rate_limit_hits (
+    id          SERIAL PRIMARY KEY,
+    rate_key    VARCHAR(255) NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_rate_limit_hits_key_time ON rate_limit_hits(rate_key, created_at);
+
+-- Email one-time codes (lib/TwoFactor.php) for the staff password-change
+-- step-up verification, gated by the 'twoFactor' security policy toggle.
+CREATE TABLE two_factor_codes (
+    id          SERIAL PRIMARY KEY,
+    user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    code_hash   VARCHAR(255) NOT NULL,
+    expires_at  TIMESTAMPTZ NOT NULL,
+    used_at     TIMESTAMPTZ,
+    attempts    INT NOT NULL DEFAULT 0,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_two_factor_codes_user_id ON two_factor_codes(user_id);
 
 -- A schedule = one exam session (date/time/room) targeting whichever
 -- grade level/strand/section it names (NULL on any of those three = "all"
@@ -308,3 +379,58 @@ CREATE TABLE notification_dismissals (
     dismissed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (user_id, item_key)
 );
+
+-- Which sections each guidance counselor / facilitator handles (assigned by the administrator).
+-- A staff member with none assigned sees every section.
+CREATE TABLE staff_sections (
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    strand  VARCHAR(10) NOT NULL CHECK (strand IN ('STEM', 'ABM', 'ICT', 'HUMSS')),
+    section VARCHAR(20) NOT NULL,
+    PRIMARY KEY (user_id, strand, section)
+);
+
+-- Help Center FAQs the Guidance Office can add, edit, reorder and delete (api/faqs.php).
+-- audience 'student' shows on the student Help Center, 'staff' on the staff one.
+CREATE TABLE faqs (
+    id          SERIAL PRIMARY KEY,
+    audience    VARCHAR(10) NOT NULL CHECK (audience IN ('student', 'staff')),
+    question    VARCHAR(300) NOT NULL,
+    answer      TEXT NOT NULL,
+    sort_order  INT NOT NULL DEFAULT 0,
+    created_by  INT REFERENCES users(id) ON DELETE SET NULL,
+    updated_by  INT REFERENCES users(id) ON DELETE SET NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_faqs_audience_order ON faqs (audience, sort_order, id);
+
+-- Announcement templates the Guidance Counselor types and keeps (api/announcement-templates.php), so a new
+-- announcement can start from one.
+CREATE TABLE announcement_templates (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(80) NOT NULL,
+    title       VARCHAR(255) NOT NULL,
+    body        TEXT NOT NULL,
+    created_by  INT REFERENCES users(id) ON DELETE SET NULL,
+    updated_by  INT REFERENCES users(id) ON DELETE SET NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- The emailed 6-digit codes behind "Forgot password" (api/password-reset.php). A correct code returns a one-time
+-- reset token; both are stored hashed. Replaces the old emailed-link flow (password_reset_tokens, now unused).
+CREATE TABLE password_reset_codes (
+    id                SERIAL PRIMARY KEY,
+    user_id           INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    portal            VARCHAR(10) NOT NULL CHECK (portal IN ('student', 'staff')),
+    code_hash         VARCHAR(255) NOT NULL,
+    attempts          INT NOT NULL DEFAULT 0,
+    expires_at        TIMESTAMPTZ NOT NULL,
+    verified_at       TIMESTAMPTZ,
+    reset_token_hash  VARCHAR(255),
+    reset_expires_at  TIMESTAMPTZ,
+    used_at           TIMESTAMPTZ,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_password_reset_codes_user ON password_reset_codes (user_id, id);
+CREATE INDEX idx_password_reset_codes_token ON password_reset_codes (reset_token_hash);

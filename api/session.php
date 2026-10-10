@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/StaffPosition.php';
 
 $user = Auth::currentUser();
 
@@ -17,4 +18,27 @@ if ($user !== null && $user['role'] === 'student') {
     }
 }
 
-jsonResponse(['user' => $user]);
+// Guidance counselors and facilitators are the same role with the same access;
+// the title beside their name is looked up here so it is right even for a
+// session that began before positions existed.
+if ($user !== null && $user['role'] === 'counselor') {
+    $stmt = Database::get()->prepare('SELECT staff_position FROM users WHERE id = ?');
+    $stmt->execute([(int) $user['id']]);
+    $user['positionLabel'] = StaffPosition::label($stmt->fetchColumn() ?: null);
+}
+
+// Staff are shown by their own name (they sign in with email, so the login name is internal).
+if ($user !== null && $user['role'] !== 'student') {
+    $stmt = Database::get()->prepare('SELECT full_name, username FROM users WHERE id = ?');
+    $stmt->execute([(int) $user['id']]);
+    $row = $stmt->fetch();
+    if ($row) {
+        $user['displayName'] = trim((string) $row['full_name']) !== '' ? $row['full_name'] : $row['username'];
+    }
+}
+
+$response = ['user' => $user, 'csrfToken' => Csrf::token()];
+if ($user !== null) {
+    $response['sessionTimeout'] = Auth::sessionTimeoutPolicy();
+}
+jsonResponse($response);

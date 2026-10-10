@@ -28,9 +28,11 @@ $expected = [
     'recommendations' => ['admin' => 'full', 'counselor' => 'full',    'student' => 'full'],
     'counselor'       => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'monitoring'      => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
-    'announcements'   => ['admin' => 'full', 'counselor' => 'limited', 'student' => 'limited'],
+    // Guidance Counselors post announcements, set schedules and manage sections (a Guidance Facilitator is view-only in code).
+    'announcements'   => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'examinations'    => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'counselingNotes' => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
+    'sections'        => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
 ];
 
 foreach ($expected as $module => $roles) {
@@ -38,6 +40,22 @@ foreach ($expected as $module => $roles) {
         check("$module/$role == $level", Rbac::accessLevel($module, $role) === $level);
     }
 }
+
+echo "\n=== a student has no access to sending announcements ===\n";
+$pdoCap = Database::get();
+$pdoCap->beginTransaction();
+$pdoCap->prepare("UPDATE security_rbac SET access_level = 'full' WHERE module = 'announcements' AND role = 'student'")->execute();
+check('even if the table is tampered to Full, a student has no access to announcements', Rbac::accessLevel('announcements', 'student') === 'none');
+check('the cap is only for students: the counselor row is untouched', Rbac::accessLevel('announcements', 'counselor') === 'full');
+$pdoCap->rollBack();
+check('the real student row is No Access', Rbac::accessLevel('announcements', 'student') === 'none');
+check('a student is still not cut off from other modules (Recommendations stays Full)', Rbac::accessLevel('recommendations', 'student') === 'full');
+
+echo "\n=== Guidance Facilitator is view-only ===\n";
+check('the facilitator write list covers announcements, schedules and sections', Rbac::FACILITATOR_VIEW_ONLY === ['announcements', 'examinations', 'sections']);
+check('guidance counselors and facilitators can both edit and remove Question Bank questions (rac is not view-only for facilitators)', !in_array('rac', Rbac::FACILITATOR_VIEW_ONLY, true));
+check('a student is never a facilitator', Rbac::isFacilitator(['id' => 0, 'role' => 'student']) === false);
+check('the administrator is never a facilitator', Rbac::isFacilitator(['id' => 1, 'role' => 'admin']) === false);
 
 check(
     'Unknown role for a valid module falls back to none',

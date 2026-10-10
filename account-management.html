@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="js/csrf.js"></script>
+<title>Account Management — Career Profiling System</title>
+<link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
+<link rel="stylesheet" href="css/tailwind.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body{ font-family:'Inter', sans-serif; }
+</style>
+<link rel="stylesheet" href="css/motion.css">
+</head>
+<body class="bg-[#f9fafb]">
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<div class="flex min-h-screen">
+
+  <!-- Mobile sidebar backdrop -->
+  <div id="sidebarBackdrop" class="hidden fixed inset-0 bg-black/40 z-30 md:hidden"></div>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="w-[260px] shrink-0 bg-[#001c43] flex flex-col fixed inset-y-0 left-0 z-40 -translate-x-full transition-transform duration-200 md:sticky md:top-0 md:translate-x-0 h-screen">
+    <div class="sidebar-brand bg-white shrink-0">
+      <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="sidebar-brand-mmcl">
+      <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="sidebar-brand-cgc">
+    </div>
+    <div class="flex items-center gap-3 px-6 py-8">
+      <img src="images/admin/logo-profilepath.svg" alt="ProfilePath logo" class="w-[64px]">
+      <div>
+        <p class="text-lg font-bold leading-none"><span class="text-white">Profile</span><span class="text-[#ed1c24]">Path</span></p>
+        <p class="text-sm text-white/60 mt-1">Admin Dashboard</p>
+      </div>
+    </div>
+    <nav id="adminNav" data-active="account-management" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
+    <script src="js/admin-nav.js"></script>
+    <div class="border-t border-white/5 pt-[25px] pb-6">
+      <a href="staff-login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+        <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>
+        Logout
+      </a>
+    </div>
+
+  </aside>
+
+  <!-- Main Content -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    <!-- Top Header -->
+    <header class="bg-white border-b border-gray-200 flex items-center justify-between px-6 h-16 shrink-0 relative">
+      <button type="button" id="menuToggle" class="relative z-50 w-10 h-10 -m-2.5 flex items-center justify-center md:invisible">
+        <img src="images/admin/icon-menu.svg" alt="Menu" class="w-5 h-4">
+      </button>
+      <div class="flex items-center gap-6">
+
+        <div id="ayBadge" class="hidden sm:flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-full px-3 py-1">
+          <span class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">AY</span>
+          <span id="ayBadgeValue" class="text-xs font-semibold text-slate-700">—</span>
+        </div>
+
+        <!-- Notifications -->
+        <div class="relative">
+          <button type="button" id="notifBtn" data-shared-toggle class="relative w-5 h-5">
+            <svg class="w-full h-full" viewBox="0 -960 960 960" fill="#64748B"><path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"/></svg>
+            <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#ed1c24] text-white text-[10px] font-bold flex items-center justify-center"></span>
+          </button>
+          <div id="notifPanel" class="hidden fixed left-4 right-4 top-[76px] z-50 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+12px)] sm:w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <p class="text-sm font-semibold text-gray-900">Notifications</p>
+              <span id="notifCountLabel" class="text-xs text-gray-500">Loading…</span>
+            </div>
+            <ul id="notifList" class="max-h-80 overflow-auto divide-y divide-gray-100">
+              <li class="px-4 py-6 text-center text-sm text-gray-500">Loading…</li>
+            </ul>
+            <a href="staff-notifications" class="block text-center text-sm font-medium text-[#ed1c24] px-4 py-3 border-t border-gray-100 hover:bg-gray-50">View all notifications</a>
+          </div>
+        </div>
+
+        <!-- Profile -->
+        <div class="relative">
+          <button type="button" id="profileBtn" class="flex items-center gap-3">
+            <span id="headerAvatarWrap" class="w-9 h-9 rounded-full bg-[#001c43] flex items-center justify-center overflow-hidden shrink-0">
+              <img src="images/admin/icon-avatar.svg" alt="" class="w-3.5 h-4">
+            </span>
+            <span class="text-left">
+              <span class="block text-sm font-semibold text-gray-800" id="headerUserName">&nbsp;</span>
+              <span class="block text-xs text-gray-500" id="headerUserRole">&nbsp;</span>
+            </span>
+            <img src="images/admin/icon-chevron-down.svg" alt="" class="w-3.5 h-2">
+          </button>
+          <div id="profilePanel" class="hidden absolute right-0 top-[calc(100%+12px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
+            <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">My Profile</a>
+            <a href="security-configuration" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-t border-gray-100">Account Settings</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <main id="main-content" class="flex-1 p-4 sm:p-8 overflow-auto">
+
+      <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Account Management</h1>
+        <p class="text-sm text-gray-500 mt-1">Approve staff sign-ups, manage sections, and keep the class roster up to date.</p>
+      </div>
+
+      <div class="flex flex-col gap-6 max-w-[1100px]">
+
+        <!-- Staff sign-ups (admin only) -->
+        <section id="staffSection" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <div class="border-b border-gray-200 px-5 py-5 flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <h2 class="text-base font-semibold text-gray-900">Staff Accounts</h2>
+              <p class="text-xs text-gray-500 mt-1">Guidance counselors and facilitators sign up on their own (no password) and wait here for your approval. After you approve, they are emailed a temporary access code to create their own password. You never see it.</p>
+            </div>
+            <span id="pendingBadge" class="hidden text-xs font-semibold bg-amber-50 border border-amber-200 text-amber-700 rounded-full px-3 py-1"></span>
+          </div>
+          <div class="overflow-auto max-h-[60vh]">
+            <table class="w-full text-left border-collapse">
+              <thead class="bg-gray-50 border-b border-gray-200 sticky top-0 z-[1]">
+                <tr>
+                  <th class="px-5 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Name</th>
+                  <th class="px-5 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Position</th>
+                   <th class="px-5 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Email</th>
+                  <th class="px-5 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Sections</th>
+                  <th class="px-5 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Signed Up</th>
+                  <th class="px-5 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Status</th>
+                  <th class="px-5 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100" id="staffTbody">
+                <tr><td colspan="7" class="px-5 py-8 text-center text-sm text-gray-500">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Sections -->
+        <section class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <div class="border-b border-gray-200 px-5 py-5">
+            <h2 class="text-base font-semibold text-gray-900">Sections</h2>
+            <p class="text-xs text-gray-500 mt-1">Sections offered per strand, used for the class roster, assessment scheduling, and student records. Deactivating one keeps existing students' data intact but stops it being offered for new schedules and roster uploads.</p>
+            <p class="text-xs text-gray-500 mt-1">A section code is <span class="font-medium text-gray-700">one letter and four digits</span>, like S1114. The letter matches the strand (S for STEM, A for ABM, I for ICT, H for HUMSS) and the first two digits are the grade level (11 or 12).</p>
+          </div>
+          <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4" id="sectionsContainer">
+            <p class="text-xs text-gray-400">Loading…</p>
+          </div>
+          <p id="sectionsStatus" class="hidden text-xs px-5 pb-4" aria-live="polite"></p>
+        </section>
+
+        <!-- Class roster -->
+        <section class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <div class="border-b border-gray-200 px-5 py-5">
+            <h2 class="text-base font-semibold text-gray-900">Class Roster</h2>
+            <p class="text-xs text-gray-500 mt-1">Upload the list of students expected this Academic Year. Students on the roster who haven't registered yet show as Not Registered on Student Information.</p>
+          </div>
+          <div class="p-5 flex flex-col gap-4">
+            <ol class="text-sm text-gray-600 list-decimal pl-5 flex flex-col gap-1">
+              <li>Download the template. Type the Strand and Section once at the top (a section code is one letter and four digits, like S1114: S for STEM, A for ABM, I for ICT, H for HUMSS). Then list each student's Student Number (10 to 12 digits), Student Name as LASTNAME, FIRSTNAME MIDDLE, and the student's email (@live.mcl.edu.ph). The email is required for every student.</li>
+              <li>Save it as a .csv or Excel (.xlsx) file and upload it here. Each file is one section; upload a section again to replace just that section's list. Students can register only if their Student Number is on the roster, and the Academic Year is set automatically.</li>
+            </ol>
+            <div class="flex items-center gap-3 flex-wrap">
+              <a id="downloadTemplateBtn" href="api/roster-template.php" class="inline-flex items-center gap-2 bg-white border border-gray-300 rounded-md px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
+                <svg class="w-4 h-4" viewBox="0 -960 960 960" fill="currentColor"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
+                Download Roster Template
+              </a>
+              <button type="button" id="uploadRosterBtn" class="inline-flex items-center gap-2 bg-[#0f2a6b] text-white rounded-md px-4 py-2.5 text-sm font-medium shadow-sm hover:opacity-90">
+                <svg class="w-4 h-4" viewBox="0 -960 960 960" fill="currentColor"><path d="M440-320v-326L336-542l-56-58 200-200 200 200-56 58-104-104v326h-80ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
+                Upload Roster (CSV or Excel)
+              </button>
+              <input type="file" id="rosterFileInput" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden">
+            </div>
+            <pre id="rosterResult" class="hidden text-xs whitespace-pre-wrap rounded-md px-3.5 py-2.5"></pre>
+
+            <div>
+              <h3 class="text-sm font-semibold text-gray-900 mb-2">Uploaded Sections <span class="text-xs font-normal text-gray-500" id="rosterAyLabel"></span></h3>
+              <div class="border border-gray-200 rounded-lg overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                  <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th class="px-4 py-2.5 text-xs font-semibold tracking-wide text-gray-600 uppercase">Strand</th>
+                      <th class="px-4 py-2.5 text-xs font-semibold tracking-wide text-gray-600 uppercase">Section</th>
+                      <th class="px-4 py-2.5 text-xs font-semibold tracking-wide text-gray-600 uppercase">Students</th>
+                      <th class="px-4 py-2.5 text-xs font-semibold tracking-wide text-gray-600 uppercase">Registered</th>
+                      <th class="px-4 py-2.5 text-xs font-semibold tracking-wide text-gray-600 uppercase">Last Uploaded</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-100" id="rosterSectionsBody">
+                    <tr><td colspan="5" class="px-4 py-5 text-center text-sm text-gray-500">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+        <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
+        <span>&middot;</span>
+        <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
+        <span>&middot;</span>
+        <a href="accessibility" class="hover:text-gray-600 hover:underline">Accessibility</a>
+      </footer>
+  </div>
+</div>
+
+<div id="toastContainer" class="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 pointer-events-none"></div>
+<div id="genericConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
+    <p id="genericConfirmMessage" class="text-sm text-gray-700"></p>
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" id="genericConfirmCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+      <button type="button" id="genericConfirmOkBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div id="assignModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-md max-h-[85vh] flex flex-col">
+    <div class="px-6 pt-5 pb-3">
+      <h3 class="text-lg font-semibold text-gray-900" id="assignModalTitle">Assign sections</h3>
+      <p class="text-xs text-gray-500 mt-1">This person will only see the students of the sections you tick. Leave everything unticked to let them see all sections.</p>
+    </div>
+    <div class="px-6 pb-2 overflow-auto" id="assignModalBody"></div>
+    <p id="assignModalError" class="hidden px-6 text-xs text-[#ed1c24]"></p>
+    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+      <button type="button" id="assignCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+      <button type="button" id="assignSaveBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#0f2a6b] rounded-md hover:opacity-90">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="logoutConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
+    <h3 class="text-lg font-semibold text-black">Log Out?</h3>
+    <p class="text-sm text-gray-500">Are you sure you want to log out?</p>
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" id="logoutCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+      <button type="button" id="logoutConfirmBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Log Out</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showToast(message, isError) {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = 'pointer-events-auto max-w-sm px-4 py-3 rounded-lg shadow-lg text-sm font-medium whitespace-pre-wrap ' + (isError ? 'bg-[#ed1c24] text-white' : 'bg-green-600 text-white');
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(function() { toast.remove(); }, 5000);
+  }
+  function showConfirm(message) {
+    return new Promise(function(resolve) {
+      const modal = document.getElementById('genericConfirmModal');
+      document.getElementById('genericConfirmMessage').textContent = message;
+      modal.classList.remove('hidden');
+      setTimeout(function() { modal.classList.add('is-open'); }, 16);
+      const okBtn = document.getElementById('genericConfirmOkBtn');
+      const cancelBtn = document.getElementById('genericConfirmCancelBtn');
+      function cleanup(result) {
+        modal.classList.remove('is-open');
+        setTimeout(function() { modal.classList.add('hidden'); }, 260);
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        modal.removeEventListener('click', onBackdrop);
+        resolve(result);
+      }
+      function onOk() { cleanup(true); }
+      function onCancel() { cleanup(false); }
+      function onBackdrop(e) { if (e.target.id === 'genericConfirmModal') cleanup(false); }
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+      modal.addEventListener('click', onBackdrop);
+    });
+  }
+
+(async function() {
+  const sessionData = await (await fetch('api/session.php')).json();
+  const currentUser = sessionData.user;
+  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'counselor')) {
+    window.location.replace('staff-login');
+    return;
+  }
+  const isAdmin = currentUser.role === 'admin';
+
+  if (currentUser.avatarUrl) {
+    document.getElementById('headerAvatarWrap').innerHTML = '<img src="' + currentUser.avatarUrl + '" alt="" class="w-full h-full object-cover">';
+  }
+  const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
+  document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
+  document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
+
+  const logoutModal = document.getElementById('logoutConfirmModal');
+  function openLogoutModal(e) {
+    e.preventDefault();
+    logoutModal.classList.remove('hidden');
+    setTimeout(function() { logoutModal.classList.add('is-open'); }, 16);
+  }
+  function closeLogoutModal() {
+    logoutModal.classList.remove('is-open');
+    setTimeout(function() { logoutModal.classList.add('hidden'); }, 260);
+  }
+  document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
+  document.getElementById('logoutCancelBtn').addEventListener('click', closeLogoutModal);
+  document.getElementById('logoutConfirmBtn').addEventListener('click', function() {
+    fetch('api/logout.php', { method: 'POST' }).finally(function() { window.location.href = 'staff-login'; });
+  });
+  logoutModal.addEventListener('click', function(e) { if (e.target.id === 'logoutConfirmModal') closeLogoutModal(); });
+
+  (function() {
+    const sidebar = document.getElementById('sidebar');
+    const menuToggle = document.getElementById('menuToggle');
+    const backdrop = document.getElementById('sidebarBackdrop');
+    function openSidebar() { sidebar.classList.remove('-translate-x-full'); backdrop.classList.remove('hidden'); menuToggle.classList.add('invisible'); }
+    function closeSidebar() { sidebar.classList.add('-translate-x-full'); backdrop.classList.add('hidden'); menuToggle.classList.remove('invisible'); }
+    menuToggle.addEventListener('click', () => { sidebar.classList.contains('-translate-x-full') ? openSidebar() : closeSidebar(); });
+    backdrop.addEventListener('click', closeSidebar);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSidebar(); });
+  })();
+
+  (function() {
+    const profileBtn = document.getElementById('profileBtn');
+    const profilePanel = document.getElementById('profilePanel');
+    profileBtn.addEventListener('click', (e) => { e.stopPropagation(); profilePanel.classList.toggle('hidden'); });
+    document.addEventListener('click', () => profilePanel.classList.add('hidden'));
+    window.addEventListener('scroll', () => profilePanel.classList.add('hidden'), { passive: true });
+    profilePanel.addEventListener('click', (e) => e.stopPropagation());
+  })();
+
+  fetch('api/public-settings.php').then(function(r) { return r.json(); }).then(function(data) {
+    const ay = data && data.academicYear && data.academicYear.current;
+    if (ay) document.getElementById('ayBadgeValue').textContent = ay; else document.getElementById('ayBadge').classList.add('hidden');
+  }).catch(function() {});
+
+  function escapeHtml(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function formatDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(String(iso).replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00'));
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' });
+  }
+
+  // ---------- Staff accounts (admin only) ----------
+  if (isAdmin) {
+    document.getElementById('staffSection').classList.remove('hidden');
+    const staffTbody = document.getElementById('staffTbody');
+
+    function staffBadge(a) {
+      if (a.status === 'pending') {
+        return '<span class="inline-flex bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">Awaiting approval</span>';
+      }
+      if (a.status === 'approved' && !a.activated) {
+        return '<span class="inline-flex bg-sky-50 border border-sky-200 text-sky-700 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">Waiting for access code</span>';
+      }
+      if (a.status === 'rejected') {
+        return '<span class="inline-flex bg-red-50 border border-red-200 text-red-600 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">Rejected</span>';
+      }
+      return a.isActive
+        ? '<span class="inline-flex bg-[#f0fdf4] border border-[#bbf7d0] text-emerald-600 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">Active</span>'
+        : '<span class="inline-flex bg-gray-100 border border-gray-200 text-gray-500 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">Deactivated</span>';
+    }
+    function actionButtons(a) {
+      const btn = 'staff-action text-xs font-semibold rounded-md px-3 py-1.5 border ';
+      const data = ' data-id="' + a.id + '" data-name="' + escapeHtml(a.fullName || a.email) + '"';
+      if (a.status === 'pending') {
+        return '<div class="flex items-center justify-center gap-2">' +
+          '<button type="button" class="' + btn + 'text-white bg-emerald-600 border-emerald-600 hover:opacity-90" data-action="approve"' + data + '>Approve</button>' +
+          '<button type="button" class="' + btn + 'text-[#ed1c24] border-[#ed1c24] hover:bg-red-50" data-action="reject"' + data + '>Reject</button>' +
+        '</div>';
+      }
+      if (a.status === 'rejected') {
+        return '<button type="button" class="' + btn + 'text-emerald-600 border-emerald-300 hover:bg-emerald-50" data-action="approve"' + data + '>Approve instead</button>';
+      }
+      if (!a.activated) {
+        return '<div class="flex items-center justify-center gap-2">' +
+          '<button type="button" class="' + btn + 'text-[#19427b] border-[#19427b] hover:bg-slate-50" data-action="resendCode"' + data + '>Resend code</button>' +
+          '<button type="button" class="' + btn + 'text-[#ed1c24] border-[#ed1c24] hover:bg-red-50" data-action="toggleActive"' + data + ' data-active="1">Deactivate</button>' +
+        '</div>';
+      }
+      return '<button type="button" class="' + btn + (a.isActive ? 'text-[#ed1c24] border-[#ed1c24] hover:bg-red-50' : 'text-emerald-600 border-emerald-300 hover:bg-emerald-50') + '" data-action="toggleActive"' + data + ' data-active="' + (a.isActive ? '1' : '0') + '">' + (a.isActive ? 'Deactivate' : 'Activate') + '</button>';
+    }
+
+    // Which sections each staff member handles (none ticked = sees every section).
+    let assignmentData = { assignments: {}, options: [] };
+    function sectionsCell(a) {
+      if (a.status !== 'approved') return '—';
+      const mine = assignmentData.assignments[a.id] || [];
+      const text = mine.length ? mine.map(function(s) { return escapeHtml(s.section); }).join(', ') : 'All sections';
+      return '<span class="' + (mine.length ? 'text-gray-700' : 'text-gray-400') + '">' + text + '</span> ' +
+        '<button type="button" class="assign-sections text-xs font-semibold text-[#19427b] hover:underline ml-1" data-id="' + a.id + '" data-name="' + escapeHtml(a.fullName || a.email) + '">Assign</button>';
+    }
+
+    async function loadStaff() {
+      try { assignmentData = await (await fetch('api/staff-assignments.php')).json(); } catch (e) {}
+      const res = await fetch('api/staff-approvals.php');
+      if (!res.ok) {
+        staffTbody.innerHTML = '<tr><td colspan="7" class="px-5 py-8 text-center text-sm text-gray-500">Could not load staff accounts.</td></tr>';
+        return;
+      }
+      const accounts = (await res.json()).accounts || [];
+      const pending = accounts.filter(a => a.status === 'pending').length;
+      const badge = document.getElementById('pendingBadge');
+      badge.textContent = pending + ' pending';
+      badge.classList.toggle('hidden', pending === 0);
+      staffTbody.innerHTML = accounts.length ? accounts.map(function(a) {
+        return '<tr>' +
+          '<td class="px-5 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">' + (a.fullName ? escapeHtml(a.fullName) : '—') + (a.username && a.username.indexOf('staff-') !== 0 ? '<span class="block text-xs font-normal text-gray-400">' + escapeHtml(a.username) + '</span>' : '') + '</td>' +
+          '<td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(a.position || 'Guidance Counselor') + '</td>' +
+          '<td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">' + (a.email ? escapeHtml(a.email) : '—') + '</td>' +
+          '<td class="px-5 py-4 text-sm text-gray-500">' + sectionsCell(a) + '</td>' +
+          '<td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">' + formatDate(a.createdAt) + '</td>' +
+          '<td class="px-5 py-4 whitespace-nowrap">' + staffBadge(a) + '</td>' +
+          '<td class="px-5 py-4 text-center whitespace-nowrap">' + actionButtons(a) + '</td>' +
+        '</tr>';
+      }).join('') : '<tr><td colspan="7" class="px-5 py-8 text-center text-sm text-gray-500">No staff accounts yet. Staff can sign up from the login page.</td></tr>';
+    }
+
+    staffTbody.addEventListener('click', async function(e) {
+      const btn = e.target.closest('.staff-action');
+      if (!btn || btn.disabled) return;
+      const action = btn.dataset.action;
+      const name = btn.dataset.name;
+      const prompts = {
+        approve: 'Approve "' + name + '"? They will be emailed a temporary access code to create their own password. You will not see the password.',
+        resendCode: 'Email "' + name + '" a new temporary access code? Any earlier code stops working.',
+        reject: 'Reject the sign-up of "' + name + '"? They will be emailed and will not be able to sign in.',
+        toggleActive: (btn.dataset.active === '1' ? 'Deactivate' : 'Activate') + ' "' + name + '"?'
+      };
+      if (!(await showConfirm(prompts[action]))) return;
+      btn.disabled = true;
+      const res = await fetch('api/staff-approvals.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: action, id: Number(btn.dataset.id) })
+      });
+      const data = await res.json();
+      if (!data.success) { showToast(data.error || 'Could not update this account.', true); btn.disabled = false; return; }
+      showToast(action === 'approve' ? (data.emailSent === false ? 'Approved, but the email could not be sent. Use Resend code.' : 'Approved. A temporary access code was emailed.') : action === 'resendCode' ? (data.emailSent === false ? 'The email could not be sent. Try again.' : 'A new access code was emailed.') : action === 'reject' ? 'Sign-up rejected.' : 'Account updated.', false);
+      await loadStaff();
+    });
+
+    // ---- Assign sections to a staff member ----
+    const assignModal = document.getElementById('assignModal');
+    let assignUserId = null;
+    function closeAssign() {
+      assignModal.classList.remove('is-open');
+      setTimeout(function() { assignModal.classList.add('hidden'); }, 260);
+    }
+    staffTbody.addEventListener('click', function(e) {
+      const b = e.target.closest('.assign-sections');
+      if (!b) return;
+      assignUserId = Number(b.dataset.id);
+      const mine = (assignmentData.assignments[assignUserId] || []).map(function(s) { return s.strand + '|' + s.section; });
+      document.getElementById('assignModalTitle').textContent = 'Assign sections — ' + b.dataset.name;
+      document.getElementById('assignModalError').classList.add('hidden');
+      const byStrand = {};
+      (assignmentData.options || []).forEach(function(o) { (byStrand[o.strand] = byStrand[o.strand] || []).push(o); });
+      const strands = Object.keys(byStrand);
+      document.getElementById('assignModalBody').innerHTML = strands.length ? strands.map(function(strand) {
+        return '<div class="mb-4"><p class="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-2">' + escapeHtml(strand) + '</p><div class="grid grid-cols-3 gap-2">' +
+          byStrand[strand].map(function(o) {
+            const key = o.strand + '|' + o.section;
+            return '<label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" class="assign-check accent-[#0f2a6b]" data-strand="' + escapeHtml(o.strand) + '" data-section="' + escapeHtml(o.section) + '"' + (mine.indexOf(key) !== -1 ? ' checked' : '') + '>' + escapeHtml(o.section) + '</label>';
+          }).join('') + '</div></div>';
+      }).join('') : '<p class="text-sm text-gray-500 py-4">No sections yet. Add sections or upload a class roster first.</p>';
+      assignModal.classList.remove('hidden');
+      setTimeout(function() { assignModal.classList.add('is-open'); }, 16);
+    });
+    document.getElementById('assignCancelBtn').addEventListener('click', closeAssign);
+    assignModal.addEventListener('click', function(e) { if (e.target.id === 'assignModal') closeAssign(); });
+    document.getElementById('assignSaveBtn').addEventListener('click', async function() {
+      const btn = this;
+      const sections = Array.from(document.querySelectorAll('.assign-check:checked')).map(function(c) { return { strand: c.dataset.strand, section: c.dataset.section }; });
+      btn.disabled = true;
+      try {
+        const res = await fetch('api/staff-assignments.php', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: assignUserId, sections: sections })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          const err = document.getElementById('assignModalError');
+          err.textContent = data.error || 'Could not save the sections.';
+          err.classList.remove('hidden');
+          return;
+        }
+        showToast(sections.length ? 'Sections assigned.' : 'This person can now see all sections.', false);
+        closeAssign();
+        await loadStaff();
+      } catch (e) {
+        showToast('Unable to reach the server. Please try again.', true);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    await loadStaff();
+  }
+
+  // ---------- Sections ----------
+  const SECTION_STRANDS = ['STEM', 'ABM', 'ICT', 'HUMSS'];
+  const SECTION_LETTER = { STEM: 'S', ABM: 'A', ICT: 'I', HUMSS: 'H' };
+  let sectionsData = [];
+  let rbac = null;
+  let canEditRoster = false;
+  function showSectionsStatus(text, isError) {
+    const el = document.getElementById('sectionsStatus');
+    el.textContent = text;
+    el.className = 'text-xs px-5 pb-4' + (isError ? ' text-[#ed1c24]' : ' text-green-600');
+    el.classList.remove('hidden');
+    clearTimeout(showSectionsStatus.timer);
+    // An error is a sentence to read, so it stays up longer than a confirmation.
+    showSectionsStatus.timer = setTimeout(() => el.classList.add('hidden'), isError ? 9000 : 3000);
+  }
+  // Full = can add and deactivate/reactivate sections (a Guidance Facilitator only ever sees Limited).
+  // Comes from the 'sections' row of Security Configuration's permission table.
+  function sectionsLevel() {
+    return (rbac && rbac.sections && rbac.sections[currentUser.role]) || 'none';
+  }
+  async function loadSections() {
+    const res = await fetch('api/sections.php?all=1');
+    const container = document.getElementById('sectionsContainer');
+    if (!res.ok) {
+      sectionsData = [];
+      container.innerHTML = '<p class="text-xs text-gray-500">You do not have access to Section Management.</p>';
+      return;
+    }
+    sectionsData = (await res.json()).sections || [];
+    renderSections();
+  }
+  function renderSections() {
+    const container = document.getElementById('sectionsContainer');
+    const level = sectionsLevel();
+    const canAdd = level === 'full';
+    const canToggle = level === 'full';
+    const addDisabledAttr = canAdd ? '' : ' disabled';
+    const addDisabledCls = canAdd ? '' : ' opacity-60 cursor-not-allowed';
+    const disabledAttr = canToggle ? '' : ' disabled';
+    const disabledCls = canToggle ? '' : ' opacity-60 cursor-not-allowed';
+    container.innerHTML = SECTION_STRANDS.map(function(strand) {
+      const items = sectionsData.filter(s => s.strand === strand);
+      const pills = items.length ? items.map(function(s) {
+        const styleCls = s.isActive
+          ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+          : 'bg-gray-100 border-gray-200 text-gray-400 line-through';
+        return '<button type="button" class="section-pill border rounded-full px-3 py-1.5 text-xs font-medium ' + styleCls + disabledCls + '" data-id="' + s.id + '"' + disabledAttr + ' title="' + (canToggle ? (s.isActive ? 'Click to deactivate' : 'Click to reactivate') : (s.isActive ? 'Active' : 'Inactive')) + '">' + escapeHtml(s.code) + '</button>';
+      }).join('') : '<p class="text-xs text-gray-400">No sections yet.</p>';
+      return '<div class="border border-gray-200 rounded-lg p-[17px] flex flex-col gap-3">' +
+        '<p class="text-sm font-semibold text-gray-800">' + strand + '</p>' +
+        '<div class="flex flex-wrap gap-2">' + pills + '</div>' +
+        '<div class="flex items-center gap-2">' +
+          '<input type="text" maxlength="5" autocapitalize="characters" spellcheck="false" class="add-section-input flex-1 min-w-0 border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed1c24]' + addDisabledCls + '" placeholder="New section, e.g. S1115" aria-label="New ' + strand + ' section code" data-strand="' + strand + '"' + addDisabledAttr + '>' +
+          '<button type="button" class="add-section-btn px-4 py-2 text-xs font-semibold text-white bg-[#0f2a6b] rounded-md hover:opacity-90 shrink-0' + addDisabledCls + '" data-strand="' + strand + '"' + addDisabledAttr + '>Add</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    if (canToggle) container.querySelectorAll('.section-pill').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        btn.disabled = true;
+        const res = await fetch('api/sections.php', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'toggleActive', id: parseInt(btn.dataset.id, 10) })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showSectionsStatus(data.isActive ? 'Section reactivated.' : 'Section deactivated.', false);
+          await loadSections();
+        } else {
+          showSectionsStatus(data.error || 'Failed to update section.', true);
+          btn.disabled = false;
+        }
+      });
+    });
+    container.querySelectorAll('.add-section-btn').forEach(function(btn) {
+      const strand = btn.dataset.strand;
+      const input = container.querySelector('.add-section-input[data-strand="' + strand + '"]');
+      async function add() {
+        const code = input.value.replace(/\s+/g, '').toUpperCase();
+        input.value = code;
+        if (!code) return;
+        // The same rule the server applies (lib/Sections.php), so a typo is caught before it is sent.
+        const letter = SECTION_LETTER[strand];
+        if (!/^[A-Z](1[12])[0-9]{2}$/.test(code)) {
+          showSectionsStatus('"' + code + '" is not a valid section code. Use one letter and four digits, like ' + letter + '1114 (the first two digits are the grade level, 11 or 12).', true);
+          return;
+        }
+        if (code.charAt(0) !== letter) {
+          showSectionsStatus(strand + ' sections start with ' + letter + ', like ' + letter + code.slice(1) + '. "' + code + '" starts with ' + code.charAt(0) + '.', true);
+          return;
+        }
+        btn.disabled = true;
+        const res = await fetch('api/sections.php', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'create', strand: strand, code: code })
+        });
+        const data = await res.json();
+        btn.disabled = false;
+        if (data.success) {
+          showSectionsStatus('Section added.', false);
+          await loadSections();
+        } else {
+          showSectionsStatus(data.error || 'Failed to add section.', true);
+        }
+      }
+      btn.addEventListener('click', add);
+      input.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); add(); } });
+    });
+  }
+
+  try {
+    const cfg = await (await fetch('api/security-config.php')).json();
+    rbac = cfg.rbac;
+    canEditRoster = !!cfg.canEditRoster;
+  } catch (e) { rbac = null; }
+  if (!canEditRoster) {
+    // View-only (Guidance Facilitator): no template download or upload, just what has been uploaded.
+    ['downloadTemplateBtn', 'uploadRosterBtn'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
+    const note = document.createElement('p');
+    note.className = 'text-xs text-gray-500';
+    note.textContent = 'You have view-only access to the class roster. A Guidance Counselor or the Head of Guidance uploads it.';
+    document.getElementById('rosterResult').before(note);
+  }
+  await loadSections();
+
+  // ---------- Class roster ----------
+  // The sections already uploaded for this academic year, so staff can see what is on the roster.
+  async function loadRosterSections() {
+    const body = document.getElementById('rosterSectionsBody');
+    try {
+      const data = await (await fetch('api/roster-sections.php')).json();
+      document.getElementById('rosterAyLabel').textContent = data.academicYear ? '(Academic Year ' + data.academicYear + ')' : '';
+      const rows = data.sections || [];
+      body.innerHTML = rows.length ? rows.map(function(s) {
+        const d = s.lastUploaded ? new Date(String(s.lastUploaded).replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00')) : null;
+        const when = d && !isNaN(d) ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }) : '—';
+        return '<tr><td class="px-4 py-3 text-sm text-gray-700">' + escapeHtml(s.strand) + '</td>' +
+          '<td class="px-4 py-3 text-sm font-medium text-gray-900">' + escapeHtml(s.section) + '</td>' +
+          '<td class="px-4 py-3 text-sm text-gray-700">' + s.students + '</td>' +
+          '<td class="px-4 py-3 text-sm text-gray-700">' + s.registered + ' of ' + s.students + '</td>' +
+          '<td class="px-4 py-3 text-sm text-gray-500">' + when + '</td></tr>';
+      }).join('') : '<tr><td colspan="5" class="px-4 py-5 text-center text-sm text-gray-500">No sections uploaded yet for this academic year.</td></tr>';
+    } catch (e) {
+      body.innerHTML = '<tr><td colspan="5" class="px-4 py-5 text-center text-sm text-gray-500">Could not load the uploaded sections.</td></tr>';
+    }
+  }
+  loadRosterSections();
+  const resultEl = document.getElementById('rosterResult');
+  function showRosterResult(text, isError) {
+    resultEl.textContent = text;
+    resultEl.className = 'text-xs whitespace-pre-wrap rounded-md px-3.5 py-2.5 ' + (isError
+      ? 'text-[#ed1c24] bg-red-50 border border-red-100'
+      : 'text-green-700 bg-green-50 border border-green-100');
+  }
+  document.getElementById('uploadRosterBtn').addEventListener('click', function() {
+    document.getElementById('rosterFileInput').click();
+  });
+  document.getElementById('rosterFileInput').addEventListener('change', async function() {
+    const file = this.files[0];
+    if (!file) return;
+    const btn = document.getElementById('uploadRosterBtn');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.textContent = 'Uploading…';
+    try {
+      const formData = new FormData();
+      formData.append('roster', file);
+      const res = await fetch('api/roster-upload.php', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!data.success) {
+        showRosterResult((data.error || 'Upload failed.') + (data.details ? '\n\n' + data.details.join('\n') : ''), true);
+      } else {
+        loadRosterSections();
+        const lines = ['Roster uploaded: ' + data.count + ' student(s) in ' + data.strand + ' ' + data.section + ' for Academic Year ' + data.academicYear + '.'];
+        lines.push(data.added + ' new, ' + (data.count - data.added - data.moved) + ' already on this section, ' + data.moved + ' moved here from another section, ' + data.removed + ' removed from this section.');
+        if (data.moved && data.movedFrom) {
+          lines.push('Moved from: ' + Object.keys(data.movedFrom).map(function(k) { return k + ' (' + data.movedFrom[k] + ')'; }).join(', ') + '.');
+        }
+        if (data.withoutEmail) {
+          lines.push(data.withoutEmail + ' student(s) have no email in the file, so announcement emails cannot reach them until the roster is updated with their emails.');
+        }
+        showRosterResult(lines.join('\n'), false);
+      }
+    } catch (err) {
+      showRosterResult('Unable to reach the server. Please try again.', true);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+      this.value = '';
+    }
+  });
+})();
+</script>
+<script src="js/motion.js" defer></script>
+<script src="js/notifications.js" defer></script>
+</body>
+</html>

@@ -14,6 +14,9 @@
  */
 
 require_once __DIR__ . '/lib/Auth.php';
+require_once __DIR__ . '/lib/SecurityHeaders.php';
+
+SecurityHeaders::send();
 
 // Pages that require an authenticated session with a specific role. Each of
 // these pages also redirects client-side once its own JS runs (checking
@@ -30,26 +33,25 @@ const PROTECTED_PAGES = [
     'announcements' => ['admin', 'counselor'],
     'audit-log' => ['admin', 'counselor'],
     'career-dataset' => ['admin', 'counselor'],
-    'exam-schedules' => ['admin', 'counselor'],
-    'help-requests' => ['admin', 'counselor'],
-    'admin-help-center' => ['admin', 'counselor'],
-    'admin-notifications' => ['admin', 'counselor'],
+    'assessment-scheduling' => ['admin', 'counselor'],
+    'counseling-requests' => ['admin', 'counselor'],
+    'staff-help-center' => ['admin', 'counselor'],
+    'staff-notifications' => ['admin', 'counselor'],
     'monitoring' => ['admin', 'counselor'],
     'monitoring-details' => ['admin', 'counselor'],
+    'staff-profile' => ['admin', 'counselor'],
     'cbf-debug' => ['admin', 'counselor'],
-    'profile' => ['admin', 'counselor'],
     'question-bank' => ['admin', 'counselor'],
-    'retake-requests' => ['admin', 'counselor'],
     'security-configuration' => ['admin', 'counselor'],
     'student-profile' => ['admin', 'counselor'],
     'student-accounts' => ['admin', 'counselor'],
-    'staff-accounts' => ['admin'],
+    'account-management' => ['admin', 'counselor'],
     'assessment' => ['student'],
     'assessment-instructions' => ['student'],
     'change-password' => ['student'],
     'career-worksheet' => ['student'],
-    'help-center' => ['student'],
-    'notifications' => ['student'],
+    'student-help-center' => ['student'],
+    'student-notifications' => ['student'],
     'results' => ['student'],
     'saved-careers' => ['student'],
     'riasec-assessment' => ['student'],
@@ -57,8 +59,29 @@ const PROTECTED_PAGES = [
     'worksheet-results' => ['student'],
 ];
 
+// Pages that were renamed so each name says who it is for. Old bookmarks, emailed links and notifications that
+// still point at an old name are sent to the new one (the query string is kept).
+const RENAMED_PAGES = [
+    'login' => 'student-login',
+    'registration' => 'student-register',
+    'forgot-password' => 'student-forgot-password',
+    'help-center' => 'student-help-center',
+    'notifications' => 'student-notifications',
+    'profile' => 'staff-profile',
+    'admin-help-center' => 'staff-help-center',
+    'admin-notifications' => 'staff-notifications',
+    'help-requests' => 'counseling-requests',
+    'exam-schedules' => 'assessment-scheduling',
+];
+
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path = urldecode($path ?? '/');
+
+if (preg_match('~^/([a-z-]+?)(?:\.html)?/?$~', $path, $renamed) && isset(RENAMED_PAGES[$renamed[1]])) {
+    $query = (string) parse_url($_SERVER['REQUEST_URI'], PHP_URL_QUERY);
+    header('Location: /' . RENAMED_PAGES[$renamed[1]] . ($query !== '' ? '?' . $query : ''), true, 301);
+    return true;
+}
 
 // Root path: hand off to the built-in server's own default behavior,
 // which finds and executes index.php in the docroot — that script
@@ -77,7 +100,8 @@ $slug = basename($path, '.html');
 if (isset(PROTECTED_PAGES[$slug])) {
     $user = Auth::currentUser();
     if ($user === null || !in_array($user['role'], PROTECTED_PAGES[$slug], true)) {
-        header('Location: /login');
+        // Staff pages send a signed-out visitor to the staff sign-in, student pages to the student one.
+        header('Location: ' . (in_array('admin', PROTECTED_PAGES[$slug], true) ? '/staff-login' : '/student-login'));
         return true;
     }
 }

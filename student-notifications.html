@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="js/csrf.js"></script>
+<title>Notifications — Career Profiling System</title>
+<link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
+<link rel="stylesheet" href="css/tailwind.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body{ font-family:'Inter', sans-serif; }
+</style>
+<link rel="stylesheet" href="css/motion.css">
+</head>
+<body class="bg-[#f8f9fb]">
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<div class="flex min-h-screen">
+
+  <!-- Mobile sidebar backdrop -->
+  <div id="sidebarBackdrop" class="hidden fixed inset-0 bg-black/40 z-30 md:hidden"></div>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="w-[260px] shrink-0 bg-[#001c43] flex flex-col fixed inset-y-0 left-0 z-40 -translate-x-full transition-transform duration-200 md:sticky md:top-0 md:translate-x-0 h-screen">
+    <div class="sidebar-brand bg-white shrink-0">
+      <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="sidebar-brand-mmcl">
+      <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="sidebar-brand-cgc">
+    </div>
+    <div class="flex items-center gap-3 px-6 py-8">
+      <img src="images/admin/logo-profilepath.svg" alt="ProfilePath logo" class="w-[64px]">
+      <div>
+        <p class="text-lg font-bold leading-none"><span class="text-white">Profile</span><span class="text-[#ed1c24]">Path</span></p>
+        <p class="text-sm text-white/60 mt-1">Student Portal</p>
+      </div>
+    </div>
+    <nav class="flex-1 flex flex-col gap-0.5 py-4 overflow-auto">
+      <a href="assessment" class="flex items-center gap-3.5 h-[50px] pl-6 border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+        <svg class="w-[15px] h-[15px] shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h168q13-36 43.5-58t68.5-22q38 0 68.5 22t43.5 58h168q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm80-80h280v-80H280v80Zm0-160h400v-80H280v80Zm0-160h400v-80H280v80Zm221.5-198.5Q510-807 510-820t-8.5-21.5Q493-850 480-850t-21.5 8.5Q450-833 450-820t8.5 21.5Q467-790 480-790t21.5-8.5ZM200-200v-560 560Z"/></svg>
+        Assessments
+      </a>
+      <a href="results" class="flex items-center gap-3.5 h-[50px] pl-6 border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+        <svg class="w-[15px] h-[15px] shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M120-160q-33 0-56.5-23.5T40-240q0-33 23.5-56.5T120-320h10.5q4.5 0 9.5 2l182-182q-2-5-2-9.5V-520q0-33 23.5-56.5T400-600q33 0 56.5 23.5T480-520q0 2-2 20l102 102q5-2 9.5-2h21q4.5 0 9.5 2l142-142q-2-5-2-9.5V-560q0-33 23.5-56.5T840-640q33 0 56.5 23.5T920-560q0 33-23.5 56.5T840-480h-10.5q-4.5 0-9.5-2L678-340q2 5 2 9.5v10.5q0 33-23.5 56.5T600-240q-33 0-56.5-23.5T520-320v-10.5q0-4.5 2-9.5L420-442q-5 2-9.5 2H400q-2 0-20-2L198-260q2 5 2 9.5v10.5q0 33-23.5 56.5T120-160Zm40-401-25-54-54-25 54-25 25-54 25 54 54 25-54 25-25 54Zm440-39-38-82-82-38 82-38 38-82 38 82 82 38-82 38-38 82Z"/></svg>
+        Career Results
+      </a>
+      <a href="saved-careers" class="flex items-center gap-3.5 h-[50px] pl-6 border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+        <svg class="w-[15px] h-[15px] shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120v-640q0-33 23.5-56.5T280-840h400q33 0 56.5 23.5T760-760v640L480-240 200-120Zm80-122 200-86 200 86v-518H280v518Zm0-518h400-400Z"/></svg>
+        Saved Careers
+      </a>
+      <a href="student-settings" class="flex items-center gap-3.5 h-[50px] pl-6 border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+        <svg class="w-[15px] h-[15px] shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="m370-80-16-128q-13-5-24.5-12T307-235l-119 50L78-375l103-78q-1-7-1-13.5v-27q0-6.5 1-13.5L78-585l110-190 119 50q11-8 23-15t24-12l16-128h220l16 128q13 5 24.5 12t22.5 15l119-50 110 190-103 78q1 7 1 13.5v27q0 6.5-2 13.5l103 78-110 190-118-50q-11 8-23 15t-24 12L590-80H370Zm70-80h79l14-106q31-8 57.5-23.5T639-327l99 41 39-68-86-65q5-14 7-29.5t2-31.5q0-16-2-31.5t-7-29.5l86-65-39-68-99 42q-22-23-48.5-38.5T533-694l-13-106h-79l-14 106q-31 8-57.5 23.5T321-633l-99-41-39 68 86 64q-5 15-7 30t-2 32q0 16 2 31t7 30l-86 65 39 68 99-42q22 23 48.5 38.5T427-266l13 106Zm42-180q58 0 99-41t41-99q0-58-41-99t-99-41q-59 0-99.5 41T342-480q0 58 40.5 99t99.5 41Zm-2-140Z"/></svg>
+        Settings
+      </a>
+    </nav>
+    <div class="border-t border-white/5 pt-[25px] pb-6 flex flex-col gap-0.5">
+      <a href="student-help-center" class="flex items-center gap-3.5 h-[50px] pl-6 text-white/85 text-sm hover:bg-white/5">
+        <svg class="w-[15px] h-[15px] shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M513.5-254.5Q528-269 528-290t-14.5-35.5Q499-340 478-340t-35.5 14.5Q428-311 428-290t14.5 35.5Q457-240 478-240t35.5-14.5ZM442-394h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>
+        Help Center
+      </a>
+      <a href="#" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 text-white/85 text-sm hover:bg-white/5">
+        <svg class="w-[15px] h-[15px] shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>
+        Logout
+      </a>
+    </div>
+
+  </aside>
+
+  <!-- Main Content -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    <header class="bg-white border-b border-gray-200 flex items-center justify-between px-6 h-16 shrink-0 sticky top-0 z-10">
+      <button type="button" id="menuToggle" class="relative z-50 w-10 h-10 -m-2.5 flex items-center justify-center md:invisible">
+        <img src="images/admin/icon-menu.svg" alt="Menu" class="w-5 h-4">
+      </button>
+      <div class="flex items-center gap-6">
+
+        <!-- Notifications -->
+        <div class="relative">
+          <button type="button" id="notifBtn" class="relative w-5 h-5">
+            <svg class="w-full h-full" viewBox="0 -960 960 960" fill="#64748B"><path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"/></svg>
+            <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#ed1c24] text-white text-[10px] font-bold flex items-center justify-center"></span>
+          </button>
+          <div id="notifPanel" class="hidden fixed left-4 right-4 top-[76px] z-50 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+12px)] sm:w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <p class="text-sm font-semibold text-gray-900">Notifications</p>
+              <span id="notifCountLabel" class="text-xs text-gray-500">Loading…</span>
+            </div>
+            <ul id="notifList" class="max-h-80 overflow-auto divide-y divide-gray-100">
+              <li class="px-4 py-6 text-center text-sm text-gray-500">Loading…</li>
+            </ul>
+            <a href="student-notifications" class="block text-center text-sm font-medium text-[#ed1c24] px-4 py-3 border-t border-gray-100 hover:bg-gray-50">View all notifications</a>
+          </div>
+        </div>
+
+        <!-- Profile -->
+        <div class="relative">
+          <button type="button" id="profileBtn" class="flex items-center gap-3">
+            <span id="headerAvatarWrap" class="w-9 h-9 rounded-full bg-[#001c43] flex items-center justify-center overflow-hidden shrink-0">
+              <img src="images/admin/icon-avatar.svg" alt="" class="w-3.5 h-4">
+            </span>
+            <span class="text-left">
+              <span class="block text-sm font-semibold text-gray-800" id="headerName">&nbsp;</span>
+              <span class="block text-xs text-gray-500" id="headerSub">&nbsp;</span>
+            </span>
+            <img src="images/admin/icon-chevron-down.svg" alt="" class="w-3.5 h-2">
+          </button>
+          <div id="profilePanel" class="hidden absolute right-0 top-[calc(100%+12px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
+            <div class="px-4 py-3 border-b border-gray-100">
+              <p class="text-sm font-semibold text-gray-900" id="profilePanelName">Student</p>
+              <p class="text-xs text-gray-500" id="profilePanelMeta">—</p>
+            </div>
+            <a href="student-settings" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">My Profile</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <main id="main-content" class="flex-1 px-9 py-10 max-w-[1152px]">
+
+      <div class="flex items-start gap-5 mb-8">
+        <a href="assessment" class="w-10 h-10 rounded-xl border border-[#e8bcb7] flex items-center justify-center shrink-0 hover:bg-red-50">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#5e3f3c" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+        </a>
+        <div>
+          <h1 class="text-[32px] font-bold text-[#191c1e] tracking-tight">Notifications</h1>
+          <p class="text-sm text-[#5e3f3c] mt-1">Announcements, results, and other updates sent to you.</p>
+        </div>
+      </div>
+
+      <p id="loadingState" class="text-sm text-[#5e3f3c]">Loading your notifications…</p>
+      <p id="listError" class="hidden text-sm text-[#ed1c24]"></p>
+
+      <div id="emptyState" class="hidden bg-white border border-[#e0e3e5] rounded-lg p-10">
+        <div class="flex flex-col items-center text-center gap-3">
+          <span class="w-14 h-14 rounded-xl bg-[#dbeafe] flex items-center justify-center">
+            <svg class="w-6 h-6 text-[#495e88]" viewBox="0 -960 960 960" fill="currentColor"><path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"/></svg>
+          </span>
+          <h2 class="text-base font-semibold text-[#191c1e]">You're all caught up</h2>
+          <p class="text-sm text-[#5e3f3c] max-w-sm">Nothing new right now — announcements and updates will show up here.</p>
+        </div>
+      </div>
+
+      <div id="notifSections" class="hidden flex flex-col gap-8">
+
+        <section id="annSection" class="hidden" aria-labelledby="annHeading">
+          <div class="flex items-center justify-between mb-2">
+            <h2 id="annHeading" class="text-xs font-semibold tracking-[1.2px] text-[#495e88] uppercase">Announcements</h2>
+            <button type="button" id="clearAnnBtn" class="text-xs font-medium text-[#ed1c24] hover:underline">Clear all</button>
+          </div>
+          <div id="annList" class="bg-white border border-[#e0e3e5] rounded-lg divide-y divide-[#e0e3e5]"></div>
+        </section>
+
+        <section id="updSection" class="hidden" aria-labelledby="updHeading">
+          <div class="flex items-center justify-between mb-2">
+            <h2 id="updHeading" class="text-xs font-semibold tracking-[1.2px] text-[#495e88] uppercase">Updates</h2>
+            <button type="button" id="clearUpdBtn" class="text-xs font-medium text-[#ed1c24] hover:underline">Clear all</button>
+          </div>
+          <div id="updList" class="bg-white border border-[#e0e3e5] rounded-lg divide-y divide-[#e0e3e5]"></div>
+        </section>
+
+      </div>
+    </main>
+
+      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+        <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
+        <span>&middot;</span>
+        <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
+        <span>&middot;</span>
+        <a href="accessibility" class="hover:text-gray-600 hover:underline">Accessibility</a>
+      </footer>
+  </div>
+</div>
+
+<div id="logoutConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
+    <h3 class="text-lg font-semibold text-black">Log Out?</h3>
+    <p class="text-sm text-gray-500">Are you sure you want to log out?</p>
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" id="logoutCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+      <button type="button" id="logoutConfirmBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Log Out</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(async function() {
+    const sessionData = await (await fetch('api/session.php')).json();
+    const currentUser = sessionData.user;
+    if (!currentUser || currentUser.role !== 'student') {
+      window.location.replace('student-login');
+      return;
+    }
+
+    if (currentUser.avatarUrl) {
+      document.getElementById('headerAvatarWrap').innerHTML = '<img src="' + currentUser.avatarUrl + '" alt="" class="w-full h-full object-cover">';
+    }
+    document.getElementById('headerName').textContent = currentUser.firstName + ' ' + currentUser.lastName;
+    document.getElementById('headerSub').textContent = 'Grade ' + currentUser.gradeLevel + ' - ' + currentUser.strand;
+    document.getElementById('profilePanelName').textContent = currentUser.firstName + ' ' + currentUser.lastName;
+    document.getElementById('profilePanelMeta').textContent = 'Grade ' + currentUser.gradeLevel + ' - ' + currentUser.strand;
+
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Mirrors js/notifications.js's timeAgo(): Postgres timestamptz values
+    // may already carry a UTC offset (e.g. "...+08"), so only assume UTC
+    // when no offset/Z is present, and pad a bare "+HH"/"-HH" to "+HH:00".
+    function timeAgo(iso) {
+      var normalized = iso.replace(' ', 'T');
+      if (/(Z|[+-]\d{2}(:?\d{2})?)$/.test(normalized)) {
+        normalized = normalized.replace(/([+-]\d{2})$/, '$1:00');
+      } else {
+        normalized += 'Z';
+      }
+      var seconds = Math.max(0, Math.floor((Date.now() - new Date(normalized).getTime()) / 1000));
+      if (seconds < 60) return 'Just now';
+      var minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return minutes + ' minute' + (minutes === 1 ? '' : 's') + ' ago';
+      var hours = Math.floor(minutes / 60);
+      if (hours < 24) return hours + ' hour' + (hours === 1 ? '' : 's') + ' ago';
+      var days = Math.floor(hours / 24);
+      return days + ' day' + (days === 1 ? '' : 's') + ' ago';
+    }
+
+    const TRASH = '<svg viewBox="0 -960 960 960" class="w-[18px] h-[18px]" fill="currentColor" aria-hidden="true"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>';
+
+    function rowHtml(n, isAnnouncement) {
+      return '<div class="notif-row flex items-start gap-3 px-5 py-4" data-key="' + escapeHtml(n.key || '') + '">' +
+        '<a href="' + escapeHtml(n.link) + '" class="min-w-0 flex-1 block hover:opacity-80">' +
+          '<p class="text-sm font-semibold text-[#191c1e]">' + escapeHtml(n.title || (isAnnouncement ? 'Announcement' : 'Update')) + '</p>' +
+          (n.text ? '<p class="text-sm text-[#5e3f3c] mt-0.5 break-words">' + escapeHtml(n.text) + '</p>' : '') +
+          '<p class="text-xs text-gray-400 mt-1">' + timeAgo(n.ts) + '</p>' +
+        '</a>' +
+        '<button type="button" class="delete-notif shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-gray-400 hover:text-[#ed1c24] hover:bg-red-50" aria-label="Delete this notification" title="Delete">' + TRASH + '</button>' +
+      '</div>';
+    }
+
+    function refreshSections() {
+      const ann = document.getElementById('annList').children.length;
+      const upd = document.getElementById('updList').children.length;
+      document.getElementById('annSection').classList.toggle('hidden', ann === 0);
+      document.getElementById('updSection').classList.toggle('hidden', upd === 0);
+      document.getElementById('notifSections').classList.toggle('hidden', ann + upd === 0);
+      document.getElementById('emptyState').classList.toggle('hidden', ann + upd !== 0);
+    }
+
+    async function deleteKeys(keys, rows) {
+      if (!keys.length) return;
+      const res = await fetch('api/notifications-dismiss.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys: keys })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        const errorEl = document.getElementById('listError');
+        errorEl.textContent = data.error || 'Could not delete. Please try again.';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      rows.forEach(function(r) { r.remove(); });
+      refreshSections();
+      if (window.ProfilePathNotifications) window.ProfilePathNotifications.reload();
+    }
+
+    document.getElementById('notifSections').addEventListener('click', function(e) {
+      const btn = e.target.closest('.delete-notif');
+      if (!btn) return;
+      const row = btn.closest('.notif-row');
+      btn.disabled = true;
+      deleteKeys([row.dataset.key], [row]).finally(function() { btn.disabled = false; });
+    });
+    [['clearAnnBtn', 'annList'], ['clearUpdBtn', 'updList']].forEach(function(pair) {
+      document.getElementById(pair[0]).addEventListener('click', function() {
+        const rows = Array.from(document.getElementById(pair[1]).querySelectorAll('.notif-row'));
+        deleteKeys(rows.map(function(r) { return r.dataset.key; }), rows);
+      });
+    });
+
+    async function loadNotifications() {
+      const loadingEl = document.getElementById('loadingState');
+      const errorEl = document.getElementById('listError');
+      try {
+        const res = await fetch('api/notifications.php?full=1');
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+        const items = data.items || [];
+        loadingEl.classList.add('hidden');
+        document.getElementById('annList').innerHTML = items.filter(function(n) { return n.type === 'announcement'; }).map(function(n) { return rowHtml(n, true); }).join('');
+        document.getElementById('updList').innerHTML = items.filter(function(n) { return n.type !== 'announcement'; }).map(function(n) { return rowHtml(n, false); }).join('');
+        refreshSections();
+      } catch (e) {
+        loadingEl.classList.add('hidden');
+        errorEl.textContent = 'Could not load your notifications. Please refresh the page.';
+        errorEl.classList.remove('hidden');
+      }
+    }
+    loadNotifications();
+
+    (function() {
+      const sidebar = document.getElementById('sidebar');
+      const menuToggle = document.getElementById('menuToggle');
+      const backdrop = document.getElementById('sidebarBackdrop');
+      function openSidebar() { sidebar.classList.remove('-translate-x-full'); backdrop.classList.remove('hidden'); menuToggle.classList.add('invisible'); }
+      function closeSidebar() { sidebar.classList.add('-translate-x-full'); backdrop.classList.add('hidden'); menuToggle.classList.remove('invisible'); }
+      menuToggle.addEventListener('click', () => {
+        sidebar.classList.contains('-translate-x-full') ? openSidebar() : closeSidebar();
+      });
+      backdrop.addEventListener('click', closeSidebar);
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSidebar(); });
+    })();
+
+    const logoutModal = document.getElementById('logoutConfirmModal');
+    function openLogoutModal(e) {
+      e.preventDefault();
+      logoutModal.classList.remove('hidden');
+      setTimeout(function() { logoutModal.classList.add('is-open'); }, 16);
+    }
+    function closeLogoutModal() {
+      logoutModal.classList.remove('is-open');
+      setTimeout(function() { logoutModal.classList.add('hidden'); }, 260);
+    }
+    function performLogout() {
+      fetch('api/logout.php', { method: 'POST' }).finally(function() {
+        window.location.href = 'student-login';
+      });
+    }
+    document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
+    document.getElementById('logoutCancelBtn').addEventListener('click', closeLogoutModal);
+    document.getElementById('logoutConfirmBtn').addEventListener('click', performLogout);
+    logoutModal.addEventListener('click', function(e) { if (e.target.id === 'logoutConfirmModal') closeLogoutModal(); });
+
+    const notifBtn = document.getElementById('notifBtn');
+    const notifPanel = document.getElementById('notifPanel');
+    const profileBtn = document.getElementById('profileBtn');
+    const profilePanel = document.getElementById('profilePanel');
+    function toggleDropdown(panel, other) {
+      other.classList.add('hidden');
+      panel.classList.toggle('hidden');
+    }
+    notifBtn.addEventListener('click', function(e) { e.stopPropagation(); toggleDropdown(notifPanel, profilePanel); });
+    profileBtn.addEventListener('click', function(e) { e.stopPropagation(); toggleDropdown(profilePanel, notifPanel); });
+    document.addEventListener('click', function() { notifPanel.classList.add('hidden'); profilePanel.classList.add('hidden'); });
+    window.addEventListener('scroll', () => {
+      notifPanel.classList.add('hidden');
+      profilePanel.classList.add('hidden');
+    }, { passive: true });
+    notifPanel.addEventListener('click', function(e) { e.stopPropagation(); });
+    profilePanel.addEventListener('click', function(e) { e.stopPropagation(); });
+})();
+</script>
+
+<script src="js/motion.js" defer></script>
+<script src="js/notifications.js" defer></script>
+</body>
+</html>

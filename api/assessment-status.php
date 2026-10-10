@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/ExamSchedule.php';
 
 $user = Auth::requireLogin();
 if ($user['role'] !== 'student') {
@@ -16,17 +17,9 @@ $stmt->execute([(int) $user['id']]);
 $row = $stmt->fetch();
 
 if (!$row) {
-    jsonResponse(['completed' => false, 'retakeAvailable' => false]);
+    // Not taken yet: the RIASEC button is on only while one of the group's sessions is open.
+    jsonResponse(['completed' => false, 'window' => ExamSchedule::windowFor(ExamSchedule::sessionsForStudent($pdo, (int) $user['id']))]);
 }
-
-// Whether this student has an active, unused staff-granted retake (see
-// retake_grants / api/retake-grants.php) — surfaced here since students
-// can't call the staff-only api/retake-grants.php themselves.
-$grantStmt = $pdo->prepare(
-    "SELECT 1 FROM retake_grants WHERE student_id = ? AND status = 'granted' AND completed_attempt_number IS NULL"
-);
-$grantStmt->execute([(int) $user['id']]);
-$retakeAvailable = (bool) $grantStmt->fetchColumn();
 
 jsonResponse([
     'completed' => true,
@@ -40,5 +33,4 @@ jsonResponse([
         'C' => (int) $row['score_c'],
     ],
     'topTypes' => json_decode($row['top_types'], true),
-    'retakeAvailable' => $retakeAvailable,
 ]);

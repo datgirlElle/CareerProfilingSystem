@@ -1,11 +1,10 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/AcademicYear.php';
+require_once __DIR__ . '/../lib/OfficeHours.php';
 
-$user = Auth::requireLogin();
-if ($user['role'] !== 'admin' && $user['role'] !== 'counselor') {
-    jsonResponse(['error' => 'Forbidden'], 403);
-}
+$user = Rbac::requireRole('admin', 'counselor');
 $pdo = Database::get();
 
 // 'announcements' was added to lib/Rbac.php's MODULES and to
@@ -13,11 +12,11 @@ $pdo = Database::get();
 // match — meaning loadRbac() silently omitted that row and any RBAC change
 // posted for it was silently dropped by the in_array() guard below. Fixed
 // here alongside adding 'examinations' the same way.
-const RBAC_MODULES = ['career', 'rac', 'recommendations', 'counselor', 'monitoring', 'announcements', 'examinations', 'counselingNotes'];
+const RBAC_MODULES = ['career', 'rac', 'recommendations', 'counselor', 'monitoring', 'announcements', 'examinations', 'counselingNotes', 'sections'];
 const RBAC_ROLES = ['admin', 'counselor', 'student'];
 const RBAC_LEVELS = ['full', 'limited', 'none'];
 
-function loadRbac(PDO $pdo): array
+function loadRbac(PDO $pdo, bool $viewerIsFacilitator = false): array
 {
     $rows = $pdo->query('SELECT module, role, access_level FROM security_rbac')->fetchAll();
     $rbac = [];
@@ -26,7 +25,12 @@ function loadRbac(PDO $pdo): array
     }
     foreach ($rows as $r) {
         if (isset($rbac[$r['module']])) {
-            $rbac[$r['module']][$r['role']] = $r['access_level'];
+            $level = $r['access_level'];
+            // A Guidance Facilitator is view-only for these (lib/Rbac.php): show them that, so the pages hide the write controls.
+            if ($viewerIsFacilitator && $r['role'] === 'counselor' && $level === 'full' && in_array($r['module'], Rbac::FACILITATOR_VIEW_ONLY, true)) {
+                $level = 'limited';
+            }
+            $rbac[$r['module']][$r['role']] = $level;
         }
     }
     return $rbac;
@@ -58,14 +62,14 @@ function loadPolicies(PDO $pdo): array
             'sessionTimeoutEnabled' => $b('sessionTimeoutEnabled', true),
             'timeoutMinutes' => $i('timeoutMinutes', 30),
         ],
+        // Detected from today's date (lib/AcademicYear.php) — read-only here.
         'academicYear' => [
-            'current' => $s('academicYear.current', ''),
+            'current' => AcademicYear::current(),
         ],
-        'assessment' => [
-            'accessCode' => $s('assessment.accessCode', ''),
-        ],
+        // Chosen day by day; 	ext is the sentence built from it that students read.
         'officeHours' => [
             'text' => $s('officeHours.text', 'Mon–Fri, 8:00 AM–5:00 PM'),
+            'schedule' => OfficeHours::fromJson($s('officeHours.schedule', '')),
         ],
         'principal' => [
             'name' => $s('principal.name', ''),
@@ -83,25 +87,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
          )'
     )->fetchColumn();
 
-    $failedLogins7d = (int) $pdo->query(
-        "SELECT COUNT(*) FROM audit_log WHERE action = 'login_failed' AND created_at >= NOW() - INTERVAL '7 days'"
+    // A lockout is logged (api/login.php) the moment an account reaches the maximum failed attempts,
+    // so this counts accounts that were actually locked out, not every wrong password.
+    $lockouts7d = (int) $pdo->query(
+        "SELECT COUNT(*) FROM audit_log WHERE action = 'login_lockout' AND created_at >= NOW() - INTERVAL '7 days'"
+    )->fetchColumn();
+    $sharedLogins7d = (int) $pdo->query(
+        "SELECT COUNT(*) FROM audit_log WHERE action = 'login_shared_suspected' AND created_at >= NOW() - INTERVAL '7 days'"
     )->fetchColumn();
     $activeUsersToday = (int) $pdo->query(
         "SELECT COUNT(DISTINCT actor_user_id) FROM audit_log WHERE created_at::date = CURRENT_DATE"
     )->fetchColumn();
     $pendingFlags = (int) $pdo->query("SELECT COUNT(*) FROM monitoring_flags WHERE status = 'pending'")->fetchColumn();
-    $encryptedRecords = (int) $pdo->query(
-        'SELECT (SELECT COUNT(*) FROM students) + (SELECT COUNT(*) FROM programs) + (SELECT COUNT(*) FROM assessment_questions)'
-    )->fetchColumn();
 
     jsonResponse([
-        'rbac' => loadRbac($pdo),
+        'rbac' => loadRbac($pdo, Rbac::isFacilitator($user)),
+        // Uploading class rosters: administrator or Guidance Counselor with Full access to the roster module.
+        'canEditRoster' => Rbac::accessLevel('rac', $user['role']) === 'full' && !Rbac::isFacilitator($user),
         'lastUpdated' => $lastUpdated,
         'overview' => [
-            'failedLogins7d' => $failedLogins7d,
+            'lockouts7d' => $lockouts7d,
+            'sharedLogins7d' => $sharedLogins7d,
             'activeUsersToday' => $activeUsersToday,
             'pendingFlags' => $pendingFlags,
-            'encryptedRecords' => $encryptedRecords,
         ],
     ] + loadPolicies($pdo));
 }
@@ -133,8 +141,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             // Self-lockout guard: the admin role's access is never editable through this UI —
             // there is no recovery path if an admin accidentally revokes their own access.
-            if ($role === 'admin') {
-                $skippedAdmin = true;
+            // The student role is fixed too: students only ever need the assessment, their
+            // results and recommendations, counseling and announcements, so it isn't configurable.
+            if ($role === 'admin' || $role === 'student') {
+                $skippedAdmin = $skippedAdmin || $role === 'admin';
                 continue;
             }
             $stmt->execute([$level, $user['id'], $module, $role]);
@@ -178,31 +188,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         jsonResponse(['success' => true] + loadPolicies($pdo));
     }
 
-    if ($type === 'academicYear') {
-        $current = trim((string) ($body['current'] ?? ''));
-        if ($current === '' || mb_strlen($current) > 20) {
-            jsonResponse(['success' => false, 'error' => 'Academic Year must be 1-20 characters.'], 400);
-        }
-        $stmt = $pdo->prepare(
-            'INSERT INTO security_policies (key, value, updated_by) VALUES (?, ?, ?)
-             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by'
-        );
-        $stmt->execute(['academicYear.current', $current, $user['id']]);
-
-        AuditLogger::log($user['id'], $user['role'], 'update_academic_year', 'security_policies', 'academicYear.current', "Set to: $current");
-        jsonResponse(['success' => true] + loadPolicies($pdo));
-    }
-
     if ($type === 'officeHours') {
-        $text = trim((string) ($body['text'] ?? ''));
-        if ($text === '' || mb_strlen($text) > 100) {
-            jsonResponse(['success' => false, 'error' => 'Office Hours must be 1-100 characters.'], 400);
+        // Office hours are picked day by day (see lib/OfficeHours.php), never typed as text.
+        $checked = OfficeHours::validate($body['schedule'] ?? null);
+        if ($checked['error'] !== null) {
+            jsonResponse(['success' => false, 'error' => $checked['error']], 400);
         }
+        $text = OfficeHours::text($checked['schedule']);
         $stmt = $pdo->prepare(
             'INSERT INTO security_policies (key, value, updated_by) VALUES (?, ?, ?)
              ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by'
         );
-        $stmt->execute(['officeHours.text', $text, $user['id']]);
+        $stmt->execute(['officeHours.schedule', json_encode($checked['schedule']), $user['id']]);
+        $stmt->execute(['officeHours.text', $text, $user['id']]); // what api/public-settings.php sends to students
 
         AuditLogger::log($user['id'], $user['role'], 'update_office_hours', 'security_policies', 'officeHours.text', "Set to: $text");
         jsonResponse(['success' => true] + loadPolicies($pdo));
@@ -228,19 +226,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $set('principal.email', $email);
 
         AuditLogger::log($user['id'], $user['role'], 'update_principal_contact', 'security_policies', 'principal', "Set to: $name <$email>");
-        jsonResponse(['success' => true] + loadPolicies($pdo));
-    }
-
-    if ($type === 'regenerateAccessCode') {
-        // Server generates the code — a client never gets to choose it.
-        $code = strtoupper(bin2hex(random_bytes(3)));
-        $stmt = $pdo->prepare(
-            'INSERT INTO security_policies (key, value, updated_by) VALUES (?, ?, ?)
-             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by'
-        );
-        $stmt->execute(['assessment.accessCode', $code, $user['id']]);
-
-        AuditLogger::log($user['id'], $user['role'], 'regenerate_access_code', 'security_policies', 'assessment.accessCode', 'Access code regenerated');
         jsonResponse(['success' => true] + loadPolicies($pdo));
     }
 

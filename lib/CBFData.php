@@ -183,7 +183,7 @@ class CBFData
         return $inner === '' ? [] : array_map('intval', explode(',', $inner));
     }
 
-    /** Every Active program, decrypted, in the shape CBFEngine::recommend() expects. */
+    /** Every Active program, decrypted, in the shape CBFEngine::compute() expects. */
     public static function activePrograms(PDO $pdo): array
     {
         $rows = $pdo->query(

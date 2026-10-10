@@ -2,10 +2,14 @@
 
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/DbSessionHandler.php';
+require_once __DIR__ . '/Database.php';
 
 class Auth
 {
     private static bool $started = false;
+
+    /** Cached per-request so a page that checks auth more than once doesn't re-query the DB each time. */
+    private static ?array $policyCache = null;
 
     public static function start(): void
     {
@@ -36,7 +40,56 @@ class Auth
     public static function currentUser(): ?array
     {
         self::start();
-        return $_SESSION['user'] ?? null;
+        if (!isset($_SESSION['user'])) {
+            return null;
+        }
+
+        if (self::isIdleTimedOut()) {
+            self::logout();
+            return null;
+        }
+
+        // Sliding idle timeout — every authenticated request that reaches
+        // this point resets the clock, same as most session-timeout
+        // implementations (bank sites, admin panels, etc.): it's time
+        // since the *last* action, not a fixed expiry from login.
+        $_SESSION['lastActivity'] = time();
+
+        return $_SESSION['user'];
+    }
+
+    /** @return array{enabled:bool, minutes:int} */
+    public static function sessionTimeoutPolicy(): array
+    {
+        if (self::$policyCache !== null) {
+            return self::$policyCache;
+        }
+        try {
+            $rows = Database::get()
+                ->query("SELECT key, value FROM security_policies WHERE key IN ('sessionTimeoutEnabled', 'timeoutMinutes')")
+                ->fetchAll(PDO::FETCH_KEY_PAIR);
+        } catch (\Throwable $e) {
+            // Fail open on a DB hiccup — a broken policy lookup shouldn't
+            // mass-log-out every user mid-request.
+            $rows = [];
+        }
+        return self::$policyCache = [
+            'enabled' => ($rows['sessionTimeoutEnabled'] ?? 'true') === 'true',
+            'minutes' => (int) ($rows['timeoutMinutes'] ?? 30),
+        ];
+    }
+
+    private static function isIdleTimedOut(): bool
+    {
+        $policy = self::sessionTimeoutPolicy();
+        if (!$policy['enabled']) {
+            return false;
+        }
+        $last = $_SESSION['lastActivity'] ?? null;
+        if ($last === null) {
+            return false; // no prior activity recorded yet (e.g. first request right after login) — nothing to time out against
+        }
+        return (time() - $last) > $policy['minutes'] * 60;
     }
 
     public static function login(array $userData): void
@@ -44,6 +97,7 @@ class Auth
         self::start();
         session_regenerate_id(true); // prevent session fixation across the privilege change
         $_SESSION['user'] = $userData;
+        $_SESSION['lastActivity'] = time();
     }
 
     public static function logout(): void

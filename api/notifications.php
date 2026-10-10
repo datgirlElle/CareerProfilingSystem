@@ -29,15 +29,32 @@ if ($isStaff) {
         $name = Crypto::dec($row['first_name_enc']) . ' ' . Crypto::dec($row['last_name_enc']);
         $items[] = [
             'type' => 'registration',
-            'title' => 'New student registered',
+            'title' => 'Student registered',
             'text' => "$name just signed up.",
             // student-profile.html (and api/students.php's single-student
-            // lookup) reads ?schoolId=, never ?id= — this previously
-            // linked with the wrong param name, so clicking it always
-            // landed on "Student not found."
-            'link' => 'student-profile?schoolId=' . urlencode($row['school_id']),
+            // lookup) read ?id=, the student's internal user id.
+            'link' => 'student-profile?id=' . (int) $row['user_id'],
             'ts' => $row['registered_at'],
         ];
+    }
+
+    // Staff sign-ups waiting for approval (admins only: only they can approve).
+    if ($user['role'] === 'admin') {
+        $stmt = $pdo->query(
+            "SELECT id, username, full_name, staff_position, email_verified_at, created_at FROM users
+             WHERE role = 'counselor' AND approval_status = 'pending'
+             ORDER BY created_at DESC LIMIT $each"
+        );
+        foreach ($stmt->fetchAll() as $row) {
+            $who = ($row['full_name'] ?: $row['username']) . ' (' . ($row['staff_position'] === 'facilitator' ? 'Guidance Facilitator' : 'Guidance Counselor') . ')';
+            $items[] = [
+                'type' => 'registration',
+                'title' => 'Staff sign-up awaiting approval',
+                'text' => $who . ($row['email_verified_at'] === null ? ' (email not verified yet).' : ' verified their email and is waiting for approval.'),
+                'link' => 'account-management',
+                'ts' => $row['created_at'],
+            ];
+        }
     }
 
     // Pending monitoring flags awaiting review
@@ -62,16 +79,16 @@ if ($isStaff) {
 
     // Open counseling requests awaiting a response
     $stmt = $pdo->query(
-        "SELECT id, name, subject, sent_at FROM help_requests
+        "SELECT id, name_enc, subject_enc, sent_at FROM help_requests
          WHERE status = 'open' ORDER BY sent_at DESC LIMIT $each"
     );
     foreach ($stmt->fetchAll() as $row) {
-        $who = $row['name'] ?: 'A student';
+        $who = Crypto::dec($row['name_enc']) ?: 'A student';
         $items[] = [
             'type' => 'help_request',
             'title' => 'New counseling request',
-            'text' => "$who: " . ($row['subject'] ?: 'No subject'),
-            'link' => 'help-requests',
+            'text' => "$who: " . (Crypto::dec($row['subject_enc']) ?: 'No subject'),
+            'link' => 'counseling-requests',
             'ts' => $row['sent_at'],
         ];
     }
@@ -84,7 +101,7 @@ if ($isStaff) {
 
     // Student: recent resolutions of things they submitted
     $stmt = $pdo->prepare(
-        "SELECT id, subject, resolved_at FROM help_requests
+        "SELECT id, subject_enc, resolved_at FROM help_requests
          WHERE student_id = ? AND status = 'resolved' AND resolved_at > NOW() - INTERVAL '$days days'
            AND resolved_at >= ?
          ORDER BY resolved_at DESC LIMIT $each"
@@ -95,8 +112,8 @@ if ($isStaff) {
             'key' => 'help:' . $row['id'],
             'type' => 'help_resolved',
             'title' => 'Counseling request resolved',
-            'text' => 'Your counseling request "' . ($row['subject'] ?: 'General inquiry') . '" has been resolved.',
-            'link' => 'help-center',
+            'text' => 'Your counseling request "' . (Crypto::dec($row['subject_enc']) ?: 'General inquiry') . '" has been resolved.',
+            'link' => 'student-help-center',
             'ts' => $row['resolved_at'],
         ];
     }
@@ -123,7 +140,7 @@ if ($isStaff) {
     // they registered.
     $stmt = $pdo->prepare(
         "SELECT a.id, a.title, a.body_enc, a.publish_at FROM announcements a
-         WHERE a.publish_at <= NOW() AND a.publish_at > NOW() - INTERVAL '$days days'
+         WHERE a.status = 'sent' AND a.publish_at <= NOW() AND a.publish_at > NOW() - INTERVAL '$days days'
            AND a.publish_at >= ?
            AND (a.target_type = 'all' OR EXISTS (
                  SELECT 1 FROM announcement_recipients ar
@@ -132,7 +149,15 @@ if ($isStaff) {
          ORDER BY a.publish_at DESC LIMIT $each"
     );
     $stmt->execute([$since, $user['id']]);
+    $markRead = $full
+        ? $pdo->prepare('INSERT INTO announcement_reads (announcement_id, student_id) VALUES (?, ?) ON CONFLICT DO NOTHING')
+        : null;
     foreach ($stmt->fetchAll() as $row) {
+        // Opening the full Notifications page counts as seeing the announcement
+        // (the staff page's "% read"); the small bell dropdown does not.
+        if ($markRead) {
+            $markRead->execute([(int) $row['id'], (int) $user['id']]);
+        }
         $body = trim((string) Crypto::dec($row['body_enc']));
         $items[] = [
             'key' => 'ann:' . $row['id'],
@@ -164,30 +189,10 @@ if ($isStaff) {
         $items[] = [
             'key' => 'exam:' . $row['id'],
             'type' => 'schedule_published',
-            'title' => 'Exam scheduled',
+            'title' => 'Assessment scheduled',
             'text' => $row['exam_date'] . ' in ' . $row['room'] . '.',
             'link' => 'assessment',
             'ts' => $row['created_at'],
-        ];
-    }
-
-    // Staff-granted retakes (see retake_grants / api/retake-grants.php).
-    $stmt = $pdo->prepare(
-        "SELECT id, granted_at FROM retake_grants
-         WHERE student_id = ? AND status = 'granted' AND completed_attempt_number IS NULL
-           AND granted_at > NOW() - INTERVAL '$days days'
-           AND granted_at >= ?
-         ORDER BY granted_at DESC LIMIT $each"
-    );
-    $stmt->execute([$user['id'], $since]);
-    foreach ($stmt->fetchAll() as $row) {
-        $items[] = [
-            'key' => 'retake:' . $row['id'],
-            'type' => 'retake_granted',
-            'title' => 'Retake granted',
-            'text' => 'You have been granted a retake of the RIASEC assessment.',
-            'link' => 'assessment',
-            'ts' => $row['granted_at'],
         ];
     }
 

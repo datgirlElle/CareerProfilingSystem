@@ -4,7 +4,7 @@
  * Content-Based Filtering (CBF) using Cosine Similarity.
  *
  *   User          = the student
- *   User profile  = the student's RIASEC profile from the 60-item RIASEC Assessment
+ *   User profile  = the student's RIASEC profile from the RIASEC Assessment (scores on a 10-50 scale)
  *   Items         = the MCL degree programs
  *   Item profile  = each program's guidance-approved Holland (RIASEC) code
  *   Similarity    = cosine similarity, cos(S, C) = (S · C) / (||S|| × ||C||)

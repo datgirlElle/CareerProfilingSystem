@@ -4,5 +4,12 @@
     "**/.git": true,
     "**/Thumbs.db": true,
     "**/.DS_Store": true
+  },
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "admin-dashboard.html": "add-career.html, all-recommended-careers.html, analytics.html, announcements.html, audit-log.html, career-dataset.html, assessment-scheduling.html, counseling-requests.html, staff-help-center.html, staff-notifications.html, monitoring.html, monitoring-details.html, staff-profile.html, question-bank.html, retake-requests.html, security-configuration.html, student-profile.html, student-accounts.html, staff-accounts.html",
+    "assessment.html": "assessment-instructions.html, change-password.html, career-worksheet.html, student-help-center.html, student-notifications.html, results.html, saved-careers.html, riasec-assessment.html, student-settings.html, worksheet-results.html",
+    "student-login.html": "accessibility.html, activate-account.html, student-forgot-password.html, privacy.html, student-register.html, terms.html, verify-email.html"
   }
 }

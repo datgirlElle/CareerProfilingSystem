@@ -186,7 +186,7 @@ scores. §9 explains how evaluation handles ties, and §11 discusses this as a t
 > in this folder (`cbf_eval.py`) and the WEKA dataset format were **not** changed in this
 > revision and still use the top-3 binary encoding; see §10a.
 
-1. **Source of scores.** The web app's questionnaire has 60 Likert items (1–5), 10 per RIASEC
+1. **Source of scores.** *(Update: the web app now uses the 30-item O\*NET Mini Interest Profiler, 5 per type, rescaled to the same 10–50 range per type; see `lib/QuestionBank.php`.)* The web app's questionnaire originally had 60 Likert items (1–5), 10 per RIASEC
    dimension. This gives six raw totals between 10 and 50 (`assessments.score_r … score_c`).
    - **[Assumption]** This item bank was written for the project (`db/seed_questions.php`), and
      its reliability and validity have not been established. Preferably use a published,

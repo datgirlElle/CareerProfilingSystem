@@ -35,10 +35,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $name = $user['firstName'] . ' ' . $user['lastName'];
     $insert = $pdo->prepare(
-        'INSERT INTO help_requests (student_id, school_id_snapshot, name, subject, message_enc, status)
+        'INSERT INTO help_requests (student_id, school_id_snapshot, name_enc, subject_enc, message_enc, status)
          VALUES (?, ?, ?, ?, ?, \'open\') RETURNING id'
     );
-    $insert->execute([$user['id'], $user['schoolId'], $name, $subject, Crypto::enc($message)]);
+    $insert->execute([$user['id'], $user['schoolId'], Crypto::enc($name), Crypto::enc($subject), Crypto::enc($message)]);
     $id = (int) $insert->fetchColumn();
 
     AuditLogger::log($user['id'], 'student', 'submit_help_request', 'help_request', (string) $id, $subject);
@@ -62,13 +62,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     $status = $_GET['status'] ?? 'All';
-    $sql = 'SELECT id, school_id_snapshot, name, subject, message_enc, sent_at, status, resolved_at FROM help_requests';
+    $sql = 'SELECT hr.id, hr.name_enc, hr.subject_enc, hr.message_enc, hr.sent_at, hr.status, hr.resolved_at, s.strand, s.section
+            FROM help_requests hr LEFT JOIN students s ON s.user_id = hr.student_id';
     $params = [];
     if (in_array($status, ['open', 'resolved'], true)) {
-        $sql .= ' WHERE status = ?';
+        $sql .= ' WHERE hr.status = ?';
         $params[] = $status;
     }
-    $sql .= ' ORDER BY sent_at DESC';
+    $sql .= ' ORDER BY hr.sent_at DESC';
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
 
@@ -82,9 +83,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     $rows = array_map(fn($r) => [
         'id' => (int) $r['id'],
-        'schoolId' => $r['school_id_snapshot'],
-        'name' => $r['name'],
-        'subject' => $r['subject'],
+        'strand' => $r['strand'],
+        'section' => $r['section'],
+        'name' => Crypto::dec($r['name_enc']),
+        'subject' => Crypto::dec($r['subject_enc']),
         'message' => Crypto::dec($r['message_enc']),
         'sentAt' => $r['sent_at'],
         'status' => $r['status'],

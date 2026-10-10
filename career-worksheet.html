@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Career Electives Worksheet — Career Profiling System</title>
+<script src="js/csrf.js"></script>
+<title>Career Worksheet — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
 <link rel="stylesheet" href="css/tailwind.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,6 +25,10 @@
 
   <!-- Sidebar -->
   <aside id="sidebar" class="w-[260px] shrink-0 bg-[#001c43] flex flex-col fixed inset-y-0 left-0 z-40 -translate-x-full transition-transform duration-200 md:sticky md:top-0 md:translate-x-0 h-screen">
+    <div class="sidebar-brand bg-white shrink-0">
+      <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="sidebar-brand-mmcl">
+      <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="sidebar-brand-cgc">
+    </div>
     <div class="flex items-center gap-3 px-6 py-8">
       <img src="images/admin/logo-profilepath.svg" alt="ProfilePath logo" class="w-[64px]">
       <div>
@@ -50,7 +55,7 @@
       </a>
     </nav>
     <div class="border-t border-white/5 pt-[25px] pb-6 flex flex-col gap-0.5">
-      <a href="help-center" class="flex items-center gap-3.5 h-[50px] pl-6 text-white/85 text-sm hover:bg-white/5">
+      <a href="student-help-center" class="flex items-center gap-3.5 h-[50px] pl-6 text-white/85 text-sm hover:bg-white/5">
         <svg class="w-[15px] h-[15px] shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M513.5-254.5Q528-269 528-290t-14.5-35.5Q499-340 478-340t-35.5 14.5Q428-311 428-290t14.5 35.5Q457-240 478-240t35.5-14.5ZM442-394h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>
         Help Center
       </a>
@@ -60,55 +65,55 @@
       </a>
     </div>
 
-    <div class="bg-white px-6 py-3 flex items-center justify-center gap-3">
-      <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="h-8 w-auto">
-      <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="h-7 w-auto">
-    </div>
   </aside>
 
   <!-- Main Content -->
   <div class="flex-1 flex flex-col min-w-0">
 
-    <header class="h-16 shrink-0 flex items-center justify-between gap-6 px-6 bg-white sticky top-0 z-10">
-      <button type="button" id="menuToggle" class="relative z-50 w-10 h-10 -m-2 flex items-center justify-center text-[#001a40] md:invisible">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+    <header class="bg-white border-b border-gray-200 flex items-center justify-between px-6 h-16 shrink-0 sticky top-0 z-10">
+      <button type="button" id="menuToggle" class="relative z-50 w-10 h-10 -m-2.5 flex items-center justify-center md:invisible">
+        <img src="images/admin/icon-menu.svg" alt="Menu" class="w-5 h-4">
       </button>
       <div class="flex items-center gap-6">
-      <div class="relative">
-        <button type="button" id="notifBtn" class="relative w-[14.7px] h-[18.3px]">
-          <svg class="w-full h-full" viewBox="0 -960 960 960" fill="#64748B"><path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"/></svg>
-          <span id="notifBadge" class="hidden absolute -top-2 -right-2 min-w-[13px] h-[13px] px-[3px] rounded-full bg-[#ed1c24] text-white text-[8px] leading-none font-bold flex items-center justify-center"></span>
-        </button>
-        <div id="notifPanel" class="hidden fixed left-4 right-4 top-20 z-50 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+16px)] sm:w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-          <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-            <p class="text-sm font-semibold text-gray-900">Notifications</p>
-            <span id="notifCountLabel" class="text-xs text-gray-500">Loading…</span>
+
+        <!-- Notifications -->
+        <div class="relative">
+          <button type="button" id="notifBtn" class="relative w-5 h-5">
+            <svg class="w-full h-full" viewBox="0 -960 960 960" fill="#64748B"><path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"/></svg>
+            <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#ed1c24] text-white text-[10px] font-bold flex items-center justify-center"></span>
+          </button>
+          <div id="notifPanel" class="hidden fixed left-4 right-4 top-[76px] z-50 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+12px)] sm:w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <p class="text-sm font-semibold text-gray-900">Notifications</p>
+              <span id="notifCountLabel" class="text-xs text-gray-500">Loading…</span>
+            </div>
+            <ul id="notifList" class="max-h-80 overflow-auto divide-y divide-gray-100">
+              <li class="px-4 py-6 text-center text-sm text-gray-500">Loading…</li>
+            </ul>
+            <a href="student-notifications" class="block text-center text-sm font-medium text-[#ed1c24] px-4 py-3 border-t border-gray-100 hover:bg-gray-50">View all notifications</a>
           </div>
-          <ul id="notifList" class="max-h-80 overflow-auto divide-y divide-gray-100">
-            <li class="px-4 py-6 text-center text-sm text-gray-500">Loading…</li>
-          </ul>
-          <a href="notifications" class="block text-center text-sm font-medium text-[#ed1c24] px-4 py-3 border-t border-gray-100 hover:bg-gray-50">View all notifications</a>
         </div>
-      </div>
-      <div class="relative border-l border-slate-200 pl-[25px]">
-        <button type="button" id="profileBtn" class="flex items-center gap-4">
-          <div class="text-right">
-            <p class="text-[15px] font-semibold text-[#001a40]" id="headerName">Student</p>
-            <p class="text-base text-slate-500" id="headerSub">—</p>
+
+        <!-- Profile -->
+        <div class="relative">
+          <button type="button" id="profileBtn" class="flex items-center gap-3">
+            <span id="headerAvatarWrap" class="w-9 h-9 rounded-full bg-[#001c43] flex items-center justify-center overflow-hidden shrink-0">
+              <img src="images/admin/icon-avatar.svg" alt="" class="w-3.5 h-4">
+            </span>
+            <span class="text-left">
+              <span class="block text-sm font-semibold text-gray-800" id="headerName">&nbsp;</span>
+              <span class="block text-xs text-gray-500" id="headerSub">&nbsp;</span>
+            </span>
+            <img src="images/admin/icon-chevron-down.svg" alt="" class="w-3.5 h-2">
+          </button>
+          <div id="profilePanel" class="hidden absolute right-0 top-[calc(100%+12px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
+            <div class="px-4 py-3 border-b border-gray-100">
+              <p class="text-sm font-semibold text-gray-900" id="profilePanelName">Student</p>
+              <p class="text-xs text-gray-500" id="profilePanelMeta">—</p>
+            </div>
+            <a href="student-settings" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">My Profile</a>
           </div>
-          <span id="headerAvatarWrap" class="w-10 h-10 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center overflow-hidden">
-            <svg class="w-[21.7px] h-[21.7px]" viewBox="0 -960 960 960" fill="#64748B"><path d="M367-527q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Zm80-80h480v-32q0-11-5.5-20T700-306q-54-27-109-40.5T480-360q-56 0-111 13.5T260-306q-9 5-14.5 14t-5.5 20v32Zm296.5-343.5Q560-607 560-640t-23.5-56.5Q513-720 480-720t-56.5 23.5Q400-673 400-640t23.5 56.5Q447-560 480-560t56.5-23.5ZM480-640Zm0 400Z"/></svg>
-          </span>
-        </button>
-        <div id="profilePanel" class="hidden absolute right-0 top-[calc(100%+16px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
-          <div class="px-4 py-3 border-b border-gray-100">
-            <p class="text-sm font-semibold text-gray-900" id="profilePanelName">Student</p>
-            <p class="text-xs text-gray-500" id="profilePanelMeta">—</p>
-          </div>
-          <a href="student-settings" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">My Profile</a>
-          <a href="#" id="profileLogout" class="block px-4 py-3 text-sm text-[#ed1c24] font-medium hover:bg-gray-50 border-t border-gray-100">Logout</a>
         </div>
-      </div>
       </div>
     </header>
 
@@ -119,8 +124,8 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="#5e3f3c" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </a>
         <div>
-          <h1 class="text-[32px] font-bold text-[#191c1e] tracking-tight">Career Electives Worksheet</h1>
-          <p class="text-sm text-[#5e3f3c] mt-1">Choose your Preferred Course and the electives aligned to your strand and your RIASEC results.</p>
+          <h1 class="text-[32px] font-bold text-[#191c1e] tracking-tight">Career Worksheet</h1>
+          <p class="text-sm text-[#5e3f3c] mt-1">Type the career you want to take, as you answered on the worksheet from your guidance counselor, then pick the electives that support it.</p>
         </div>
       </div>
 
@@ -133,22 +138,22 @@
           <div class="flex flex-wrap gap-x-10 gap-y-4 mt-5" id="topCodeRow"></div>
         </div>
 
-        <!-- Career of Interest -->
+        <!-- Career I want to take -->
         <div class="bg-white border border-[#e0e3e5] rounded-lg p-6">
-          <h2 class="text-xl font-semibold text-[#191c1e] mb-1">Preferred Course</h2>
-          <p class="text-xs text-[#5e3f3c] mb-4">Choose the MMCL program you prefer, even if you are not yet certain.</p>
-          <select id="careerGoal" class="w-full max-w-[420px] border border-gray-300 rounded-md px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent bg-white">
-            <option value="">Select a program…</option>
-          </select>
+          <h2 class="text-xl font-semibold text-[#191c1e] mb-1">Career I Want to Take</h2>
+          <p class="text-xs text-[#5e3f3c] mb-4">Type the career you want to pursue, as you answered on the worksheet from your guidance counselor, even if you are not yet certain. Suggestions appear as you type, but you can write your own.</p>
+          <input type="text" id="careerGoal" list="careerSuggestions" maxlength="80" autocomplete="off" aria-label="Career I want to take" placeholder="e.g. Software Engineer" class="w-full max-w-[520px] border border-gray-300 rounded-md px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent bg-white">
+          <datalist id="careerSuggestions"></datalist>
+          <p id="careerProgramNote" class="hidden text-xs text-[#5e3f3c] mt-3 max-w-[520px]"></p>
         </div>
 
         <!-- Elective Selection -->
         <div class="bg-white border border-[#e0e3e5] rounded-lg p-6">
           <h2 class="text-xl font-semibold text-[#191c1e] mb-1">Elective Selection</h2>
-          <p class="text-xs text-[#5e3f3c] mb-6" id="electivesHint">Select the electives available to your strand that best support the program you chose above.</p>
+          <p class="text-xs text-[#5e3f3c] mb-6" id="electivesHint">Select the electives available to your strand that best support the career you chose above.</p>
 
           <div id="electivesEmpty" class="text-center py-8 text-sm text-[#5e3f3c] border border-dashed border-gray-300 rounded-lg">
-            Select a program above to see the electives that best support it.
+            Type a career above to see the electives that best support it.
           </div>
 
           <div id="electiveGroups" class="content-swap hidden flex flex-col gap-6"></div>
@@ -156,7 +161,7 @@
           <div class="flex justify-end mt-8">
             <button type="button" id="submitWorksheetBtn" disabled class="bg-gray-200 text-gray-400 text-sm font-semibold rounded-md px-8 py-3.5 cursor-not-allowed transition-opacity">Submit Worksheet</button>
           </div>
-          <p id="worksheetError" class="hidden text-sm text-[#ed1c24] text-right mt-2">Please select your Preferred Course and at least one elective.</p>
+          <p id="worksheetError" class="hidden text-sm text-[#ed1c24] text-right mt-2">Please type a career and select at least one elective.</p>
         </div>
 
       </div>
@@ -189,7 +194,7 @@
   const sessionData = await (await fetch('api/session.php')).json();
   const currentUser = sessionData.user;
   if (!currentUser || currentUser.role !== 'student') {
-    window.location.replace('login');
+    window.location.replace('student-login');
     return;
   }
 
@@ -226,11 +231,10 @@
   }
   function performLogout() {
     fetch('api/logout.php', { method: 'POST' }).finally(function() {
-      window.location.href = 'login';
+      window.location.href = 'student-login';
     });
   }
   document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
-  document.getElementById('profileLogout').addEventListener('click', openLogoutModal);
   document.getElementById('logoutCancelBtn').addEventListener('click', closeLogoutModal);
   document.getElementById('logoutConfirmBtn').addEventListener('click', performLogout);
   logoutModal.addEventListener('click', function(e) { if (e.target.id === 'logoutConfirmModal') closeLogoutModal(); });
@@ -286,9 +290,17 @@
   const electivesEmpty = document.getElementById('electivesEmpty');
   const electiveGroups = document.getElementById('electiveGroups');
 
-  function renderElectives(collegeCode) {
-    if (!collegeCode) {
-      electivesEmpty.textContent = 'Select a program above to see the electives that best support it.';
+  // key: '' = nothing typed yet, a college code = that college's electives,
+  // 'ALL' = the typed career couldn't be linked to a program, so every
+  // elective is offered. Re-rendering only when the key changes keeps the
+  // student's ticked electives while they keep typing.
+  let electiveKey = null;
+  function renderElectives(key) {
+    if (key === electiveKey) return;
+    electiveKey = key;
+
+    if (!key) {
+      electivesEmpty.textContent = 'Type a career above to see the electives that best support it.';
       electivesEmpty.classList.remove('hidden');
       electiveGroups.classList.add('hidden');
       electiveGroups.innerHTML = '';
@@ -296,7 +308,9 @@
       return;
     }
 
-    const matches = COLLEGE_ELECTIVES[collegeCode] || [];
+    const matches = key === 'ALL'
+      ? Object.keys(CLUSTERS).reduce(function(all, c) { return all.concat(CLUSTERS[c]); }, [])
+      : (COLLEGE_ELECTIVES[key] || []);
     electivesEmpty.classList.add('hidden');
     electiveGroups.classList.remove('hidden');
     electiveGroups.classList.add('is-swapping');
@@ -331,50 +345,93 @@
     }).join('');
   }
 
-  const careerGoalSelect = document.getElementById('careerGoal');
+  const careerInput = document.getElementById('careerGoal');
   const submitBtn = document.getElementById('submitWorksheetBtn');
-  let programsById = {};
 
   function checkedElectives() {
     return Array.from(document.querySelectorAll('.elective-check:checked')).map(function(c) { return c.dataset.label; });
   }
 
+  function typedCareer() {
+    return careerInput.value.replace(/\s+/g, ' ').trim();
+  }
+
   function updateSubmitState() {
-    const ready = careerGoalSelect.value !== '' && checkedElectives().length > 0;
+    const ready = typedCareer().length >= 2 && checkedElectives().length > 0;
     submitBtn.disabled = !ready;
     submitBtn.className = ready
       ? 'bg-[#ed1c24] text-white text-sm font-semibold rounded-md px-8 py-3.5 hover:opacity-90 transition-opacity'
       : 'bg-gray-200 text-gray-400 text-sm font-semibold rounded-md px-8 py-3.5 cursor-not-allowed transition-opacity';
   }
 
-  const collegeName = {};
-  programsData.colleges.forEach(function(c) { collegeName[c.code] = c.name; });
-  const byCollege = {};
-  programsData.programs.forEach(function(p) {
-    programsById[p.id] = p;
-    if (!byCollege[p.collegeCode]) byCollege[p.collegeCode] = [];
-    byCollege[p.collegeCode].push(p);
-  });
-  careerGoalSelect.innerHTML = '<option value="">Select a program…</option>' +
-    Object.keys(byCollege).sort().map(function(code) {
-      return '<optgroup label="' + (collegeName[code] || code) + '">' +
-        byCollege[code].map(function(p) { return '<option value="' + p.id + '">' + p.title + '</option>'; }).join('') +
-        '</optgroup>';
-    }).join('');
+  // The student types their own career. Careers from the program lists are
+  // offered as suggestions (native datalist), nothing more: any text is fine.
+  // Loaded after the typing handlers below are attached, and allowed to fail:
+  // the suggestions are a convenience, the worksheet works without them.
+  async function loadSuggestions() {
+    try {
+      const programsData = await (await fetch('api/programs.php')).json();
+      const suggestions = {};
+      programsData.programs.forEach(function(p) {
+        (p.careerOptions || [p.title]).forEach(function(career) { suggestions[career] = true; });
+      });
+      document.getElementById('careerSuggestions').innerHTML = Object.keys(suggestions).sort().map(function(career) {
+        return '<option value="' + career.replace(/"/g, '&quot;') + '"></option>';
+      }).join('');
+    } catch (e) {
+    }
+  }
 
-  careerGoalSelect.addEventListener('change', function() {
-    const program = programsById[careerGoalSelect.value];
-    renderElectives(program ? program.collegeCode : '');
+  // As they type, ask the server which MMCL program the text would link to
+  // (the same matching worksheet-submit.php re-runs on submit).
+  const careerProgramNote = document.getElementById('careerProgramNote');
+  let matchTimer = null;
+  let matchRequest = 0;
+
+  async function previewMatch() {
+    const career = typedCareer();
+    const request = ++matchRequest;
+    if (career.length < 2) {
+      careerProgramNote.classList.add('hidden');
+      renderElectives('');
+      return;
+    }
+    let data;
+    try {
+      const res = await fetch('api/career-match.php?q=' + encodeURIComponent(career));
+      data = await res.json();
+      if (!res.ok) data = { matched: false };
+    } catch (e) {
+      // The preview couldn't be reached: treat it as "not linked yet" so the
+      // electives still show and the student can carry on.
+      data = { matched: false };
+    }
+    if (request !== matchRequest) return; // a newer keystroke superseded this answer
+    if (data.matched) {
+      careerProgramNote.textContent = 'Closest MMCL program for this career: ' + data.program.title + ' — ' + data.program.collegeName + '.';
+      careerProgramNote.classList.remove('hidden');
+      renderElectives(data.program.collegeCode);
+    } else {
+      careerProgramNote.textContent = 'We could not link this career to an MMCL program yet. You can still submit it. Your results will show the programs that best fit your RIASEC profile, and every elective is listed below.';
+      careerProgramNote.classList.remove('hidden');
+      renderElectives('ALL');
+    }
+  }
+
+  careerInput.addEventListener('input', function() {
+    updateSubmitState();
+    clearTimeout(matchTimer);
+    matchTimer = setTimeout(previewMatch, 350);
   });
   document.addEventListener('change', function(e) {
     if (e.target.classList.contains('elective-check')) updateSubmitState();
   });
 
   submitBtn.addEventListener('click', async function() {
-    const programId = Number(careerGoalSelect.value);
+    const career = typedCareer();
     const electives = checkedElectives();
     const errEl = document.getElementById('worksheetError');
-    if (!programId || !electives.length) {
+    if (career.length < 2 || !electives.length) {
       errEl.classList.remove('hidden');
       return;
     }
@@ -384,7 +441,7 @@
     const res = await fetch('api/worksheet-submit.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ programId: programId, electives: electives })
+      body: JSON.stringify({ career: career, electives: electives })
     });
     const data = await res.json();
     if (!res.ok || !data.success) {
@@ -398,6 +455,7 @@
   });
 
   renderElectives('');
+  loadSuggestions();
 })();
 </script>
 

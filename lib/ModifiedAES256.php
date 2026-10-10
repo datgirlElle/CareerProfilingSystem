@@ -49,12 +49,17 @@ class ModifiedAES256
     /** @var int[256] key-dependent inverse S-box, invSbox[sbox[x]] === x */
     private array $invSbox;
 
-    public function __construct(string $key)
+    /**
+     * @param bool $standardSbox false (what the app always uses): the key-dependent S-box. true: the ordinary
+     *        fixed AES S-box, i.e. plain standard AES-256 in this same implementation. Only the benchmark
+     *        (tests/aes_benchmark.php) and the tests use true, so the two can be compared like for like.
+     */
+    public function __construct(string $key, bool $standardSbox = false)
     {
         if (strlen($key) !== 32) {
             throw new InvalidArgumentException('AES-256 key must be exactly 32 bytes');
         }
-        $this->sbox = self::deriveKeyDependentSBox($key);
+        $this->sbox = $standardSbox ? self::STANDARD_SBOX : self::deriveKeyDependentSBox($key);
         $this->invSbox = self::invertSBox($this->sbox);
         $this->roundKeys = $this->keyExpansion($key);
     }

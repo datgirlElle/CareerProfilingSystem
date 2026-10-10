@@ -3,6 +3,7 @@
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/CBFEngine.php';
 require_once __DIR__ . '/../lib/CBFData.php';
+require_once __DIR__ . '/../lib/Careers.php';
 
 $pdo = Database::get();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -14,7 +15,7 @@ if ($method === 'GET') {
         Rbac::requireAccess('career', 'limited');
     }
 
-    $sql = 'SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, p.original_holland_code_enc, p.related_strands, p.status, p.college_id, c.code AS college_code, c.name AS college_name
+    $sql = 'SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, p.original_holland_code_enc, p.careers, p.status, p.college_id, c.code AS college_code, c.name AS college_name
             FROM programs p JOIN colleges c ON c.id = p.college_id';
     if (!$includeInactive) {
         $sql .= " WHERE p.status = 'Active'";
@@ -29,7 +30,10 @@ if ($method === 'GET') {
         // Code before the validator's revision, kept for audit (null = none recorded).
         'originalHollandCode' => $r['original_holland_code_enc'] !== null ? Crypto::dec($r['original_holland_code_enc']) : null,
         'description' => $r['description_enc'] !== null ? Crypto::dec($r['description_enc']) : '',
-        'relatedStrands' => CBFData::parseTextArray($r['related_strands']),
+        // Raw list staff maintain (may be empty); `careerOptions` is what a
+        // student can actually pick: that list, or the program title if empty.
+        'careers' => Careers::parse($r['careers']),
+        'careerOptions' => Careers::effective(Careers::parse($r['careers']), Crypto::dec($r['title_enc'])),
         'status' => $r['status'],
         'collegeId' => (int) $r['college_id'],
         'collegeCode' => $r['college_code'],
@@ -94,26 +98,42 @@ function readProgramInput(array $body): array
     if ($collegeId <= 0) {
         jsonResponse(['success' => false, 'error' => 'A college is required.'], 400);
     }
-
-    // Optional; null = "not sent" (PUT then keeps the stored value).
-    $relatedStrands = null;
-    if (array_key_exists('relatedStrands', $body)) {
-        $relatedStrands = $body['relatedStrands'];
-        $allowed = CBFEngine::config()['strands'];
-        if (!is_array($relatedStrands) || array_filter($relatedStrands, fn($s) => !is_string($s) || !in_array($s, $allowed, true))) {
-            jsonResponse(['success' => false, 'error' => 'Related strands must be from: ' . implode(', ', $allowed) . '.'], 400);
+    // null = the caller didn't send a careers list at all (PUT then leaves the
+    // stored list untouched rather than wiping it).
+    $careers = null;
+    try {
+        if (array_key_exists('careers', $body)) {
+            $careers = Careers::normalize($body['careers']);
         }
-        // Stored in the configured strand order, without duplicates.
-        $relatedStrands = array_values(array_intersect($allowed, $relatedStrands));
+    } catch (InvalidArgumentException $e) {
+        jsonResponse(['success' => false, 'error' => $e->getMessage()], 400);
     }
 
-    return [$title, $hollandCode, $description, $collegeId, $status, $relatedStrands];
+    return [$title, $hollandCode, $description, $collegeId, $status, $careers];
 }
 
 if ($method === 'POST') {
     $user = Rbac::requireAccess('career', 'full');
     $body = readJsonBody();
-    [$title, $hollandCode, $description, $collegeId, $status, $relatedStrands] = readProgramInput($body);
+
+    if (($body['type'] ?? '') === 'toggleActive') {
+        $id = (int) ($body['id'] ?? 0);
+        $stmt = $pdo->prepare('SELECT status FROM programs WHERE id = ?');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            jsonResponse(['success' => false, 'error' => 'Program not found.'], 404);
+        }
+        $newStatus = $row['status'] === 'Active' ? 'Inactive' : 'Active';
+        $pdo->prepare('UPDATE programs SET status = ?, updated_at = NOW() WHERE id = ?')->execute([$newStatus, $id]);
+        AuditLogger::log(
+            $user['id'], $user['role'], $newStatus === 'Active' ? 'activate_program' : 'deactivate_program',
+            'program', (string) $id
+        );
+        jsonResponse(['success' => true, 'status' => $newStatus]);
+    }
+
+    [$title, $hollandCode, $description, $collegeId, $status, $careers] = readProgramInput($body);
 
     $exists = $pdo->prepare('SELECT id FROM colleges WHERE id = ?');
     $exists->execute([$collegeId]);
@@ -122,12 +142,9 @@ if ($method === 'POST') {
     }
 
     $insert = $pdo->prepare(
-        'INSERT INTO programs (college_id, title_enc, holland_code_enc, description_enc, related_strands, status) VALUES (?, ?, ?, ?, ?, ?) RETURNING id'
+        'INSERT INTO programs (college_id, title_enc, holland_code_enc, description_enc, careers, status) VALUES (?, ?, ?, ?, ?, ?) RETURNING id'
     );
-    $insert->execute([
-        $collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null,
-        CBFData::textArrayLiteral($relatedStrands ?? []), $status,
-    ]);
+    $insert->execute([$collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null, Careers::toLiteral($careers ?? []), $status]);
     $id = (int) $insert->fetchColumn();
 
     AuditLogger::log($user['id'], $user['role'], 'create_program', 'program', (string) $id, $title);
@@ -149,7 +166,7 @@ if ($method === 'PUT') {
         jsonResponse(['success' => false, 'error' => 'Program not found.'], 404);
     }
 
-    [$title, $hollandCode, $description, $collegeId, $status, $relatedStrands] = readProgramInput($body);
+    [$title, $hollandCode, $description, $collegeId, $status, $careers] = readProgramInput($body);
 
     $collegeCheck = $pdo->prepare('SELECT id FROM colleges WHERE id = ?');
     $collegeCheck->execute([$collegeId]);
@@ -158,36 +175,11 @@ if ($method === 'PUT') {
     }
 
     $update = $pdo->prepare(
-        'UPDATE programs SET college_id = ?, title_enc = ?, holland_code_enc = ?, description_enc = ?,
-            related_strands = COALESCE(?::text[], related_strands), status = ?, updated_at = NOW() WHERE id = ?'
+        'UPDATE programs SET college_id = ?, title_enc = ?, holland_code_enc = ?, description_enc = ?, careers = COALESCE(?::text[], careers), status = ?, updated_at = NOW() WHERE id = ?'
     );
-    $update->execute([
-        $collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null,
-        $relatedStrands !== null ? CBFData::textArrayLiteral($relatedStrands) : null, $status, $id,
-    ]);
+    $update->execute([$collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null, $careers !== null ? Careers::toLiteral($careers) : null, $status, $id]);
 
     AuditLogger::log($user['id'], $user['role'], 'update_program', 'program', (string) $id, $title);
-
-    jsonResponse(['success' => true]);
-}
-
-if ($method === 'DELETE') {
-    // Soft-delete only: programs are referenced by worksheets/recommendations/saved_programs,
-    // so removing one from circulation means marking it Inactive, not a hard DELETE.
-    $user = Rbac::requireAccess('career', 'full');
-    $body = readJsonBody();
-    $id = (int) ($body['id'] ?? 0);
-    if ($id <= 0) {
-        jsonResponse(['success' => false, 'error' => 'Missing program id.'], 400);
-    }
-
-    $update = $pdo->prepare("UPDATE programs SET status = 'Inactive', updated_at = NOW() WHERE id = ?");
-    $update->execute([$id]);
-    if ($update->rowCount() === 0) {
-        jsonResponse(['success' => false, 'error' => 'Program not found.'], 404);
-    }
-
-    AuditLogger::log($user['id'], $user['role'], 'deactivate_program', 'program', (string) $id);
 
     jsonResponse(['success' => true]);
 }

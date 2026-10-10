@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="js/csrf.js"></script>
 <title>Worksheet Results — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -24,6 +25,10 @@
 
   <!-- Sidebar -->
   <aside id="sidebar" class="w-[260px] shrink-0 bg-[#001c43] flex flex-col fixed inset-y-0 left-0 z-40 -translate-x-full transition-transform duration-200 md:sticky md:top-0 md:translate-x-0 h-screen">
+    <div class="sidebar-brand bg-white shrink-0">
+      <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="sidebar-brand-mmcl">
+      <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="sidebar-brand-cgc">
+    </div>
     <div class="flex items-center gap-3 px-6 py-8">
       <img src="images/admin/logo-profilepath.svg" alt="ProfilePath logo" class="w-[64px]">
       <div>
@@ -50,7 +55,7 @@
       </a>
     </nav>
     <div class="border-t border-white/5 pt-[25px] pb-6 flex flex-col gap-0.5">
-      <a href="help-center" class="flex items-center gap-3.5 h-[50px] pl-6 text-white/85 text-sm hover:bg-white/5">
+      <a href="student-help-center" class="flex items-center gap-3.5 h-[50px] pl-6 text-white/85 text-sm hover:bg-white/5">
         <svg class="w-[15px] h-[15px] shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M513.5-254.5Q528-269 528-290t-14.5-35.5Q499-340 478-340t-35.5 14.5Q428-311 428-290t14.5 35.5Q457-240 478-240t35.5-14.5ZM442-394h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>
         Help Center
       </a>
@@ -60,55 +65,55 @@
       </a>
     </div>
 
-    <div class="bg-white px-6 py-3 flex items-center justify-center gap-3">
-      <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="h-8 w-auto">
-      <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="h-7 w-auto">
-    </div>
   </aside>
 
   <!-- Main Content -->
   <div class="flex-1 flex flex-col min-w-0">
 
-    <header class="h-16 shrink-0 flex items-center justify-between gap-6 px-6 bg-white sticky top-0 z-10">
-      <button type="button" id="menuToggle" class="relative z-50 w-10 h-10 -m-2 flex items-center justify-center text-[#001a40] md:invisible">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+    <header class="bg-white border-b border-gray-200 flex items-center justify-between px-6 h-16 shrink-0 sticky top-0 z-10">
+      <button type="button" id="menuToggle" class="relative z-50 w-10 h-10 -m-2.5 flex items-center justify-center md:invisible">
+        <img src="images/admin/icon-menu.svg" alt="Menu" class="w-5 h-4">
       </button>
       <div class="flex items-center gap-6">
-      <div class="relative">
-        <button type="button" id="notifBtn" class="relative w-[14.7px] h-[18.3px]">
-          <svg class="w-full h-full" viewBox="0 -960 960 960" fill="#64748B"><path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"/></svg>
-          <span id="notifBadge" class="hidden absolute -top-2 -right-2 min-w-[13px] h-[13px] px-[3px] rounded-full bg-[#ed1c24] text-white text-[8px] leading-none font-bold flex items-center justify-center"></span>
-        </button>
-        <div id="notifPanel" class="hidden fixed left-4 right-4 top-20 z-50 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+16px)] sm:w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-          <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-            <p class="text-sm font-semibold text-gray-900">Notifications</p>
-            <span id="notifCountLabel" class="text-xs text-gray-500">Loading…</span>
+
+        <!-- Notifications -->
+        <div class="relative">
+          <button type="button" id="notifBtn" class="relative w-5 h-5">
+            <svg class="w-full h-full" viewBox="0 -960 960 960" fill="#64748B"><path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"/></svg>
+            <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#ed1c24] text-white text-[10px] font-bold flex items-center justify-center"></span>
+          </button>
+          <div id="notifPanel" class="hidden fixed left-4 right-4 top-[76px] z-50 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+12px)] sm:w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <p class="text-sm font-semibold text-gray-900">Notifications</p>
+              <span id="notifCountLabel" class="text-xs text-gray-500">Loading…</span>
+            </div>
+            <ul id="notifList" class="max-h-80 overflow-auto divide-y divide-gray-100">
+              <li class="px-4 py-6 text-center text-sm text-gray-500">Loading…</li>
+            </ul>
+            <a href="student-notifications" class="block text-center text-sm font-medium text-[#ed1c24] px-4 py-3 border-t border-gray-100 hover:bg-gray-50">View all notifications</a>
           </div>
-          <ul id="notifList" class="max-h-80 overflow-auto divide-y divide-gray-100">
-            <li class="px-4 py-6 text-center text-sm text-gray-500">Loading…</li>
-          </ul>
-          <a href="notifications" class="block text-center text-sm font-medium text-[#ed1c24] px-4 py-3 border-t border-gray-100 hover:bg-gray-50">View all notifications</a>
         </div>
-      </div>
-      <div class="relative border-l border-slate-200 pl-[25px]">
-        <button type="button" id="profileBtn" class="flex items-center gap-4">
-          <div class="text-right">
-            <p class="text-[15px] font-semibold text-[#001a40]" id="headerName">Student</p>
-            <p class="text-base text-slate-500" id="headerSub">—</p>
+
+        <!-- Profile -->
+        <div class="relative">
+          <button type="button" id="profileBtn" class="flex items-center gap-3">
+            <span id="headerAvatarWrap" class="w-9 h-9 rounded-full bg-[#001c43] flex items-center justify-center overflow-hidden shrink-0">
+              <img src="images/admin/icon-avatar.svg" alt="" class="w-3.5 h-4">
+            </span>
+            <span class="text-left">
+              <span class="block text-sm font-semibold text-gray-800" id="headerName">&nbsp;</span>
+              <span class="block text-xs text-gray-500" id="headerSub">&nbsp;</span>
+            </span>
+            <img src="images/admin/icon-chevron-down.svg" alt="" class="w-3.5 h-2">
+          </button>
+          <div id="profilePanel" class="hidden absolute right-0 top-[calc(100%+12px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
+            <div class="px-4 py-3 border-b border-gray-100">
+              <p class="text-sm font-semibold text-gray-900" id="profilePanelName">Student</p>
+              <p class="text-xs text-gray-500" id="profilePanelMeta">—</p>
+            </div>
+            <a href="student-settings" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">My Profile</a>
           </div>
-          <span id="headerAvatarWrap" class="w-10 h-10 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center overflow-hidden">
-            <svg class="w-[21.7px] h-[21.7px]" viewBox="0 -960 960 960" fill="#64748B"><path d="M367-527q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Zm80-80h480v-32q0-11-5.5-20T700-306q-54-27-109-40.5T480-360q-56 0-111 13.5T260-306q-9 5-14.5 14t-5.5 20v32Zm296.5-343.5Q560-607 560-640t-23.5-56.5Q513-720 480-720t-56.5 23.5Q400-673 400-640t23.5 56.5Q447-560 480-560t56.5-23.5ZM480-640Zm0 400Z"/></svg>
-          </span>
-        </button>
-        <div id="profilePanel" class="hidden absolute right-0 top-[calc(100%+16px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
-          <div class="px-4 py-3 border-b border-gray-100">
-            <p class="text-sm font-semibold text-gray-900" id="profilePanelName">Student</p>
-            <p class="text-xs text-gray-500" id="profilePanelMeta">—</p>
-          </div>
-          <a href="student-settings" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">My Profile</a>
-          <a href="#" id="profileLogout" class="block px-4 py-3 text-sm text-[#ed1c24] font-medium hover:bg-gray-50 border-t border-gray-100">Logout</a>
         </div>
-      </div>
       </div>
     </header>
 
@@ -120,7 +125,7 @@
         </a>
         <div>
           <h1 class="text-[32px] font-bold text-[#191c1e] tracking-tight">Worksheet Results</h1>
-          <p class="text-sm text-[#5e3f3c] mt-1">How your Preferred Course and electives line up with your RIASEC results.</p>
+          <p class="text-sm text-[#5e3f3c] mt-1">How the career you want to take and your chosen electives line up with your RIASEC profile.</p>
         </div>
       </div>
 
@@ -129,11 +134,14 @@
         <!-- Your Worksheet -->
         <div class="lg:col-span-5">
           <div class="bg-white border border-[#e0e3e5] rounded-lg px-[17px] pt-[17px] pb-[39px]">
-            <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-4">Your Career Electives Worksheet</h2>
-            <p class="text-xs text-[#5e3f3c] mb-4">The course and electives you chose on your worksheet.</p>
+            <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-4">Your Worksheet</h2>
+            <p class="text-xs text-[#5e3f3c] mb-4">The career you chose to take on your worksheet.</p>
 
-            <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">Preferred Course</p>
+            <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">Career I Want to Take</p>
             <p class="text-base font-semibold text-[#191c1e] mb-4" id="careerGoalText">—</p>
+
+            <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">MMCL Program</p>
+            <p class="text-sm font-medium text-[#191c1e] mb-4" id="careerProgramText">—</p>
 
             <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-2">Electives</p>
             <div class="flex flex-wrap gap-2" id="keySkillsList"></div>
@@ -146,7 +154,7 @@
             <div class="flex items-start justify-between border-b border-[#e0e3e5] pb-2 gap-4 flex-wrap">
               <div>
                 <h2 class="text-xl font-semibold text-[#191c1e]">Alignment with RIASEC Results</h2>
-                <p class="text-xs text-[#5e3f3c] mt-1">Whether your Preferred Course fits your RIASEC interest areas.</p>
+                <p class="text-xs text-[#5e3f3c] mt-1">Which RIASEC dimensions of your chosen career match your assessed traits.</p>
               </div>
               <span id="alignBadge" class="inline-flex items-center gap-2 rounded px-4 py-2"></span>
             </div>
@@ -162,6 +170,11 @@
                 <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">Top Interest Area</p>
                 <p class="text-sm font-medium text-[#191c1e]" id="topInterestArea">—</p>
               </div>
+            </div>
+            <div>
+              <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">Dimension Match</p>
+              <p class="text-xs text-[#5e3f3c] mb-3" id="dimensionSummary">—</p>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="dimensionMatch"></div>
             </div>
             <div class="bg-[#f2f4f6] border border-[#e0e3e5] rounded p-3">
               <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-2">Analysis</p>
@@ -203,7 +216,7 @@
   const sessionData = await (await fetch('api/session.php')).json();
   const currentUser = sessionData.user;
   if (!currentUser || currentUser.role !== 'student') {
-    window.location.replace('login');
+    window.location.replace('student-login');
     return;
   }
 
@@ -240,11 +253,10 @@
   }
   function performLogout() {
     fetch('api/logout.php', { method: 'POST' }).finally(function() {
-      window.location.href = 'login';
+      window.location.href = 'student-login';
     });
   }
   document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
-  document.getElementById('profileLogout').addEventListener('click', openLogoutModal);
   document.getElementById('logoutCancelBtn').addEventListener('click', closeLogoutModal);
   document.getElementById('logoutConfirmBtn').addEventListener('click', performLogout);
   logoutModal.addEventListener('click', function(e) { if (e.target.id === 'logoutConfirmModal') closeLogoutModal(); });
@@ -293,11 +305,16 @@
   const topLetters = topTypes.map(function(t) { return LABEL_TO_LETTER[t] || t[0]; });
   const statedProgram = recommendation.preferredCourse;  // Preferred Course, with inBestRiasecMatch
 
-  document.getElementById('careerGoalText').textContent = statedProgram
-    ? statedProgram.title + (statedProgram.isActive === false ? ' (no longer available)' : '')
-    : '—';
+  // Worksheets submitted before careers existed have no stated career, so
+  // fall back to the program title they chose.
+  const statedCareer = recommendation.statedCareer || (statedProgram ? statedProgram.title : null);
+  document.getElementById('careerGoalText').textContent = statedCareer || '—';
+  document.getElementById('careerProgramText').textContent = statedProgram
+    ? statedProgram.title + ' — ' + statedProgram.collegeName + (statedProgram.isActive === false ? ' (no longer available)' : '')
+    : 'Not linked to an MMCL program';
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   document.getElementById('keySkillsList').innerHTML = (recommendation.electives || []).map(function(skill) {
-    return '<span class="bg-[#f2f4f6] border border-[#e0e3e5] rounded-full px-3.5 py-1.5 text-xs text-[#191c1e]">' + skill + '</span>';
+    return '<span class="bg-[#f2f4f6] border border-[#e0e3e5] rounded-full px-3.5 py-1.5 text-xs text-[#191c1e]">' + esc(skill) + '</span>';
   }).join('') || '<span class="text-xs text-[#5e3f3c]">No electives selected.</span>';
 
   document.getElementById('profileCode').textContent = topLetters.join(' - ');
@@ -309,7 +326,11 @@
   const isAligned = !!(statedProgram && statedProgram.inBestRiasecMatch);
 
   const badge = document.getElementById('alignBadge');
-  if (isAligned) {
+  if (!statedProgram) {
+    // The typed career couldn't be linked to a program, so there is nothing to compare.
+    badge.className = 'inline-flex items-center gap-2 bg-slate-100 border border-slate-200 rounded px-4 py-2';
+    badge.innerHTML = '<span class="text-xs font-bold text-slate-600 uppercase tracking-wide">Not Linked</span>';
+  } else if (isAligned) {
     badge.className = 'inline-flex items-center gap-2 bg-[#ecfdf5] border border-[#a7f3d0] rounded px-4 py-2';
     badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg><span class="text-xs font-bold text-[#047857] uppercase tracking-wide">Matches Your RIASEC Profile</span>';
   } else {
@@ -317,13 +338,44 @@
     badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.007M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span class="text-xs font-bold text-orange-700 uppercase tracking-wide">Differs from Best RIASEC Match</span>';
   }
 
-  const goalTitle = statedProgram ? statedProgram.title : 'your Preferred Course';
+  // Letter-by-letter match: each RIASEC dimension in the chosen career's
+  // program code, checked against the student's own top three.
+  const LETTER_TO_LABEL = { R: 'Realistic', I: 'Investigative', A: 'Artistic', S: 'Social', E: 'Enterprising', C: 'Conventional' };
+  const programLetters = statedProgram ? statedProgram.hollandCode.split('') : [];
+  const matchedLetters = programLetters.filter(function(l) { return topLetters.indexOf(l) !== -1; });
+
+  document.getElementById('dimensionSummary').textContent = !statedProgram
+    ? 'We could not link "' + (statedCareer || 'your career') + '" to a specific MMCL program, so there is no dimension-by-dimension comparison for it.'
+    : programLetters.length
+    ? matchedLetters.length + ' of ' + programLetters.length + ' dimensions of ' + statedProgram.title + ' (' + statedProgram.hollandCode.split('').join(' - ') + ') are among your top three.'
+    : '—';
+  document.getElementById('dimensionMatch').innerHTML = programLetters.map(function(letter, i) {
+    const rank = topLetters.indexOf(letter);
+    const matched = rank !== -1;
+    const box = matched ? 'bg-[#ecfdf5] border-[#a7f3d0]' : 'bg-[#f2f4f6] border-[#e0e3e5]';
+    const mark = matched
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2.5" class="w-4 h-4 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" class="w-4 h-4 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6L6 18"/></svg>';
+    return '<div class="border rounded p-3 ' + box + '">' +
+      '<div class="flex items-center justify-between gap-2">' +
+        '<p class="text-lg font-bold ' + (matched ? 'text-[#047857]' : 'text-[#5e3f3c]') + '">' + letter + '</p>' + mark +
+      '</div>' +
+      '<p class="text-xs font-semibold text-[#191c1e] mt-1">' + LETTER_TO_LABEL[letter] + '</p>' +
+      '<p class="text-[11px] text-[#5e3f3c] mt-0.5">' + (matched ? 'Matches your #' + (rank + 1) + ' dimension' : 'Not in your top 3') + '</p>' +
+    '</div>';
+  }).join('');
+
+  const goalTitle = statedCareer || 'your chosen career';
+  const programTitle = statedProgram ? statedProgram.title : 'its program';
   const cosine = statedProgram && statedProgram.cosineSimilarity !== null && statedProgram.cosineSimilarity !== undefined
     ? ' (Cosine Similarity: ' + statedProgram.cosineSimilarity.toFixed(3) + ')' : '';
-  const analysis = isAligned
-    ? '"' + goalTitle + '" is also your Best RIASEC Match: its RIASEC code (' + statedProgram.hollandCode +
+  const analysis = !statedProgram
+    ? 'Your career, "' + goalTitle + '," does not closely match any careers or programs we have listed, so there is no preferred course to compare. ' +
+      'Your Best RIASEC Match is on your Career Results page. A Guidance Counselor can help you find the program that leads to this career.'
+    : isAligned
+    ? programTitle + ', the MMCL program for "' + goalTitle + '," is also your Best RIASEC Match: its RIASEC code (' + statedProgram.hollandCode +
       ') is among the codes most similar to your RIASEC profile' + cosine + '.'
-    : '"' + goalTitle + '" is the course you selected, but it is not your Best RIASEC Match' + cosine + '. ' +
+    : programTitle + ', the MMCL program for "' + goalTitle + '," is the course you selected, but it is not your Best RIASEC Match' + cosine + '. ' +
       'That\'s okay. See your Career Results for your Best RIASEC Match and alternative courses, and if you\'d like help deciding, ' +
       'we highly recommend talking with a Guidance Counselor.';
   document.getElementById('analysisText').textContent = analysis;

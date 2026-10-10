@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/CompletionTarget.php';
+
 /**
  * Single source of truth for the institution-wide analytics figures shown
  * on the Analytics Dashboard (api/analytics.php) and mirrored, verbatim,
@@ -10,6 +12,7 @@
  * the system already has.
  */
 require_once __DIR__ . '/Sections.php';
+require_once __DIR__ . '/AcademicYear.php';
 
 class AnalyticsReport
 {
@@ -128,32 +131,86 @@ class AnalyticsReport
             return $stmt->fetchAll();
         })();
 
-        // Assessment Statistics: expected (from the admin-uploaded roster for the
-        // current Academic Year) vs. actually completed, matching the same
-        // strand/section filters.
-        $currentAy = (string) $pdo->query("SELECT value FROM security_policies WHERE key = 'academicYear.current'")->fetchColumn();
+        // Assessment Statistics / the "Y" in every "X of Y total students"
+        // figure: how many students are EXPECTED for the current Academic
+        // Year — the union of who's actually registered and who's on the
+        // uploaded roster but hasn't registered yet, deduplicated by
+        // school_id (a UNION, not UNION ALL, does the dedup). A roster
+        // upload used to REPLACE this count outright rather than add to it,
+        // so a small or stale roster could show something like "2 of 1" once
+        // more students registered than the roster had ever listed.
+        $currentAy = AcademicYear::current();
         $expectedCount = (int) (function () use ($pdo, $currentAy, $hasStrand, $strand, $hasSection, $section) {
-            $conds = ['academic_year = ?'];
-            $params = [$currentAy];
-            if ($hasStrand) { $conds[] = 'strand = ?'; $params[] = $strand; }
-            if ($hasSection) { $conds[] = 'section = ?'; $params[] = $section; }
-            $stmt = $pdo->prepare('SELECT COUNT(*) FROM assessment_roster WHERE ' . implode(' AND ', $conds));
-            $stmt->execute($params);
+            $studentConds = ['academic_year = ?'];
+            $studentParams = [$currentAy];
+            $rosterConds = ['academic_year = ?'];
+            $rosterParams = [$currentAy];
+            if ($hasStrand) {
+                $studentConds[] = 'strand = ?'; $studentParams[] = $strand;
+                $rosterConds[] = 'strand = ?'; $rosterParams[] = $strand;
+            }
+            if ($hasSection) {
+                $studentConds[] = 'section = ?'; $studentParams[] = $section;
+                $rosterConds[] = 'section = ?'; $rosterParams[] = $section;
+            }
+            $sql = 'SELECT COUNT(*) FROM (
+                        SELECT school_id FROM students WHERE ' . implode(' AND ', $studentConds) . '
+                        UNION
+                        SELECT school_id FROM assessment_roster WHERE ' . implode(' AND ', $rosterConds) . '
+                    ) combined';
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute(array_merge($studentParams, $rosterParams));
             return $stmt->fetchColumn();
         })();
         $expectedSectionsStmt = $pdo->prepare('SELECT DISTINCT section FROM assessment_roster WHERE academic_year = ? ORDER BY section');
         $expectedSectionsStmt->execute([$currentAy]);
         $expectedSections = $expectedSectionsStmt->fetchAll(PDO::FETCH_COLUMN);
 
-        // The "Y" in every "X of Y total students" figure: how many students
-        // are EXPECTED, not how many happened to register or finish. That is the
-        // roster uploaded for the current Academic Year (same strand/section
-        // filters as everything else). Only when no roster has been uploaded
-        // at all do we fall back to registered students.
-        $rosterTotalStmt = $pdo->prepare('SELECT COUNT(*) FROM assessment_roster WHERE academic_year = ?');
-        $rosterTotalStmt->execute([$currentAy]);
-        $hasRoster = (int) $rosterTotalStmt->fetchColumn() > 0;
-        $expectedTotal = $hasRoster ? $expectedCount : $totalStudents;
+        $expectedTotal = $expectedCount;
+
+        // Expected vs completed per section, for the Assessment Statistics bar
+        // graph. Both sides use exactly the populations behind the two big
+        // numbers above it, so the bars add up to them: "expected" is the same
+        // registered-plus-roster union (a student on both counts once, under the
+        // section of their real account), and "completed" is the same set of
+        // students with a latest assessment, just grouped by section.
+        $assessmentBySection = (function () use ($pdo, $currentAy, $hasStrand, $strand, $hasSection, $section, $studentFilterClause) {
+            $conds = ['academic_year = ?'];
+            $params = [$currentAy];
+            if ($hasStrand) { $conds[] = 'strand = ?'; $params[] = $strand; }
+            if ($hasSection) { $conds[] = 'section = ?'; $params[] = $section; }
+            $where = implode(' AND ', $conds);
+
+            $expectedBySection = [];
+            $seen = [];
+            foreach (['students', 'assessment_roster'] as $table) { // account first: its section wins over a roster row's
+                $stmt = $pdo->prepare("SELECT school_id, section FROM $table WHERE $where");
+                $stmt->execute($params);
+                foreach ($stmt->fetchAll() as $r) {
+                    if (isset($seen[$r['school_id']])) {
+                        continue;
+                    }
+                    $seen[$r['school_id']] = true;
+                    $expectedBySection[$r['section']] = ($expectedBySection[$r['section']] ?? 0) + 1;
+                }
+            }
+
+            [$clause, $filterParams] = $studentFilterClause('AND');
+            $stmt = $pdo->prepare(
+                'SELECT s.section, COUNT(*) AS cnt FROM assessments a JOIN students s ON s.user_id = a.student_id
+                 WHERE a.is_latest = TRUE' . $clause . ' GROUP BY s.section'
+            );
+            $stmt->execute($filterParams);
+            $completedBySection = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+            $sections = array_unique(array_merge(array_keys($expectedBySection), array_keys($completedBySection)));
+            natcasesort($sections);
+            return array_values(array_map(fn($sec) => [
+                'section' => (string) $sec,
+                'expected' => $expectedBySection[$sec] ?? 0,
+                'completed' => (int) ($completedBySection[$sec] ?? 0),
+            ], $sections));
+        })();
 
         $programIds = array_map(fn($r) => (int) $r['top_program_id'], $careerCounts);
         $titles = [];
@@ -180,7 +237,9 @@ class AnalyticsReport
             'section' => $section,
             'totalStudents' => $totalStudents,
             'expectedTotal' => $expectedTotal,
-            'sectionsByStrand' => SECTIONS_BY_STRAND,
+            // Not active-only — a filter dropdown should still offer a
+            // since-deactivated section so past terms' data stays filterable.
+            'sectionsByStrand' => Sections::byStrand($pdo, false),
             // All three rates below are expressed against the same denominator —
             // the expected student total (see above) — rather than each other's
             // narrower subpopulation (e.g. worksheet completion against only
@@ -209,8 +268,11 @@ class AnalyticsReport
                 'expectedCount' => $expectedCount,
                 'completedCount' => $assessedCount,
                 'expectedSections' => $expectedSections,
+                'bySection' => $assessmentBySection,
             ],
             'completionByYear' => self::completionByYear($pdo),
+            // Sections at or above this percent show green on the completion graphs, below it red.
+            'completionTarget' => CompletionTarget::get($pdo),
         ];
     }
 

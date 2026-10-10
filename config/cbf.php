@@ -7,9 +7,11 @@
  * no 1.00/0.67/0.33 letter-position weights, no strand or elective block.
  */
 return [
-    // RIASEC Assessment structure (60 items): 10 items per type, each answered 1-5.
-    // The student vector uses each type's mean item score = raw total / 10 (1.0-5.0).
-    // A total outside 10-50 is rejected as invalid instead of being corrected.
+    // RIASEC scores are stored on a 10-50 scale per type, whatever the number of questions
+    // (lib/QuestionBank.php scaleScore; e.g. the 30-item O*NET Mini Interest Profiler, 5 per
+    // type), i.e. as if each type had 10 items answered 1-5. The student vector uses each
+    // type's mean item score = score / 10 (1.0-5.0). A score outside 10-50 is rejected as
+    // invalid instead of being corrected.
     'riasec_items_per_type' => 10,
     'riasec_answer_min'     => 1,
     'riasec_answer_max'     => 5,

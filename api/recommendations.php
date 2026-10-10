@@ -15,6 +15,7 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/CBFData.php';
+require_once __DIR__ . '/../lib/Careers.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     jsonResponse(['error' => 'Method not allowed'], 405);
@@ -55,12 +56,14 @@ if (!$row) {
 }
 
 $electives = [];
+$statedCareer = null;
 if ($row['source_worksheet_id'] !== null) {
-    $wsStmt = $pdo->prepare('SELECT electives FROM worksheets WHERE id = ?');
+    $wsStmt = $pdo->prepare('SELECT electives, stated_career FROM worksheets WHERE id = ?');
     $wsStmt->execute([(int) $row['source_worksheet_id']]);
     $wsRow = $wsStmt->fetch();
     if ($wsRow) {
         $electives = CBFData::parseTextArray($wsRow['electives']);
+        $statedCareer = $wsRow['stated_career'];
     }
 }
 
@@ -85,16 +88,19 @@ $programs = [];
 if ($neededIds = array_values(array_unique(array_map('intval', $neededIds)))) {
     $placeholders = implode(',', array_fill(0, count($neededIds), '?'));
     $programStmt = $pdo->prepare(
-        "SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, p.status, c.code AS college_code, c.name AS college_name
+        "SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, p.careers, p.status, c.code AS college_code, c.name AS college_name
          FROM programs p JOIN colleges c ON c.id = p.college_id WHERE p.id IN ($placeholders)"
     );
     $programStmt->execute($neededIds);
     foreach ($programStmt->fetchAll() as $r) {
+        $title = Crypto::dec($r['title_enc']);
         $programs[(int) $r['id']] = [
             'id' => (int) $r['id'],
-            'title' => Crypto::dec($r['title_enc']),
+            'title' => $title,
             'hollandCode' => Crypto::dec($r['holland_code_enc']),
             'description' => $r['description_enc'] !== null ? Crypto::dec($r['description_enc']) : '',
+            // Careers that fit this program (its title if staff haven't listed any).
+            'careers' => Careers::effective(Careers::parse($r['careers']), $title),
             'collegeCode' => $r['college_code'],
             'collegeName' => $r['college_name'],
             // Programs are never hard-deleted (see api/programs.php), so an existing result
@@ -123,6 +129,9 @@ $response = [
     'finalBestMatch' => null,
     'sources' => ['cbf' => 'available', 'worksheet' => $preferredId !== null ? 'available' : 'empty', 'prediction' => 'unavailable'],
     'isComplete' => false,
+    // What the student typed on the Career Worksheet, and the program it was linked to (if any).
+    'statedProgramId' => $preferredId,
+    'statedCareer' => $statedCareer,
     'electives' => $electives,
     'matchStatus' => $row['match_status'],
     'mismatchReason' => $row['mismatch_reason'],

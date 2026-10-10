@@ -147,20 +147,21 @@ a:hover img[src*="chevron-left"] {
 }
 
 /* ---------- Cards ----------
-   Targets the app's existing "card" convention (rounded-xl/2xl + a shadow
-   utility), so every card gets consistent hover polish with no markup
-   changes. Deliberately excludes shadow-lg (used for dropdown/notification
-   panels, which shouldn't lift on hover). */
-[class*="rounded-xl"][class*="shadow-sm"],
-[class*="rounded-xl"][class*="shadow-2xl"],
-[class*="rounded-2xl"][class*="shadow-sm"] {
+   A card only reacts to the pointer when the pointer can DO something with it:
+     - the card is itself a link (<a> styled as a card), or
+     - the card has a hover pop-up description: mark it with class="card-hover".
+   Every other card (a plain panel of text, numbers, a form or a chart) stays
+   still, so a card that lifts on hover always means "this is interactive". */
+.card-hover,
+a[class*="rounded-xl"][class*="shadow-sm"],
+a[class*="rounded-2xl"][class*="shadow-sm"] {
   transition: transform var(--dur-button) var(--ease-soft),
               box-shadow var(--dur-button) var(--ease-soft),
               border-color var(--dur-button) var(--ease-soft);
 }
-[class*="rounded-xl"][class*="shadow-sm"]:hover,
-[class*="rounded-xl"][class*="shadow-2xl"]:hover,
-[class*="rounded-2xl"][class*="shadow-sm"]:hover {
+.card-hover:hover,
+a[class*="rounded-xl"][class*="shadow-sm"]:hover,
+a[class*="rounded-2xl"][class*="shadow-sm"]:hover {
   transform: translateY(-3px);
   box-shadow: 0 14px 28px -12px rgba(15, 23, 42, 0.18);
 }
@@ -363,3 +364,12 @@ a:focus-visible .icon-nudge-left {
     transform: none !important;
   }
 }
+
+/* Sidebar: logo strip sized to the 260px sidebar, and a menu that scrolls
+   without drawing a scrollbar. */
+.sidebar-brand { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 14px 16px; }
+.sidebar-brand img { flex: 0 1 auto; min-width: 0; height: auto; max-height: 40px; object-fit: contain; }
+.sidebar-brand-mmcl { max-width: 42%; }
+.sidebar-brand-cgc { max-width: 56%; }
+#sidebar nav { scrollbar-width: none; -ms-overflow-style: none; }
+#sidebar nav::-webkit-scrollbar { display: none; }
