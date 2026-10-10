@@ -4,7 +4,6 @@ require_once __DIR__ . '/XlsxWriter.php';
 require_once __DIR__ . '/AnalyticsReport.php';
 require_once __DIR__ . '/AcademicYear.php';
 require_once __DIR__ . '/StaffScope.php';
-require_once __DIR__ . '/CompletionTarget.php';
 require_once __DIR__ . '/QuestionBank.php';
 
 /**
@@ -76,7 +75,6 @@ class AnalyticsXlsx
     public static function build(PDO $pdo, ?array $scope, string $strand, string $section, string $password, string $generatedBy, string $emailedTo): string
     {
         $students = self::studentRows($pdo, $scope, $strand, $section);
-        $target = CompletionTarget::get($pdo);
         $ay = AcademicYear::current();
 
         // Per section, counted the way the dashboard counts them.
@@ -112,31 +110,21 @@ class AnalyticsXlsx
             [$S('Assessed', XlsxWriter::S_LABEL), $S($assessed, XlsxWriter::S_INT)],
             [$S('Not yet assessed', XlsxWriter::S_LABEL), $S($expected - $assessed, XlsxWriter::S_INT)],
             [$S('Completion (%)', XlsxWriter::S_LABEL), $S($rate($assessed, $expected), XlsxWriter::S_NUM1)],
-            [$S('Completion target (%)', XlsxWriter::S_LABEL), CompletionTarget::isOn($target) ? $S($target, XlsxWriter::S_INT) : $S('Not set', XlsxWriter::S_TEXT)],
             [],
         ];
         $headerRow = count($rows); // 0-based row index of the table header
-        $hasTarget = CompletionTarget::isOn($target);
-        $rows[] = array_map(fn($h) => $S($h, XlsxWriter::S_HEADER), $hasTarget
-            ? ['Section', 'Expected', 'Registered', 'Assessed', 'Completion (%)', 'Target (%)', 'Status']
-            : ['Section', 'Expected', 'Registered', 'Assessed', 'Completion (%)']);
-        $cats = $vals = $targets = $colors = [];
+        $rows[] = array_map(fn($h) => $S($h, XlsxWriter::S_HEADER), ['Section', 'Expected', 'Registered', 'Assessed', 'Completion (%)', 'Pending']);
+        $cats = $vals = $colors = [];
         foreach ($bySection as $name => $b) {
             $c = $rate($b['assessed'], $b['expected']);
-            $met = $c >= $target;
-            $row = [
+            $rows[] = [
                 $S($name, XlsxWriter::S_LABEL), $S($b['expected'], XlsxWriter::S_INT), $S($b['registered'], XlsxWriter::S_INT), $S($b['assessed'], XlsxWriter::S_INT),
-                $S($c, XlsxWriter::S_NUM1),
+                $S($c, XlsxWriter::S_NUM1), $S($b['expected'] - $b['assessed'], XlsxWriter::S_INT),
             ];
-            if ($hasTarget) {
-                $row[] = $S($target, XlsxWriter::S_INT);
-                $row[] = $S($met ? 'On target' : 'Below target', $met ? XlsxWriter::S_GOOD : XlsxWriter::S_BAD);
-            }
-            $rows[] = $row;
-            $cats[] = $name; $vals[] = $c; $targets[] = $target; $colors[] = $hasTarget ? ($met ? '059669' : 'DC2626') : '0F2A6B';
+            $cats[] = $name; $vals[] = $c; $colors[] = '0F2A6B';
         }
         $rows[] = [];
-        $rows[] = [$S('Completion = assessed students out of everyone expected in the section (registered, or on the class roster).', XlsxWriter::S_NOTE)];
+        $rows[] = [$S('Completion = assessed students out of everyone expected in the section (registered, or on the class roster). Pending = not assessed yet.', XlsxWriter::S_NOTE)];
         $summary = $x->addSheet('Summary', $rows, [24, 12, 12, 12, 16, 12, 16], false, [[0, 0, 0, 6]]);
         if ($bySection) {
             $first = $headerRow + 2;           // 1-based first data row
@@ -146,7 +134,7 @@ class AnalyticsXlsx
                 'catRef' => "Summary!\$A\$$first:\$A\$$last", 'cats' => $cats,
                 'valRef' => "Summary!\$E\$$first:\$E\$$last", 'vals' => $vals, 'seriesName' => 'Completion (%)', 'colors' => $colors,
                 'max' => 100, 'axisTitle' => 'Percent assessed',
-            ] + ($hasTarget ? ['targetRef' => "Summary!\$F\$$first:\$F\$$last", 'targetVals' => $targets, 'targetName' => "Target ($target%)"] : []));
+            ]);
         }
 
         // ---- RIASEC

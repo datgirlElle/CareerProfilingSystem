@@ -6,7 +6,6 @@ require_once __DIR__ . '/../lib/Sections.php';
 require_once __DIR__ . '/../lib/AcademicYear.php';
 require_once __DIR__ . '/../lib/Mismatch.php';
 require_once __DIR__ . '/../lib/StaffScope.php';
-require_once __DIR__ . '/../lib/CompletionTarget.php';
 
 $user = Rbac::requireRole('admin', 'counselor');
 $pdo = Database::get();
@@ -435,7 +434,6 @@ jsonResponse([
     'totalPages' => $totalPages,
     'startIndex' => $total > 0 ? $offset + 1 : 0,
     'sections' => array_values($sectionSummary),
-    'completionTarget' => CompletionTarget::get($pdo),
     'summary' => [
         'totalStudents' => $totalStudents,
         'completedCount' => $completedCount,

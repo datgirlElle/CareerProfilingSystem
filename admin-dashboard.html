@@ -189,26 +189,16 @@
         <div class="border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h2 class="text-lg font-bold text-gray-900">Student Progress by Section</h2>
-            <p class="text-xs text-gray-500 mt-1">Registered and assessed students in each section.</p>
+            <p class="text-xs text-gray-500 mt-1">Registered, assessed and pending students in each section.</p>
             <div class="text-xs text-gray-600" style="display:flex;flex-wrap:wrap;align-items:center;margin-top:8px;row-gap:4px" aria-label="Chart colors">
               <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#93c5fd;display:inline-block"></span>Registered</span>
-              <span id="legendAssessed" style="display:none;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#0f2a6b;display:inline-block"></span>Assessed</span>
-              <span id="legendOn" style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#059669;display:inline-block"></span>Assessed, on target</span>
-              <span id="legendBelow" style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#dc2626;display:inline-block"></span>Assessed, below target</span>
-              <span id="legendTarget" style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:16px;border-top:2px dashed #0f2a6b;display:inline-block"></span>Target</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#0f2a6b;display:inline-block"></span>Assessed</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#f59e0b;display:inline-block"></span>Pending</span>
             </div>
           </div>
-          <div class="flex items-center gap-2 text-sm">
-            <span class="text-gray-600">Target: <span id="targetValue" class="font-semibold text-gray-900">Not set</span></span>
-            <span id="targetEdit" class="hidden items-center gap-2">
-              <input type="number" id="targetInput" min="0" max="100" step="1" placeholder="0 = off" aria-label="Completion target in percent, 0 turns it off" class="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm">
-              <button type="button" id="targetSave" class="bg-[#0f2a6b] text-white text-xs font-semibold rounded-md px-3 py-2 hover:opacity-90">Save</button>
-            </span>
-          </div>
         </div>
-        <p id="targetMessage" class="hidden px-6 pt-3 text-xs" aria-live="polite"></p>
         <div class="px-6 pt-4"><p id="completionSummaryLine" class="text-sm text-gray-700"></p></div>
-        <div class="p-6 pt-3"><div id="completionChartBox" style="position:relative;height:260px"><canvas id="sectionCompletionChart" aria-label="Registered and assessed students by section, against the target"></canvas></div></div>
+        <div class="p-6 pt-3"><div id="completionChartBox" style="position:relative;height:260px"><canvas id="sectionCompletionChart" aria-label="Registered, assessed and pending students by section"></canvas></div></div>
       </div>
       <div id="statusCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-8">
         <div class="border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -505,103 +495,50 @@
   let lastSectionRows = [];
   let debounceHandle = null;
 
-  // ---- Completion by section: red below the target, green at or above it.
+  // ---- Student progress by section: registered, assessed and still pending, each as a share of the students expected.
   let completionChart = null;
-  let completionTarget = 0;
-  const isAdminUser = currentUser.role === 'admin';
-  function renderCompletion(secRows, target) {
-    completionTarget = target;
+  function renderCompletion(secRows) {
     const card = document.getElementById('sectionCompletionCard');
     card.classList.toggle('hidden', secRows.length === 0);
-    const targetOn = target > 0;
-    document.getElementById('targetValue').textContent = targetOn ? target + '%' : 'Not set';
-    document.getElementById('legendOn').style.display = targetOn ? 'inline-flex' : 'none';
-    document.getElementById('legendBelow').style.display = targetOn ? 'inline-flex' : 'none';
-    document.getElementById('legendTarget').style.display = targetOn ? 'inline-flex' : 'none';
-    document.getElementById('legendAssessed').style.display = targetOn ? 'none' : 'inline-flex';
-    const editBox = document.getElementById('targetEdit');
-    editBox.classList.toggle('hidden', !isAdminUser);
-    editBox.classList.toggle('flex', isAdminUser);
-    if (document.activeElement !== document.getElementById('targetInput')) document.getElementById('targetInput').value = target;
     if (completionChart && !secRows.length) { completionChart.destroy(); completionChart = null; }
     if (!secRows.length) return;
 
-    const rateOf = function(s) { return s.total > 0 ? s.completed / s.total * 100 : 0; };
-    const colorFor = function(rate) { return !targetOn ? '#0f2a6b' : (rate >= target ? '#059669' : '#dc2626'); };
-    const meeting = secRows.filter(function(s) { return rateOf(s) >= target; }).length;
-    const assessedTotal = secRows.reduce(function(n, s) { return n + s.completed; }, 0);
-    const expectedTotal = secRows.reduce(function(n, s) { return n + s.total; }, 0);
-    document.getElementById('completionSummaryLine').textContent = targetOn
-      ? meeting + ' of ' + secRows.length + ' section' + (secRows.length === 1 ? '' : 's') + ' ' + (meeting === 1 ? 'is' : 'are') + ' at or above the ' + target + '% target.'
-      : assessedTotal + ' of ' + expectedTotal + ' student' + (expectedTotal === 1 ? '' : 's') + ' assessed across ' + secRows.length + ' section' + (secRows.length === 1 ? '' : 's') + '.';
+    const sum = function(key) { return secRows.reduce(function(n, s) { return n + (s[key] || 0); }, 0); };
+    const pendingOf = function(s) { return s.total - s.completed; }; // not assessed yet, registered or not
+    document.getElementById('completionSummaryLine').textContent =
+      sum('completed') + ' of ' + sum('total') + ' student' + (sum('total') === 1 ? '' : 's') + ' assessed; ' +
+      (sum('total') - sum('completed')) + ' pending, across ' + secRows.length + ' section' + (secRows.length === 1 ? '' : 's') + '.';
 
-    document.getElementById('completionChartBox').style.height = Math.max(240, secRows.length * 64 + 90) + 'px';
+    document.getElementById('completionChartBox').style.height = Math.max(260, secRows.length * 84 + 90) + 'px';
     if (completionChart) { completionChart.destroy(); completionChart = null; }
     const pctOfExpected = function(n, s) { return s.total > 0 ? Math.round(n / s.total * 1000) / 10 : 0; };
-    const targetLine = {
-      id: 'targetLine',
-      afterDatasetsDraw: function(chart) {
-        const ctx = chart.ctx, area = chart.chartArea, px = chart.scales.x.getPixelForValue(target);
-        ctx.save();
-        ctx.strokeStyle = '#0f2a6b'; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
-        ctx.beginPath(); ctx.moveTo(px, area.top); ctx.lineTo(px, area.bottom); ctx.stroke();
-        ctx.setLineDash([]); ctx.fillStyle = '#0f2a6b'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
-        ctx.fillText('Target ' + target + '%', px, area.top - 8);
-        ctx.restore();
-      }
-    };
     completionChart = new Chart(document.getElementById('sectionCompletionChart').getContext('2d'), {
       type: 'bar',
       data: {
         // Two lines per section, so a section with nothing yet (no bar to see) still reads as "0 of 1".
-        labels: secRows.map(function(s) { return [s.strand + ' ' + s.section, s.registered + ' registered, ' + s.completed + ' assessed of ' + s.total]; }),
+        labels: secRows.map(function(s) { return [s.strand + ' ' + s.section, s.registered + ' registered, ' + s.completed + ' assessed, ' + pendingOf(s) + ' pending of ' + s.total]; }),
         datasets: [
           { label: 'Registered', data: secRows.map(function(s) { return pctOfExpected(s.registered, s); }), backgroundColor: '#93c5fd', borderRadius: 3 },
-          { label: 'Assessed', data: secRows.map(function(s) { return pctOfExpected(s.completed, s); }), backgroundColor: secRows.map(function(s) { return colorFor(rateOf(s)); }), borderRadius: 3 }
+          { label: 'Assessed', data: secRows.map(function(s) { return pctOfExpected(s.completed, s); }), backgroundColor: '#0f2a6b', borderRadius: 3 },
+          { label: 'Pending', data: secRows.map(function(s) { return pctOfExpected(pendingOf(s), s); }), backgroundColor: '#f59e0b', borderRadius: 3 }
         ]
       },
       options: {
         indexAxis: 'y', maintainAspectRatio: false,
-        layout: { padding: { top: 22, right: 12 } },
+        layout: { padding: { top: 8, right: 12 } },
         scales: { x: { min: 0, max: 100, ticks: { callback: function(v) { return v + '%'; } } } },
         plugins: {
           legend: { display: false },
           tooltip: { callbacks: { label: function(ctx) {
             const s = secRows[ctx.dataIndex];
-            return ctx.datasetIndex === 0
-              ? ' Registered: ' + s.registered + ' of ' + s.total + ' (' + ctx.parsed.x + '%)'
-              : ' Assessed: ' + s.completed + ' of ' + s.total + ' (' + ctx.parsed.x + '%)';
+            const count = [s.registered, s.completed, pendingOf(s)][ctx.datasetIndex];
+            const name = ['Registered', 'Assessed', 'Pending'][ctx.datasetIndex];
+            return ' ' + name + ': ' + count + ' of ' + s.total + ' (' + ctx.parsed.x + '%)';
           } } }
         }
-      },
-      plugins: targetOn ? [targetLine] : []
+      }
     });
   }
-
-  function showTargetMessage(text, isError) {
-    const el = document.getElementById('targetMessage');
-    el.textContent = text;
-    el.className = 'px-6 pt-3 text-xs ' + (isError ? 'text-[#ed1c24]' : 'text-green-600');
-    clearTimeout(showTargetMessage.timer);
-    showTargetMessage.timer = setTimeout(function() { el.classList.add('hidden'); }, 5000);
-  }
-  document.getElementById('targetSave').addEventListener('click', async function() {
-    const raw = document.getElementById('targetInput').value.trim();
-    if (!/^[0-9]+$/.test(raw) || Number(raw) > 100) { showTargetMessage('Enter a whole number from 1 to 100, or 0 to turn the target off.', true); return; }
-    this.disabled = true;
-    try {
-      const res = await fetch('api/completion-target.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target: Number(raw) }) });
-      const data = await res.json();
-      if (!data.success) { showTargetMessage(data.error || 'Could not save the target.', true); return; }
-      showTargetMessage(data.target > 0 ? 'Target saved: ' + data.target + '%.' : 'Target turned off.', false);
-      renderCompletion(lastSectionRows, data.target);
-    } catch (e) {
-      showTargetMessage('Unable to reach the server. Please try again.', true);
-    } finally {
-      this.disabled = false;
-    }
-  });
-
   // ---- Downloads: the list as a CSV (names, section, registered, assessed, email) for following up.
   async function downloadCsv(extra) {
     const params = new URLSearchParams(Object.assign({ format: 'csv' }, extra));
@@ -703,7 +640,7 @@
     const secRows = data.sections || [];
     lastSectionRows = secRows;
     renderStatus(secRows);
-    renderCompletion(secRows, Number.isInteger(data.completionTarget) ? data.completionTarget : 0);
+    renderCompletion(secRows);
     noResults.classList.toggle('hidden', data.students.length !== 0);
     tbody.innerHTML = data.students.length
       ? data.students.map((s, i) => renderRow(s, data.startIndex + i)).join('')
