@@ -379,7 +379,7 @@ CREATE TABLE counseling_notes (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- A counselor's invitation to book a counseling session (Student Accounts, Invite). The student gets the CGC booking link by
+-- A counselor's invitation to book a counseling session (Student Information, Invite). The student gets the CGC booking link by
 -- email and as a notification (api/notifications.php shows these); the link is kept here as it was when the invite was sent.
 CREATE TABLE counseling_invites (
     id          SERIAL PRIMARY KEY,

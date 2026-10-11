@@ -179,38 +179,6 @@ if ($idLookup > 0) {
     ]]);
 }
 
-// ?accounts=1: the Student Accounts page (login/activation status only, no
-// assessment/counseling data) — a separate view from the Student Assessment
-// Overview above, per the split the counselors asked for.
-if (isset($_GET['accounts'])) {
-    $search = trim((string) ($_GET['search'] ?? ''));
-    $rows = $pdo->query(
-        'SELECT u.id AS user_id, u.email, u.is_active, u.created_at,
-                s.first_name_enc, s.last_name_enc, s.strand, s.section
-         FROM users u
-         JOIN students s ON s.user_id = u.id
-         ORDER BY u.created_at DESC'
-    )->fetchAll();
-
-    $rows = array_values(array_filter($rows, fn($r) => StaffScope::allows($scope, $r['strand'], $r['section'])));
-    $accounts = array_map(fn($r) => [
-        'userId' => (int) $r['user_id'],
-        'name' => Crypto::dec($r['last_name_enc']) . ', ' . Crypto::dec($r['first_name_enc']),
-        'strand' => $r['strand'],
-        'section' => $r['section'],
-        'email' => $r['email'],
-        'isActive' => (bool) $r['is_active'],
-        'createdAt' => $r['created_at'],
-    ], $rows);
-
-    if ($search !== '') {
-        $needle = mb_strtolower($search);
-        $accounts = array_values(array_filter($accounts, fn($a) => str_contains(mb_strtolower($a['name']), $needle)));
-    }
-
-    jsonResponse(['accounts' => $accounts, 'total' => count($accounts)]);
-}
-
 $page = max(1, (int) ($_GET['page'] ?? 1));
 // ?all=1 (used by the Announcements student-picker) returns everyone
 // matching the filters in one response instead of paginating.
@@ -221,6 +189,7 @@ $sectionFilter = trim((string) ($_GET['section'] ?? ''));
 $statusFilter = (string) ($_GET['status'] ?? '');
 $counselingFilter = (string) ($_GET['counseling'] ?? '');
 $registrationFilter = (string) ($_GET['registration'] ?? ''); // registered | notRegistered
+$accountFilter = (string) ($_GET['account'] ?? '');           // active | inactive (a registered student's sign-in)
 $assessmentFilter = (string) ($_GET['assessment'] ?? '');     // assessed | notAssessed
 $asCsv = ($_GET['format'] ?? '') === 'csv';
 
@@ -390,6 +359,11 @@ if ($statusFilter === 'Mismatched') {
 if ($counselingFilter !== '') {
     $filtered = array_values(array_filter($filtered, fn($s) => $s['counseling'] === $counselingFilter));
 }
+if ($accountFilter === 'active') {
+    $filtered = array_values(array_filter($filtered, fn($s) => $s['isActive'] === true));
+} elseif ($accountFilter === 'inactive') {
+    $filtered = array_values(array_filter($filtered, fn($s) => $s['isActive'] === false));
+}
 if ($registrationFilter === 'registered') {
     $filtered = array_values(array_filter($filtered, fn($s) => $s['status'] !== 'Not Registered'));
 } elseif ($registrationFilter === 'notRegistered') {
@@ -437,7 +411,12 @@ $total = count($filtered);
 $totalPages = max(1, (int) ceil($total / $pageSize));
 $page = min($page, $totalPages);
 $offset = ($page - 1) * $pageSize;
-$pageRows = array_map(function ($s) { unset($s['_email']); return $s; }, array_slice($filtered, $offset, $pageSize));
+// A registered student's account email is shown to staff (it is their sign-in); a roster email is never sent to the page.
+$pageRows = array_map(function ($s) {
+    $s['email'] = $s['userId'] !== null ? $s['_email'] : null;
+    unset($s['_email']);
+    return $s;
+}, array_slice($filtered, $offset, $pageSize));
 
 jsonResponse([
     'students' => $pageRows,

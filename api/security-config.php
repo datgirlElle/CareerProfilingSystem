@@ -123,12 +123,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if ($user['role'] !== 'admin') {
-        jsonResponse(['success' => false, 'error' => 'Only administrators can change security configuration.'], 403);
-    }
-
     $body = readJsonBody();
     $type = $body['type'] ?? '';
+
+    // The Guidance Office hours and the counseling booking link are the Guidance Counselors' to keep up to date (the Counseling
+    // Notes permission: the Head of Guidance and Guidance Counselors, not Facilitators). Everything else here is the administrator's.
+    if (in_array($type, ['officeHours', 'bookingLink'], true)) {
+        $user = Rbac::requireAccess('counselingNotes', 'full');
+    } elseif ($user['role'] !== 'admin') {
+        jsonResponse(['success' => false, 'error' => 'Only administrators can change security configuration.'], 403);
+    }
 
     if ($type === 'rbac') {
         $changes = $body['changes'] ?? [];
