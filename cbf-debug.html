@@ -59,8 +59,8 @@
   const vec = function(v) { return '<span class="mono">[' + v.map(function(x) { return esc(x); }).join(', ') + ']</span>'; };
   const list = function(a) { return a && a.length ? a.map(esc).join(', ') : 'None'; };
 
-  async function load(schoolId) {
-    const res = await fetch('api/cbf-debug.php?schoolId=' + encodeURIComponent(schoolId));
+  async function load(schoolId, studentId) {
+    const res = await fetch('api/cbf-debug.php?' + (studentId ? 'studentId=' + encodeURIComponent(studentId) : 'schoolId=' + encodeURIComponent(schoolId)));
     const d = await res.json().catch(function() { return {}; });
     const err = document.getElementById('error');
     if (!res.ok) {
@@ -110,6 +110,8 @@
   if (params.get('schoolId')) {
     document.getElementById('schoolId').value = params.get('schoolId');
     load(params.get('schoolId'));
+  } else if (/^\d+$/.test(params.get('studentId') || '')) {
+    load(null, params.get('studentId'));
   }
 })();
 </script>

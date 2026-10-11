@@ -11,15 +11,76 @@ require_once __DIR__ . '/Auth.php';
  */
 class Rbac
 {
-    private const MODULES = ['career', 'rac', 'recommendations', 'counselor', 'monitoring', 'announcements', 'examinations', 'counselingNotes', 'sections'];
+    private const MODULES = ['career', 'rac', 'recommendations', 'counselor', 'monitoring', 'announcements', 'examinations', 'counselingNotes', 'sections', 'staffAccounts'];
+
+    /** The roles in the access matrix. Guidance Counselors and Guidance Facilitators share the 'counselor' system role but have a column each. */
+    public const ROLES = ['admin', 'counselor', 'facilitator', 'student'];
 
     /**
-     * A Guidance Facilitator (users.staff_position = 'facilitator') can look at these but never
-     * change them, whatever the matrix says: announcements, assessment schedules, sections.
-     * Class rosters follow the same rule (see requireRosterEditor). Guidance Counselors and the
-     * administrator (Head of Guidance) get whatever the matrix grants.
+     * Where a Guidance Facilitator starts when the database has no 'facilitator' rows yet (an older database, before the
+     * column existed): the Guidance Counselor's level, but no higher than this. Once the rows exist the matrix decides.
      */
-    public const FACILITATOR_VIEW_ONLY = ['announcements', 'examinations', 'sections'];
+    public const FACILITATOR_DEFAULT_LIMITS = ['sections' => 'limited', 'counselingNotes' => 'none', 'staffAccounts' => 'none'];
+
+    /** The starting level of a Guidance Facilitator for $module, given the Guidance Counselor's level. */
+    public static function facilitatorDefault(string $module, string $counselorLevel): string
+    {
+        $cap = self::FACILITATOR_DEFAULT_LIMITS[$module] ?? null;
+        $rank = ['none' => 0, 'limited' => 1, 'full' => 2];
+        if ($cap === null || ($rank[$counselorLevel] ?? 0) <= $rank[$cap]) {
+            return $counselorLevel;
+        }
+        return $cap;
+    }
+
+    /** The three levels, from most to least access. */
+    public const LEVELS = ['full', 'limited', 'none'];
+
+    /** The only module a Student can ever hold: reading their own recommendations. Everything else is No Access, whatever the table says. */
+    public const STUDENT_MODULES = ['recommendations'];
+
+    /** Modules about accounts: changing who holds them is a sensitive change (it asks for a confirmation before it is saved). */
+    public const SENSITIVE_MODULES = ['staffAccounts', 'counselor'];
+
+    /** Changing the Guidance Counselor column, or any account module, is a sensitive change. */
+    public static function isSensitiveChange(string $module, string $targetRole): bool
+    {
+        return in_array($module, self::SENSITIVE_MODULES, true) || $targetRole === 'counselor';
+    }
+
+    /**
+     * The levels $actorKey may set for a cell of the matrix (module x role), or [] when the cell is fixed for them.
+     *  - The administrator column and the Student column are never editable (nobody can lock the Head of Guidance out, and a
+     *    Student can never be given an administrative module).
+     *  - The Head of Guidance can set the Guidance Counselor and Guidance Facilitator columns to any level.
+     *  - A Guidance Counselor can set only the Facilitator column, never above the level they hold themselves, and never the
+     *    account modules or their own column.
+     *  - A Guidance Facilitator and a Student change nothing.
+     *
+     * @param array<string,array<string,string>> $matrix module => role => level
+     * @return array<int,string>
+     */
+    public static function editableLevels(string $actorKey, string $module, string $targetRole, array $matrix): array
+    {
+        if (!in_array($module, self::MODULES, true) || !in_array($targetRole, ['counselor', 'facilitator'], true)) {
+            return [];
+        }
+        if ($actorKey === 'admin') {
+            return self::LEVELS;
+        }
+        if ($actorKey !== 'counselor' || $targetRole !== 'facilitator' || in_array($module, self::SENSITIVE_MODULES, true)) {
+            return [];
+        }
+        $rank = ['none' => 0, 'limited' => 1, 'full' => 2];
+        $own = $matrix[$module]['counselor'] ?? 'none';
+        return array_values(array_filter(self::LEVELS, fn($l) => $rank[$l] <= ($rank[$own] ?? 0)));
+    }
+
+    /** The matrix column for a signed-in user: 'admin', 'counselor', 'facilitator' or 'student'. */
+    public static function roleKey(array $user): string
+    {
+        return self::isFacilitator($user) ? 'facilitator' : (string) ($user['role'] ?? '');
+    }
 
     /** True for a signed-in Guidance Facilitator. */
     public static function isFacilitator(array $user): bool
@@ -40,11 +101,11 @@ class Rbac
         exit;
     }
 
-    /** Uploading or replacing a class roster: Guidance Counselor and administrator only. */
+    /** Uploading or replacing a class roster: Full on the class roster module, and for a facilitator also Full on Sections (View Only by default). */
     public static function requireRosterEditor(): array
     {
         $user = self::requireAccess('rac', 'full');
-        if (self::isFacilitator($user)) {
+        if (self::roleKey($user) === 'facilitator' && self::accessLevel('sections', 'facilitator') !== 'full') {
             self::denyViewOnly();
         }
         return $user;
@@ -59,11 +120,15 @@ class Rbac
         $stmt = $pdo->prepare('SELECT access_level FROM security_rbac WHERE module = ? AND role = ?');
         $stmt->execute([$module, $role]);
         $level = $stmt->fetchColumn();
+        if ($level === false && $role === 'facilitator') {
+            $stmt->execute([$module, 'counselor']);
+            $counselor = $stmt->fetchColumn();
+            $level = $counselor !== false ? self::facilitatorDefault($module, (string) $counselor) : 'none';
+        }
         $level = $level !== false ? $level : 'none';
-        // The Announcements permission is about sending them. A student has none, whatever the table says, even if a
-        // row is tampered with. (Students still read the announcements sent to them: api/announcements.php serves
-        // that to a student without this permission.)
-        if ($role === 'student' && $module === 'announcements') {
+        // A Student holds only what is in STUDENT_MODULES, whatever the table says, even if a row is tampered with. (Students
+        // still read the announcements sent to them: api/announcements.php serves that without this permission.)
+        if ($role === 'student' && !in_array($module, self::STUDENT_MODULES, true)) {
             return 'none';
         }
         return $level;
@@ -77,7 +142,7 @@ class Rbac
     public static function requireAccess(string $module, string $minLevel = 'limited'): array
     {
         $user = Auth::requireLogin();
-        $level = self::accessLevel($module, $user['role']);
+        $level = self::accessLevel($module, self::roleKey($user));
 
         $rank = ['none' => 0, 'limited' => 1, 'full' => 2];
         if (($rank[$level] ?? 0) < ($rank[$minLevel] ?? 1)) {
@@ -86,10 +151,21 @@ class Rbac
             echo json_encode(['error' => 'Insufficient permissions for this action.']);
             exit;
         }
-        if ($minLevel === 'full' && in_array($module, self::FACILITATOR_VIEW_ONLY, true) && self::isFacilitator($user)) {
-            self::denyViewOnly();
-        }
         return $user;
+    }
+
+    /**
+     * Staff Accounts (approving staff sign-ups, sending access codes, deactivating staff). The administrator always has it, so
+     * an unfinished database can never lock them out. Guidance Counselors have it by default and Guidance Facilitators do not;
+     * the matrix (Edit Roles) can change either.
+     */
+    public static function requireStaffAccounts(string $minLevel = 'full'): array
+    {
+        $user = Auth::requireLogin();
+        if ($user['role'] === 'admin') {
+            return $user;
+        }
+        return self::requireAccess('staffAccounts', $minLevel);
     }
 
     /**

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="js/csrf.js"></script>
 <title>Career Results — Career Profiling System</title>
-<link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
+<link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -30,12 +30,9 @@
       <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="sidebar-brand-mmcl">
       <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="sidebar-brand-cgc">
     </div>
-    <div class="flex items-center gap-3 px-6 py-8">
-      <img src="images/admin/logo-profilepath.svg" alt="ProfilePath logo" class="w-[64px]">
-      <div>
-        <p class="text-lg font-bold leading-none"><span class="text-white">Profile</span><span class="text-[#ed1c24]">Path</span></p>
-        <p class="text-sm text-white/60 mt-1">Student Portal</p>
-      </div>
+    <div class="sidebar-app">
+      <img src="images/brand/profilepath-horizontal.png" alt="ProfilePath" width="190" height="75">
+      <p class="sidebar-app-role">Student Portal</p>
     </div>
     <nav class="flex-1 flex flex-col gap-0.5 py-4 overflow-auto">
       <a href="assessment" class="flex items-center gap-3.5 h-[50px] pl-6 border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
@@ -242,6 +239,21 @@
 
       <p class="text-xs text-gray-400 text-center mt-6 max-w-2xl mx-auto">This site incorporates information from <a href="https://services.onetcenter.org/" target="_blank" rel="noopener noreferrer" class="underline hover:text-gray-600">O*NET Web Services</a> by the U.S. Department of Labor, Employment and Training Administration (USDOL/ETA).</p>
     </main>
+<script>
+// If the CGC saved its booking page, "Talk to a Guidance Counselor" opens it; otherwise it sends a counseling request.
+// The buttons are rendered after the results load, so the click is handled on the document.
+var bookingUrl = null;
+fetch('api/public-settings.php').then(function (r) { return r.json(); }).then(function (s) {
+  if (s && s.bookingUrl) bookingUrl = s.bookingUrl;
+}).catch(function () {});
+document.addEventListener('click', function (e) {
+  var link = e.target.closest && e.target.closest('.js-advising-link');
+  if (link && bookingUrl) {
+    e.preventDefault();
+    window.open(bookingUrl, '_blank', 'noopener,noreferrer');
+  }
+});
+</script>
 
       <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
         <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
@@ -582,7 +594,7 @@
     const typedCareer = recommendation.statedCareer
       ? '<p class="text-xs text-[#5e3f3c]">Career you typed: <span class="font-semibold text-[#191c1e]">' + escapeText(recommendation.statedCareer) + '</span></p>' : '';
     const BADGE = 'text-xs font-semibold rounded-full px-3.5 py-1.5 shrink-0 border';
-    const COUNSELOR_BTN = '<a href="student-help-center?subject=Request%20for%20Academic%20Advising" class="inline-block border text-xs font-semibold rounded px-4 py-2 hover:opacity-80" style="border-color:#b45309;color:#92400e;background-color:#ffffff;align-self:flex-start;">Talk to a Guidance Counselor</a>';
+    const COUNSELOR_BTN = '<a href="student-help-center?subject=Request%20for%20Academic%20Advising" class="js-advising-link inline-block border text-xs font-semibold rounded px-4 py-2 hover:opacity-80" style="border-color:#b45309;color:#92400e;background-color:#ffffff;align-self:flex-start;">Talk to a Guidance Counselor</a>';
 
     // Cosine similarity is a 0-1 similarity score, never a percentage or an accuracy.
     function cosineHtml(p) {

@@ -192,10 +192,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['mine'])) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $user = Rbac::requireAccess('examinations', 'limited');
-    $academicYear = trim((string) ($_GET['academicYear'] ?? ''));
-    if ($academicYear === '') {
-        $academicYear = AcademicYear::current();
-    }
+    // A past school year can be picked (only years that exist, never a future one); the current year is the default.
+    $academicYear = AcademicYear::resolve($pdo, (string) ($_GET['academicYear'] ?? ''));
     // Active list by default; ?archived=1 shows the past ones. Past exams
     // stay in the table (audit logs and historical reports still need them).
     $showArchived = isset($_GET['archived']);
@@ -222,6 +220,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     jsonResponse([
         'academicYear' => $academicYear,
+        'academicYears' => AcademicYear::available($pdo),
+        'isPastYear' => AcademicYear::isPast($academicYear),
         'schedules' => $schedules,
         'archivedCount' => $archivedCount,
         'showingArchived' => $showArchived,
@@ -238,6 +238,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $academicYear = trim((string) ($body['academicYear'] ?? ''));
         if ($academicYear === '') {
             $academicYear = AcademicYear::current();
+        }
+        // Past school years are looked at, not changed: new schedules are for the current year only.
+        if ($academicYear !== AcademicYear::current()) {
+            jsonResponse(['success' => false, 'error' => 'Schedules can only be created for the current school year.'], 400);
         }
 
         $examDate = trim((string) ($body['examDate'] ?? ''));

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="js/csrf.js"></script>
 <title>Notifications — Career Profiling System</title>
-<link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
+<link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,12 +29,9 @@
       <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="sidebar-brand-mmcl">
       <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="sidebar-brand-cgc">
     </div>
-    <div class="flex items-center gap-3 px-6 py-8">
-      <img src="images/admin/logo-profilepath.svg" alt="ProfilePath logo" class="w-[64px]">
-      <div>
-        <p class="text-lg font-bold leading-none"><span class="text-white">Profile</span><span class="text-[#ed1c24]">Path</span></p>
-        <p class="text-sm text-white/60 mt-1">Student Portal</p>
-      </div>
+    <div class="sidebar-app">
+      <img src="images/brand/profilepath-horizontal.png" alt="ProfilePath" width="190" height="75">
+      <p class="sidebar-app-role">Student Portal</p>
     </div>
     <nav class="flex-1 flex flex-col gap-0.5 py-4 overflow-auto">
       <a href="assessment" class="flex items-center gap-3.5 h-[50px] pl-6 border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
@@ -148,7 +145,7 @@
         <section id="annSection" class="hidden" aria-labelledby="annHeading">
           <div class="flex items-center justify-between mb-2">
             <h2 id="annHeading" class="text-xs font-semibold tracking-[1.2px] text-[#495e88] uppercase">Announcements</h2>
-            <button type="button" id="clearAnnBtn" class="text-xs font-medium text-[#ed1c24] hover:underline">Clear all</button>
+            <button type="button" id="clearAnnBtn" class="btn-danger text-xs font-medium text-[#ed1c24] hover:underline">Clear all</button>
           </div>
           <div id="annList" class="bg-white border border-[#e0e3e5] rounded-lg divide-y divide-[#e0e3e5]"></div>
         </section>
@@ -156,7 +153,7 @@
         <section id="updSection" class="hidden" aria-labelledby="updHeading">
           <div class="flex items-center justify-between mb-2">
             <h2 id="updHeading" class="text-xs font-semibold tracking-[1.2px] text-[#495e88] uppercase">Updates</h2>
-            <button type="button" id="clearUpdBtn" class="text-xs font-medium text-[#ed1c24] hover:underline">Clear all</button>
+            <button type="button" id="clearUpdBtn" class="btn-danger text-xs font-medium text-[#ed1c24] hover:underline">Clear all</button>
           </div>
           <div id="updList" class="bg-white border border-[#e0e3e5] rounded-lg divide-y divide-[#e0e3e5]"></div>
         </section>
@@ -235,7 +232,7 @@
           (n.text ? '<p class="text-sm text-[#5e3f3c] mt-0.5 break-words">' + escapeHtml(n.text) + '</p>' : '') +
           '<p class="text-xs text-gray-400 mt-1">' + timeAgo(n.ts) + '</p>' +
         '</a>' +
-        '<button type="button" class="delete-notif shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-gray-400 hover:text-[#ed1c24] hover:bg-red-50" aria-label="Delete this notification" title="Delete">' + TRASH + '</button>' +
+        '<button type="button" class="btn-danger delete-notif shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-gray-400 hover:text-[#ed1c24] hover:bg-red-50" aria-label="Delete this notification" title="Delete">' + TRASH + '</button>' +
       '</div>';
     }
 

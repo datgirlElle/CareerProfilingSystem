@@ -17,4 +17,48 @@ class AcademicYear
         $startYear = (int) $now->format('n') >= self::START_MONTH ? $year : $year - 1;
         return $startYear . '-' . ($startYear + 1);
     }
+
+    /** 2026 for "2026-2027"; null when the text is not a school year. */
+    public static function startYear(string $ay): ?int
+    {
+        return preg_match('/^(\d{4})-(\d{4})$/', $ay, $m) && (int) $m[2] === (int) $m[1] + 1 ? (int) $m[1] : null;
+    }
+
+    /** True for a school year that already ended (before the current one). */
+    public static function isPast(string $ay, ?DateTimeImmutable $now = null): bool
+    {
+        $start = self::startYear($ay);
+        return $start !== null && $start < (int) self::startYear(self::current($now));
+    }
+
+    /**
+     * The school years staff can look back at, newest first: every year that has students, a class roster or a schedule,
+     * plus the current one. A year after the current one is never offered.
+     *
+     * @return array<int,string>
+     */
+    public static function available(PDO $pdo, ?DateTimeImmutable $now = null): array
+    {
+        $current = self::current($now);
+        $currentStart = (int) self::startYear($current);
+        $years = $pdo->query(
+            'SELECT academic_year FROM students WHERE academic_year IS NOT NULL
+             UNION SELECT academic_year FROM assessment_roster
+             UNION SELECT academic_year FROM exam_schedules'
+        )->fetchAll(PDO::FETCH_COLUMN);
+        $years[] = $current;
+        $years = array_values(array_unique(array_filter($years, function ($y) use ($currentStart) {
+            $start = self::startYear((string) $y);
+            return $start !== null && $start <= $currentStart;
+        })));
+        rsort($years);
+        return $years;
+    }
+
+    /** The year asked for when it is one of the available years, otherwise the current year. */
+    public static function resolve(PDO $pdo, string $requested, ?DateTimeImmutable $now = null): string
+    {
+        $requested = trim($requested);
+        return $requested !== '' && in_array($requested, self::available($pdo, $now), true) ? $requested : self::current($now);
+    }
 }

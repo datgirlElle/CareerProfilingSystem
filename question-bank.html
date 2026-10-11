@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="js/csrf.js"></script>
 <title>Question Bank — Career Profiling System</title>
-<link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
+<link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,12 +29,9 @@
       <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="sidebar-brand-mmcl">
       <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="sidebar-brand-cgc">
     </div>
-    <div class="flex items-center gap-3 px-6 py-8">
-      <img src="images/admin/logo-profilepath.svg" alt="ProfilePath logo" class="w-[64px]">
-      <div>
-        <p class="text-lg font-bold leading-none"><span class="text-white">Profile</span><span class="text-[#ed1c24]">Path</span></p>
-        <p class="text-sm text-white/60 mt-1">Admin Dashboard</p>
-      </div>
+    <div class="sidebar-app">
+      <img src="images/brand/profilepath-horizontal.png" alt="ProfilePath" width="190" height="75">
+      <p class="sidebar-app-role">Admin Dashboard</p>
     </div>
     <nav id="adminNav" data-active="question-bank" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
     <script src="js/admin-nav.js"></script>
@@ -93,8 +90,7 @@
             <img src="images/admin/icon-chevron-down.svg" alt="" class="w-3.5 h-2">
           </button>
           <div id="profilePanel" class="hidden absolute right-0 top-[calc(100%+12px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
-            <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">My Profile</a>
-            <a href="security-configuration" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-t border-gray-100">Account Settings</a>
+            <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">Profile Settings</a>
           </div>
         </div>
       </div>
@@ -102,6 +98,7 @@
 
     <!-- Page Content -->
     <main id="main-content" class="flex-1 p-4 sm:p-8 overflow-auto">
+      <div style="max-width:56rem;margin-left:auto;margin-right:auto">
 
       <div class="mb-6 max-w-4xl flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -115,6 +112,7 @@
 
       <div id="dimensionGroups" class="flex flex-col gap-6 max-w-4xl"></div>
 
+      </div>
     </main>
 
       <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
@@ -328,7 +326,7 @@
       '<div class="flex items-center gap-3 shrink-0">' +
         (q.isActive ? '' : '<span class="bg-slate-100 text-slate-500 text-xs font-medium px-2.5 py-1 rounded-full">Hidden</span>') +
         '<button type="button" class="edit-question-btn" data-id="' + q.id + '" aria-label="Edit question"><img src="images/admin/icon-row-edit.svg" alt="" class="w-3.5 h-3.5"></button>' +
-        '<button type="button" class="delete-question-btn" data-id="' + q.id + '" aria-label="Remove question"><img src="images/admin/icon-row-delete.svg" alt="" class="w-3.5 h-3.5"></button>' +
+        '<button type="button" class="btn-danger delete-question-btn" data-id="' + q.id + '" aria-label="Remove question"><img src="images/admin/icon-row-delete.svg" alt="" class="w-3.5 h-3.5"></button>' +
       '</div>' +
     '</div>';
   }

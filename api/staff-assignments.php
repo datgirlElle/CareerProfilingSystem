@@ -4,10 +4,11 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/Sections.php';
 require_once __DIR__ . '/../lib/AcademicYear.php';
 
-// Account Management: the administrator assigns sections to each guidance counselor / facilitator.
-// A staff member then sees only those sections' students (lib/StaffScope.php); with nothing
-// assigned they see everyone. Admin only.
-$user = Rbac::requireRole('admin');
+// Account Management: sections are assigned to each guidance counselor / facilitator by whoever holds the "Guidance Counselor"
+// permission (Security Configuration). It is its own permission, separate from Staff Accounts (approving sign-ups): the
+// Head of Guidance has it, nobody else by default. A staff member then sees only those sections' students
+// (lib/StaffScope.php); with nothing assigned they see everyone.
+$user = Rbac::requireAccess('counselor', $_SERVER['REQUEST_METHOD'] === 'GET' ? 'limited' : 'full');
 $pdo = Database::get();
 
 /** Every section that can be assigned: the active sections list plus any section on this year's roster. */

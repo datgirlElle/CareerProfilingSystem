@@ -356,6 +356,25 @@ CREATE TABLE retake_grants (
     completed_at                TIMESTAMPTZ
 );
 
+-- A student's request to retake the RIASEC assessment. A counselor or the Head of Guidance approves or declines it; an
+-- approved request lets the student retake once (api/assessment-submit.php), and the earlier result stays on record as
+-- an older attempt. Only recommendations built from the latest assessment count (see lib/RetakeRequest.php).
+CREATE TABLE retake_requests (
+    id                          SERIAL PRIMARY KEY,
+    student_id                  INT NOT NULL REFERENCES students(user_id) ON DELETE CASCADE,
+    attempt_number              INT NOT NULL,
+    reason_enc                  TEXT NOT NULL,
+    status                      VARCHAR(10) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'declined', 'completed')),
+    requested_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    decided_by                  INT REFERENCES users(id) ON DELETE SET NULL,
+    decided_at                  TIMESTAMPTZ,
+    decision_note_enc           TEXT,
+    completed_attempt_number    INT,
+    completed_at                TIMESTAMPTZ
+);
+-- A student has at most one request waiting or approved at a time.
+CREATE UNIQUE INDEX idx_retake_requests_open ON retake_requests (student_id) WHERE status IN ('pending', 'approved');
+
 -- A running, timestamped log of free-text notes a counselor/admin writes
 -- about a student (session summaries, follow-up items) -- distinct from
 -- the auto-derived Availed/Did Not Avail counseling status already shown
@@ -370,6 +389,18 @@ CREATE TABLE counseling_notes (
     author_id       INT REFERENCES users(id),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- A counselor's invitation to book a counseling session (Student Information, Invite). The student gets the CGC booking link by
+-- email and as a notification (api/notifications.php shows these); the link is kept here as it was when the invite was sent.
+CREATE TABLE counseling_invites (
+    id          SERIAL PRIMARY KEY,
+    student_id  INT NOT NULL REFERENCES students(user_id) ON DELETE CASCADE,
+    invited_by  INT REFERENCES users(id) ON DELETE SET NULL,
+    booking_url VARCHAR(300) NOT NULL,
+    email_sent  BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_counseling_invites_student ON counseling_invites (student_id, id);
 
 -- Notifications are computed live; this remembers the ones a student deleted
 -- (item_key comes from api/notifications.php, e.g. 'ann:12').

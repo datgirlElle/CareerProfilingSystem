@@ -44,7 +44,6 @@ const PROTECTED_PAGES = [
     'question-bank' => ['admin', 'counselor'],
     'security-configuration' => ['admin', 'counselor'],
     'student-profile' => ['admin', 'counselor'],
-    'student-accounts' => ['admin', 'counselor'],
     'account-management' => ['admin', 'counselor'],
     'assessment' => ['student'],
     'assessment-instructions' => ['student'],
@@ -72,6 +71,7 @@ const RENAMED_PAGES = [
     'admin-notifications' => 'staff-notifications',
     'help-requests' => 'counseling-requests',
     'exam-schedules' => 'assessment-scheduling',
+    'student-accounts' => 'admin-dashboard',
 ];
 
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);

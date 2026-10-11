@@ -62,7 +62,8 @@ if ($method === 'GET') {
         $counts = $pdo->query(
             "SELECT unnest(COALESCE(cbf_program_ids, ARRAY[top_program_id])) AS program_id, COUNT(*) AS cnt FROM (
                 SELECT DISTINCT ON (student_id) student_id, top_program_id, cbf_program_ids
-                FROM recommendations ORDER BY student_id, computed_at DESC
+                FROM recommendations WHERE source_assessment_id IN (SELECT id FROM assessments WHERE is_latest = TRUE)
+                ORDER BY student_id, computed_at DESC
              ) latest GROUP BY 1"
         )->fetchAll(PDO::FETCH_KEY_PAIR);
         $totalStudentsWithRecs = (int) $pdo->query('SELECT COUNT(DISTINCT student_id) FROM recommendations')->fetchColumn();

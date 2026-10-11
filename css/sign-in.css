@@ -24,7 +24,7 @@ html { scroll-behavior: smooth; }
 .ab-step h3 { font-size:16px; font-weight:600; color:#001c43; margin-bottom:6px; }
 .ab-step p { font-size:14px; line-height:1.65; color:#475569; }
 .ab-cta { background:#001c43; color:#fff; text-align:center; }
-.ab-btn { display:inline-block; background:#ed1c24; color:#fff; font-size:15px; font-weight:600; padding:13px 30px; border-radius:8px; text-decoration:none; }
+.ab-btn { display:inline-block; background:#0f2a6b; color:#fff; font-size:15px; font-weight:600; padding:13px 30px; border-radius:8px; text-decoration:none; }
 @keyframes cue-bounce { 0%,100% { transform:translateY(0); } 50% { transform:translateY(5px); } }
 @media (prefers-reduced-motion: no-preference) { .cue-arrow { animation:cue-bounce 1.6s ease-in-out infinite; } }
 @media (prefers-reduced-motion: reduce) {

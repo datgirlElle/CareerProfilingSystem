@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="js/csrf.js"></script>
 <title>Counseling Requests — Career Profiling System</title>
-<link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
+<link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,12 +29,9 @@
       <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="sidebar-brand-mmcl">
       <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="sidebar-brand-cgc">
     </div>
-    <div class="flex items-center gap-3 px-6 py-8">
-      <img src="images/admin/logo-profilepath.svg" alt="ProfilePath logo" class="w-[64px]">
-      <div>
-        <p class="text-lg font-bold leading-none"><span class="text-white">Profile</span><span class="text-[#ed1c24]">Path</span></p>
-        <p class="text-sm text-white/60 mt-1">Admin Dashboard</p>
-      </div>
+    <div class="sidebar-app">
+      <img src="images/brand/profilepath-horizontal.png" alt="ProfilePath" width="190" height="75">
+      <p class="sidebar-app-role">Admin Dashboard</p>
     </div>
     <nav id="adminNav" data-active="counseling-requests" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
     <script src="js/admin-nav.js"></script>
@@ -93,8 +90,7 @@
             <img src="images/admin/icon-chevron-down.svg" alt="" class="w-3.5 h-2">
           </button>
           <div id="profilePanel" class="hidden absolute right-0 top-[calc(100%+12px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
-            <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">My Profile</a>
-            <a href="security-configuration" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-t border-gray-100">Account Settings</a>
+            <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">Profile Settings</a>
           </div>
         </div>
       </div>
@@ -109,10 +105,12 @@
           <p class="text-sm text-slate-500 mt-1">Messages students have sent to the Guidance Office.</p>
         </div>
         <div class="flex items-center gap-2" id="statusTabs">
-          <button type="button" data-status="open" class="status-tab px-4 py-2 rounded-md text-sm font-medium border">Open <span class="tab-count"></span></button>
-          <button type="button" data-status="resolved" class="status-tab px-4 py-2 rounded-md text-sm font-medium border">Resolved</button>
-          <button type="button" data-status="All" class="status-tab px-4 py-2 rounded-md text-sm font-medium border">All</button>
         </div>
+      </div>
+
+      <div class="flex items-center gap-2 mb-4" id="viewTabs">
+        <button type="button" data-view="counseling" class="view-tab px-4 py-2 rounded-md text-sm font-medium border">Counseling Requests</button>
+        <button type="button" data-view="retakes" class="view-tab px-4 py-2 rounded-md text-sm font-medium border">Retake Requests <span id="retakeCount"></span></button>
       </div>
 
       <div class="flex flex-col gap-4" id="requestsList">
@@ -209,6 +207,32 @@
       new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   }
 
+  // Invite to counseling: sends the student the CGC booking link by email and as a notification. Counseling belongs to the
+  // Guidance Counselors and the Head of Guidance (the Counseling Notes permission), so the button only shows for them.
+  let canInvite = currentUser.role === 'admin';
+  try {
+    const inviteCfg = await (await fetch('api/security-config.php')).json();
+    canInvite = ((inviteCfg.rbac && inviteCfg.rbac.counselingNotes && inviteCfg.rbac.counselingNotes[currentUser.rbacRole || currentUser.role]) || 'none') === 'full';
+  } catch (e) {}
+  async function sendCounselingInvite(studentId) {
+    const res = await fetch('api/counseling-invite.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ studentId: Number(studentId) })
+    });
+    const data = await res.json();
+    if (!data.success) return { ok: false, text: data.error || 'Could not send the invitation.' };
+    return data.emailSent
+      ? { ok: true, text: 'Invitation sent by email and notification.' }
+      : { ok: false, text: 'Notification sent. The email could not be sent' + (data.hasEmail ? '.' : ' because this student has no verified email.') };
+  }
+  function showToast(text, isError) {
+    const el = document.createElement('div');
+    el.className = 'fixed bottom-4 right-4 z-[60] max-w-sm px-4 py-3 rounded-lg shadow-lg text-sm font-medium whitespace-pre-wrap ' + (isError ? 'bg-[#ed1c24] text-white' : 'bg-green-600 text-white');
+    el.textContent = text;
+    document.body.appendChild(el);
+    setTimeout(function() { el.remove(); }, 6000);
+  }
+
   let activeStatus = 'open';
 
   function renderCard(r) {
@@ -218,6 +242,9 @@
     const resolveBtn = r.status === 'open'
       ? '<button type="button" class="resolve-btn shrink-0 bg-[#ed1c24] text-white text-xs font-semibold uppercase tracking-wide rounded-md px-4 py-2 hover:opacity-90" data-id="' + r.id + '">Mark Resolved</button>'
       : '';
+    const inviteBtn = canInvite && r.studentId
+      ? '<button type="button" class="invite-btn shrink-0 border border-[#0f2a6b] text-[#0f2a6b] text-xs font-semibold uppercase tracking-wide rounded-md px-4 py-2 hover:bg-slate-50" data-student-id="' + r.studentId + '" data-name="' + escapeHtml(r.name) + '">Invite to Counseling</button>'
+      : '';
     return '<div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex flex-col gap-3">' +
       '<div class="flex items-start justify-between gap-4 flex-wrap">' +
         '<div><h3 class="text-base font-semibold text-slate-900">' + escapeHtml(r.subject) + '</h3>' +
@@ -225,27 +252,130 @@
         statusBadge +
       '</div>' +
       '<p class="text-sm text-slate-700 leading-relaxed">' + escapeHtml(r.message) + '</p>' +
-      (resolveBtn ? '<div class="flex justify-end">' + resolveBtn + '</div>' : '') +
+      ((inviteBtn || resolveBtn) ? '<div class="flex justify-end gap-2">' + inviteBtn + resolveBtn + '</div>' : '') +
     '</div>';
   }
 
+  // ---- Two views: students' messages to the Guidance Office, and requests to retake the assessment.
+  let view = new URLSearchParams(window.location.search).get('tab') === 'retakes' ? 'retakes' : 'counseling';
+  let retakeStatus = 'pending';
+  const TAB_ON = 'bg-[#ed1c24] border-[#ed1c24] text-white';
+  const TAB_OFF = 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50';
+  function renderTabs(counts) {
+    document.querySelectorAll('.view-tab').forEach(btn => {
+      btn.className = 'view-tab px-4 py-2 rounded-md text-sm font-medium border ' + (btn.dataset.view === view ? TAB_ON : TAB_OFF);
+    });
+    const tabs = view === 'retakes'
+      ? [['pending', 'Pending' + (counts && counts.pending !== undefined ? ' (' + counts.pending + ')' : '')], ['approved', 'Approved'], ['declined', 'Declined'], ['completed', 'Retaken'], ['all', 'All']]
+      : [['open', 'Open' + (counts && counts.open !== undefined ? ' (' + counts.open + ')' : '')], ['resolved', 'Resolved'], ['All', 'All']];
+    const active = view === 'retakes' ? retakeStatus : activeStatus;
+    document.getElementById('statusTabs').innerHTML = tabs.map(function(tb) {
+      return '<button type="button" data-status="' + tb[0] + '" class="status-tab px-4 py-2 rounded-md text-sm font-medium border ' + (tb[0] === active ? TAB_ON : TAB_OFF) + '">' + tb[1] + '</button>';
+    }).join('');
+    document.querySelectorAll('.status-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (view === 'retakes') retakeStatus = btn.dataset.status; else activeStatus = btn.dataset.status;
+        load();
+      });
+    });
+  }
+  document.querySelectorAll('.view-tab').forEach(btn => {
+    btn.addEventListener('click', () => { view = btn.dataset.view; load(); });
+  });
+
+  function renderRetakeCard(r) {
+    const badge = {
+      pending: '<span class="bg-amber-50 border border-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full">Waiting for an answer</span>',
+      approved: '<span class="bg-green-50 border border-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full">Approved</span>',
+      declined: '<span class="bg-slate-100 border border-slate-200 text-slate-600 text-xs font-semibold px-2.5 py-1 rounded-full">Declined</span>',
+      completed: '<span class="bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full">Retaken</span>'
+    }[r.status] || '';
+    const answered = r.status !== 'pending' && r.decidedAt
+      ? '<p class="text-xs text-slate-500">Answered ' + formatDate(r.decidedAt) + (r.note ? ' &middot; Note: ' + escapeHtml(r.note) : '') + '</p>'
+      : '';
+    const actions = r.status === 'pending' && canInvite
+      ? '<div class="flex flex-col gap-2">' +
+          '<input type="text" maxlength="300" placeholder="Note to the student (optional)" class="retake-note w-full border border-slate-300 rounded-md px-3 py-2 text-sm" data-id="' + r.id + '">' +
+          '<div class="flex justify-end gap-2">' +
+            '<button type="button" class="retake-decide border border-slate-300 text-slate-600 text-xs font-semibold uppercase tracking-wide rounded-md px-4 py-2 hover:bg-slate-50" data-decision="decline" data-id="' + r.id + '">Decline</button>' +
+            '<button type="button" class="retake-decide bg-[#ed1c24] text-white text-xs font-semibold uppercase tracking-wide rounded-md px-4 py-2 hover:opacity-90" data-decision="approve" data-id="' + r.id + '">Approve Retake</button>' +
+          '</div></div>'
+      : '';
+    return '<div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex flex-col gap-3">' +
+      '<div class="flex items-start justify-between gap-4 flex-wrap">' +
+        '<div><h3 class="text-base font-semibold text-slate-900">' + escapeHtml(r.name) + '</h3>' +
+        '<p class="text-xs text-slate-500 mt-0.5">' + escapeHtml(r.strand) + (r.section ? ' ' + escapeHtml(r.section) : '') + ' &middot; Asked ' + formatDate(r.requestedAt) + ' &middot; Result on record: attempt #' + r.attemptNumber + '</p></div>' +
+        badge +
+      '</div>' +
+      '<p class="text-sm text-slate-700 leading-relaxed">' + escapeHtml(r.reason) + '</p>' +
+      answered + actions +
+    '</div>';
+  }
+
+  async function loadRetakes() {
+    const list = document.getElementById('requestsList');
+    const res = await fetch('api/retake-requests.php?status=' + encodeURIComponent(retakeStatus));
+    if (!res.ok) {
+      list.innerHTML = '<p class="text-sm text-slate-400 text-center py-8">You do not have access to retake requests.</p>';
+      renderTabs({});
+      return;
+    }
+    const data = await res.json();
+    document.getElementById('retakeCount').textContent = data.pendingCount ? '(' + data.pendingCount + ')' : '';
+    renderTabs({ pending: data.pendingCount });
+    list.innerHTML = data.requests.length
+      ? data.requests.map(renderRetakeCard).join('')
+      : '<p class="text-sm text-slate-400 text-center py-8">No requests in this view.</p>';
+    list.querySelectorAll('.retake-decide').forEach(btn => {
+      btn.addEventListener('click', async function() {
+        const approve = btn.dataset.decision === 'approve';
+        if (!window.confirm(approve ? 'Approve this retake? The student can retake the assessment once. Their earlier result stays on record.' : 'Decline this retake request?')) return;
+        const note = (list.querySelector('.retake-note[data-id="' + btn.dataset.id + '"]') || {}).value || '';
+        btn.disabled = true;
+        try {
+          const r = await fetch('api/retake-requests.php', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'decide', id: Number(btn.dataset.id), decision: btn.dataset.decision, note: note })
+          });
+          const result = await r.json();
+          if (!result.success) { showToast(result.error || 'Could not save your answer.', true); btn.disabled = false; return; }
+          showToast(approve ? 'Retake approved. The student was notified' + (result.emailSent ? ' by email and notification.' : '.') : 'Request declined. The student was notified' + (result.emailSent ? ' by email and notification.' : '.'), false);
+          await load();
+        } catch (e) {
+          showToast('Unable to reach the server. Please try again.', true);
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
   async function load() {
+    if (view === 'retakes') { await loadRetakes(); return; }
     const list = document.getElementById('requestsList');
     list.innerHTML = '<p class="text-sm text-slate-400 text-center py-8">Loading…</p>';
 
     const data = await (await fetch('api/help-requests.php?status=' + encodeURIComponent(activeStatus))).json();
-
-    document.querySelectorAll('.status-tab').forEach(btn => {
-      const isActive = btn.dataset.status === activeStatus;
-      btn.className = 'status-tab px-4 py-2 rounded-md text-sm font-medium border ' +
-        (isActive ? 'bg-[#ed1c24] border-[#ed1c24] text-white' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50');
-    });
-    document.querySelector('.status-tab[data-status="open"] .tab-count').textContent = '(' + data.openCount + ')';
+    renderTabs({ open: data.openCount });
+    fetch('api/retake-requests.php?status=pending').then(r => r.ok ? r.json() : null).then(d => { if (d) document.getElementById('retakeCount').textContent = d.pendingCount ? '(' + d.pendingCount + ')' : ''; }).catch(() => {});
 
     list.innerHTML = data.requests.length
       ? data.requests.map(renderCard).join('')
       : '<p class="text-sm text-slate-400 text-center py-8">No requests in this view.</p>';
 
+    list.querySelectorAll('.invite-btn').forEach(btn => {
+      btn.addEventListener('click', async function() {
+        if (!window.confirm('Invite ' + btn.dataset.name + ' to a counseling session? They will be sent the CGC booking link by email and in their notifications.')) return;
+        btn.disabled = true;
+        try {
+          const result = await sendCounselingInvite(btn.dataset.studentId);
+          showToast(result.text, !result.ok);
+        } catch (e) {
+          showToast('Unable to reach the server. Please try again.', true);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
     list.querySelectorAll('.resolve-btn').forEach(btn => {
       btn.addEventListener('click', async function() {
         btn.disabled = true;
@@ -257,13 +387,6 @@
       });
     });
   }
-
-  document.querySelectorAll('.status-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      activeStatus = btn.dataset.status;
-      load();
-    });
-  });
 
   await load();
 })();

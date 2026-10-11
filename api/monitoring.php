@@ -144,7 +144,7 @@ function buildCompletedRows(PDO $pdo): array
             FROM assessments a
             JOIN students s ON s.user_id = a.student_id
             LEFT JOIN recommendations r ON r.student_id = a.student_id
-                AND r.id = (SELECT id FROM recommendations WHERE student_id = a.student_id ORDER BY computed_at DESC LIMIT 1)
+                AND r.id = (SELECT id FROM recommendations WHERE student_id = a.student_id AND source_assessment_id = a.id ORDER BY computed_at DESC LIMIT 1)
             WHERE a.is_latest = TRUE AND a.completed_at::date = CURRENT_DATE
             ORDER BY a.completed_at DESC";
     $rows = $pdo->query($sql)->fetchAll();

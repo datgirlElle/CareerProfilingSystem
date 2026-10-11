@@ -78,6 +78,10 @@ config/     .env loader
    php db/migrate_final_holland_codes.php
    php db/migrate_add_recommendation_status.php
    php db/migrate_add_recommendation_sets.php
+   php db/migrate_add_counseling_invites.php
+   php db/migrate_add_facilitator_role.php
+   php db/migrate_add_retake_requests.php
+   php db/migrate_add_staff_accounts_rbac.php
    ```
 
 4. **Seed reference data and a default admin account:**

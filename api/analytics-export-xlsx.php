@@ -27,6 +27,7 @@ if ($strand !== '' && !in_array($strand, ['STEM', 'ABM', 'ICT', 'HUMSS'], true))
     $strand = '';
 }
 $section = trim((string) ($_GET['section'] ?? ''));
+$academicYear = AcademicYear::resolve($pdo, (string) ($_GET['academicYear'] ?? ''));
 
 $account = $pdo->prepare('SELECT email, full_name, username FROM users WHERE id = ?');
 $account->execute([(int) $user['id']]);
@@ -40,9 +41,9 @@ $name = trim((string) ($me['full_name'] ?? '')) !== '' ? $me['full_name'] : $me[
 
 $scope = StaffScope::forUser($pdo, $user);
 $password = AnalyticsXlsx::generatePassword();
-$xlsx = AnalyticsXlsx::build($pdo, $scope, $strand, $section, $password, (string) $name, $email);
+$xlsx = AnalyticsXlsx::build($pdo, $scope, $strand, $section, $password, (string) $name, $email, $academicYear);
 
-$fileName = 'ProfilePath-report-' . preg_replace('/[^A-Za-z0-9-]+/', '-', AcademicYear::current()) . ($strand !== '' ? '-' . $strand : '') . ($section !== '' ? '-' . preg_replace('/[^A-Za-z0-9]+/', '', $section) : '') . '-' . date('Y-m-d') . '.xlsx';
+$fileName = 'ProfilePath-report-' . preg_replace('/[^A-Za-z0-9-]+/', '-', $academicYear) . ($strand !== '' ? '-' . $strand : '') . ($section !== '' ? '-' . preg_replace('/[^A-Za-z0-9]+/', '', $section) : '') . '-' . date('Y-m-d') . '.xlsx';
 
 $safeName = htmlspecialchars((string) $name, ENT_QUOTES, 'UTF-8');
 $safeFile = htmlspecialchars($fileName, ENT_QUOTES, 'UTF-8');

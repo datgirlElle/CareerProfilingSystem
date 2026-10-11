@@ -4,7 +4,7 @@ require_once __DIR__ . '/XlsxWriter.php';
 require_once __DIR__ . '/AnalyticsReport.php';
 require_once __DIR__ . '/AcademicYear.php';
 require_once __DIR__ . '/StaffScope.php';
-require_once __DIR__ . '/CompletionTarget.php';
+require_once __DIR__ . '/QuestionBank.php';
 
 /**
  * The Excel version of the analytics report: a Summary sheet (key numbers, completion by section and a
@@ -23,18 +23,23 @@ class AnalyticsXlsx
      * @param array<int,string>|null $scope see StaffScope
      * @return array<int,array{name:string,strand:string,section:string,registered:bool,assessed:bool,date:?string,riasec:string}>
      */
-    public static function studentRows(PDO $pdo, ?array $scope, string $strand = '', string $section = ''): array
+    public static function studentRows(PDO $pdo, ?array $scope, string $strand = '', string $section = '', string $academicYear = ''): array
     {
+        $ay = AcademicYear::resolve($pdo, $academicYear);
+        $pastAy = AcademicYear::isPast($ay);
         $rows = [];
         $registeredIds = [];
         $stmt = $pdo->query(
-            'SELECT s.school_id, s.first_name_enc, s.last_name_enc, s.strand, s.section, a.top_types, a.completed_at
+            'SELECT s.school_id, s.first_name_enc, s.last_name_enc, s.strand, s.section, s.academic_year, a.top_types, a.completed_at
              FROM students s
              JOIN users u ON u.id = s.user_id
              LEFT JOIN assessments a ON a.student_id = s.user_id AND a.is_latest = TRUE'
         );
         foreach ($stmt->fetchAll() as $r) {
             $registeredIds[$r['school_id']] = true;
+            if ($pastAy && $r['academic_year'] !== $ay) {
+                continue;
+            }
             $done = $r['completed_at'] !== null;
             $types = $done ? (json_decode((string) $r['top_types'], true) ?: []) : [];
             $rows[] = [
@@ -42,10 +47,9 @@ class AnalyticsXlsx
                 'strand' => $r['strand'], 'section' => $r['section'],
                 'registered' => true, 'assessed' => $done,
                 'date' => $done ? date('Y-m-d', strtotime((string) $r['completed_at'])) : null,
-                'riasec' => implode(', ', $types),
+                'riasec' => QuestionBank::hollandCode($types),
             ];
         }
-        $ay = AcademicYear::current();
         if ($ay !== '') {
             $rosterStmt = $pdo->prepare('SELECT school_id, name_enc, strand, section FROM assessment_roster WHERE academic_year = ?');
             $rosterStmt->execute([$ay]);
@@ -72,11 +76,10 @@ class AnalyticsXlsx
      * @param array<int,string>|null $scope
      * @return string the .xlsx file's bytes
      */
-    public static function build(PDO $pdo, ?array $scope, string $strand, string $section, string $password, string $generatedBy, string $emailedTo): string
+    public static function build(PDO $pdo, ?array $scope, string $strand, string $section, string $password, string $generatedBy, string $emailedTo, string $academicYear = ''): string
     {
-        $students = self::studentRows($pdo, $scope, $strand, $section);
-        $target = CompletionTarget::get($pdo);
-        $ay = AcademicYear::current();
+        $ay = AcademicYear::resolve($pdo, $academicYear);
+        $students = self::studentRows($pdo, $scope, $strand, $section, $ay);
 
         // Per section, counted the way the dashboard counts them.
         $bySection = [];
@@ -111,23 +114,21 @@ class AnalyticsXlsx
             [$S('Assessed', XlsxWriter::S_LABEL), $S($assessed, XlsxWriter::S_INT)],
             [$S('Not yet assessed', XlsxWriter::S_LABEL), $S($expected - $assessed, XlsxWriter::S_INT)],
             [$S('Completion (%)', XlsxWriter::S_LABEL), $S($rate($assessed, $expected), XlsxWriter::S_NUM1)],
-            [$S('Completion target (%)', XlsxWriter::S_LABEL), $S($target, XlsxWriter::S_INT)],
             [],
         ];
         $headerRow = count($rows); // 0-based row index of the table header
-        $rows[] = array_map(fn($h) => $S($h, XlsxWriter::S_HEADER), ['Section', 'Expected', 'Registered', 'Assessed', 'Completion (%)', 'Target (%)', 'Status']);
-        $cats = $vals = $targets = $colors = [];
+        $rows[] = array_map(fn($h) => $S($h, XlsxWriter::S_HEADER), ['Section', 'Expected', 'Registered', 'Assessed', 'Completion (%)', 'Pending']);
+        $cats = $vals = $colors = [];
         foreach ($bySection as $name => $b) {
             $c = $rate($b['assessed'], $b['expected']);
-            $met = $c >= $target;
             $rows[] = [
                 $S($name, XlsxWriter::S_LABEL), $S($b['expected'], XlsxWriter::S_INT), $S($b['registered'], XlsxWriter::S_INT), $S($b['assessed'], XlsxWriter::S_INT),
-                $S($c, XlsxWriter::S_NUM1), $S($target, XlsxWriter::S_INT), $S($met ? 'On target' : 'Below target', $met ? XlsxWriter::S_GOOD : XlsxWriter::S_BAD),
+                $S($c, XlsxWriter::S_NUM1), $S($b['expected'] - $b['assessed'], XlsxWriter::S_INT),
             ];
-            $cats[] = $name; $vals[] = $c; $targets[] = $target; $colors[] = $met ? '059669' : 'DC2626';
+            $cats[] = $name; $vals[] = $c; $colors[] = '0F2A6B';
         }
         $rows[] = [];
-        $rows[] = [$S('Completion = assessed students out of everyone expected in the section (registered, or on the class roster).', XlsxWriter::S_NOTE)];
+        $rows[] = [$S('Completion = assessed students out of everyone expected in the section (registered, or on the class roster). Pending = not assessed yet.', XlsxWriter::S_NOTE)];
         $summary = $x->addSheet('Summary', $rows, [24, 12, 12, 12, 16, 12, 16], false, [[0, 0, 0, 6]]);
         if ($bySection) {
             $first = $headerRow + 2;           // 1-based first data row
@@ -136,13 +137,12 @@ class AnalyticsXlsx
                 'title' => 'Assessment completion by section', 'sheet' => $summary, 'anchor' => [8, 1, 18, 21],
                 'catRef' => "Summary!\$A\$$first:\$A\$$last", 'cats' => $cats,
                 'valRef' => "Summary!\$E\$$first:\$E\$$last", 'vals' => $vals, 'seriesName' => 'Completion (%)', 'colors' => $colors,
-                'targetRef' => "Summary!\$F\$$first:\$F\$$last", 'targetVals' => $targets, 'targetName' => "Target ($target%)",
                 'max' => 100, 'axisTitle' => 'Percent assessed',
             ]);
         }
 
         // ---- RIASEC
-        $avg = AnalyticsReport::compute($pdo, $strand, $section)['riasecAverages'];
+        $avg = AnalyticsReport::compute($pdo, $strand, $section, $ay)['riasecAverages'];
         $riasecRows = [array_map(fn($h) => $S($h, XlsxWriter::S_HEADER), ['Type', 'Letter', 'Average score'])];
         $rCats = $rVals = [];
         foreach (self::RIASEC_NAMES as $letter => $label) {
@@ -159,7 +159,7 @@ class AnalyticsXlsx
         ]);
 
         // ---- Students
-        $list = [array_map(fn($h) => $S($h, XlsxWriter::S_HEADER), ['Name', 'Strand', 'Section', 'Registered', 'Assessed', 'Assessment date', 'Top RIASEC types'])];
+        $list = [array_map(fn($h) => $S($h, XlsxWriter::S_HEADER), ['Name', 'Strand', 'Section', 'Registered', 'Assessed', 'Assessment date', 'Holland code (top 3, ranked)'])];
         foreach ($students as $s) {
             $list[] = [
                 $S($s['name'], XlsxWriter::S_TEXT), $S($s['strand'], XlsxWriter::S_TEXT), $S($s['section'], XlsxWriter::S_TEXT),
@@ -167,7 +167,7 @@ class AnalyticsXlsx
                 $S($s['date'] ?? '', XlsxWriter::S_TEXT), $S($s['riasec'], XlsxWriter::S_TEXT),
             ];
         }
-        $x->addSheet('Students', $list, [34, 10, 12, 12, 12, 16, 22], true);
+        $x->addSheet('Students', $list, [34, 10, 12, 12, 12, 16, 28], true);
 
         $x->protect($password);
         return $x->build();

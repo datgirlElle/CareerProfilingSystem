@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="js/csrf.js"></script>
 <title>Assessment Instructions — Career Profiling System</title>
-<link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
+<link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,12 +29,9 @@
       <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="sidebar-brand-mmcl">
       <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="sidebar-brand-cgc">
     </div>
-    <div class="flex items-center gap-3 px-6 py-8">
-      <img src="images/admin/logo-profilepath.svg" alt="ProfilePath logo" class="w-[64px]">
-      <div>
-        <p class="text-lg font-bold leading-none"><span class="text-white">Profile</span><span class="text-[#ed1c24]">Path</span></p>
-        <p class="text-sm text-white/60 mt-1">Student Portal</p>
-      </div>
+    <div class="sidebar-app">
+      <img src="images/brand/profilepath-horizontal.png" alt="ProfilePath" width="190" height="75">
+      <p class="sidebar-app-role">Student Portal</p>
     </div>
     <nav class="flex-1 flex flex-col gap-0.5 py-4 overflow-auto">
       <a href="assessment" class="flex items-center gap-3.5 h-[50px] pl-6 border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
@@ -195,7 +192,7 @@
 
         <label class="flex items-start gap-2.5 text-sm text-[#5e3f3c] leading-relaxed mb-4 cursor-pointer">
           <input type="checkbox" id="policyAgreeCheckbox" required class="mt-0.5 w-4 h-4 shrink-0 rounded border-gray-300 text-[#ed1c24] focus:ring-[#ed1c24] focus:ring-offset-0">
-          <span>I understand that my responses to this assessment will be encrypted and used only for career profiling and guidance purposes at MMCL, consistent with the <a href="privacy" target="_blank" class="text-[#ed1c24] hover:underline">Data Privacy Policy</a>.</span>
+          <span>I understand that my responses to this assessment will be encrypted and used only for career profiling and guidance purposes at MMCL, and that my results may be shared with the Principal and the Senior High School department, consistent with the <a href="privacy" target="_blank" class="text-[#ed1c24] hover:underline">Data Privacy Policy</a>.</span>
         </label>
 
         <label class="flex items-start gap-2.5 text-sm text-[#5e3f3c] leading-relaxed mb-8 cursor-pointer">
@@ -321,9 +318,11 @@
   const beginBtn = document.getElementById('beginBtn');
   // The assessment is taken once: if it's already finished, say so right away and block the Begin button.
   let alreadyTaken = false;
+  let retakeApproved = false; // the Guidance Office approved a retake: no session or access code needed
   try {
     const st = await (await fetch('api/assessment-status.php')).json();
-    alreadyTaken = !!st.completed;
+    retakeApproved = !!st.retakeApproved;
+    alreadyTaken = !!st.completed && !retakeApproved;
   } catch (e) {}
   if (alreadyTaken) {
     const banner = document.createElement('div');
@@ -359,7 +358,20 @@
     setTimeout(function() { modal.classList.add('hidden'); }, 260);
   }
 
-  document.getElementById('beginBtn').addEventListener('click', openModal);
+  document.getElementById('beginBtn').addEventListener('click', async function() {
+    if (!retakeApproved) { openModal(); return; }
+    const btn = this;
+    btn.disabled = true;
+    try {
+      const res = await fetch('api/verify-access-code.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ retake: true }) });
+      const data = await res.json();
+      if (!data.success) { window.alert(data.error || 'Could not start the retake.'); btn.disabled = false; return; }
+      window.location.href = 'riasec-assessment';
+    } catch (e) {
+      window.alert('Unable to reach the server. Please try again.');
+      btn.disabled = false;
+    }
+  });
   document.getElementById('accessCodeCancel').addEventListener('click', closeModal);
   modal.addEventListener('click', function(e) { if (e.target.id === 'accessCodeModal') closeModal(); });
   document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal(); });

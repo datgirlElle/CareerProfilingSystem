@@ -1,11 +1,11 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/QuestionBank.php';
 require_once __DIR__ . '/../lib/Sections.php';
 require_once __DIR__ . '/../lib/AcademicYear.php';
 require_once __DIR__ . '/../lib/Mismatch.php';
 require_once __DIR__ . '/../lib/StaffScope.php';
-require_once __DIR__ . '/../lib/CompletionTarget.php';
 
 $user = Rbac::requireRole('admin', 'counselor');
 $pdo = Database::get();
@@ -124,6 +124,10 @@ if ($idLookup > 0) {
         }
     }
 
+    $openStmt = $pdo->prepare("SELECT 1 FROM help_requests WHERE student_id = ? AND status = 'open' LIMIT 1");
+    $openStmt->execute([(int) $row['user_id']]);
+    $openRequest = (bool) $openStmt->fetchColumn();
+
     // Full attempt history (not just is_latest), for the "Assessment
     // Attempts" section. Attempts made before retakes were removed still show.
     $attemptsStmt = $pdo->prepare(
@@ -169,41 +173,10 @@ if ($idLookup > 0) {
             'S' => (int) $row['score_s'], 'E' => (int) $row['score_e'], 'C' => (int) $row['score_c'],
         ] : null,
         'counseling' => $hasAssessment ? ($counseled ? 'Availed' : 'Did Not Avail') : '',
+        'openRequest' => $openRequest,
         'registeredAt' => $row['registered_at'],
         'attempts' => $attempts,
     ]]);
-}
-
-// ?accounts=1: the Student Accounts page (login/activation status only, no
-// assessment/counseling data) — a separate view from the Student Assessment
-// Overview above, per the split the counselors asked for.
-if (isset($_GET['accounts'])) {
-    $search = trim((string) ($_GET['search'] ?? ''));
-    $rows = $pdo->query(
-        'SELECT u.id AS user_id, u.email, u.is_active, u.created_at,
-                s.first_name_enc, s.last_name_enc, s.strand, s.section
-         FROM users u
-         JOIN students s ON s.user_id = u.id
-         ORDER BY u.created_at DESC'
-    )->fetchAll();
-
-    $rows = array_values(array_filter($rows, fn($r) => StaffScope::allows($scope, $r['strand'], $r['section'])));
-    $accounts = array_map(fn($r) => [
-        'userId' => (int) $r['user_id'],
-        'name' => Crypto::dec($r['last_name_enc']) . ', ' . Crypto::dec($r['first_name_enc']),
-        'strand' => $r['strand'],
-        'section' => $r['section'],
-        'email' => $r['email'],
-        'isActive' => (bool) $r['is_active'],
-        'createdAt' => $r['created_at'],
-    ], $rows);
-
-    if ($search !== '') {
-        $needle = mb_strtolower($search);
-        $accounts = array_values(array_filter($accounts, fn($a) => str_contains(mb_strtolower($a['name']), $needle)));
-    }
-
-    jsonResponse(['accounts' => $accounts, 'total' => count($accounts)]);
 }
 
 $page = max(1, (int) ($_GET['page'] ?? 1));
@@ -216,11 +189,12 @@ $sectionFilter = trim((string) ($_GET['section'] ?? ''));
 $statusFilter = (string) ($_GET['status'] ?? '');
 $counselingFilter = (string) ($_GET['counseling'] ?? '');
 $registrationFilter = (string) ($_GET['registration'] ?? ''); // registered | notRegistered
+$accountFilter = (string) ($_GET['account'] ?? '');           // active | inactive (a registered student's sign-in)
 $assessmentFilter = (string) ($_GET['assessment'] ?? '');     // assessed | notAssessed
 $asCsv = ($_GET['format'] ?? '') === 'csv';
 
 $rows = $pdo->query(
-    'SELECT s.user_id, s.school_id, s.first_name_enc, s.last_name_enc, s.strand, s.grade_level, s.section, s.registered_at,
+    'SELECT s.user_id, s.school_id, s.first_name_enc, s.last_name_enc, s.strand, s.grade_level, s.section, s.registered_at, s.academic_year,
             u.is_active, u.email, a.top_types, a.completed_at
      FROM students s
      JOIN users u ON u.id = s.user_id
@@ -253,6 +227,12 @@ foreach ($helpRequestRows as $hr) {
 }
 
 $allRegisteredSchoolIds = array_column($rows, 'school_id'); // before scoping: a student registered elsewhere is not 'Not Registered'
+// ?academicYear= looks back at a past school year: only the students registered in that year and that year's class roster.
+// The current year (the default) keeps showing everyone registered.
+$viewAy = AcademicYear::resolve($pdo, (string) ($_GET['academicYear'] ?? ''));
+if (AcademicYear::isPast($viewAy)) {
+    $rows = array_values(array_filter($rows, fn($r) => $r['academic_year'] === $viewAy));
+}
 $rows = array_values(array_filter($rows, fn($r) => StaffScope::allows($scope, $r['strand'], $r['section'])));
 $mismatchIds = Mismatch::studentIds($pdo); // finished students whose Preferred Course isn't a Best RIASEC Match
 
@@ -285,10 +265,10 @@ $students = array_map(function ($r) use ($counseledIds, $mismatchIds) {
 // roster upload, not just who happened to sign up. A roster row whose
 // school_id already matches a registered student is skipped entirely;
 // the real account's live data always wins over the one-time CSV snapshot.
-$currentAy = AcademicYear::current();
+$currentAy = $viewAy;
 if ($currentAy !== '') {
     $registeredSchoolIds = $allRegisteredSchoolIds;
-    $rosterStmt = $pdo->prepare('SELECT school_id, name_enc, strand, section, email FROM assessment_roster WHERE academic_year = ?');
+    $rosterStmt = $pdo->prepare('SELECT id, school_id, name_enc, strand, section, email FROM assessment_roster WHERE academic_year = ?');
     $rosterStmt->execute([$currentAy]);
     foreach ($rosterStmt->fetchAll() as $rr) {
         if (in_array($rr['school_id'], $registeredSchoolIds, true) || !StaffScope::allows($scope, $rr['strand'], $rr['section'])) {
@@ -307,6 +287,8 @@ if ($currentAy !== '') {
             'mismatched' => false,
             'registeredAt' => null,
             'assessmentDate' => null,
+            'rosterId' => (int) $rr['id'],
+            'hasEmail' => trim((string) $rr['email']) !== '',
             '_email' => $rr['email'],
         ];
     }
@@ -377,6 +359,11 @@ if ($statusFilter === 'Mismatched') {
 if ($counselingFilter !== '') {
     $filtered = array_values(array_filter($filtered, fn($s) => $s['counseling'] === $counselingFilter));
 }
+if ($accountFilter === 'active') {
+    $filtered = array_values(array_filter($filtered, fn($s) => $s['isActive'] === true));
+} elseif ($accountFilter === 'inactive') {
+    $filtered = array_values(array_filter($filtered, fn($s) => $s['isActive'] === false));
+}
 if ($registrationFilter === 'registered') {
     $filtered = array_values(array_filter($filtered, fn($s) => $s['status'] !== 'Not Registered'));
 } elseif ($registrationFilter === 'notRegistered') {
@@ -405,13 +392,14 @@ if ($asCsv) {
     header('Content-Disposition: attachment; filename="' . $fileName . '"');
     $out = fopen('php://output', 'w');
     fwrite($out, "\xEF\xBB\xBF"); // so Excel reads names with Ñ and accents correctly
-    fputcsv($out, ['Name', 'Strand', 'Section', 'Registered', 'Assessed', 'Assessment Date', 'Email'], escape: '\\');
+    fputcsv($out, ['Name', 'Strand', 'Section', 'Registered', 'Assessed', 'Assessment Date', 'Holland Code (Top 3, ranked)', 'Email'], escape: '\\');
     foreach ($filtered as $s) {
         fputcsv($out, [
             $safe($s['name']), $s['strand'], $s['section'],
             $s['status'] === 'Not Registered' ? 'No' : 'Yes',
             $s['status'] === 'Completed' ? 'Yes' : 'No',
             $s['assessmentDate'] ? date('Y-m-d', strtotime((string) $s['assessmentDate'])) : '',
+            QuestionBank::hollandCode(array_values(array_filter(explode(', ', (string) ($s['riasec'] ?? ''))))),
             $safe((string) ($s['_email'] ?? '')),
         ], escape: '\\');
     }
@@ -423,7 +411,12 @@ $total = count($filtered);
 $totalPages = max(1, (int) ceil($total / $pageSize));
 $page = min($page, $totalPages);
 $offset = ($page - 1) * $pageSize;
-$pageRows = array_map(function ($s) { unset($s['_email']); return $s; }, array_slice($filtered, $offset, $pageSize));
+// A registered student's account email is shown to staff (it is their sign-in); a roster email is never sent to the page.
+$pageRows = array_map(function ($s) {
+    $s['email'] = $s['userId'] !== null ? $s['_email'] : null;
+    unset($s['_email']);
+    return $s;
+}, array_slice($filtered, $offset, $pageSize));
 
 jsonResponse([
     'students' => $pageRows,
@@ -433,7 +426,9 @@ jsonResponse([
     'totalPages' => $totalPages,
     'startIndex' => $total > 0 ? $offset + 1 : 0,
     'sections' => array_values($sectionSummary),
-    'completionTarget' => CompletionTarget::get($pdo),
+    'academicYear' => $viewAy,
+    'academicYears' => AcademicYear::available($pdo),
+    'isPastYear' => AcademicYear::isPast($viewAy),
     'summary' => [
         'totalStudents' => $totalStudents,
         'completedCount' => $completedCount,

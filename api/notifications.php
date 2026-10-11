@@ -77,6 +77,27 @@ if ($isStaff) {
         ];
     }
 
+    // Retake requests waiting for an answer
+    try {
+        $stmt = $pdo->query(
+            "SELECT rr.id, rr.requested_at, s.first_name_enc, s.last_name_enc FROM retake_requests rr
+             JOIN students s ON s.user_id = rr.student_id
+             WHERE rr.status = 'pending' ORDER BY rr.requested_at DESC LIMIT $each"
+        );
+        foreach ($stmt->fetchAll() as $row) {
+            $name = Crypto::dec($row['first_name_enc']) . ' ' . Crypto::dec($row['last_name_enc']);
+            $items[] = [
+                'type' => 'retake_request',
+                'title' => 'Retake requested',
+                'text' => "$name asked to retake the assessment.",
+                'link' => 'counseling-requests?tab=retakes',
+                'ts' => $row['requested_at'],
+            ];
+        }
+    } catch (Throwable $e) {
+        // table not created yet (migration not run)
+    }
+
     // Open counseling requests awaiting a response
     $stmt = $pdo->query(
         "SELECT id, name_enc, subject_enc, sent_at FROM help_requests
@@ -194,6 +215,52 @@ if ($isStaff) {
             'link' => 'assessment',
             'ts' => $row['created_at'],
         ];
+    }
+
+    // A counselor invited this student to book a counseling session: the link goes straight to the CGC booking page.
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT id, booking_url, created_at FROM counseling_invites
+             WHERE student_id = ? AND created_at > NOW() - INTERVAL '$days days'
+             ORDER BY created_at DESC LIMIT $each"
+        );
+        $stmt->execute([$user['id']]);
+        foreach ($stmt->fetchAll() as $row) {
+            $items[] = [
+                'key' => 'invite:' . $row['id'],
+                'type' => 'counseling_invite',
+                'title' => 'Counseling invitation',
+                'text' => 'The Guidance Office invited you to book a counseling session.',
+                'link' => $row['booking_url'],
+                'ts' => $row['created_at'],
+            ];
+        }
+    } catch (Throwable $e) {
+        // table not created yet (migration not run): no invitations shown rather than the feed failing
+    }
+
+    // The Guidance Office answered a retake request.
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT id, status, decided_at FROM retake_requests
+             WHERE student_id = ? AND status IN ('approved', 'declined', 'completed') AND decided_at IS NOT NULL
+               AND decided_at > NOW() - INTERVAL '$days days'
+             ORDER BY decided_at DESC LIMIT $each"
+        );
+        $stmt->execute([$user['id']]);
+        foreach ($stmt->fetchAll() as $row) {
+            $declined = $row['status'] === 'declined';
+            $items[] = [
+                'key' => 'retake:' . $row['id'],
+                'type' => 'retake_decision',
+                'title' => $declined ? 'Retake request answered' : 'Retake approved',
+                'text' => $declined ? 'The Guidance Office could not approve your retake request.' : 'You can retake the assessment. Open Assessments and choose Retake Assessment.',
+                'link' => 'assessment',
+                'ts' => $row['decided_at'],
+            ];
+        }
+    } catch (Throwable $e) {
+        // table not created yet (migration not run)
     }
 
     // Anything the student deleted stays gone. If the table isn't there yet

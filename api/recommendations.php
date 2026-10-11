@@ -40,7 +40,8 @@ try {
     $stmt = $pdo->prepare(
         'SELECT id, computed_at, stated_program_id, scores, source_worksheet_id, match_status, mismatch_reason,
                 cbf_program_ids, final_program_ids
-         FROM recommendations WHERE student_id = ? ORDER BY computed_at DESC LIMIT 1'
+         FROM recommendations WHERE student_id = ? AND source_assessment_id = (SELECT id FROM assessments WHERE student_id = recommendations.student_id AND is_latest = TRUE)
+         ORDER BY computed_at DESC LIMIT 1'
     );
     $stmt->execute([$studentId]);
     $row = $stmt->fetch();

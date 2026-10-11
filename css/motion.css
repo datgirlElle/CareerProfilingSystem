@@ -173,8 +173,14 @@ a[class*="rounded-2xl"][class*="shadow-sm"]:hover {
    and risks nudging a near-full-width label (e.g. "Security
    Configuration") across its wrap boundary on every hover. */
 aside nav a {
-  transition: background-color var(--dur-micro) ease;
+  transition: background-color var(--dur-micro) ease, color var(--dur-micro) ease, border-color var(--dur-micro) ease;
   white-space: nowrap;
+}
+/* A menu item you are hovering over stands out clearly; the page you are on stays red. */
+#sidebar a:not([aria-current="page"]):not(.text-\[\#ed1c24\]):hover {
+  background-color: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  border-left-color: rgba(255, 255, 255, 0.7);
 }
 
 /* Reusable animated-underline utility for any hand-authored horizontal nav link */
@@ -373,3 +379,20 @@ a:focus-visible .icon-nudge-left {
 .sidebar-brand-cgc { max-width: 56%; }
 #sidebar nav { scrollbar-width: none; -ms-overflow-style: none; }
 #sidebar nav::-webkit-scrollbar { display: none; }
+/* Buttons are navy everywhere. Red is kept for delete actions only: add the btn-danger class to a delete button. */
+:is(button, a, input[type="submit"], input[type="button"]).bg-\[\#ed1c24\]:not(.btn-danger),
+:is(button, a, input[type="submit"], input[type="button"]).bg-\[\#ed1c24\]:not(.btn-danger):hover,
+:is(button, a).bg-\[\#bb0013\]:not(.btn-danger),
+.ab-btn { background-color: #0f2a6b; }
+:is(button, a).border-\[\#ed1c24\]:not(.btn-danger):not(#sidebar *) { border-color: #0f2a6b; }
+:is(button, a).border-\[\#ed1c24\].text-\[\#ed1c24\]:not(.btn-danger):not(#sidebar *) { color: #0f2a6b; }
+:is(button, a).border-\[\#ed1c24\]:not(.btn-danger):not(#sidebar *):hover { background-color: #f1f5f9; }
+:is(button, a).border-\[\#ed1c24\].bg-\[\#ed1c24\]:not(.btn-danger):not(#sidebar *):hover { background-color: #0f2a6b; }
+.peer:checked ~ span.peer-checked\:bg-\[\#ed1c24\] { background-color: #0f2a6b; border-color: #0f2a6b; }
+button.text-\[\#ed1c24\]:not(.btn-danger) { color: #0f2a6b; }
+
+/* Sidebar: the ProfilePath logo sits on the sign-in campus photo, washed out with white so its navy letters stay readable. */
+.sidebar-app { background: linear-gradient(rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.78)), url("../images/brand/campus-sidebar.jpg") center / cover no-repeat; border-top: 1px solid #e5e7eb; padding: 14px 20px 14px; display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; }
+.sidebar-app img { width: 190px; max-width: 100%; height: auto; display: block; }
+.sidebar-app-role { font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #001c43; }
+#sidebar nav { margin-top: 6px; }

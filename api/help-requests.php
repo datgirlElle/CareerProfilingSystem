@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     $status = $_GET['status'] ?? 'All';
-    $sql = 'SELECT hr.id, hr.name_enc, hr.subject_enc, hr.message_enc, hr.sent_at, hr.status, hr.resolved_at, s.strand, s.section
+    $sql = 'SELECT hr.id, hr.student_id, hr.name_enc, hr.subject_enc, hr.message_enc, hr.sent_at, hr.status, hr.resolved_at, s.strand, s.section
             FROM help_requests hr LEFT JOIN students s ON s.user_id = hr.student_id';
     $params = [];
     if (in_array($status, ['open', 'resolved'], true)) {
@@ -83,6 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     $rows = array_map(fn($r) => [
         'id' => (int) $r['id'],
+        'studentId' => $r['student_id'] !== null ? (int) $r['student_id'] : null,
         'strand' => $r['strand'],
         'section' => $r['section'],
         'name' => Crypto::dec($r['name_enc']),

@@ -8,8 +8,9 @@ require_once __DIR__ . '/../lib/StaffSetupCode.php';
 
 // Account Management's staff section: guidance counselors sign up on their own
 // (api/staff-register.php) and an administrator approves, rejects or
-// deactivates them here. Admin only.
-$user = Rbac::requireRole('admin');
+// deactivates them here. The administrator always can; guidance staff can when the administrator gave them "Staff Accounts"
+// access in Edit Roles (View Only to see the list, Full to act). Sections are assigned in api/staff-assignments.php (admin only).
+$user = Rbac::requireStaffAccounts($_SERVER['REQUEST_METHOD'] === 'GET' ? 'limited' : 'full');
 $pdo = Database::get();
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -49,6 +50,9 @@ if (!$target) {
     jsonResponse(['success' => false, 'error' => 'Account not found.'], 404);
 }
 $displayName = $target['full_name'] ?: $target['username'];
+if ($id === (int) $user['id'] && $type === 'toggleActive') {
+    jsonResponse(['success' => false, 'error' => 'You cannot deactivate your own account.'], 409);
+}
 
 function notifyStaff(array $target, string $displayName, string $subject, string $heading, string $message): void
 {
@@ -82,7 +86,7 @@ if ($type === 'approve') {
     // Approved, but the person can't sign in until they enter the emailed code and create a
     // password (api/staff-activate.php). Entering the code is what proves the inbox is theirs.
     $pdo->prepare("UPDATE users SET approval_status = 'approved', is_active = TRUE, email_verified_at = NULL, updated_at = NOW() WHERE id = ?")->execute([$id]);
-    AuditLogger::log($user['id'], 'admin', 'approve_staff_account', 'user', (string) $id, $displayName);
+    AuditLogger::log($user['id'], $user['role'], 'approve_staff_account', 'user', (string) $id, $displayName);
     $sent = sendSetupCode($pdo, $target, $displayName);
     jsonResponse(['success' => true, 'status' => 'approved', 'emailSent' => $sent]);
 }
@@ -92,7 +96,7 @@ if ($type === 'resendCode') {
         jsonResponse(['success' => false, 'error' => 'A new code can only be sent to an approved account that has not been activated yet.'], 409);
     }
     $sent = sendSetupCode($pdo, $target, $displayName);
-    AuditLogger::log($user['id'], 'admin', 'resend_staff_setup_code', 'user', (string) $id, $displayName);
+    AuditLogger::log($user['id'], $user['role'], 'resend_staff_setup_code', 'user', (string) $id, $displayName);
     jsonResponse(['success' => true, 'emailSent' => $sent]);
 }
 
@@ -101,7 +105,7 @@ if ($type === 'reject') {
         jsonResponse(['success' => false, 'error' => 'Only a pending sign-up can be rejected.'], 409);
     }
     $pdo->prepare("UPDATE users SET approval_status = 'rejected', updated_at = NOW() WHERE id = ?")->execute([$id]);
-    AuditLogger::log($user['id'], 'admin', 'reject_staff_account', 'user', (string) $id, $displayName);
+    AuditLogger::log($user['id'], $user['role'], 'reject_staff_account', 'user', (string) $id, $displayName);
     notifyStaff($target, $displayName, 'Your ProfilePath sign-up was not approved', 'Sign-up not approved', 'An administrator reviewed your staff sign-up and did not approve it. Please contact your system administrator if you think this is a mistake.');
     jsonResponse(['success' => true, 'status' => 'rejected']);
 }
@@ -114,7 +118,7 @@ if ($type === 'toggleActive') {
     // Bind an int, not a PHP bool: execute() stringifies false to '', which
     // Postgres's boolean type rejects.
     $pdo->prepare('UPDATE users SET is_active = ?, updated_at = NOW() WHERE id = ?')->execute([(int) $newState, $id]);
-    AuditLogger::log($user['id'], 'admin', $newState ? 'activate_staff_account' : 'deactivate_staff_account', 'user', (string) $id);
+    AuditLogger::log($user['id'], $user['role'], $newState ? 'activate_staff_account' : 'deactivate_staff_account', 'user', (string) $id);
     jsonResponse(['success' => true, 'isActive' => $newState]);
 }
 

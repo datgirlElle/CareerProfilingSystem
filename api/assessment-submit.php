@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/QuestionBank.php';
+require_once __DIR__ . '/../lib/RetakeRequest.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -64,11 +65,13 @@ $topTypes = array_map(fn($code) => $labels[$code], array_slice(array_keys($ranke
 
 $studentId = (int) $user['id'];
 
-// Each student takes the assessment once. (Retakes were removed; the
-// attempt_number/is_latest columns remain for the existing history.)
+// Each student takes the assessment once, unless the Guidance Office approved a retake (the earlier result is kept as
+// an older attempt; attempt_number and is_latest tell them apart).
 $attemptCountStmt = $pdo->prepare('SELECT COUNT(*) FROM assessments WHERE student_id = ?');
 $attemptCountStmt->execute([$studentId]);
-if (((int) $attemptCountStmt->fetchColumn()) > 0) {
+$retake = RetakeRequest::openFor($pdo, $studentId);
+$retakeId = $retake !== null && $retake['status'] === 'approved' ? (int) $retake['id'] : null;
+if (((int) $attemptCountStmt->fetchColumn()) > 0 && $retakeId === null) {
     AuditLogger::log($studentId, 'student', 'assessment_resubmit_denied', 'assessment', null, 'Assessment already completed');
     jsonResponse(['success' => false, 'error' => 'You have already completed the assessment.'], 403);
 }
@@ -92,12 +95,19 @@ try {
     ]);
     $assessmentId = (int) $insert->fetchColumn();
 
+    if ($retakeId !== null) {
+        // The approval is used up, and a flag raised on the earlier result no longer applies.
+        $pdo->prepare("UPDATE retake_requests SET status = 'completed', completed_attempt_number = ?, completed_at = NOW() WHERE id = ? AND status = 'approved'")->execute([$attemptNumber, $retakeId]);
+        $pdo->prepare("UPDATE monitoring_flags SET status = 'dismissed', resolved_at = NOW(), note = 'Replaced by a retake' WHERE student_id = ? AND status = 'pending'")->execute([$studentId]);
+    }
+
     $pdo->commit();
 } catch (Throwable $e) {
     $pdo->rollBack();
     jsonResponse(['success' => false, 'error' => 'Failed to save assessment. Please try again.'], 500);
 }
 
+unset($_SESSION['assessmentUnlocked']); // one start, one submission
 AuditLogger::log($studentId, 'student', 'submit_assessment', 'assessment', (string) $assessmentId, "Attempt #$attemptNumber, top: " . implode(', ', $topTypes));
 
 jsonResponse(['success' => true, 'scores' => $totals, 'topTypes' => $topTypes]);

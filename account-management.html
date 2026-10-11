@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="js/csrf.js"></script>
 <title>Account Management — Career Profiling System</title>
-<link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
+<link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,12 +29,9 @@
       <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="sidebar-brand-mmcl">
       <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="sidebar-brand-cgc">
     </div>
-    <div class="flex items-center gap-3 px-6 py-8">
-      <img src="images/admin/logo-profilepath.svg" alt="ProfilePath logo" class="w-[64px]">
-      <div>
-        <p class="text-lg font-bold leading-none"><span class="text-white">Profile</span><span class="text-[#ed1c24]">Path</span></p>
-        <p class="text-sm text-white/60 mt-1">Admin Dashboard</p>
-      </div>
+    <div class="sidebar-app">
+      <img src="images/brand/profilepath-horizontal.png" alt="ProfilePath" width="190" height="75">
+      <p class="sidebar-app-role">Admin Dashboard</p>
     </div>
     <nav id="adminNav" data-active="account-management" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
     <script src="js/admin-nav.js"></script>
@@ -93,8 +90,7 @@
             <img src="images/admin/icon-chevron-down.svg" alt="" class="w-3.5 h-2">
           </button>
           <div id="profilePanel" class="hidden absolute right-0 top-[calc(100%+12px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
-            <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">My Profile</a>
-            <a href="security-configuration" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-t border-gray-100">Account Settings</a>
+            <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">Profile Settings</a>
           </div>
         </div>
       </div>
@@ -348,8 +344,22 @@
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' });
   }
 
-  // ---------- Staff accounts (admin only) ----------
-  if (isAdmin) {
+  // ---------- Staff accounts ----------
+  // The administrator always manages these. A guidance counselor or facilitator sees the list only when the
+  // administrator gave them "Staff Accounts" access (Security Configuration, Edit Roles): Full lets them approve
+  // sign-ups and send access codes, View Only just looks. Assigning sections is the separate "Guidance Counselor" permission.
+  let staffLevel = isAdmin ? 'full' : 'none';
+  // Assigning sections is the separate "Guidance Counselor" permission.
+  let canAssign = isAdmin;
+  if (!isAdmin) {
+    try {
+      const cfg = await (await fetch('api/security-config.php')).json();
+      const me = currentUser.rbacRole || currentUser.role;
+      staffLevel = (cfg.rbac && cfg.rbac.staffAccounts && cfg.rbac.staffAccounts[me]) || 'none';
+      canAssign = ((cfg.rbac && cfg.rbac.counselor && cfg.rbac.counselor[me]) || 'none') === 'full';
+    } catch (e) {}
+  }
+  if (staffLevel !== 'none') {
     document.getElementById('staffSection').classList.remove('hidden');
     const staffTbody = document.getElementById('staffTbody');
 
@@ -368,6 +378,7 @@
         : '<span class="inline-flex bg-gray-100 border border-gray-200 text-gray-500 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">Deactivated</span>';
     }
     function actionButtons(a) {
+      if (staffLevel !== 'full') return '';
       const btn = 'staff-action text-xs font-semibold rounded-md px-3 py-1.5 border ';
       const data = ' data-id="' + a.id + '" data-name="' + escapeHtml(a.fullName || a.email) + '"';
       if (a.status === 'pending') {
@@ -394,12 +405,13 @@
       if (a.status !== 'approved') return '—';
       const mine = assignmentData.assignments[a.id] || [];
       const text = mine.length ? mine.map(function(s) { return escapeHtml(s.section); }).join(', ') : 'All sections';
-      return '<span class="' + (mine.length ? 'text-gray-700' : 'text-gray-400') + '">' + text + '</span> ' +
-        '<button type="button" class="assign-sections text-xs font-semibold text-[#19427b] hover:underline ml-1" data-id="' + a.id + '" data-name="' + escapeHtml(a.fullName || a.email) + '">Assign</button>';
+      return '<span class="' + (mine.length ? 'text-gray-700' : 'text-gray-400') + '">' + text + '</span>' + (canAssign
+        ? ' <button type="button" class="assign-sections text-xs font-semibold text-[#19427b] hover:underline ml-1" data-id="' + a.id + '" data-name="' + escapeHtml(a.fullName || a.email) + '">Assign</button>'
+        : '');
     }
 
     async function loadStaff() {
-      try { assignmentData = await (await fetch('api/staff-assignments.php')).json(); } catch (e) {}
+      if (canAssign) { try { assignmentData = await (await fetch('api/staff-assignments.php')).json(); } catch (e) {} }
       const res = await fetch('api/staff-approvals.php');
       if (!res.ok) {
         staffTbody.innerHTML = '<tr><td colspan="7" class="px-5 py-8 text-center text-sm text-gray-500">Could not load staff accounts.</td></tr>';
@@ -522,7 +534,24 @@
   // Full = can add and deactivate/reactivate sections (a Guidance Facilitator only ever sees Limited).
   // Comes from the 'sections' row of Security Configuration's permission table.
   function sectionsLevel() {
-    return (rbac && rbac.sections && rbac.sections[currentUser.role]) || 'none';
+    return (rbac && rbac.sections && rbac.sections[currentUser.rbacRole || currentUser.role]) || 'none';
+  }
+  // The same rules the server applies (lib/Sections.php), so a mistake is caught while typing. Returns '' when fine.
+  function sectionCodeProblem(strand, code) {
+    const letter = SECTION_LETTER[strand];
+    if (code.charAt(0) !== letter) {
+      return strand + ' sections start with ' + letter + ', like ' + letter + '1114. "' + code + '" starts with ' + code.charAt(0) + '.';
+    }
+    if (!/^[A-Z](1[12])[0-9]{2}$/.test(code)) {
+      return '"' + code + '" is not a valid section code. Use one letter and four digits, like ' + letter + '1114 (the first two digits are the grade level, 11 or 12).';
+    }
+    if (code.slice(3) === '00') {
+      return 'The last two digits are the section number, from 01 to 99. "' + code + '" has 00.';
+    }
+    if (sectionsData.some(function(s) { return s.strand === strand && s.code.toUpperCase() === code; })) {
+      return strand + ' already has section ' + code + '.';
+    }
+    return '';
   }
   async function loadSections() {
     const res = await fetch('api/sections.php?all=1');
@@ -550,7 +579,10 @@
         const styleCls = s.isActive
           ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
           : 'bg-gray-100 border-gray-200 text-gray-400 line-through';
-        return '<button type="button" class="section-pill border rounded-full px-3 py-1.5 text-xs font-medium ' + styleCls + disabledCls + '" data-id="' + s.id + '"' + disabledAttr + ' title="' + (canToggle ? (s.isActive ? 'Click to deactivate' : 'Click to reactivate') : (s.isActive ? 'Active' : 'Inactive')) + '">' + escapeHtml(s.code) + '</button>';
+        const pill = '<button type="button" class="section-pill border rounded-full px-3 py-1.5 text-xs font-medium ' + styleCls + disabledCls + '" data-id="' + s.id + '"' + disabledAttr + ' title="' + (canToggle ? (s.isActive ? 'Click to deactivate' : 'Click to reactivate') : (s.isActive ? 'Active' : 'Inactive')) + '">' + escapeHtml(s.code) + '</button>';
+        if (!canToggle) return pill;
+        return '<span style="display:inline-flex;align-items:center;gap:2px">' + pill +
+          '<button type="button" class="btn-danger delete-section-btn" data-id="' + s.id + '" data-code="' + escapeHtml(s.code) + '" title="Delete section" aria-label="Delete section ' + escapeHtml(s.code) + '" style="width:20px;height:20px;border-radius:9999px;line-height:1;font-size:14px;color:#ed1c24;display:inline-flex;align-items:center;justify-content:center">&times;</button></span>';
       }).join('') : '<p class="text-xs text-gray-400">No sections yet.</p>';
       return '<div class="border border-gray-200 rounded-lg p-[17px] flex flex-col gap-3">' +
         '<p class="text-sm font-semibold text-gray-800">' + strand + '</p>' +
@@ -559,22 +591,52 @@
           '<input type="text" maxlength="5" autocapitalize="characters" spellcheck="false" class="add-section-input flex-1 min-w-0 border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed1c24]' + addDisabledCls + '" placeholder="New section, e.g. S1115" aria-label="New ' + strand + ' section code" data-strand="' + strand + '"' + addDisabledAttr + '>' +
           '<button type="button" class="add-section-btn px-4 py-2 text-xs font-semibold text-white bg-[#0f2a6b] rounded-md hover:opacity-90 shrink-0' + addDisabledCls + '" data-strand="' + strand + '"' + addDisabledAttr + '>Add</button>' +
         '</div>' +
+        '<p class="add-section-hint text-xs text-[#ed1c24] hidden" data-strand="' + strand + '"></p>' +
       '</div>';
     }).join('');
 
     if (canToggle) container.querySelectorAll('.section-pill').forEach(function(btn) {
       btn.addEventListener('click', async function() {
         btn.disabled = true;
-        const res = await fetch('api/sections.php', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'toggleActive', id: parseInt(btn.dataset.id, 10) })
-        });
-        const data = await res.json();
+        async function toggle(confirmed) {
+          const res = await fetch('api/sections.php', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'toggleActive', id: parseInt(btn.dataset.id, 10), confirm: confirmed })
+          });
+          return res.json();
+        }
+        let data = await toggle(false);
+        if (data.needsConfirm) {
+          if (await showConfirm(data.error + ' Deactivate it anyway?')) {
+            data = await toggle(true);
+          } else {
+            btn.disabled = false;
+            return;
+          }
+        }
         if (data.success) {
           showSectionsStatus(data.isActive ? 'Section reactivated.' : 'Section deactivated.', false);
           await loadSections();
         } else {
           showSectionsStatus(data.error || 'Failed to update section.', true);
+          btn.disabled = false;
+        }
+      });
+    });
+    if (canToggle) container.querySelectorAll('.delete-section-btn').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        if (!(await showConfirm('Delete section "' + btn.dataset.code + '"? This cannot be undone. A section that already has students, roster entries or schedules cannot be deleted; deactivate it instead.'))) return;
+        btn.disabled = true;
+        const res = await fetch('api/sections.php', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'delete', id: parseInt(btn.dataset.id, 10) })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showSectionsStatus('Section deleted.', false);
+          await loadSections();
+        } else {
+          showSectionsStatus(data.error || 'Failed to delete section.', true);
           btn.disabled = false;
         }
       });
@@ -588,12 +650,9 @@
         if (!code) return;
         // The same rule the server applies (lib/Sections.php), so a typo is caught before it is sent.
         const letter = SECTION_LETTER[strand];
-        if (!/^[A-Z](1[12])[0-9]{2}$/.test(code)) {
-          showSectionsStatus('"' + code + '" is not a valid section code. Use one letter and four digits, like ' + letter + '1114 (the first two digits are the grade level, 11 or 12).', true);
-          return;
-        }
-        if (code.charAt(0) !== letter) {
-          showSectionsStatus(strand + ' sections start with ' + letter + ', like ' + letter + code.slice(1) + '. "' + code + '" starts with ' + code.charAt(0) + '.', true);
+        const problem = sectionCodeProblem(strand, code);
+        if (problem) {
+          showSectionsStatus(problem, true);
           return;
         }
         btn.disabled = true;
@@ -610,6 +669,18 @@
           showSectionsStatus(data.error || 'Failed to add section.', true);
         }
       }
+      const hint = container.querySelector('.add-section-hint[data-strand="' + strand + '"]');
+      // While typing: show what is wrong and keep Add off until the code is acceptable (nothing is shown for an empty box).
+      input.addEventListener('input', function() {
+        const code = input.value.replace(/\s+/g, '').toUpperCase();
+        const problem = code && canAdd ? sectionCodeProblem(strand, code) : '';
+        // A half-typed code is not an error yet: only say so once all five characters are in, or the letter is already wrong.
+        const showIt = problem && (code.length >= 5 || code.charAt(0) !== SECTION_LETTER[strand]);
+        hint.textContent = showIt ? problem : '';
+        hint.classList.toggle('hidden', !showIt);
+        btn.disabled = !canAdd || !!problem || !code;
+        btn.classList.toggle('opacity-60', btn.disabled);
+      });
       btn.addEventListener('click', add);
       input.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); add(); } });
     });

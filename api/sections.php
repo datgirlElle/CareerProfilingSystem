@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $body = readJsonBody();
     $type = $body['type'] ?? '';
 
-    // Adding, deactivating or reactivating a section needs Full access to the 'sections' module
+    // Adding, deleting, deactivating or reactivating a section needs Full access to the 'sections' module
     // (administrator and Guidance Counselor by default; a Guidance Facilitator is view-only).
     if ($type === 'create') {
         $user = Rbac::requireAccess('sections', 'full');
@@ -73,6 +73,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $newState = !$row['is_active'];
+        // Deactivating a section that still has students, roster entries or upcoming schedules is allowed, but only after the
+        // person confirmed it (the page sends confirm = true once they did).
+        if (!$newState && empty($body['confirm'])) {
+            $inUse = Sections::describeUsage(Sections::usage($pdo, $row['strand'], $row['code'], true), true);
+            if ($inUse !== '') {
+                jsonResponse(['success' => false, 'needsConfirm' => true, 'error' => "{$row['code']} is still used by $inUse. Deactivating it stops new registrations and schedules from using it."], 409);
+            }
+        }
         // PDOStatement::execute() stringifies a bound PHP bool — false
         // becomes '' (not '0'), which Postgres's boolean type rejects.
         // Bind an int instead; Postgres accepts 0/1 for boolean.
@@ -83,6 +91,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'section', (string) $id, "{$row['strand']}: {$row['code']}"
         );
         jsonResponse(['success' => true, 'isActive' => $newState]);
+    }
+
+    // Deleting a section is only allowed while nothing refers to it: no registered student, no class roster entry and no
+    // assessment schedule. Otherwise it should be deactivated (it stays in the records, but can no longer be picked).
+    if ($type === 'delete') {
+        $user = Rbac::requireAccess('sections', 'full');
+        $id = (int) ($body['id'] ?? 0);
+        $stmt = $pdo->prepare('SELECT id, strand, code FROM sections WHERE id = ?');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            jsonResponse(['success' => false, 'error' => 'Section not found.'], 404);
+        }
+
+        $inUse = Sections::describeUsage(Sections::usage($pdo, $row['strand'], $row['code']));
+        if ($inUse !== '') {
+            jsonResponse(['success' => false, 'error' => "{$row['code']} is still used by $inUse. Deactivate it instead."], 409);
+        }
+
+        $pdo->beginTransaction();
+        $pdo->prepare('DELETE FROM staff_sections WHERE strand = ? AND LOWER(section) = LOWER(?)')->execute([$row['strand'], $row['code']]);
+        $pdo->prepare('DELETE FROM sections WHERE id = ?')->execute([$id]);
+        $pdo->commit();
+
+        AuditLogger::log($user['id'], $user['role'], 'delete_section', 'section', (string) $id, "{$row['strand']}: {$row['code']}");
+        jsonResponse(['success' => true]);
     }
 
     jsonResponse(['success' => false, 'error' => 'Unknown type.'], 400);

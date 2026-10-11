@@ -5,12 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="js/csrf.js"></script>
 <title>Security Configuration — Career Profiling System</title>
-<link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
+<link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  .perm-cell { display:inline-flex; align-items:center; justify-content:center; padding:6px 10px; border-radius:8px; border:1px solid transparent; cursor:pointer; background:transparent; }
+  .perm-cell:hover { background:#f1f5f9; border-color:#cbd5e1; }
+  .perm-cell.changed { background:#fffbeb; border-color:#f59e0b; }
   body{ font-family:'Inter', sans-serif; }
   select{ appearance:none; -webkit-appearance:none; }
 </style>
@@ -30,12 +33,9 @@
       <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="sidebar-brand-mmcl">
       <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="sidebar-brand-cgc">
     </div>
-    <div class="flex items-center gap-3 px-6 py-8">
-      <img src="images/admin/logo-profilepath.svg" alt="ProfilePath logo" class="w-[64px]">
-      <div>
-        <p class="text-lg font-bold leading-none"><span class="text-white">Profile</span><span class="text-[#ed1c24]">Path</span></p>
-        <p class="text-sm text-white/60 mt-1">Admin Dashboard</p>
-      </div>
+    <div class="sidebar-app">
+      <img src="images/brand/profilepath-horizontal.png" alt="ProfilePath" width="190" height="75">
+      <p class="sidebar-app-role">Admin Dashboard</p>
     </div>
     <nav id="adminNav" data-active="security-configuration" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
     <script src="js/admin-nav.js"></script>
@@ -94,8 +94,7 @@
             <img src="images/admin/icon-chevron-down.svg" alt="" class="w-3.5 h-2">
           </button>
           <div id="profilePanel" class="hidden absolute right-0 top-[calc(100%+12px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
-            <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">My Profile</a>
-            <a href="security-configuration" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-t border-gray-100">Account Settings</a>
+            <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">Profile Settings</a>
           </div>
         </div>
       </div>
@@ -115,8 +114,8 @@
         <!-- LEFT COLUMN (span 2) -->
         <div class="xl:col-span-2 flex flex-col gap-6">
 
-          <!-- Role-Based Access Control -->
-          <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <!-- Role-Based Access Control (not shown to a Guidance Facilitator) -->
+          <div id="rbacCard" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
             <div class="border-b border-slate-200 flex items-center justify-between px-5 py-5 flex-wrap gap-3">
               <div class="flex items-center gap-3">
                 <img src="images/security/icon-people.svg" alt="" class="w-[22px] h-[18px]">
@@ -125,12 +124,14 @@
                   <p class="text-xs text-slate-500">Manage what each user role can access and do within the system.</p>
                 </div>
               </div>
-              <button type="button" id="editRolesBtn" class="flex items-center gap-2 border border-slate-200 rounded-lg px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                <img src="images/security/icon-edit.svg" alt="" class="w-3 h-3">
-                Edit Roles
-              </button>
+              <div id="rbacActions" class="hidden items-center gap-2 flex-wrap">
+                <span id="rbacPendingCount" class="text-xs text-slate-500"></span>
+                <button type="button" id="rbacCancelBtn" class="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-300 rounded-md hover:bg-slate-50">Cancel</button>
+                <button type="button" id="rbacSaveBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Save Changes</button>
+              </div>
             </div>
 
+            <p id="rbacMessage" class="hidden px-5 pt-3 text-xs" aria-live="polite"></p>
             <div class="overflow-x-auto">
               <table class="w-full text-left border-collapse min-w-[700px]">
                 <thead class="bg-slate-50/50 border-b border-slate-200">
@@ -140,7 +141,10 @@
                       <div class="flex items-center justify-center gap-1"><img src="images/security/icon-admin.svg" alt="" class="w-2.5 h-3">Administrator</div>
                     </th>
                     <th class="px-3 py-4 text-xs font-semibold tracking-wide text-slate-500 uppercase text-center">
-                      <div class="flex items-center justify-center gap-1"><img src="images/security/icon-counselor.svg" alt="" class="w-2.5 h-3">Counselor / Facilitator</div>
+                      <div class="flex items-center justify-center gap-1"><img src="images/security/icon-counselor.svg" alt="" class="w-2.5 h-3">Guidance Counselor</div>
+                    </th>
+                    <th class="px-3 py-4 text-xs font-semibold tracking-wide text-slate-500 uppercase text-center">
+                      <div class="flex items-center justify-center gap-1"><img src="images/security/icon-counselor.svg" alt="" class="w-2.5 h-3">Guidance Facilitator</div>
                     </th>
                     <th class="px-3 py-4 text-xs font-semibold tracking-wide text-slate-500 uppercase text-center">
                       <div class="flex items-center justify-center gap-1"><img src="images/security/icon-student.svg" alt="" class="w-2.5 h-3">Student</div>
@@ -176,28 +180,16 @@
             <div class="p-2" id="policyListContainer"></div>
           </div>
 
-          <!-- System Customization -->
+          <!-- Report Settings (the Guidance Office hours and booking link are on the Help Center page) -->
           <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
             <div class="border-b border-slate-200 flex items-center gap-3 px-5 py-5">
               <img src="images/security/icon-info.svg" alt="" class="w-4 h-4">
               <div>
-                <h2 class="text-base font-semibold text-slate-900">System Customization</h2>
-                <p class="text-xs text-slate-500">Content shown to students on the Help Center page.</p>
+                <h2 class="text-base font-semibold text-slate-900">Report Settings</h2>
+                <p class="text-xs text-slate-500">Who receives the Analytics report.</p>
               </div>
             </div>
             <div class="p-5 flex flex-col gap-6">
-              <div class="border border-slate-200 rounded-lg p-[17px] flex flex-col gap-3">
-                <p class="text-sm font-semibold text-slate-800">Guidance Office Hours</p>
-                <p class="text-xs text-slate-500">Shown on the student Help Center page's "Contact the Guidance Office" card.</p>
-                <div id="officeHoursGrid" class="flex flex-col gap-1.5"></div>
-                <p class="text-xs text-slate-500">Students will see: <span id="officeHoursPreview" class="font-medium text-slate-700">—</span></p>
-                <p id="officeHoursError" class="hidden text-xs text-[#ed1c24]" aria-live="polite"></p>
-                <div class="flex items-center gap-3">
-                  <button type="button" id="officeHoursSave" class="px-4 py-2 text-xs font-semibold text-white bg-[#0f2a6b] rounded-md hover:opacity-90 shrink-0">Save</button>
-                  <p id="officeHoursStatus" class="hidden text-xs" aria-live="polite"></p>
-                </div>
-              </div>
-
               <div class="border border-slate-200 rounded-lg p-[17px] flex flex-col gap-3">
                 <p class="text-sm font-semibold text-slate-800">SHS Principal Contact</p>
                 <p class="text-xs text-slate-500">Where the fixed-template summary report is sent from the Analytics Dashboard's "Send Report to Principal" button.</p>
@@ -387,34 +379,17 @@
   </div>
 </div>
 
-<!-- Edit Roles Modal -->
-<div id="rolesModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-  <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white">
-      <h3 class="text-lg font-bold text-slate-900">Edit Role-Based Access Control</h3>
-      <button type="button" id="rolesModalClose" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
-    </div>
-    <div class="px-6 py-5">
-      <p class="text-xs text-slate-500 mb-4">Administrator (Head of Guidance) and Student access are fixed. Students have no access to Announcements here because that permission is about sending them; they still read the announcements sent to them. The Guidance Counselor column can be changed. Guidance Facilitators are always view-only for announcements, assessment schedules, sections and class rosters, whatever is set here.</p>
-      <table class="w-full text-left border-collapse">
-        <thead>
-          <tr>
-            <th class="pb-3 text-xs font-semibold text-slate-500 uppercase">Module</th>
-            <th class="pb-3 text-xs font-semibold text-slate-500 uppercase text-center">Administrator</th>
-            <th class="pb-3 text-xs font-semibold text-slate-500 uppercase text-center">Guidance Counselor</th>
-            <th class="pb-3 text-xs font-semibold text-slate-500 uppercase text-center">Student</th>
-          </tr>
-        </thead>
-        <tbody id="rolesModalBody" class="divide-y divide-slate-100"></tbody>
-      </table>
-    </div>
-    <div class="px-6 py-4 border-t border-slate-100 flex justify-end gap-2 sticky bottom-0 bg-white">
-      <button type="button" id="rolesModalCancel" class="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-300 rounded-md hover:bg-slate-50">Cancel</button>
-      <button type="button" id="rolesModalSave" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:bg-red-600">Save Changes</button>
+<!-- Confirm permission changes (shown before saving changes to account modules or to the Guidance Counselor column) -->
+<div id="rbacConfirmModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6 flex flex-col gap-4">
+    <h3 class="text-lg font-semibold text-black">Confirm permission changes</h3>
+    <ul id="rbacConfirmList" class="flex flex-col gap-2 overflow-y-auto" style="max-height:50vh"></ul>
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" id="rbacConfirmCancel" class="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-300 rounded-md hover:bg-slate-50">Go back</button>
+      <button type="button" id="rbacConfirmSave" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Confirm and save</button>
     </div>
   </div>
 </div>
-
 <!-- Policy Edit Modal -->
 <div id="policyModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
   <div class="bg-white rounded-xl shadow-lg w-full max-w-md">
@@ -530,14 +505,15 @@
       { id: 'career', label: 'Career Profile Input', desc: 'Create and edit student profiles', icon: 'images/security/icon-module-career.svg', iconClass: 'w-[17.5px] h-4 mt-0.5' },
       { id: 'rac', label: 'RAC Assessment', desc: 'View and manage assessments', icon: 'images/security/icon-module-rac.svg', iconClass: 'w-[10.5px] h-4 mt-0.5' },
       { id: 'recommendations', label: 'Recommendations', desc: 'View recommendations only', icon: 'images/security/icon-module-recommendations.svg', iconClass: 'w-3.5 h-4 mt-0.5' },
-      { id: 'counselor', label: 'Guidance Counselor', desc: 'Counselor and facilitator accounts', icon: 'images/security/icon-module-counselor.svg', iconClass: 'w-3 h-4 mt-0.5' },
+      { id: 'counselor', label: 'Guidance Counselor', desc: 'Account Management. Full: assign sections to counselors and facilitators. View Only: look at the assignments', icon: 'images/security/icon-module-counselor.svg', iconClass: 'w-3 h-4 mt-0.5' },
       { id: 'monitoring', label: 'Student Monitoring', desc: 'View student progress and status', icon: 'images/security/icon-module-monitoring.svg', iconClass: 'w-4 h-4 mt-0.5' },
       { id: 'announcements', label: 'Announcements', desc: 'Send updates to students', icon: 'images/security/icon-module-announcements.svg', iconClass: 'w-4 h-4 mt-0.5' },
       { id: 'examinations', label: 'Assessment Scheduling', desc: 'Assessment schedules and rooms', icon: 'images/security/icon-module-examinations.svg', iconClass: 'w-4 h-4 mt-0.5' },
       { id: 'counselingNotes', label: 'Counseling Notes', desc: 'Session notes on student profiles', icon: 'images/security/icon-module-counseling-notes.svg', iconClass: 'w-3.5 h-4 mt-0.5' },
+      { id: 'staffAccounts', label: 'Staff Accounts', desc: 'Account Management. Full: approve sign-ups, send access codes, deactivate staff. View Only: look at the list', icon: 'images/security/icon-module-counselor.svg', iconClass: 'w-3 h-4 mt-0.5' },
       { id: 'sections', label: 'Section Management', desc: 'Account Management. Full: add and deactivate sections. View Only: look at them', icon: 'images/security/icon-people.svg', iconClass: 'w-4 h-4 mt-0.5' }
     ];
-    const ROLES = ['admin', 'counselor', 'student'];
+    const ROLES = ['admin', 'counselor', 'facilitator', 'student'];
     const LEVEL_LABEL = { full: 'Full Access', limited: 'View Only', none: 'No Access' };
     let state = null;
 
@@ -546,97 +522,9 @@
       renderRbacTable();
       renderPolicyList();
       renderSecuritySettings();
-      renderSystemCustomization();
       renderPrincipalContact();
       renderOverview();
       renderLastUpdated();
-    }
-
-    // ---- Guidance Office Hours: pick the days and times instead of typing them ----
-    const OH_DAYS = [['mon', 'Monday'], ['tue', 'Tuesday'], ['wed', 'Wednesday'], ['thu', 'Thursday'], ['fri', 'Friday'], ['sat', 'Saturday'], ['sun', 'Sunday']];
-    const OH_SHORT = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
-    // 6:00 AM to 9:30 PM in 30-minute steps, as 24-hour "HH:MM" values
-    const OH_TIMES = (function() {
-      const out = [];
-      for (let m = 6 * 60; m <= 21 * 60 + 30; m += 30) {
-        out.push(String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'));
-      }
-      return out;
-    })();
-    function ohLabel(hhmm) {
-      const h = parseInt(hhmm.slice(0, 2), 10), m = hhmm.slice(3);
-      return (h % 12 === 0 ? 12 : h % 12) + ':' + m + ' ' + (h >= 12 ? 'PM' : 'AM');
-    }
-    function ohOptions(selected) {
-      return OH_TIMES.map(t => '<option value="' + t + '"' + (t === selected ? ' selected' : '') + '>' + ohLabel(t) + '</option>').join('');
-    }
-    // The schedule as currently chosen on the page: [{day, open, close}] for the open days.
-    function ohCollect() {
-      return OH_DAYS.filter(d => document.getElementById('ohOpen_' + d[0]).checked).map(d => ({
-        day: d[0],
-        open: document.getElementById('ohFrom_' + d[0]).value,
-        close: document.getElementById('ohTo_' + d[0]).value
-      }));
-    }
-    // Same wording the server builds: consecutive days with the same hours become a range.
-    function ohText(schedule) {
-      const order = OH_DAYS.map(d => d[0]);
-      const groups = [];
-      schedule.forEach(function(row) {
-        const idx = order.indexOf(row.day);
-        const hours = ohLabel(row.open) + '–' + ohLabel(row.close);
-        const last = groups[groups.length - 1];
-        if (last && last.hours === hours && last.endIdx === idx - 1) { last.endIdx = idx; last.end = row.day; }
-        else groups.push({ hours: hours, start: row.day, end: row.day, endIdx: idx });
-      });
-      return groups.map(g => (g.start === g.end ? OH_SHORT[g.start] : OH_SHORT[g.start] + '–' + OH_SHORT[g.end]) + ', ' + g.hours).join('; ');
-    }
-    // Returns an error message (and shows it) when the choice isn't a valid schedule.
-    function ohValidate() {
-      const schedule = ohCollect();
-      let error = '';
-      if (!schedule.length) error = 'Choose at least one day the Guidance Office is open.';
-      schedule.some(function(row) {
-        if (row.close <= row.open) { error = OH_SHORT[row.day] + ': closing time must be later than opening time.'; return true; }
-        return false;
-      });
-      const errEl = document.getElementById('officeHoursError');
-      errEl.textContent = error;
-      errEl.classList.toggle('hidden', !error);
-      document.getElementById('officeHoursPreview').textContent = error ? '—' : ohText(schedule);
-      const save = document.getElementById('officeHoursSave');
-      save.disabled = !!error || !isAdmin;
-      save.classList.toggle('opacity-60', save.disabled);
-      save.classList.toggle('cursor-not-allowed', save.disabled);
-      return error;
-    }
-    function renderSystemCustomization() {
-      const byDay = {};
-      (state.officeHours.schedule || []).forEach(r => { byDay[r.day] = r; });
-      document.getElementById('officeHoursGrid').innerHTML = OH_DAYS.map(function(d) {
-        const r = byDay[d[0]];
-        const sel = 'class="border border-slate-200 rounded-md px-2 py-1.5 text-xs text-slate-700 disabled:opacity-40 disabled:bg-slate-50"';
-        return '<div class="flex items-center gap-3">' +
-          '<label class="flex items-center gap-2 w-32 text-sm text-slate-700"><input type="checkbox" id="ohOpen_' + d[0] + '" class="w-4 h-4 accent-[#0f2a6b]"' + (r ? ' checked' : '') + '>' + d[1] + '</label>' +
-          '<select id="ohFrom_' + d[0] + '" aria-label="' + d[1] + ' opening time" ' + sel + (r ? '' : ' disabled') + '>' + ohOptions(r ? r.open : '08:00') + '</select>' +
-          '<span class="text-xs text-slate-400">to</span>' +
-          '<select id="ohTo_' + d[0] + '" aria-label="' + d[1] + ' closing time" ' + sel + (r ? '' : ' disabled') + '>' + ohOptions(r ? r.close : '17:00') + '</select>' +
-          '<span class="text-xs text-slate-400" id="ohClosed_' + d[0] + '"' + (r ? ' hidden' : '') + '>Closed</span>' +
-        '</div>';
-      }).join('');
-      OH_DAYS.forEach(function(d) {
-        document.getElementById('ohOpen_' + d[0]).addEventListener('change', function() {
-          document.getElementById('ohFrom_' + d[0]).disabled = !this.checked;
-          document.getElementById('ohTo_' + d[0]).disabled = !this.checked;
-          document.getElementById('ohClosed_' + d[0]).hidden = this.checked;
-          ohValidate();
-        });
-        ['ohFrom_', 'ohTo_'].forEach(p => document.getElementById(p + d[0]).addEventListener('change', ohValidate));
-      });
-      if (!isAdmin) {
-        document.querySelectorAll('#officeHoursGrid input, #officeHoursGrid select').forEach(el => { el.disabled = true; });
-      }
-      ohValidate();
     }
 
     function renderPrincipalContact() {
@@ -680,70 +568,132 @@
       return '<span class="inline-flex w-5 h-5 items-center justify-center rounded-full border border-red-500"><img src="images/security/icon-x-red.svg" alt="No Access" class="w-2.5 h-2.5"></span>';
     }
 
+    // ---- Permissions are edited in place: click a permission to cycle Full Access -> View Only -> No Access. Nothing is saved
+    // until Save Changes (Cancel throws the edits away). What a person may change is decided by the server (rbacEditable).
+    let pending = {}; // "module|role" -> the level picked on this page, not saved yet
+    const LEVEL_ORDER = ['full', 'limited', 'none'];
+    const ROLE_LABEL = { admin: 'Administrator', counselor: 'Guidance Counselor', facilitator: 'Guidance Facilitator', student: 'Student' };
+    const levelOf = (m, r) => (m + '|' + r) in pending ? pending[m + '|' + r] : state.rbac[m][r];
+    const allowedFor = (m, r) => (state.rbacEditable && state.rbacEditable[m] && state.rbacEditable[m][r]) || [];
+    const isEditable = (m, r) => allowedFor(m, r).some(l => l !== state.rbac[m][r]);
+    function nextLevel(m, r) {
+      const allowed = allowedFor(m, r), cur = levelOf(m, r);
+      for (let i = 1; i <= 3; i++) {
+        const cand = LEVEL_ORDER[(LEVEL_ORDER.indexOf(cur) + i) % 3];
+        if (allowed.includes(cand)) return cand;
+      }
+      return cur;
+    }
+    const moduleLabel = id => (MODULES.find(m => m.id === id) || { label: id }).label;
+    function isSensitive(m, r) {
+      const s = state.rbacSensitive || { modules: [], roles: [] };
+      return s.modules.includes(m) || s.roles.includes(r);
+    }
+    function pendingChanges() {
+      return Object.keys(pending).map(k => {
+        const p = k.split('|');
+        return { module: p[0], role: p[1], from: state.rbac[p[0]][p[1]], to: pending[k] };
+      });
+    }
+
     function renderRbacTable() {
+      // A Guidance Facilitator does not see the permission table at all.
+      document.getElementById('rbacCard').classList.toggle('hidden', state.rbacVisible === false);
+      if (state.rbacVisible === false) return;
       const tbody = document.getElementById('rbacTableBody');
       tbody.innerHTML = MODULES.map(m => {
-        const cells = ROLES.map(r => '<td class="px-3 py-3 text-center">' + permIcon(state.rbac[m.id][r]) + '</td>').join('');
+        const cells = ROLES.map(r => {
+          const lvl = levelOf(m.id, r);
+          if (!isEditable(m.id, r)) return '<td class="px-3 py-3 text-center">' + permIcon(lvl) + '</td>';
+          const changed = (m.id + '|' + r) in pending;
+          return '<td class="px-3 py-3 text-center"><button type="button" class="perm-cell' + (changed ? ' changed' : '') + '" data-module="' + m.id + '" data-role="' + r + '" title="' + LEVEL_LABEL[lvl] + '. Click to change." aria-label="' + ROLE_LABEL[r] + ', ' + m.label + ': ' + LEVEL_LABEL[lvl] + '. Click to change.">' + permIcon(lvl) + '</button></td>';
+        }).join('');
         return '<tr>' +
           '<td class="px-5 py-3"><div class="flex items-start gap-3">' +
           '<img src="' + m.icon + '" alt="" class="' + m.iconClass + '">' +
           '<div><p class="text-sm font-medium text-slate-800">' + m.label + '</p><p class="text-xs text-slate-500">' + m.desc + '</p></div>' +
           '</div></td>' + cells + '</tr>';
       }).join('');
+      updateRbacActions();
     }
 
-    function renderRolesModal() {
-      const tbody = document.getElementById('rolesModalBody');
-      tbody.innerHTML = MODULES.map(m => {
-        const cells = ROLES.map(r => {
-          // Administrator access is fixed at Full — it's never editable here since there's no
-          // recovery path if an admin accidentally revokes their own access (backend enforces this too).
-          if (r === 'admin') {
-            return '<td class="py-2.5 px-1 text-center"><span class="text-xs text-slate-400" title="Administrator access cannot be changed">Full (fixed)</span></td>';
-          }
-          // Student access is fixed too: students only ever need to take the assessment, view their results
-          // and recommendations, request counseling and read announcements (backend enforces this as well).
-          if (r === 'student') {
-            return '<td class="py-2.5 px-1 text-center"><span class="text-xs text-slate-400" title="Student access cannot be changed">' + LEVEL_LABEL[state.rbac[m.id][r]] + ' (fixed)</span></td>';
-          }
-          const options = Object.keys(LEVEL_LABEL).map(lvl =>
-            '<option value="' + lvl + '"' + (state.rbac[m.id][r] === lvl ? ' selected' : '') + '>' + LEVEL_LABEL[lvl] + '</option>'
-          ).join('');
-          return '<td class="py-2.5 px-1 text-center"><select class="rbac-select border border-slate-200 rounded-md px-2 py-1.5 text-xs text-slate-700 w-full" data-module="' + m.id + '" data-role="' + r + '">' + options + '</select></td>';
-        }).join('');
-        return '<tr><td class="py-2.5 pr-2 text-sm text-slate-800">' + m.label + '</td>' + cells + '</tr>';
-      }).join('');
+    function updateRbacActions() {
+      const n = Object.keys(pending).length;
+      const bar = document.getElementById('rbacActions');
+      bar.classList.toggle('hidden', n === 0);
+      bar.classList.toggle('flex', n > 0);
+      document.getElementById('rbacPendingCount').textContent = n + ' unsaved change' + (n === 1 ? '' : 's');
+    }
+    function showRbacMessage(text, isError) {
+      const el = document.getElementById('rbacMessage');
+      el.textContent = text;
+      el.className = 'px-5 pt-3 text-xs ' + (isError ? 'text-[#ed1c24]' : 'text-green-600');
+      clearTimeout(showRbacMessage.timer);
+      if (!isError) showRbacMessage.timer = setTimeout(() => el.classList.add('hidden'), 3500);
     }
 
-    if (isAdmin) {
-      document.getElementById('editRolesBtn').addEventListener('click', function() {
-        renderRolesModal();
-        document.getElementById('rolesModal').classList.remove('hidden');
-      });
-    } else {
-      document.getElementById('editRolesBtn').remove();
-    }
-    function closeRolesModal() { document.getElementById('rolesModal').classList.add('hidden'); }
-    document.getElementById('rolesModalClose').addEventListener('click', closeRolesModal);
-    document.getElementById('rolesModalCancel').addEventListener('click', closeRolesModal);
-    document.getElementById('rolesModal').addEventListener('click', function(e) {
-      if (e.target.id === 'rolesModal') closeRolesModal();
+    document.getElementById('rbacTableBody').addEventListener('click', function(e) {
+      const btn = e.target.closest('.perm-cell');
+      if (!btn) return;
+      const m = btn.dataset.module, r = btn.dataset.role, k = m + '|' + r;
+      const next = nextLevel(m, r);
+      if (next === state.rbac[m][r]) delete pending[k]; else pending[k] = next;
+      document.getElementById('rbacMessage').classList.add('hidden');
+      renderRbacTable();
     });
-    document.getElementById('rolesModalSave').addEventListener('click', async function() {
-      const changes = Array.from(document.querySelectorAll('.rbac-select')).map(function(sel) {
-        return { module: sel.dataset.module, role: sel.dataset.role, level: sel.value };
-      });
-      const res = await fetch('api/security-config.php', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'rbac', changes: changes })
-      });
-      const data = await res.json();
-      if (data.success) {
-        await loadState();
+    document.getElementById('rbacCancelBtn').addEventListener('click', function() {
+      pending = {};
+      document.getElementById('rbacMessage').classList.add('hidden');
+      renderRbacTable();
+    });
+
+    async function saveRbac(confirmed) {
+      const saveBtn = document.getElementById('rbacSaveBtn');
+      saveBtn.disabled = true;
+      try {
+        const res = await fetch('api/security-config.php', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'rbac', confirmed: !!confirmed, changes: pendingChanges().map(c => ({ module: c.module, role: c.role, level: c.to })) })
+        });
+        const data = await res.json();
+        if (data.success) {
+          pending = {};
+          await loadState();
+          showRbacMessage(data.applied ? 'Saved. ' + data.applied + ' permission change' + (data.applied === 1 ? '' : 's') + ' recorded in the audit log.' : 'Nothing changed.', false);
+        } else if (data.needsConfirmation) {
+          openRbacConfirm();
+        } else {
+          showRbacMessage(data.error || 'Could not save the changes.', true);
+        }
+      } catch (err) {
+        showRbacMessage('Unable to reach the server. Please try again.', true);
+      } finally {
+        saveBtn.disabled = false;
       }
-      closeRolesModal();
+    }
+    const confirmModal = document.getElementById('rbacConfirmModal');
+    function openRbacConfirm() {
+      document.getElementById('rbacConfirmList').innerHTML = pendingChanges().map(c =>
+        '<li class="border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-700">' +
+          '<span class="font-medium text-slate-900">' + ROLE_LABEL[c.role] + '</span> &middot; ' + moduleLabel(c.module) + '<br>' +
+          '<span class="text-slate-500">' + LEVEL_LABEL[c.from] + '</span> &rarr; <span class="font-semibold">' + LEVEL_LABEL[c.to] + '</span>' +
+          (isSensitive(c.module, c.role) ? ' <span class="ml-1 bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-semibold uppercase px-2 py-0.5 rounded">Sensitive</span>' : '') +
+        '</li>'
+      ).join('');
+      confirmModal.classList.remove('hidden');
+    }
+    document.getElementById('rbacSaveBtn').addEventListener('click', function() {
+      const changes = pendingChanges();
+      if (!changes.length) return;
+      // Changes to account modules or to the Guidance Counselor column are confirmed before they are saved.
+      if (changes.some(c => isSensitive(c.module, c.role))) openRbacConfirm(); else saveRbac(false);
     });
-
+    document.getElementById('rbacConfirmCancel').addEventListener('click', () => confirmModal.classList.add('hidden'));
+    confirmModal.addEventListener('click', e => { if (e.target.id === 'rbacConfirmModal') confirmModal.classList.add('hidden'); });
+    document.getElementById('rbacConfirmSave').addEventListener('click', async function() {
+      confirmModal.classList.add('hidden');
+      await saveRbac(true);
+    });
     const POLICY_META = {
       password: { title: 'Password Policy' },
       lockout: { title: 'Account Lockout' },
@@ -939,25 +889,6 @@
         state.settings.timeoutMinutes = parseInt(this.value, 10);
         updateTimeoutDesc();
         saveSettings();
-      });
-
-      document.getElementById('officeHoursSave').addEventListener('click', async function() {
-        const statusEl = document.getElementById('officeHoursStatus');
-        if (ohValidate()) return;
-        const res = await fetch('api/security-config.php', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'officeHours', schedule: ohCollect() })
-        });
-        const data = await res.json();
-        statusEl.classList.remove('hidden');
-        if (data.success) {
-          statusEl.textContent = 'Saved.';
-          statusEl.className = 'text-xs text-green-600';
-          await loadState();
-        } else {
-          statusEl.textContent = data.error || 'Failed to save.';
-          statusEl.className = 'text-xs text-[#ed1c24]';
-        }
       });
 
       document.getElementById('principalContactSave').addEventListener('click', async function() {
