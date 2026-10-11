@@ -13,6 +13,77 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   body{ font-family:'Inter', sans-serif; }
+
+  /* Page layout: one centered content column that uses the width on desktop. */
+  .pp-main{ width:100%; max-width:1200px; margin:0 auto; padding:24px 16px 32px; }
+  @media (min-width:640px){ .pp-main{ padding:32px 24px 40px; } }
+  @media (min-width:1024px){ .pp-main{ padding:40px 36px 48px; } }
+
+  /* Shared building blocks for the Career Results view. */
+  .pp-card{ background:#fff; border:1px solid #e0e3e5; border-radius:10px; padding:20px; }
+  .pp-h2{ font-size:20px; font-weight:600; color:#191c1e; line-height:1.3; }
+  .pp-sechead{ display:flex; align-items:baseline; justify-content:space-between; gap:4px 16px; flex-wrap:wrap; border-bottom:1px solid #e0e3e5; padding-bottom:8px; margin-bottom:16px; }
+  .pp-sub{ font-size:13px; color:#5e3f3c; }
+  .pp-label{ font-size:11px; font-weight:600; letter-spacing:1.2px; text-transform:uppercase; color:#495e88; }
+  .pp-section{ margin-bottom:32px; }
+  .pp-grid{ display:grid; grid-template-columns:minmax(0,1fr); gap:16px; }
+  @media (min-width:1100px){ .pp-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+  /* RIASEC profile: top three + all six scores side by side on desktop. */
+  .pp-profile{ display:grid; grid-template-columns:minmax(0,1fr); gap:20px; }
+  @media (min-width:900px){ .pp-profile{ grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:32px; } }
+  .pp-top3{ display:flex; flex-direction:column; gap:10px; }
+  .pp-top3-item{ display:flex; align-items:center; gap:12px; }
+  .pp-rank{ width:28px; height:28px; border-radius:9999px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; flex-shrink:0; background:#eef1fb; color:#001c43; }
+  .pp-rank.is-first{ background:#bb0013; color:#fff; }
+  .pp-bars{ display:flex; flex-direction:column; gap:8px; }
+  .pp-bar-row{ display:grid; grid-template-columns:112px minmax(0,1fr) 28px; align-items:center; gap:10px; font-size:13px; }
+  .pp-bar-track{ height:8px; border-radius:9999px; background:#f1f5f9; overflow:hidden; }
+  .pp-bar-fill{ height:100%; border-radius:9999px; }
+
+  /* Expandable "learn more" sections. */
+  .pp-more summary{ cursor:pointer; font-size:13px; font-weight:600; color:#495e88; list-style:none; display:inline-flex; align-items:center; gap:6px; }
+  .pp-more summary::-webkit-details-marker{ display:none; }
+  .pp-more summary::before{ content:''; width:6px; height:6px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; transform:rotate(-45deg); transition:transform .15s; }
+  .pp-more[open] summary::before{ transform:rotate(45deg); }
+  .pp-more-body{ margin-top:10px; font-size:13px; line-height:1.6; color:#191c1e; }
+
+  /* Course cards. */
+  .pp-course{ background:#fff; border:1px solid #e0e3e5; border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:12px; min-width:0; }
+  .pp-course > details:last-child{ margin-top:auto; }
+  .pp-course--best{ border-left:4px solid #001c43; }
+  .pp-course--match{ background:#f0fdf4; border-color:#bbf7d0; }
+  .pp-course-top{ display:flex; align-items:flex-start; gap:12px; }
+  .pp-course-title{ font-size:16px; font-weight:600; color:#191c1e; line-height:1.35; }
+  .pp-icon{ width:36px; height:36px; border-radius:8px; background:#eef1fb; color:#0f2a6b; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .pp-score{ display:flex; align-items:center; gap:6px; font-size:13px; color:#5e3f3c; }
+  .pp-score b{ color:#191c1e; }
+  .pp-chips{ display:flex; flex-wrap:wrap; gap:6px; }
+  .pp-chip{ background:#f2f4f6; border:1px solid #e0e3e5; color:#191c1e; font-size:12px; border-radius:9999px; padding:4px 10px; }
+  .pp-chip--mine{ display:inline-flex; align-items:center; gap:6px; background:#ecfdf5; border-color:#a7f3d0; color:#047857; font-weight:600; }
+  .pp-chip-toggle{ font-size:12px; font-weight:600; color:#495e88; padding:4px 6px; border-radius:6px; }
+  .pp-badge{ display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; border:1px solid; border-radius:9999px; padding:4px 12px; white-space:nowrap; }
+  .pp-badge svg{ width:14px; height:14px; flex-shrink:0; }
+  .pp-badge--match{ background:#ecfdf5; border-color:#a7f3d0; color:#047857; }
+  .pp-badge--differs{ background:#eef1fb; border-color:#c7d2e8; color:#001c43; }
+  .pp-badge--mine{ background:#fff7ed; border-color:#fed7aa; color:#9a3412; }
+  .pp-note{ font-size:13px; color:#191c1e; background:#f2f4f6; border:1px solid #e0e3e5; border-radius:8px; padding:10px 12px; margin-bottom:12px; }
+  .pp-letter{ display:inline-flex; width:24px; height:24px; border-radius:6px; align-items:center; justify-content:center; font-weight:700; font-size:12px; background:#f2f4f6; color:#5e3f3c; border:1px solid #e0e3e5; }
+  .pp-letter.is-shared{ background:#ecfdf5; color:#047857; border-color:#a7f3d0; }
+
+  /* Small "i" help marker with a hover/focus tooltip. */
+  .pp-tip{ position:relative; display:inline-flex; width:16px; height:16px; border-radius:9999px; border:1px solid #94a3b8; color:#475569; font-size:10px; font-weight:700; align-items:center; justify-content:center; cursor:help; }
+  .pp-tip .pp-tip-text{ visibility:hidden; opacity:0; position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%); width:240px; max-width:70vw; background:#001c43; color:#fff; font-size:12px; font-weight:400; line-height:1.5; padding:8px 10px; border-radius:6px; z-index:20; transition:opacity .15s; text-align:left; }
+  .pp-tip:hover .pp-tip-text, .pp-tip:focus .pp-tip-text{ visibility:visible; opacity:1; }
+
+  /* Saved-careers feedback. */
+  .pp-toast{ position:fixed; left:50%; bottom:24px; transform:translate(-50%,16px); background:#001c43; color:#fff; font-size:13px; font-weight:500; padding:10px 16px; border-radius:8px; box-shadow:0 8px 24px rgba(0,28,67,.25); opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:60; max-width:calc(100vw - 32px); }
+  .pp-toast.is-on{ opacity:1; transform:translate(-50%,0); }
+  .fav-btn{ transition:transform .15s; }
+  .fav-btn.just-saved{ transform:scale(1.15); }
+
+  /* Visible keyboard focus for everything interactive on the page. */
+  #main-content a:focus-visible, #main-content button:focus-visible, #main-content summary:focus-visible, .pp-tip:focus-visible{ outline:2px solid #495e88; outline-offset:2px; border-radius:6px; }
 </style>
 <link rel="stylesheet" href="css/motion.css">
 </head>
@@ -115,7 +186,7 @@
       </div>
     </header>
 
-    <main id="main-content" class="flex-1 px-9 py-10 max-w-[1152px]">
+    <main id="main-content" class="flex-1 pp-main">
 
       <!-- Empty state: no assessment yet -->
       <div id="emptyState" class="hidden bg-white border border-slate-200 rounded-xl shadow-sm p-12 max-w-md flex flex-col items-center text-center gap-4">
@@ -192,50 +263,77 @@
       <!-- Full Career Results (RIASEC + Worksheet complete) -->
       <div id="careerResultsView" class="hidden">
 
-        <div class="flex items-start justify-between flex-wrap gap-4 mb-8">
-          <div class="flex items-start gap-5">
-            <a href="assessment" class="w-10 h-10 rounded-xl border border-[#e8bcb7] flex items-center justify-center shrink-0 hover:bg-red-50">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#5e3f3c" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
-            </a>
+        <div class="flex items-start gap-4 mb-6">
+          <a href="assessment" aria-label="Back to My Assessments" class="w-10 h-10 rounded-xl border border-[#e8bcb7] flex items-center justify-center shrink-0 hover:bg-red-50">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#5e3f3c" stroke-width="2" class="w-4 h-4" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          </a>
+          <div>
+            <h1 class="text-[28px] font-bold text-[#001a40] tracking-tight">Career Results</h1>
+            <p class="text-sm text-[#5e3f3c] mt-1">MMCL courses that fit your RIASEC interests.</p>
+          </div>
+        </div>
+
+        <!-- 1. RIASEC Profile -->
+        <section class="pp-card pp-section" aria-labelledby="crProfileHeading">
+          <div class="flex items-baseline justify-between gap-4 flex-wrap mb-4">
+            <h2 id="crProfileHeading" class="pp-h2">Your RIASEC Profile</h2>
+            <p class="text-sm text-[#5e3f3c]">RIASEC Code <span class="text-[22px] font-bold text-[#bb0013] tracking-[2px] ml-1" id="cr-code">—</span></p>
+          </div>
+          <div class="pp-profile">
             <div>
-              <h1 class="text-[32px] font-bold text-[#191c1e] tracking-tight">Career Results</h1>
-              <p class="text-sm text-[#5e3f3c] mt-1">Your RIASEC profile, your preferred course, your Best RIASEC Match and alternative courses.</p>
+              <p class="pp-label mb-3">Top 3 Interest Areas</p>
+              <div id="cr-topTypes" class="pp-top3"></div>
+            </div>
+            <div>
+              <p class="pp-label mb-3">All Six Scores <span class="normal-case tracking-normal font-normal text-[#5e3f3c]">(10 to 50)</span></p>
+              <div id="cr-allScores" class="pp-bars"></div>
             </div>
           </div>
-          <div class="text-right shrink-0">
-            <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase">RIASEC Code</p>
-            <p class="text-[28px] font-semibold text-[#bb0013]" id="cr-code">—</p>
+          <details class="pp-more mt-4 pt-4 border-t border-[#e0e3e5]">
+            <summary>What do my interest areas mean?</summary>
+            <div id="cr-typeInfo" class="pp-more-body flex flex-col gap-2"></div>
+          </details>
+        </section>
+
+        <!-- 2. Preferred Course: what the student selected (Career Worksheet). -->
+        <section class="pp-section" aria-labelledby="crPrefHeading">
+          <div class="pp-sechead">
+            <h2 id="crPrefHeading" class="pp-h2">Preferred Course</h2>
+            <p class="pp-sub">From the career you typed on your worksheet</p>
           </div>
-        </div>
-
-        <div class="bg-white border border-[#e0e3e5] rounded-lg p-5 mb-6">
-          <p class="text-[11px] font-semibold tracking-[1.2px] text-[#495e88] uppercase mb-3">Your Top 3 Interest Areas</p>
-          <div id="cr-topTypes" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
-        </div>
-
-        <!-- 2. Preferred Course: what the student selected (Career Electives Worksheet). -->
-        <section class="mb-8">
-          <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-2">Preferred Course</h2>
-          <p class="text-xs text-[#5e3f3c] mb-4">The MMCL program linked to the career you typed on your Career Worksheet.</p>
           <div id="cr-preferred"></div>
         </section>
 
         <!-- 3. Best RIASEC Match: CBF only (RIASEC profile + course RIASEC codes + cosine similarity).
              Not the final Best Match, which will also need the prediction model. -->
-        <section class="mb-8">
-          <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-2">Best RIASEC Match</h2>
-          <p class="text-xs text-[#5e3f3c] mb-4">The course whose RIASEC profile is most similar to yours, found by comparing your RIASEC profile with every course using cosine similarity. Your preferred course is not used here.</p>
-          <p id="cr-tieNote" class="hidden text-xs text-[#191c1e] mb-3"></p>
-          <div id="cr-bestRiasec" class="flex flex-col gap-4"></div>
+        <section class="pp-section" aria-labelledby="crBestHeading">
+          <div class="pp-sechead">
+            <h2 id="crBestHeading" class="pp-h2">Best RIASEC Match</h2>
+            <p class="pp-sub">The courses most similar to your RIASEC profile</p>
+          </div>
+          <details class="pp-more mb-4">
+            <summary>How is this worked out?</summary>
+            <div class="pp-more-body">
+              We compare your six RIASEC scores with each course's RIASEC code using <b>cosine similarity</b>.
+              It runs from 0 to 1: the closer to 1, the more similar the course is to your interests.
+              It is a similarity score, not a percentage or a chance of success. Your preferred course does not change this list.
+            </div>
+          </details>
+          <p id="cr-tieNote" class="hidden pp-note"></p>
+          <div id="cr-bestRiasec" class="pp-grid"></div>
         </section>
 
         <!-- 4. Alternative Courses: the next most similar courses (CBF only). -->
-        <section>
-          <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-2">Alternative Courses</h2>
-          <p class="text-xs text-[#5e3f3c] mb-4">The next most similar courses to your RIASEC profile. Listed in no particular order.</p>
-          <div id="cr-alternatives" class="flex flex-col gap-4"></div>
+        <section aria-labelledby="crAltHeading">
+          <div class="pp-sechead">
+            <h2 id="crAltHeading" class="pp-h2">Alternative Courses</h2>
+            <p class="pp-sub">Your next most similar courses</p>
+          </div>
+          <div id="cr-alternatives" class="pp-grid"></div>
         </section>
       </div>
+
+      <div id="cr-toast" class="pp-toast" role="status" aria-live="polite"></div>
 
       <p class="text-xs text-gray-400 text-center mt-6 max-w-2xl mx-auto">This site incorporates information from <a href="https://services.onetcenter.org/" target="_blank" rel="noopener noreferrer" class="underline hover:text-gray-600">O*NET Web Services</a> by the U.S. Department of Labor, Employment and Training Administration (USDOL/ETA).</p>
     </main>
@@ -397,6 +495,8 @@ document.addEventListener('click', function (e) {
     }
   };
   const AXIS_ORDER = ['Realistic', 'Investigative', 'Artistic', 'Social', 'Enterprising', 'Conventional'];
+  const TYPE_INFO_BY_LETTER = {};
+  AXIS_ORDER.forEach(function(name) { TYPE_INFO_BY_LETTER[TYPE_INFO[name].letter] = name; });
   const MAX_SCORE = 50;
 
   function revealPanel(id) {
@@ -530,15 +630,32 @@ document.addEventListener('click', function (e) {
   }
 
   async function renderCareerResults(recommendation) {
-    document.getElementById('cr-code').textContent = ranked.slice(0, 3).map(function(r) { return r.name[0]; }).join(' - ');
+    const top3 = ranked.slice(0, 3);
+    const topLetters = top3.map(function(r) { return TYPE_INFO[r.name].letter; });
+    document.getElementById('cr-code').textContent = topLetters.join(' ');
 
-    document.getElementById('cr-topTypes').innerHTML = ranked.slice(0, 3).map(function(r) {
+    document.getElementById('cr-topTypes').innerHTML = top3.map(function(r, i) {
       const info = TYPE_INFO[r.name];
-      return '<div class="flex flex-col">' +
-        '<p class="text-sm font-semibold text-[#001c43]">' + r.name + ' (' + info.letter + ')</p>' +
-        '<p class="text-sm text-[#5e3f3c] mt-1 leading-relaxed flex-1">' + info.description + '</p>' +
-        '<p class="text-xs text-[#495e88] mt-3 font-semibold">Dominance score <span class="text-[#bb0013]">' + Math.round((r.score / MAX_SCORE) * 100) + ' / 100</span></p>' +
+      return '<div class="pp-top3-item">' +
+        '<span class="pp-rank' + (i === 0 ? ' is-first' : '') + '" aria-label="Rank ' + (i + 1) + '">' + (i + 1) + '</span>' +
+        '<div class="min-w-0"><p class="text-sm font-semibold text-[#001c43]">' + r.name + ' (' + info.letter + ')</p>' +
+        '<p class="text-xs text-[#5e3f3c]">' + info.nickname + ' &middot; ' + info.traits.join(', ') + '</p></div>' +
       '</div>';
+    }).join('');
+
+    // All six scores, highest first. Scores are the assessment totals (10 to 50), shown as-is.
+    document.getElementById('cr-allScores').innerHTML = ranked.map(function(r, i) {
+      const color = i === 0 ? '#bb0013' : (i < 3 ? '#001c43' : '#b7c8e1');
+      return '<div class="pp-bar-row" role="img" aria-label="' + r.name + ': ' + r.score + ' out of ' + MAX_SCORE + '">' +
+        '<span class="' + (i < 3 ? 'font-semibold text-[#001c43]' : 'text-[#5e3f3c]') + '">' + r.name + '</span>' +
+        '<span class="pp-bar-track"><span class="pp-bar-fill block" style="width:' + Math.round((r.score / MAX_SCORE) * 100) + '%;background:' + color + '"></span></span>' +
+        '<span class="text-right ' + (i < 3 ? 'font-semibold text-[#191c1e]' : 'text-[#5e3f3c]') + '">' + r.score + '</span>' +
+      '</div>';
+    }).join('');
+
+    document.getElementById('cr-typeInfo').innerHTML = top3.map(function(r) {
+      const info = TYPE_INFO[r.name];
+      return '<p><b>' + r.name + ' (' + info.letter + ')</b>: ' + info.description.replace(/^"[^"]*" — /, '') + '</p>';
     }).join('');
 
     // No per-program images/icons exist in the data (or schema) — this maps
@@ -567,7 +684,9 @@ document.addEventListener('click', function (e) {
 
     // "Careers that fit" for a program: every career it leads to, with the one
     // the student chose on their worksheet (if it belongs here) highlighted.
+    // Only the first few are shown; the rest open with "+N more".
     const statedCareerKey = (recommendation.statedCareer || '').toLowerCase();
+    const CHIPS_SHOWN = 4;
     function careerChipsHtml(p) {
       const careers = p.careers || [];
       if (!careers.length) return '';
@@ -576,30 +695,56 @@ document.addEventListener('click', function (e) {
       // one it was linked to but no listed career equals it, show it as typed.
       const isStatedProgram = recommendation.statedProgramId === p.id;
       const listedMatch = careers.some(function(c) { return c.toLowerCase() === statedCareerKey; });
-      const typedChip = (isStatedProgram && !listedMatch && recommendation.statedCareer)
-        ? '<span class="inline-flex items-center gap-1.5 bg-[#ecfdf5] border border-[#a7f3d0] text-[#047857] text-xs font-semibold rounded-full px-3 py-1.5">' +
-            String(recommendation.statedCareer).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') +
-            ' <span class="text-[10px] uppercase tracking-wide">Your choice</span></span>'
-        : '';
-      return '<div><p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-2">Careers That Fit</p>' +
-        '<div class="flex flex-wrap gap-2">' + typedChip + careers.map(function(c) {
-          const chosen = recommendation.statedProgramId === p.id && c.toLowerCase() === statedCareerKey;
-          return chosen
-            ? '<span class="inline-flex items-center gap-1.5 bg-[#ecfdf5] border border-[#a7f3d0] text-[#047857] text-xs font-semibold rounded-full px-3 py-1.5">' + c + ' <span class="text-[10px] uppercase tracking-wide">Your choice</span></span>'
-            : '<span class="bg-[#f2f4f6] border border-[#e0e3e5] text-[#191c1e] text-xs rounded-full px-3 py-1.5">' + c + '</span>';
-        }).join('') + '</div></div>';
+      const chips = [];
+      if (isStatedProgram && !listedMatch && recommendation.statedCareer) {
+        chips.push('<span class="pp-chip pp-chip--mine">' + escapeText(recommendation.statedCareer) + ' <span class="text-[10px] uppercase tracking-wide">Your choice</span></span>');
+      }
+      careers.forEach(function(c) {
+        const chosen = isStatedProgram && c.toLowerCase() === statedCareerKey;
+        chips.push(chosen
+          ? '<span class="pp-chip pp-chip--mine">' + escapeText(c) + ' <span class="text-[10px] uppercase tracking-wide">Your choice</span></span>'
+          : '<span class="pp-chip">' + escapeText(c) + '</span>');
+      });
+      const extra = chips.length - CHIPS_SHOWN;
+      const shown = chips.map(function(c, i) { return i < CHIPS_SHOWN ? c : c.replace('class="pp-chip', 'class="hidden pp-chip-extra pp-chip'); });
+      return '<div><p class="pp-label mb-2" style="color:#5e3f3c;">Careers That Fit</p><div class="pp-chips">' + shown.join('') +
+        (extra > 0 ? '<button type="button" class="pp-chip-toggle" aria-expanded="false" data-more="' + extra + '">+' + extra + ' more</button>' : '') +
+        '</div></div>';
     }
 
     const preferred = recommendation.preferredCourse;  // program linked to the career typed on the worksheet
     const typedCareer = recommendation.statedCareer
       ? '<p class="text-xs text-[#5e3f3c]">Career you typed: <span class="font-semibold text-[#191c1e]">' + escapeText(recommendation.statedCareer) + '</span></p>' : '';
-    const BADGE = 'text-xs font-semibold rounded-full px-3.5 py-1.5 shrink-0 border';
-    const COUNSELOR_BTN = '<a href="student-help-center?subject=Request%20for%20Academic%20Advising" class="js-advising-link inline-block border text-xs font-semibold rounded px-4 py-2 hover:opacity-80" style="border-color:#b45309;color:#92400e;background-color:#ffffff;align-self:flex-start;">Talk to a Guidance Counselor</a>';
+    const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
+    const ICON_INFO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 11v5M12 8h.01"/></svg>';
+    const COUNSELOR_BTN = '<a href="student-help-center?subject=Request%20for%20Academic%20Advising" class="js-advising-link inline-block border text-xs font-semibold rounded px-4 py-2 hover:opacity-80" style="border-color:#495e88;color:#001c43;background-color:#ffffff;align-self:flex-start;">Talk to a Guidance Counselor</a>';
 
     // Cosine similarity is a 0-1 similarity score, never a percentage or an accuracy.
+    const COSINE_TIP = '<span class="pp-tip" tabindex="0" aria-label="What is cosine similarity?">i<span class="pp-tip-text" role="tooltip">How similar this course is to your RIASEC profile, from 0 to 1. Closer to 1 means more similar. It is not a percentage.</span></span>';
     function cosineHtml(p) {
       return p.cosineSimilarity === null || p.cosineSimilarity === undefined ? ''
-        : '<p class="text-xs text-[#5e3f3c]">Cosine Similarity: <span class="font-semibold text-[#191c1e]">' + p.cosineSimilarity.toFixed(3) + '</span></p>';
+        : '<p class="pp-score">Cosine Similarity: <b>' + p.cosineSimilarity.toFixed(3) + '</b>' + COSINE_TIP + '</p>';
+    }
+
+    // "Why this course?": built only from data already on the page — the course's RIASEC
+    // code, the student's top three letters and the course's cosine similarity.
+    function whyHtml(p) {
+      const code = (p.hollandCode || '').toUpperCase().split('').filter(function(l) { return TYPE_INFO_BY_LETTER[l]; });
+      if (!code.length && !p.description) return '';
+      const shared = code.filter(function(l) { return topLetters.indexOf(l) !== -1; });
+      const names = function(ls) { return ls.map(function(l) { return TYPE_INFO_BY_LETTER[l]; }); };
+      const join = function(a) { return a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]; };
+      let body = '';
+      if (code.length) {
+        body += '<p class="flex items-center gap-1.5 flex-wrap">Course RIASEC code: ' + code.map(function(l) {
+          return '<span class="pp-letter' + (shared.indexOf(l) !== -1 ? ' is-shared' : '') + '" title="' + TYPE_INFO_BY_LETTER[l] + '">' + l + '</span>';
+        }).join('') + '</p>';
+        body += '<p>' + (shared.length
+          ? 'It shares <b>' + join(names(shared)) + '</b> with your top 3 interest areas (' + topLetters.join(' ') + ').'
+          : 'It doesn\'t share a letter with your top 3, but it is close to your overall profile across all six areas.') + '</p>';
+      }
+      if (p.description) body += '<p class="text-[#5e3f3c]">' + escapeText(p.description) + '</p>';
+      return '<details class="pp-more"><summary>Why this course?</summary><div class="pp-more-body flex flex-col gap-2">' + body + '</div></details>';
     }
 
     // Saved Careers: the heart button on each Best RIASEC Match / Alternative Courses card
@@ -608,24 +753,39 @@ document.addEventListener('click', function (e) {
     try {
       savedIds = ((await (await fetch('api/saved-programs.php')).json()).programIds || []).map(Number);
     } catch (e) { savedIds = []; }
-    const HEART = '<svg viewBox="0 0 24 24" stroke-width="2" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>';
+    const HEART = '<svg viewBox="0 0 24 24" stroke-width="2" class="w-5 h-5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>';
     function favBtnHtml(p) {
       const saved = savedIds.indexOf(p.id) !== -1;
       const title = String(p.title).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
       return '<button type="button" class="fav-btn w-9 h-9 rounded-full border flex items-center justify-center shrink-0 hover:opacity-80" data-id="' + p.id + '" data-title="' + title + '"' +
-        ' aria-pressed="' + saved + '" title="' + (saved ? 'Remove from Saved Careers' : 'Add to Saved Careers') + '"' +
-        ' aria-label="' + (saved ? 'Remove ' : 'Add ') + title + (saved ? ' from' : ' to') + ' Saved Careers"' +
+        ' aria-pressed="' + saved + '" title="' + (saved ? 'Saved. Click to remove from Saved Careers' : 'Save to Saved Careers') + '"' +
+        ' aria-label="' + (saved ? 'Remove ' : 'Save ') + title + (saved ? ' from' : ' to') + ' Saved Careers"' +
         ' style="' + (saved ? 'border-color:#fecaca;background-color:#fef2f2;color:#ed1c24;fill:#ed1c24;stroke:#ed1c24;' : 'border-color:#e0e3e5;background-color:#ffffff;color:#5e3f3c;fill:none;stroke:#5e3f3c;') + '">' +
         HEART + '</button>';
     }
-    function rightSideHtml(p, badgeHtml) {
-      return '<div class="flex items-center gap-2 shrink-0">' + (badgeHtml || '') + favBtnHtml(p) + '</div>';
+    const toast = document.getElementById('cr-toast');
+    let toastTimer = null;
+    function showToast(text) {
+      toast.textContent = text;
+      toast.classList.add('is-on');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function() { toast.classList.remove('is-on'); }, 2400);
     }
     document.getElementById('careerResultsView').addEventListener('click', async function(e) {
+      const more = e.target.closest('.pp-chip-toggle');
+      if (more) {
+        const open = more.getAttribute('aria-expanded') === 'true';
+        more.parentElement.querySelectorAll('.pp-chip-extra').forEach(function(c) { c.classList.toggle('hidden', open); });
+        more.setAttribute('aria-expanded', String(!open));
+        more.textContent = open ? '+' + more.dataset.more + ' more' : 'Show less';
+        return;
+      }
       const btn = e.target.closest('.fav-btn');
       if (!btn || btn.disabled) return;
+      const hadFocus = document.activeElement === btn;  // disabling the button drops keyboard focus; put it back after
       btn.disabled = true;
       const programId = Number(btn.dataset.id);
+      const title = btn.dataset.title;
       try {
         const res = await fetch('api/saved-programs.php', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ programId: programId })
@@ -633,79 +793,92 @@ document.addEventListener('click', function (e) {
         const data = await res.json();
         if (res.ok && data.success) {
           savedIds = data.saved ? savedIds.concat([programId]) : savedIds.filter(function(id) { return id !== programId; });
-          document.querySelectorAll('.fav-btn[data-id="' + programId + '"]').forEach(function(b) {
-            b.outerHTML = favBtnHtml({ id: programId, title: b.dataset.title });
-          });
+          // Re-render every copy of this course's heart (it can appear in more than one section).
+          const hearts = Array.prototype.slice.call(document.querySelectorAll('.fav-btn[data-id="' + programId + '"]'));
+          const focusIndex = hearts.indexOf(btn);
+          hearts.forEach(function(b) { b.outerHTML = favBtnHtml({ id: programId, title: b.dataset.title }); });
+          if (hadFocus && focusIndex !== -1) {
+            const fresh = document.querySelectorAll('.fav-btn[data-id="' + programId + '"]')[focusIndex];
+            if (fresh) fresh.focus();
+          }
+          if (data.saved) {
+            document.querySelectorAll('.fav-btn[data-id="' + programId + '"]').forEach(function(b) {
+              b.classList.add('just-saved');
+              setTimeout(function() { b.classList.remove('just-saved'); }, 200);
+            });
+          }
+          const plain = document.createElement('textarea');
+          plain.innerHTML = title;
+          showToast(data.saved ? 'Saved ' + plain.value + ' to Saved Careers' : 'Removed ' + plain.value + ' from Saved Careers');
           return;
         }
       } catch (err) { /* keep the button as it was */ }
       btn.disabled = false;
+      if (hadFocus) btn.focus();
+      showToast('Could not update Saved Careers. Please try again.');
     });
 
-    function programCardHtml(p, extraHtml, style, bodyHtml) {
+    function programCardHtml(p, opts) {
+      opts = opts || {};
       const inactive = p.isActive === false ? ' <span class="inline-flex items-center bg-gray-100 text-gray-500 text-[11px] font-semibold px-2 py-0.5 rounded-full align-middle">No longer available</span>' : '';
-      return '<div class="border rounded-lg p-[17px] flex flex-col gap-3" style="' + (style || 'background-color:#ffffff;border-color:#e0e3e5;') + '">' +
-        '<div class="flex items-start justify-between gap-4 flex-wrap">' +
-          '<div class="flex items-start gap-3">' +
-            '<span class="w-9 h-9 rounded-lg bg-[#eef1fb] text-[#0f2a6b] flex items-center justify-center shrink-0">' + collegeIconSvg(p.collegeCode, 'w-5 h-5') + '</span>' +
-            '<div><h3 class="text-base font-semibold text-[#191c1e]">' + p.title + inactive + '</h3><p class="text-xs text-[#5e3f3c]">' + p.collegeName + '</p></div>' +
-          '</div>' +
-          (extraHtml || '') +
+      return '<article class="pp-course' + (opts.cls ? ' ' + opts.cls : '') + '">' +
+        '<div class="pp-course-top">' +
+          '<span class="pp-icon" aria-hidden="true">' + collegeIconSvg(p.collegeCode, 'w-5 h-5') + '</span>' +
+          '<div class="min-w-0 flex-1"><h3 class="pp-course-title">' + p.title + inactive + '</h3><p class="text-xs text-[#5e3f3c]">' + p.collegeName + '</p></div>' +
+          (opts.fav ? favBtnHtml(p) : '') +
         '</div>' +
+        (opts.badge ? '<div>' + opts.badge + '</div>' : '') +
         cosineHtml(p) +
         careerChipsHtml(p) +
-        (p.description ? '<p class="text-xs text-[#191c1e] leading-relaxed max-w-[720px]">' + p.description + '</p>' : '') +
-        (bodyHtml || '') +
-      '</div>';
+        (opts.body || '') +
+        whyHtml(p) +
+      '</article>';
     }
 
     // 2. Preferred Course: the student's own selection, compared with (never changing) the CBF result.
     let prefHtml;
     if (preferred && preferred.inBestRiasecMatch) {
-      prefHtml = programCardHtml(preferred,
-        '<span class="' + BADGE + '" style="background-color:#ecfdf5;border-color:#a7f3d0;color:#047857;">Also your Best RIASEC Match</span>',
-        'background-color:#f0fdf4;border-color:#bbf7d0;',
-        typedCareer + '<p class="text-xs text-[#191c1e] leading-relaxed">Your preferred course is what you selected, and it is also one of the courses most similar to your RIASEC profile.</p>');
+      prefHtml = programCardHtml(preferred, {
+        cls: 'pp-course--match',
+        badge: '<span class="pp-badge pp-badge--match">' + ICON_CHECK + 'Also your Best RIASEC Match</span>',
+        body: typedCareer + '<p class="text-sm text-[#191c1e]">Your choice is also one of the courses most similar to your interests.</p>'
+      });
     } else if (preferred) {
-      prefHtml = programCardHtml(preferred,
-        '<span class="' + BADGE + '" style="background-color:#fffbeb;border-color:#fde68a;color:#92400e;">Differs from your Best RIASEC Match</span>',
-        'background-color:#fffbeb;border-color:#fde68a;',
-        typedCareer + '<p class="text-xs text-[#191c1e] leading-relaxed">Your preferred course is what you selected. Your Best RIASEC Match below is the course whose profile is most similar to your RIASEC profile, and here they are different. ' +
-        'That\'s completely okay: your interests are just one part of choosing a course. If you\'d like help deciding, we highly recommend talking with a Guidance Counselor.</p>' +
-        COUNSELOR_BTN);
+      prefHtml = programCardHtml(preferred, {
+        badge: '<span class="pp-badge pp-badge--differs">' + ICON_INFO + 'Differs from your Best RIASEC Match</span>',
+        body: typedCareer + '<p class="text-sm text-[#191c1e]">That\'s okay. Your interests are only one part of choosing a course. ' +
+          'Compare it with your Best RIASEC Match below, or talk it through with a Guidance Counselor.</p>' + COUNSELOR_BTN
+      });
     } else if (recommendation.statedCareer) {
       // The typed career could not be linked to an MMCL program: there is no preferred course to compare.
-      prefHtml = '<div class="border rounded-lg p-[17px] flex flex-col gap-3 text-xs text-[#191c1e]" style="background-color:#fffbeb;border-color:#fde68a;">' +
-        '<p>You wrote "' + escapeText(recommendation.statedCareer) + '" as the career you want to take. It didn\'t closely match any MMCL program we have listed, ' +
-        'so there is no preferred course to compare. Your Best RIASEC Match below is based on your RIASEC profile. A Guidance Counselor can help you find the program that leads to this career.</p>' +
-        COUNSELOR_BTN + '</div>';
+      prefHtml = '<div class="pp-course"><span class="pp-badge pp-badge--differs self-start">' + ICON_INFO + 'Not linked to an MMCL program</span>' +
+        '<p class="text-sm text-[#191c1e]">"' + escapeText(recommendation.statedCareer) + '" didn\'t closely match a program we have listed, so there is no preferred course to compare. ' +
+        'A Guidance Counselor can help you find a program for this career.</p>' + COUNSELOR_BTN + '</div>';
     } else {
-      prefHtml = '<div class="border rounded-lg p-[17px] text-xs text-[#191c1e]" style="background-color:#fffbeb;border-color:#fde68a;">' +
-        'You have not chosen a career yet. Complete your Career Worksheet to add one.</div>';
+      prefHtml = '<div class="pp-course"><p class="text-sm text-[#191c1e]">You haven\'t chosen a career yet.</p>' +
+        '<a href="career-worksheet" class="self-start bg-[#001c43] text-white text-sm font-medium rounded-md px-4 py-2 hover:opacity-90">Go to Career Worksheet</a></div>';
     }
     document.getElementById('cr-preferred').innerHTML = prefHtml;
 
     // 3. Best RIASEC Match (CBF). Tied courses are all shown; the tie is never broken.
     const best = recommendation.bestRiasecMatch || [];
     const prefBadge = function(p) {
-      return preferred && p.id === preferred.id
-        ? '<span class="' + BADGE + '" style="background-color:#fff7ed;border-color:#fed7aa;color:#c2410c;">Your Preferred Course</span>' : '';
+      return preferred && p.id === preferred.id ? '<span class="pp-badge pp-badge--mine">Your Preferred Course</span>' : '';
     };
     if (best.length > 1) {
       const tie = document.getElementById('cr-tieNote');
-      tie.textContent = 'These ' + best.length + ' courses are tied: they have the same RIASEC letters, so they have the same cosine similarity.';
+      tie.textContent = 'These ' + best.length + ' courses are tied with the same cosine similarity, because they have the same RIASEC letters. They are listed in no particular order.';
       tie.classList.remove('hidden');
     }
     document.getElementById('cr-bestRiasec').innerHTML = best.length
-      ? best.map(function(p) { return programCardHtml(p, rightSideHtml(p, prefBadge(p))); }).join('')
-      : '<div class="border rounded-lg p-[17px] text-xs text-[#191c1e]" style="background-color:#fff7ed;border-color:#fed7aa;">' +
-        'No course could be matched to your RIASEC profile. Please visit the Guidance Office for career counseling.</div>';
+      ? best.map(function(p) { return programCardHtml(p, { cls: 'pp-course--best', fav: true, badge: prefBadge(p) }); }).join('')
+      : '<div class="pp-course text-sm text-[#191c1e]">No course could be matched to your RIASEC profile. Please visit the Guidance Office for career counseling.</div>';
 
     // 4. Alternative Courses (CBF): the next-highest cosine similarity.
     const alts = recommendation.alternatives || [];
     document.getElementById('cr-alternatives').innerHTML = alts.length
-      ? alts.map(function(p) { return programCardHtml(p, rightSideHtml(p, prefBadge(p))); }).join('')
-      : '<p class="text-xs text-[#5e3f3c]">No alternative courses.</p>';
+      ? alts.map(function(p) { return programCardHtml(p, { fav: true, badge: prefBadge(p) }); }).join('')
+      : '<p class="text-sm text-[#5e3f3c]">No alternative courses.</p>';
   }
 })();
 </script>

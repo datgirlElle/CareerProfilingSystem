@@ -12,6 +12,26 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   body{ font-family:'Inter', sans-serif; }
+
+  /* Same centered content column as Career Results. */
+  .pp-main{ width:100%; max-width:1200px; margin:0 auto; padding:24px 16px 32px; }
+  @media (min-width:640px){ .pp-main{ padding:32px 24px 40px; } }
+  @media (min-width:1024px){ .pp-main{ padding:40px 36px 48px; } }
+  .pp-card{ background:#fff; border:1px solid #e0e3e5; border-radius:10px; padding:20px; }
+  .pp-h2{ font-size:20px; font-weight:600; color:#191c1e; line-height:1.3; }
+  .pp-label{ font-size:11px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:#5e3f3c; margin-bottom:4px; }
+  .pp-layout{ display:grid; grid-template-columns:minmax(0,1fr); gap:16px; }
+  @media (min-width:1024px){ .pp-layout{ grid-template-columns:minmax(0,5fr) minmax(0,7fr); gap:20px; } }
+  .pp-badge{ display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; border:1px solid; border-radius:9999px; padding:5px 12px; }
+  .pp-badge svg{ width:14px; height:14px; flex-shrink:0; }
+  .pp-badge--match{ background:#ecfdf5; border-color:#a7f3d0; color:#047857; }
+  .pp-badge--differs{ background:#eef1fb; border-color:#c7d2e8; color:#001c43; }
+  .pp-badge--none{ background:#f1f5f9; border-color:#e2e8f0; color:#475569; }
+  .pp-more summary{ cursor:pointer; font-size:13px; font-weight:600; color:#495e88; list-style:none; display:inline-flex; align-items:center; gap:6px; }
+  .pp-more summary::-webkit-details-marker{ display:none; }
+  .pp-more summary::before{ content:''; width:6px; height:6px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; transform:rotate(-45deg); transition:transform .15s; }
+  .pp-more[open] summary::before{ transform:rotate(45deg); }
+  #main-content a:focus-visible, #main-content summary:focus-visible{ outline:2px solid #495e88; outline-offset:2px; border-radius:6px; }
 </style>
 <link rel="stylesheet" href="css/motion.css">
 </head>
@@ -114,75 +134,77 @@
       </div>
     </header>
 
-    <main id="main-content" class="flex-1 px-9 py-10 max-w-[1152px]">
+    <main id="main-content" class="flex-1 pp-main">
 
-      <div class="flex items-start gap-5 mb-8">
-        <a href="assessment" class="w-10 h-10 rounded-xl border border-[#e8bcb7] flex items-center justify-center shrink-0 hover:bg-red-50">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#5e3f3c" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+      <div class="flex items-start gap-4 mb-6">
+        <a href="assessment" aria-label="Back to My Assessments" class="w-10 h-10 rounded-xl border border-[#e8bcb7] flex items-center justify-center shrink-0 hover:bg-red-50">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#5e3f3c" stroke-width="2" class="w-4 h-4" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </a>
         <div>
-          <h1 class="text-[32px] font-bold text-[#191c1e] tracking-tight">Worksheet Results</h1>
-          <p class="text-sm text-[#5e3f3c] mt-1">How the career you want to take and your chosen electives line up with your RIASEC profile.</p>
+          <h1 class="text-[28px] font-bold text-[#001a40] tracking-tight">Worksheet Results</h1>
+          <p class="text-sm text-[#5e3f3c] mt-1">How your chosen career fits your RIASEC profile.</p>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <div class="pp-layout">
 
         <!-- Your Worksheet -->
-        <div class="lg:col-span-5">
-          <div class="bg-white border border-[#e0e3e5] rounded-lg px-[17px] pt-[17px] pb-[39px]">
-            <h2 class="text-xl font-semibold text-[#191c1e] border-b border-[#e0e3e5] pb-2 mb-4">Your Worksheet</h2>
-            <p class="text-xs text-[#5e3f3c] mb-4">The career you chose to take on your worksheet.</p>
-
-            <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">Career I Want to Take</p>
-            <p class="text-base font-semibold text-[#191c1e] mb-4" id="careerGoalText">—</p>
-
-            <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">MMCL Program</p>
-            <p class="text-sm font-medium text-[#191c1e] mb-4" id="careerProgramText">—</p>
-
-            <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-2">Electives</p>
-            <div class="flex flex-wrap gap-2" id="keySkillsList"></div>
-          </div>
-        </div>
-
-        <!-- Alignment -->
-        <div class="lg:col-span-7">
-          <div class="bg-white border border-[#e0e3e5] rounded-lg p-[17px] flex flex-col gap-4">
-            <div class="flex items-start justify-between border-b border-[#e0e3e5] pb-2 gap-4 flex-wrap">
-              <div>
-                <h2 class="text-xl font-semibold text-[#191c1e]">Alignment with RIASEC Results</h2>
-                <p class="text-xs text-[#5e3f3c] mt-1">Which RIASEC dimensions of your chosen career match your assessed traits.</p>
-              </div>
-              <span id="alignBadge" class="inline-flex items-center gap-2 rounded px-4 py-2"></span>
-            </div>
-            <div class="flex gap-4 justify-center flex-wrap">
-              <div class="flex-1 min-w-[180px]">
-                <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">Your RIASEC Profile</p>
-                <div class="flex gap-3 items-center">
-                  <p class="text-xl font-bold text-[#bb0013]" id="profileCode">—</p>
-                  <p class="text-xs text-[#5e3f3c] border-l border-[#e0e3e5] pl-3" id="profileLabels">—</p>
-                </div>
-              </div>
-              <div class="flex-1 min-w-[180px]">
-                <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">Top Interest Area</p>
-                <p class="text-sm font-medium text-[#191c1e]" id="topInterestArea">—</p>
-              </div>
+        <section class="pp-card" aria-labelledby="wsHeading">
+          <h2 id="wsHeading" class="pp-h2 border-b border-[#e0e3e5] pb-2 mb-4">Your Worksheet</h2>
+          <dl class="flex flex-col gap-4">
+            <div>
+              <dt class="pp-label">Career I Want to Take</dt>
+              <dd class="text-base font-semibold text-[#191c1e]" id="careerGoalText">—</dd>
             </div>
             <div>
-              <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-1">Dimension Match</p>
-              <p class="text-xs text-[#5e3f3c] mb-3" id="dimensionSummary">—</p>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="dimensionMatch"></div>
+              <dt class="pp-label">MMCL Program</dt>
+              <dd class="text-sm font-medium text-[#191c1e]" id="careerProgramText">—</dd>
             </div>
-            <div class="bg-[#f2f4f6] border border-[#e0e3e5] rounded p-3">
-              <p class="text-xs font-semibold tracking-[0.6px] text-[#5e3f3c] uppercase mb-2">Analysis</p>
-              <p class="text-xs text-[#191c1e] leading-relaxed" id="analysisText">—</p>
+            <div>
+              <dt class="pp-label mb-2">Electives</dt>
+              <dd class="flex flex-wrap gap-2" id="keySkillsList"></dd>
+            </div>
+          </dl>
+        </section>
+
+        <!-- Alignment -->
+        <section class="pp-card flex flex-col gap-5" aria-labelledby="alignHeading">
+          <div class="flex items-start justify-between gap-3 flex-wrap border-b border-[#e0e3e5] pb-3">
+            <h2 id="alignHeading" class="pp-h2">RIASEC Alignment</h2>
+            <span id="alignBadge" class="pp-badge pp-badge--none"></span>
+          </div>
+
+          <p class="text-sm text-[#191c1e] leading-relaxed" id="alignSummary">—</p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <p class="pp-label">Your RIASEC Code</p>
+              <p class="flex items-baseline gap-3 flex-wrap">
+                <span class="text-xl font-bold text-[#bb0013] tracking-[2px]" id="profileCode">—</span>
+                <span class="text-xs text-[#5e3f3c]" id="profileLabels">—</span>
+              </p>
+            </div>
+            <div>
+              <p class="pp-label">Top Interest Area</p>
+              <p class="text-sm font-medium text-[#191c1e]" id="topInterestArea">—</p>
             </div>
           </div>
-        </div>
+
+          <div>
+            <p class="pp-label">Letter-by-Letter Match</p>
+            <p class="text-xs text-[#5e3f3c] mb-3" id="dimensionSummary">—</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="dimensionMatch"></div>
+          </div>
+
+          <details class="pp-more border-t border-[#e0e3e5] pt-4">
+            <summary>Read the full explanation</summary>
+            <p class="text-sm text-[#191c1e] leading-relaxed mt-3" id="analysisText">—</p>
+          </details>
+        </section>
       </div>
 
-      <div class="flex justify-end mt-8">
-        <a href="results" class="bg-[#ed1c24] text-white text-sm font-semibold rounded-md px-8 py-3.5 hover:opacity-90">View Career Results</a>
+      <div class="flex justify-end mt-6">
+        <a href="results" class="w-full sm:w-auto text-center bg-[#ed1c24] text-white text-sm font-semibold rounded-md px-8 py-3.5 hover:opacity-90">View Career Results &rarr;</a>
       </div>
 
     </main>
@@ -314,7 +336,7 @@
     return '<span class="bg-[#f2f4f6] border border-[#e0e3e5] rounded-full px-3.5 py-1.5 text-xs text-[#191c1e]">' + esc(skill) + '</span>';
   }).join('') || '<span class="text-xs text-[#5e3f3c]">No electives selected.</span>';
 
-  document.getElementById('profileCode').textContent = topLetters.join(' - ');
+  document.getElementById('profileCode').textContent = topLetters.join(' ');
   document.getElementById('profileLabels').textContent = topTypes.map(function(t) { return t === 'Investigate' ? 'Investigative' : t; }).join(', ');
   document.getElementById('topInterestArea').textContent = INTEREST_AREA[topLetters[0]] || '—';
 
@@ -322,18 +344,27 @@
   // The preference never changes the CBF result (lib/RecommendationPipeline.php).
   const isAligned = !!(statedProgram && statedProgram.inBestRiasecMatch);
 
+  const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
+  const ICON_INFO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 11v5M12 8h.01"/></svg>';
   const badge = document.getElementById('alignBadge');
   if (!statedProgram) {
     // The typed career couldn't be linked to a program, so there is nothing to compare.
-    badge.className = 'inline-flex items-center gap-2 bg-slate-100 border border-slate-200 rounded px-4 py-2';
-    badge.innerHTML = '<span class="text-xs font-bold text-slate-600 uppercase tracking-wide">Not Linked</span>';
+    badge.className = 'pp-badge pp-badge--none';
+    badge.innerHTML = ICON_INFO + 'Not Linked to a Program';
   } else if (isAligned) {
-    badge.className = 'inline-flex items-center gap-2 bg-[#ecfdf5] border border-[#a7f3d0] rounded px-4 py-2';
-    badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg><span class="text-xs font-bold text-[#047857] uppercase tracking-wide">Matches Your RIASEC Profile</span>';
+    badge.className = 'pp-badge pp-badge--match';
+    badge.innerHTML = ICON_CHECK + 'Matches Your RIASEC Profile';
   } else {
-    badge.className = 'inline-flex items-center gap-2 bg-orange-50 border border-orange-200 rounded px-4 py-2';
-    badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.007M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span class="text-xs font-bold text-orange-700 uppercase tracking-wide">Differs from Best RIASEC Match</span>';
+    badge.className = 'pp-badge pp-badge--differs';
+    badge.innerHTML = ICON_INFO + 'Differs from Best RIASEC Match';
   }
+
+  // One short, student-friendly line; the longer explanation sits in "Read the full explanation".
+  document.getElementById('alignSummary').textContent = !statedProgram
+    ? 'We couldn\'t link "' + (statedCareer || 'your career') + '" to an MMCL program yet. Your Career Results still show the courses closest to your interests.'
+    : isAligned
+    ? statedProgram.title + ' is one of the courses most similar to your RIASEC profile.'
+    : statedProgram.title + ' is not one of your Best RIASEC Matches. That\'s okay. Your Career Results show the courses closest to your interests.';
 
   // Letter-by-letter match: each RIASEC dimension in the chosen career's
   // program code, checked against the student's own top three.
@@ -342,9 +373,9 @@
   const matchedLetters = programLetters.filter(function(l) { return topLetters.indexOf(l) !== -1; });
 
   document.getElementById('dimensionSummary').textContent = !statedProgram
-    ? 'We could not link "' + (statedCareer || 'your career') + '" to a specific MMCL program, so there is no dimension-by-dimension comparison for it.'
+    ? 'There is no program to compare letter by letter.'
     : programLetters.length
-    ? matchedLetters.length + ' of ' + programLetters.length + ' dimensions of ' + statedProgram.title + ' (' + statedProgram.hollandCode.split('').join(' - ') + ') are among your top three.'
+    ? matchedLetters.length + ' of ' + programLetters.length + ' letters in ' + statedProgram.title + '\'s code (' + statedProgram.hollandCode.split('').join(' ') + ') are in your top 3.'
     : '—';
   document.getElementById('dimensionMatch').innerHTML = programLetters.map(function(letter, i) {
     const rank = topLetters.indexOf(letter);
@@ -358,7 +389,7 @@
         '<p class="text-lg font-bold ' + (matched ? 'text-[#047857]' : 'text-[#5e3f3c]') + '">' + letter + '</p>' + mark +
       '</div>' +
       '<p class="text-xs font-semibold text-[#191c1e] mt-1">' + LETTER_TO_LABEL[letter] + '</p>' +
-      '<p class="text-[11px] text-[#5e3f3c] mt-0.5">' + (matched ? 'Matches your #' + (rank + 1) + ' dimension' : 'Not in your top 3') + '</p>' +
+      '<p class="text-[11px] text-[#5e3f3c] mt-0.5">' + (matched ? 'Your #' + (rank + 1) + ' interest area' : 'Not in your top 3') + '</p>' +
     '</div>';
   }).join('');
 
