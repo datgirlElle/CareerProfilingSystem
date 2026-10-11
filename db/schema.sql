@@ -360,6 +360,18 @@ CREATE TABLE counseling_notes (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- A counselor's invitation to book a counseling session (Student Accounts, Invite). The student gets the CGC booking link by
+-- email and as a notification (api/notifications.php shows these); the link is kept here as it was when the invite was sent.
+CREATE TABLE counseling_invites (
+    id          SERIAL PRIMARY KEY,
+    student_id  INT NOT NULL REFERENCES students(user_id) ON DELETE CASCADE,
+    invited_by  INT REFERENCES users(id) ON DELETE SET NULL,
+    booking_url VARCHAR(300) NOT NULL,
+    email_sent  BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_counseling_invites_student ON counseling_invites (student_id, id);
+
 -- Notifications are computed live; this remembers the ones a student deleted
 -- (item_key comes from api/notifications.php, e.g. 'ann:12').
 CREATE TABLE notification_dismissals (

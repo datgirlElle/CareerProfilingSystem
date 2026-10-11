@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../lib/Rbac.php';
 
 $pdo = Database::get();
 
@@ -15,6 +16,8 @@ $rbac = [
     'counselingNotes' => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     // limited = add sections; full = add and deactivate/reactivate them.
     'sections'        => ['admin' => 'full', 'counselor' => 'limited', 'student' => 'none'],
+    // Approve staff sign-ups and send access codes: the administrator and the Guidance Counselors (never Facilitators).
+    'staffAccounts'   => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
 ];
 
 $rbacStmt = $pdo->prepare(
@@ -23,6 +26,9 @@ $rbacStmt = $pdo->prepare(
 );
 $rbacCount = 0;
 foreach ($rbac as $module => $roles) {
+    // A Guidance Facilitator starts where the Guidance Counselor is, except Sections (View Only), Counseling Notes and
+    // Staff Accounts (No Access); the administrator can change any of it in Edit Roles.
+    $roles['facilitator'] = Rbac::facilitatorDefault($module, $roles['counselor']);
     foreach ($roles as $role => $level) {
         $rbacStmt->execute([$module, $role, $level]);
         $rbacCount++;

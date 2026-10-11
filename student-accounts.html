@@ -299,6 +299,13 @@
       : '<span class="inline-flex items-center gap-1.5 bg-gray-100 border border-gray-200 text-gray-500 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">Deactivated</span>';
   }
 
+  // Counseling is the Guidance Counselors' (and the Head of Guidance's): the Invite button only shows for them.
+  let canInvite = currentUser.role === 'admin';
+  try {
+    const cfg = await (await fetch('api/security-config.php')).json();
+    canInvite = ((cfg.rbac && cfg.rbac.counselingNotes && cfg.rbac.counselingNotes[currentUser.rbacRole || currentUser.role]) || 'none') === 'full';
+  } catch (e) {}
+
   function renderRow(a) {
     return '<tr>' +
       '<td class="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">' + escapeHtml(a.name) + '</td>' +
@@ -307,6 +314,7 @@
       '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + formatDate(a.createdAt) + '</td>' +
       '<td class="px-6 py-4 whitespace-nowrap">' + statusBadge(a.isActive) + '</td>' +
       '<td class="px-6 py-4 text-center whitespace-nowrap">' +
+        (canInvite && a.isActive ? '<button type="button" class="invite-btn text-xs font-semibold rounded-md px-3 py-1.5 border text-[#0f2a6b] border-[#0f2a6b] hover:bg-slate-50 mr-2" data-id="' + a.userId + '" data-name="' + escapeHtml(a.name) + '">Invite</button>' : '') +
         '<button type="button" class="toggle-active-btn text-xs font-semibold rounded-md px-3 py-1.5 border ' +
           (a.isActive ? 'text-[#ed1c24] border-[#ed1c24] hover:bg-red-50' : 'text-emerald-600 border-emerald-300 hover:bg-emerald-50') + '" ' +
           'data-id="' + a.userId + '" data-active="' + (a.isActive ? '1' : '0') + '" data-name="' + escapeHtml(a.name) + '">' +
@@ -325,6 +333,20 @@
     tbody.innerHTML = accounts.length ? accounts.map(renderRow).join('') : '';
     document.getElementById('summaryText').textContent =
       accounts.length + ' account' + (accounts.length === 1 ? '' : 's') + (searchInput.value.trim() ? ' matching your search' : ' total');
+    tbody.querySelectorAll('.invite-btn').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        if (!(await showConfirm('Invite "' + btn.dataset.name + '" to a counseling session? They will be sent the CGC booking link by email and in their notifications.'))) return;
+        btn.disabled = true;
+        const res = await fetch('api/counseling-invite.php', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentId: Number(btn.dataset.id) })
+        });
+        const result = await res.json();
+        btn.disabled = false;
+        if (!result.success) { showToast(result.error || 'Could not send the invitation.', true); return; }
+        showToast(result.emailSent ? 'Invitation sent by email and notification.' : 'Notification sent. The email could not be sent' + (result.hasEmail ? '.' : ' because this student has no verified email.'), !result.emailSent);
+      });
+    });
     tbody.querySelectorAll('.toggle-active-btn').forEach(function(btn) {
       btn.addEventListener('click', async function() {
         const willDeactivate = btn.dataset.active === '1';

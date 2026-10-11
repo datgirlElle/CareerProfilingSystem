@@ -196,6 +196,28 @@ if ($isStaff) {
         ];
     }
 
+    // A counselor invited this student to book a counseling session: the link goes straight to the CGC booking page.
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT id, booking_url, created_at FROM counseling_invites
+             WHERE student_id = ? AND created_at > NOW() - INTERVAL '$days days'
+             ORDER BY created_at DESC LIMIT $each"
+        );
+        $stmt->execute([$user['id']]);
+        foreach ($stmt->fetchAll() as $row) {
+            $items[] = [
+                'key' => 'invite:' . $row['id'],
+                'type' => 'counseling_invite',
+                'title' => 'Counseling invitation',
+                'text' => 'The Guidance Office invited you to book a counseling session.',
+                'link' => $row['booking_url'],
+                'ts' => $row['created_at'],
+            ];
+        }
+    } catch (Throwable $e) {
+        // table not created yet (migration not run): no invitations shown rather than the feed failing
+    }
+
     // Anything the student deleted stays gone. If the table isn't there yet
     // (migration not run), nothing is hidden rather than the feed failing.
     try {

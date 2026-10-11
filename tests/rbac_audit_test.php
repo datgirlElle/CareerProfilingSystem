@@ -33,6 +33,7 @@ $expected = [
     'examinations'    => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'counselingNotes' => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'sections'        => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
+    'staffAccounts'   => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
 ];
 
 foreach ($expected as $module => $roles) {
@@ -51,12 +52,33 @@ $pdoCap->rollBack();
 check('the real student row is No Access', Rbac::accessLevel('announcements', 'student') === 'none');
 check('a student is still not cut off from other modules (Recommendations stays Full)', Rbac::accessLevel('recommendations', 'student') === 'full');
 
-echo "\n=== Guidance Facilitator: view-only only for sections and rosters ===\n";
-check('the facilitator view-only list is just sections (class rosters follow it)', Rbac::FACILITATOR_VIEW_ONLY === ['sections']);
-check('counseling notes are closed to facilitators entirely', Rbac::FACILITATOR_NO_ACCESS === ['counselingNotes']);
-check('a facilitator can post announcements and manage assessment schedules', !in_array('announcements', Rbac::FACILITATOR_VIEW_ONLY, true) && !in_array('examinations', Rbac::FACILITATOR_VIEW_ONLY, true));
-check('guidance counselors and facilitators can both edit and remove Question Bank questions (rac is not view-only for facilitators)', !in_array('rac', Rbac::FACILITATOR_VIEW_ONLY, true));
-check('a student is never a facilitator', Rbac::isFacilitator(['id' => 0, 'role' => 'student']) === false);
+echo "\n=== Guidance Facilitators have a column of their own ===\n";
+$facilitator = [
+    'career' => 'limited', 'rac' => 'full', 'recommendations' => 'full', 'counselor' => 'full', 'monitoring' => 'full',
+    'announcements' => 'full', 'examinations' => 'full', 'counselingNotes' => 'none', 'sections' => 'limited', 'staffAccounts' => 'none',
+];
+foreach ($facilitator as $module => $level) {
+    check("$module/facilitator == $level", Rbac::accessLevel($module, 'facilitator') === $level);
+}
+check('the matrix has four columns', Rbac::ROLES === ['admin', 'counselor', 'facilitator', 'student']);
+check('facilitator defaults follow the counselor, capped on sections, notes and staff accounts',
+    Rbac::facilitatorDefault('sections', 'full') === 'limited' && Rbac::facilitatorDefault('sections', 'none') === 'none'
+    && Rbac::facilitatorDefault('counselingNotes', 'full') === 'none' && Rbac::facilitatorDefault('staffAccounts', 'limited') === 'none'
+    && Rbac::facilitatorDefault('announcements', 'full') === 'full' && Rbac::facilitatorDefault('career', 'limited') === 'limited');
+$pdoFac = Database::get();
+$pdoFac->beginTransaction();
+$pdoFac->exec("DELETE FROM security_rbac WHERE role = 'facilitator'");
+check('with no facilitator rows (an older database) the level is derived from the counselor: sections View Only', Rbac::accessLevel('sections', 'facilitator') === 'limited');
+check('...and counseling notes No Access', Rbac::accessLevel('counselingNotes', 'facilitator') === 'none');
+check('...and announcements as the counselor has them', Rbac::accessLevel('announcements', 'facilitator') === Rbac::accessLevel('announcements', 'counselor'));
+$pdoFac->rollBack();
+check('the Facilitator column can be changed independently of the counselor', (function () use ($pdoFac) {
+    $pdoFac->beginTransaction();
+    $pdoFac->exec("UPDATE security_rbac SET access_level = 'full' WHERE module = 'sections' AND role = 'facilitator'");
+    $ok = Rbac::accessLevel('sections', 'facilitator') === 'full' && Rbac::accessLevel('sections', 'counselor') === Rbac::accessLevel('sections', 'counselor');
+    $pdoFac->rollBack();
+    return $ok;
+})());check('a student is never a facilitator', Rbac::isFacilitator(['id' => 0, 'role' => 'student']) === false);
 check('the administrator is never a facilitator', Rbac::isFacilitator(['id' => 1, 'role' => 'admin']) === false);
 
 check(

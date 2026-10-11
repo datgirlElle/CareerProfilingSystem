@@ -26,6 +26,8 @@ check('the wrong-strand message names the letter to use', strpos((string) Sectio
 check('too few, too many or no digits are rejected', Sections::formatError('STEM', 'S114') !== null && Sections::formatError('STEM', 'S11145') !== null && Sections::formatError('STEM', 'S') !== null);
 check('grade must be 11 or 12', Sections::formatError('STEM', 'S1014') !== null && Sections::formatError('STEM', 'S1314') !== null);
 check('lower case and spaces are tidied before checking', Sections::normalizeCode(' s 1114 ') === 'S1114' && Sections::formatError('STEM', Sections::normalizeCode('s1114')) === null);
+check('section number 00 is rejected, 01 and 99 pass', Sections::formatError('STEM', 'S1100') !== null && Sections::formatError('STEM', 'S1201') === null && Sections::formatError('STEM', 'S1199') === null);
+check('usage text names what still uses a section', Sections::describeUsage(['students' => 2, 'roster' => 1, 'schedules' => 0]) === '2 registered students, 1 class roster entry' && Sections::describeUsage(['students' => 0, 'roster' => 0, 'schedules' => 0]) === '');
 check('an unknown strand is invalid', Sections::formatError('PE', 'P1101') === 'Invalid strand.');
 
 echo "\n=== grade level from the section ===\n";

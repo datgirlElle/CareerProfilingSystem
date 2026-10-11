@@ -376,7 +376,7 @@
   let canWrite = false;
   try {
     const cfg = await (await fetch('api/security-config.php')).json();
-    canWrite = !!(cfg.rbac && cfg.rbac.announcements && cfg.rbac.announcements[currentUser.role] === 'full');
+    canWrite = !!(cfg.rbac && cfg.rbac.announcements && cfg.rbac.announcements[currentUser.rbacRole || currentUser.role] === 'full');
   } catch (err) { /* read-only if this check fails */ }
   if (!canWrite) {
     document.getElementById('createCard').classList.add('hidden');

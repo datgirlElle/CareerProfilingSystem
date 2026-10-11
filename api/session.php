@@ -27,6 +27,11 @@ if ($user !== null && $user['role'] === 'counselor') {
     $user['positionLabel'] = StaffPosition::label($stmt->fetchColumn() ?: null);
 }
 
+// Which column of the access matrix applies to this person (Guidance Counselors and Facilitators have one each).
+if ($user !== null) {
+    $user['rbacRole'] = Rbac::roleKey($user);
+}
+
 // Staff are shown by their own name (they sign in with email, so the login name is internal).
 if ($user !== null && $user['role'] !== 'student') {
     $stmt = Database::get()->prepare('SELECT full_name, username FROM users WHERE id = ?');

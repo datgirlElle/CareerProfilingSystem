@@ -19,7 +19,7 @@ class Sections
     /** The letter every section code of a strand starts with: S1114 is STEM, A1101 is ABM. */
     public const STRAND_LETTER = ['STEM' => 'S', 'ABM' => 'A', 'ICT' => 'I', 'HUMSS' => 'H'];
 
-    public const FORMAT_MESSAGE = 'A section code is one letter and four digits, for example S1114. The letter must match the strand (S for STEM, A for ABM, I for ICT, H for HUMSS) and the first two digits are the grade level (11 or 12).';
+    public const FORMAT_MESSAGE = 'A section code is one letter and four digits, for example S1114. The letter must match the strand (S for STEM, A for ABM, I for ICT, H for HUMSS), the first two digits are the grade level (11 or 12) and the last two are the section number (01 to 99).';
 
     /** Upper case and no spaces: " s1114 " -> "S1114". */
     public static function normalizeCode(string $code): string
@@ -39,6 +39,9 @@ class Sections
         }
         if ($m[1] !== $letter) {
             return "Section $code does not belong to $strand: $strand sections start with $letter. " . self::FORMAT_MESSAGE;
+        }
+        if ($m[3] === '00') {
+            return "\"$code\" has section number 00. The last two digits are the section number, from 01 to 99. " . self::FORMAT_MESSAGE;
         }
         return null;
     }
@@ -63,6 +66,47 @@ class Sections
             $result[$row['strand']][] = $row['code'];
         }
         return $result;
+    }
+
+    /**
+     * What still refers to a section (by strand and code): registered students, class roster entries and assessment
+     * schedules. $upcomingOnly counts only schedules that have not happened yet (what matters when deactivating).
+     *
+     * @return array<string,int> e.g. ['students' => 2, 'roster' => 1, 'schedules' => 0]
+     */
+    public static function usage(PDO $pdo, string $strand, string $code, bool $upcomingOnly = false): array
+    {
+        $queries = [
+            'students' => 'SELECT COUNT(*) FROM students WHERE strand = ? AND LOWER(section) = LOWER(?)',
+            'roster' => 'SELECT COUNT(*) FROM assessment_roster WHERE strand = ? AND LOWER(section) = LOWER(?)',
+            'schedules' => 'SELECT COUNT(*) FROM exam_schedules WHERE strand = ? AND LOWER(section) = LOWER(?)'
+                . ($upcomingOnly ? ' AND exam_date >= CURRENT_DATE' : ''),
+        ];
+        $result = [];
+        foreach ($queries as $key => $sql) {
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$strand, $code]);
+            $result[$key] = (int) $stmt->fetchColumn();
+        }
+        return $result;
+    }
+
+    /** "2 registered students, 1 class roster entry", or '' when nothing uses the section. */
+    public static function describeUsage(array $usage, bool $upcomingOnly = false): string
+    {
+        $labels = [
+            'students' => ['registered student', 'registered students'],
+            'roster' => ['class roster entry', 'class roster entries'],
+            'schedules' => $upcomingOnly ? ['upcoming assessment schedule', 'upcoming assessment schedules'] : ['assessment schedule', 'assessment schedules'],
+        ];
+        $parts = [];
+        foreach ($labels as $key => [$one, $many]) {
+            $n = $usage[$key] ?? 0;
+            if ($n > 0) {
+                $parts[] = $n . ' ' . ($n === 1 ? $one : $many);
+            }
+        }
+        return implode(', ', $parts);
     }
 
     public static function isValid(PDO $pdo, string $strand, string $code, bool $activeOnly = true): bool

@@ -13,28 +13,30 @@ $pdo = Database::get();
 // match — meaning loadRbac() silently omitted that row and any RBAC change
 // posted for it was silently dropped by the in_array() guard below. Fixed
 // here alongside adding 'examinations' the same way.
-const RBAC_MODULES = ['career', 'rac', 'recommendations', 'counselor', 'monitoring', 'announcements', 'examinations', 'counselingNotes', 'sections'];
-const RBAC_ROLES = ['admin', 'counselor', 'student'];
+const RBAC_MODULES = ['career', 'rac', 'recommendations', 'counselor', 'monitoring', 'announcements', 'examinations', 'counselingNotes', 'sections', 'staffAccounts'];
+const RBAC_ROLES = ['admin', 'counselor', 'facilitator', 'student'];
 const RBAC_LEVELS = ['full', 'limited', 'none'];
 
-function loadRbac(PDO $pdo, bool $viewerIsFacilitator = false): array
+function loadRbac(PDO $pdo): array
 {
     $rows = $pdo->query('SELECT module, role, access_level FROM security_rbac')->fetchAll();
     $rbac = [];
+    $seenFacilitator = [];
     foreach (RBAC_MODULES as $m) {
-        $rbac[$m] = ['admin' => 'none', 'counselor' => 'none', 'student' => 'none'];
+        $rbac[$m] = array_fill_keys(RBAC_ROLES, 'none');
     }
     foreach ($rows as $r) {
-        if (isset($rbac[$r['module']])) {
-            $level = $r['access_level'];
-            // A Guidance Facilitator is view-only for these (lib/Rbac.php): show them that, so the pages hide the write controls.
-            if ($viewerIsFacilitator && $r['role'] === 'counselor' && $level === 'full' && in_array($r['module'], Rbac::FACILITATOR_VIEW_ONLY, true)) {
-                $level = 'limited';
+        if (isset($rbac[$r['module']]) && in_array($r['role'], RBAC_ROLES, true)) {
+            $rbac[$r['module']][$r['role']] = $r['access_level'];
+            if ($r['role'] === 'facilitator') {
+                $seenFacilitator[$r['module']] = true;
             }
-            if ($viewerIsFacilitator && $r['role'] === 'counselor' && in_array($r['module'], Rbac::FACILITATOR_NO_ACCESS, true)) {
-                $level = 'none';
-            }
-            $rbac[$r['module']][$r['role']] = $level;
+        }
+    }
+    // A database from before the Facilitator column: show what Rbac::accessLevel() will actually apply.
+    foreach (RBAC_MODULES as $m) {
+        if (!isset($seenFacilitator[$m])) {
+            $rbac[$m]['facilitator'] = Rbac::facilitatorDefault($m, $rbac[$m]['counselor']);
         }
     }
     return $rbac;
@@ -106,9 +108,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $pendingFlags = (int) $pdo->query("SELECT COUNT(*) FROM monitoring_flags WHERE status = 'pending'")->fetchColumn();
 
     jsonResponse([
-        'rbac' => loadRbac($pdo, Rbac::isFacilitator($user)),
+        'rbac' => loadRbac($pdo),
         // Uploading class rosters: administrator or Guidance Counselor with Full access to the roster module.
-        'canEditRoster' => Rbac::accessLevel('rac', $user['role']) === 'full' && !Rbac::isFacilitator($user),
+        'canEditRoster' => Rbac::accessLevel('rac', Rbac::roleKey($user)) === 'full'
+            && (Rbac::roleKey($user) !== 'facilitator' || Rbac::accessLevel('sections', 'facilitator') === 'full'),
         'lastUpdated' => $lastUpdated,
         'overview' => [
             'lockouts7d' => $lockouts7d,
@@ -135,7 +138,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $skippedAdmin = false;
         $stmt = $pdo->prepare(
-            'UPDATE security_rbac SET access_level = ?, updated_at = NOW(), updated_by = ? WHERE module = ? AND role = ?'
+            'INSERT INTO security_rbac (module, role, access_level, updated_by) VALUES (?, ?, ?, ?)
+             ON CONFLICT (module, role) DO UPDATE SET access_level = EXCLUDED.access_level, updated_at = NOW(), updated_by = EXCLUDED.updated_by'
         );
         foreach ($changes as $c) {
             $module = $c['module'] ?? '';
@@ -152,7 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $skippedAdmin = $skippedAdmin || $role === 'admin';
                 continue;
             }
-            $stmt->execute([$level, $user['id'], $module, $role]);
+            $stmt->execute([$module, $role, $level, $user['id']]);
         }
 
         AuditLogger::log($user['id'], $user['role'], 'update_rbac', 'security_rbac', null, json_encode($changes));
