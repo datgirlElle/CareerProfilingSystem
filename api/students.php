@@ -124,6 +124,10 @@ if ($idLookup > 0) {
         }
     }
 
+    $openStmt = $pdo->prepare("SELECT 1 FROM help_requests WHERE student_id = ? AND status = 'open' LIMIT 1");
+    $openStmt->execute([(int) $row['user_id']]);
+    $openRequest = (bool) $openStmt->fetchColumn();
+
     // Full attempt history (not just is_latest), for the "Assessment
     // Attempts" section. Attempts made before retakes were removed still show.
     $attemptsStmt = $pdo->prepare(
@@ -169,6 +173,7 @@ if ($idLookup > 0) {
             'S' => (int) $row['score_s'], 'E' => (int) $row['score_e'], 'C' => (int) $row['score_c'],
         ] : null,
         'counseling' => $hasAssessment ? ($counseled ? 'Availed' : 'Did Not Avail') : '',
+        'openRequest' => $openRequest,
         'registeredAt' => $row['registered_at'],
         'attempts' => $attempts,
     ]]);

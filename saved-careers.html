@@ -219,7 +219,7 @@
           (p.description ? '<p class="text-sm text-[#191c1e] leading-relaxed">' + escapeHtml(p.description) + '</p>' : '') +
           '<div class="flex items-center justify-between gap-3 pt-1">' +
             '<p class="text-xs text-gray-500">' + (saved ? 'Saved on ' + escapeHtml(saved) : '') + '</p>' +
-            '<button type="button" class="remove-btn text-xs font-semibold text-[#ed1c24] border border-[#ed1c24] rounded px-3 py-1.5 hover:bg-red-50" data-id="' + p.id + '" data-title="' + escapeHtml(p.title) + '">Remove</button>' +
+            '<button type="button" class="btn-danger remove-btn text-xs font-semibold text-[#ed1c24] border border-[#ed1c24] rounded px-3 py-1.5 hover:bg-red-50" data-id="' + p.id + '" data-title="' + escapeHtml(p.title) + '">Remove</button>' +
           '</div>' +
         '</div>';
       }).join('');

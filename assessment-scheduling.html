@@ -193,7 +193,6 @@
                 <div id="fEndTimeBox"></div>
                 <input type="hidden" id="fEndTime">
               </div>
-              <p class="text-xs text-slate-500 -mt-1">Times are written like 8:00 AM, 12:00 NN (noon) or 1:30 PM.</p>
             </div>
             <p id="createDateError" class="hidden text-xs text-[#ed1c24]"></p>
             <div>
@@ -436,7 +435,7 @@
               <p class="text-xs text-slate-500 mt-0.5">${escapeHtml(scopeLabel(s))}</p>
               ${s.notes ? '<p class="text-xs text-slate-400 mt-1">' + escapeHtml(s.notes) + '</p>' : ''}
             </div>
-            ${canWrite && !s.isArchived ? `<button type="button" class="delete-schedule-btn text-xs font-medium text-[#ed1c24] hover:underline shrink-0" data-id="${s.id}">Delete</button>` : ''}
+            ${canWrite && !s.isArchived ? `<button type="button" class="btn-danger delete-schedule-btn text-xs font-medium text-[#ed1c24] hover:underline shrink-0" data-id="${s.id}">Delete</button>` : ''}
           </div>
           <div class="w-full h-1.5 rounded-full bg-slate-100">
             <div class="h-1.5 rounded-full bg-[#19427b]" style="width:${pct}%"></div>

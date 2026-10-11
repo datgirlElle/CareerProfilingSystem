@@ -582,7 +582,7 @@
         const pill = '<button type="button" class="section-pill border rounded-full px-3 py-1.5 text-xs font-medium ' + styleCls + disabledCls + '" data-id="' + s.id + '"' + disabledAttr + ' title="' + (canToggle ? (s.isActive ? 'Click to deactivate' : 'Click to reactivate') : (s.isActive ? 'Active' : 'Inactive')) + '">' + escapeHtml(s.code) + '</button>';
         if (!canToggle) return pill;
         return '<span style="display:inline-flex;align-items:center;gap:2px">' + pill +
-          '<button type="button" class="delete-section-btn" data-id="' + s.id + '" data-code="' + escapeHtml(s.code) + '" title="Delete section" aria-label="Delete section ' + escapeHtml(s.code) + '" style="width:20px;height:20px;border-radius:9999px;line-height:1;font-size:14px;color:#ed1c24;display:inline-flex;align-items:center;justify-content:center">&times;</button></span>';
+          '<button type="button" class="btn-danger delete-section-btn" data-id="' + s.id + '" data-code="' + escapeHtml(s.code) + '" title="Delete section" aria-label="Delete section ' + escapeHtml(s.code) + '" style="width:20px;height:20px;border-radius:9999px;line-height:1;font-size:14px;color:#ed1c24;display:inline-flex;align-items:center;justify-content:center">&times;</button></span>';
       }).join('') : '<p class="text-xs text-gray-400">No sections yet.</p>';
       return '<div class="border border-gray-200 rounded-lg p-[17px] flex flex-col gap-3">' +
         '<p class="text-sm font-semibold text-gray-800">' + strand + '</p>' +
