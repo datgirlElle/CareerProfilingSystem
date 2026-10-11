@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="js/csrf.js"></script>
-<title>My Profile — Career Profiling System</title>
+<title>Profile Settings — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/admin/logo-profilepath-shield.png">
 <link rel="stylesheet" href="css/tailwind.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -93,8 +93,7 @@
             <img src="images/admin/icon-chevron-down.svg" alt="" class="w-3.5 h-2">
           </button>
           <div id="profilePanel" class="hidden absolute right-0 top-[calc(100%+12px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
-            <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">My Profile</a>
-            <a href="security-configuration" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-t border-gray-100">Account Settings</a>
+            <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">Profile Settings</a>
           </div>
         </div>
       </div>
@@ -106,7 +105,7 @@
       <div class="max-w-2xl mx-auto">
         <div class="mb-6">
           <a href="admin-dashboard" class="text-sm text-gray-500 hover:text-[#ed1c24]">&larr; Back to Dashboard</a>
-          <h1 class="text-2xl font-bold text-gray-900 mt-2">My Profile</h1>
+          <h1 class="text-2xl font-bold text-gray-900 mt-2">Profile Settings</h1>
           <p class="text-sm text-gray-500 mt-1">View your account information and manage your photo and password.</p>
         </div>
 
@@ -150,7 +149,7 @@
           </div>
         </div>
 
-        <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mt-6">
+        <div id="security" class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mt-6" style="scroll-margin-top:24px">
           <div class="border-b border-gray-200 px-6 py-5">
             <h2 class="text-base font-bold text-gray-900">Security</h2>
           </div>

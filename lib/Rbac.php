@@ -33,6 +33,49 @@ class Rbac
         return $cap;
     }
 
+    /** The three levels, from most to least access. */
+    public const LEVELS = ['full', 'limited', 'none'];
+
+    /** The only module a Student can ever hold: reading their own recommendations. Everything else is No Access, whatever the table says. */
+    public const STUDENT_MODULES = ['recommendations'];
+
+    /** Modules about accounts: changing who holds them is a sensitive change (it asks for a confirmation before it is saved). */
+    public const SENSITIVE_MODULES = ['staffAccounts', 'counselor'];
+
+    /** Changing the Guidance Counselor column, or any account module, is a sensitive change. */
+    public static function isSensitiveChange(string $module, string $targetRole): bool
+    {
+        return in_array($module, self::SENSITIVE_MODULES, true) || $targetRole === 'counselor';
+    }
+
+    /**
+     * The levels $actorKey may set for a cell of the matrix (module x role), or [] when the cell is fixed for them.
+     *  - The administrator column and the Student column are never editable (nobody can lock the Head of Guidance out, and a
+     *    Student can never be given an administrative module).
+     *  - The Head of Guidance can set the Guidance Counselor and Guidance Facilitator columns to any level.
+     *  - A Guidance Counselor can set only the Facilitator column, never above the level they hold themselves, and never the
+     *    account modules or their own column.
+     *  - A Guidance Facilitator and a Student change nothing.
+     *
+     * @param array<string,array<string,string>> $matrix module => role => level
+     * @return array<int,string>
+     */
+    public static function editableLevels(string $actorKey, string $module, string $targetRole, array $matrix): array
+    {
+        if (!in_array($module, self::MODULES, true) || !in_array($targetRole, ['counselor', 'facilitator'], true)) {
+            return [];
+        }
+        if ($actorKey === 'admin') {
+            return self::LEVELS;
+        }
+        if ($actorKey !== 'counselor' || $targetRole !== 'facilitator' || in_array($module, self::SENSITIVE_MODULES, true)) {
+            return [];
+        }
+        $rank = ['none' => 0, 'limited' => 1, 'full' => 2];
+        $own = $matrix[$module]['counselor'] ?? 'none';
+        return array_values(array_filter(self::LEVELS, fn($l) => $rank[$l] <= ($rank[$own] ?? 0)));
+    }
+
     /** The matrix column for a signed-in user: 'admin', 'counselor', 'facilitator' or 'student'. */
     public static function roleKey(array $user): string
     {
@@ -83,10 +126,9 @@ class Rbac
             $level = $counselor !== false ? self::facilitatorDefault($module, (string) $counselor) : 'none';
         }
         $level = $level !== false ? $level : 'none';
-        // The Announcements permission is about sending them. A student has none, whatever the table says, even if a
-        // row is tampered with. (Students still read the announcements sent to them: api/announcements.php serves
-        // that to a student without this permission.)
-        if ($role === 'student' && $module === 'announcements') {
+        // A Student holds only what is in STUDENT_MODULES, whatever the table says, even if a row is tampered with. (Students
+        // still read the announcements sent to them: api/announcements.php serves that without this permission.)
+        if ($role === 'student' && !in_array($module, self::STUDENT_MODULES, true)) {
             return 'none';
         }
         return $level;

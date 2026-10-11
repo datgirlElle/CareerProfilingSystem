@@ -93,8 +93,7 @@
             <img src="images/admin/icon-chevron-down.svg" alt="" class="w-3.5 h-2">
           </button>
           <div id="profilePanel" class="hidden absolute right-0 top-[calc(100%+12px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
-            <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">My Profile</a>
-            <a href="security-configuration" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-t border-gray-100">Account Settings</a>
+            <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">Profile Settings</a>
           </div>
         </div>
       </div>
@@ -351,12 +350,16 @@
   // ---------- Staff accounts ----------
   // The administrator always manages these. A guidance counselor or facilitator sees the list only when the
   // administrator gave them "Staff Accounts" access (Security Configuration, Edit Roles): Full lets them approve
-  // sign-ups and send access codes, View Only just looks. Assigning sections stays with the administrator.
+  // sign-ups and send access codes, View Only just looks. Assigning sections is the separate "Guidance Counselor" permission.
   let staffLevel = isAdmin ? 'full' : 'none';
+  // Assigning sections is the separate "Guidance Counselor" permission.
+  let canAssign = isAdmin;
   if (!isAdmin) {
     try {
       const cfg = await (await fetch('api/security-config.php')).json();
-      staffLevel = (cfg.rbac && cfg.rbac.staffAccounts && cfg.rbac.staffAccounts[currentUser.rbacRole || currentUser.role]) || 'none';
+      const me = currentUser.rbacRole || currentUser.role;
+      staffLevel = (cfg.rbac && cfg.rbac.staffAccounts && cfg.rbac.staffAccounts[me]) || 'none';
+      canAssign = ((cfg.rbac && cfg.rbac.counselor && cfg.rbac.counselor[me]) || 'none') === 'full';
     } catch (e) {}
   }
   if (staffLevel !== 'none') {
@@ -405,13 +408,13 @@
       if (a.status !== 'approved') return '—';
       const mine = assignmentData.assignments[a.id] || [];
       const text = mine.length ? mine.map(function(s) { return escapeHtml(s.section); }).join(', ') : 'All sections';
-      return '<span class="' + (mine.length ? 'text-gray-700' : 'text-gray-400') + '">' + text + '</span>' + (isAdmin
+      return '<span class="' + (mine.length ? 'text-gray-700' : 'text-gray-400') + '">' + text + '</span>' + (canAssign
         ? ' <button type="button" class="assign-sections text-xs font-semibold text-[#19427b] hover:underline ml-1" data-id="' + a.id + '" data-name="' + escapeHtml(a.fullName || a.email) + '">Assign</button>'
         : '');
     }
 
     async function loadStaff() {
-      if (isAdmin) { try { assignmentData = await (await fetch('api/staff-assignments.php')).json(); } catch (e) {} }
+      if (canAssign) { try { assignmentData = await (await fetch('api/staff-assignments.php')).json(); } catch (e) {} }
       const res = await fetch('api/staff-approvals.php');
       if (!res.ok) {
         staffTbody.innerHTML = '<tr><td colspan="7" class="px-5 py-8 text-center text-sm text-gray-500">Could not load staff accounts.</td></tr>';

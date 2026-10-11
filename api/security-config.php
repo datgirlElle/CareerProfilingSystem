@@ -39,7 +39,25 @@ function loadRbac(PDO $pdo): array
             $rbac[$m]['facilitator'] = Rbac::facilitatorDefault($m, $rbac[$m]['counselor']);
         }
     }
+    // A Student holds only what Rbac::STUDENT_MODULES allows; show what is enforced.
+    foreach (RBAC_MODULES as $m) {
+        if (!in_array($m, Rbac::STUDENT_MODULES, true)) {
+            $rbac[$m]['student'] = 'none';
+        }
+    }
     return $rbac;
+}
+
+/** Which levels the signed-in person may set for each cell, so the page offers only what the server will accept. */
+function editableMatrix(array $user, array $rbac): array
+{
+    $out = [];
+    foreach (RBAC_MODULES as $m) {
+        foreach (RBAC_ROLES as $r) {
+            $out[$m][$r] = Rbac::editableLevels(Rbac::roleKey($user), $m, $r, $rbac);
+        }
+    }
+    return $out;
 }
 
 function loadPolicies(PDO $pdo): array
@@ -107,8 +125,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     )->fetchColumn();
     $pendingFlags = (int) $pdo->query("SELECT COUNT(*) FROM monitoring_flags WHERE status = 'pending'")->fetchColumn();
 
+    $rbacNow = loadRbac($pdo);
     jsonResponse([
-        'rbac' => loadRbac($pdo),
+        'rbac' => $rbacNow,
+        // what this person may change in the table (empty for a fixed cell), and which changes ask for a confirmation
+        'rbacEditable' => editableMatrix($user, $rbacNow),
+        'rbacSensitive' => ['modules' => Rbac::SENSITIVE_MODULES, 'roles' => ['counselor']],
         // Uploading class rosters: administrator or Guidance Counselor with Full access to the roster module.
         'canEditRoster' => Rbac::accessLevel('rac', Rbac::roleKey($user)) === 'full'
             && (Rbac::roleKey($user) !== 'facilitator' || Rbac::accessLevel('sections', 'facilitator') === 'full'),
@@ -130,6 +152,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Notes permission: the Head of Guidance and Guidance Counselors, not Facilitators). Everything else here is the administrator's.
     if (in_array($type, ['officeHours', 'bookingLink'], true)) {
         $user = Rbac::requireAccess('counselingNotes', 'full');
+    } elseif ($type === 'rbac') {
+        // The permission table is changed by the Head of Guidance and by Guidance Counselors (what each may change is set by
+        // Rbac::editableLevels); a Facilitator or anyone else is refused.
+        if ($user['role'] !== 'admin' && !($user['role'] === 'counselor' && !Rbac::isFacilitator($user))) {
+            jsonResponse(['success' => false, 'error' => 'Only the Head of Guidance and Guidance Counselors can change permissions.'], 403);
+        }
     } elseif ($user['role'] !== 'admin') {
         jsonResponse(['success' => false, 'error' => 'Only administrators can change security configuration.'], 403);
     }
@@ -139,32 +167,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!is_array($changes)) {
             jsonResponse(['success' => false, 'error' => 'Invalid changes payload.'], 400);
         }
+        $moduleLabels = [
+            'career' => 'Career Profile Input', 'rac' => 'RAC Assessment', 'recommendations' => 'Recommendations', 'counselor' => 'Guidance Counselor accounts',
+            'monitoring' => 'Student Monitoring', 'announcements' => 'Announcements', 'examinations' => 'Assessment Scheduling',
+            'counselingNotes' => 'Counseling Notes', 'staffAccounts' => 'Staff Accounts', 'sections' => 'Section Management',
+        ];
+        $roleLabels = ['admin' => 'Administrator', 'counselor' => 'Guidance Counselor', 'facilitator' => 'Guidance Facilitator', 'student' => 'Student'];
+        $levelLabels = ['full' => 'Full Access', 'limited' => 'View Only', 'none' => 'No Access'];
 
-        $skippedAdmin = false;
+        $actorKey = Rbac::roleKey($user);
+        $current = loadRbac($pdo);
+        $toApply = [];
+        foreach ($changes as $c) {
+            $module = is_array($c) ? (string) ($c['module'] ?? '') : '';
+            $role = is_array($c) ? (string) ($c['role'] ?? '') : '';
+            $level = is_array($c) ? (string) ($c['level'] ?? '') : '';
+            if (!in_array($module, RBAC_MODULES, true) || !in_array($role, RBAC_ROLES, true) || !in_array($level, RBAC_LEVELS, true)) {
+                jsonResponse(['success' => false, 'error' => 'Invalid permission change.'], 400);
+            }
+            $from = $current[$module][$role];
+            if ($level === $from) {
+                continue; // nothing to change
+            }
+            // The server decides, not the page: an administrator or Student cell, an account module for a counselor, or a level
+            // above what a counselor holds is refused, and nothing in the request is saved.
+            if (!in_array($level, Rbac::editableLevels($actorKey, $module, $role, $current), true)) {
+                jsonResponse(['success' => false, 'error' => 'You cannot set ' . $roleLabels[$role] . ' to ' . $levelLabels[$level] . ' for ' . $moduleLabels[$module] . '.'], 403);
+            }
+            $toApply["$module|$role"] = ['module' => $module, 'role' => $role, 'from' => $from, 'to' => $level];
+        }
+
+        if (!$toApply) {
+            jsonResponse(['success' => true, 'applied' => 0, 'rbac' => $current, 'rbacEditable' => editableMatrix($user, $current)]);
+        }
+
+        // A change to account modules or to the Guidance Counselor column only goes through once it was confirmed.
+        $sensitive = array_values(array_filter($toApply, fn($c) => Rbac::isSensitiveChange($c['module'], $c['role'])));
+        if ($sensitive && empty($body['confirmed'])) {
+            jsonResponse(['success' => false, 'needsConfirmation' => true, 'error' => 'Confirm the changes to account and staff permissions before saving.', 'sensitive' => $sensitive], 409);
+        }
+
         $stmt = $pdo->prepare(
             'INSERT INTO security_rbac (module, role, access_level, updated_by) VALUES (?, ?, ?, ?)
              ON CONFLICT (module, role) DO UPDATE SET access_level = EXCLUDED.access_level, updated_at = NOW(), updated_by = EXCLUDED.updated_by'
         );
-        foreach ($changes as $c) {
-            $module = $c['module'] ?? '';
-            $role = $c['role'] ?? '';
-            $level = $c['level'] ?? '';
-            if (!in_array($module, RBAC_MODULES, true) || !in_array($role, RBAC_ROLES, true) || !in_array($level, RBAC_LEVELS, true)) {
-                continue;
+        $pdo->beginTransaction();
+        try {
+            foreach ($toApply as $c) {
+                $stmt->execute([$c['module'], $c['role'], $c['to'], $user['id']]);
             }
-            // Self-lockout guard: the admin role's access is never editable through this UI —
-            // there is no recovery path if an admin accidentally revokes their own access.
-            // The student role is fixed too: students only ever need the assessment, their
-            // results and recommendations, counseling and announcements, so it isn't configurable.
-            if ($role === 'admin' || $role === 'student') {
-                $skippedAdmin = $skippedAdmin || $role === 'admin';
-                continue;
-            }
-            $stmt->execute([$module, $role, $level, $user['id']]);
+            $pdo->commit();
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+            jsonResponse(['success' => false, 'error' => 'Could not save the permissions. Please try again.'], 500);
         }
-
-        AuditLogger::log($user['id'], $user['role'], 'update_rbac', 'security_rbac', null, json_encode($changes));
-        jsonResponse(['success' => true, 'skippedAdminChanges' => $skippedAdmin, 'rbac' => loadRbac($pdo)]);
+        // One audit entry per change: who made it (the actor), the previous and the new value, and when (the entry's time).
+        foreach ($toApply as $c) {
+            AuditLogger::log(
+                $user['id'], $user['role'], 'update_rbac', 'security_rbac', $c['module'] . ':' . $c['role'],
+                $roleLabels[$c['role']] . ', ' . $moduleLabels[$c['module']] . ': ' . $levelLabels[$c['from']] . ' -> ' . $levelLabels[$c['to']]
+                    . (Rbac::isSensitiveChange($c['module'], $c['role']) ? ' (sensitive, confirmed)' : '')
+            );
+        }
+        $fresh = loadRbac($pdo);
+        jsonResponse(['success' => true, 'applied' => count($toApply), 'rbac' => $fresh, 'rbacEditable' => editableMatrix($user, $fresh)]);
     }
 
     if ($type === 'policy') {

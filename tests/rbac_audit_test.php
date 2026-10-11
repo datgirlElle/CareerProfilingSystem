@@ -93,6 +93,38 @@ try {
     check('Unknown module throws', true);
 }
 
+
+echo "\n=== who may change which permission ===\n";
+$matrix = [];
+foreach (['career', 'rac', 'recommendations', 'counselor', 'monitoring', 'announcements', 'examinations', 'counselingNotes', 'staffAccounts', 'sections'] as $m) {
+    $matrix[$m] = ['admin' => 'full', 'counselor' => 'full', 'facilitator' => 'limited', 'student' => 'none'];
+}
+$matrix['career']['counselor'] = 'limited';
+check('the administrator can set the counselor and facilitator columns to any level',
+    Rbac::editableLevels('admin', 'career', 'counselor', $matrix) === ['full', 'limited', 'none'] && Rbac::editableLevels('admin', 'sections', 'facilitator', $matrix) === ['full', 'limited', 'none']);
+check('nobody can change the administrator column', Rbac::editableLevels('admin', 'career', 'admin', $matrix) === [] && Rbac::editableLevels('counselor', 'career', 'admin', $matrix) === []);
+check('nobody can change the student column', Rbac::editableLevels('admin', 'career', 'student', $matrix) === [] && Rbac::editableLevels('counselor', 'staffAccounts', 'student', $matrix) === []);
+check('a counselor can set the facilitator column', Rbac::editableLevels('counselor', 'announcements', 'facilitator', $matrix) === ['full', 'limited', 'none']);
+check('a counselor cannot go above the level they hold (career: they have View Only)', Rbac::editableLevels('counselor', 'career', 'facilitator', $matrix) === ['limited', 'none']);
+check('a counselor cannot change their own column', Rbac::editableLevels('counselor', 'announcements', 'counselor', $matrix) === []);
+check('a counselor cannot change the account modules for anyone', Rbac::editableLevels('counselor', 'staffAccounts', 'facilitator', $matrix) === [] && Rbac::editableLevels('counselor', 'counselor', 'facilitator', $matrix) === []);
+check('a facilitator and a student change nothing', Rbac::editableLevels('facilitator', 'career', 'facilitator', $matrix) === [] && Rbac::editableLevels('student', 'career', 'counselor', $matrix) === []);
+check('an unknown module is not editable', Rbac::editableLevels('admin', 'nope', 'counselor', $matrix) === []);
+
+echo "\n=== sensitive changes ask for a confirmation ===\n";
+check('account modules are sensitive', Rbac::isSensitiveChange('staffAccounts', 'facilitator') && Rbac::isSensitiveChange('counselor', 'facilitator'));
+check('anything in the Guidance Counselor column is sensitive', Rbac::isSensitiveChange('career', 'counselor'));
+check('an everyday module for the facilitator column is not', !Rbac::isSensitiveChange('announcements', 'facilitator'));
+
+echo "\n=== a Student can only ever hold their own recommendations ===\n";
+$pdoStu = Database::get();
+$pdoStu->beginTransaction();
+$pdoStu->exec("INSERT INTO security_rbac (module, role, access_level) VALUES ('staffAccounts', 'student', 'full') ON CONFLICT (module, role) DO UPDATE SET access_level = 'full'");
+$pdoStu->exec("UPDATE security_rbac SET access_level = 'full' WHERE module IN ('counselor', 'sections', 'monitoring') AND role = 'student'");
+check('even if the table is tampered with, a student has no access to staff accounts, sections or monitoring',
+    Rbac::accessLevel('staffAccounts', 'student') === 'none' && Rbac::accessLevel('sections', 'student') === 'none' && Rbac::accessLevel('monitoring', 'student') === 'none' && Rbac::accessLevel('counselor', 'student') === 'none');
+check('a student keeps Recommendations', Rbac::accessLevel('recommendations', 'student') === 'full');
+$pdoStu->rollBack();
 echo "\n=== AuditLogger round-trip ===\n";
 
 $pdo = Database::get();
