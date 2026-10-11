@@ -126,10 +126,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $pendingFlags = (int) $pdo->query("SELECT COUNT(*) FROM monitoring_flags WHERE status = 'pending'")->fetchColumn();
 
     $rbacNow = loadRbac($pdo);
+    // The permission table is for the Head of Guidance and Guidance Counselors. A Guidance Facilitator is sent only their own
+    // column (the pages need it to know what they may do), never the other roles' permissions, and cannot change anything.
+    $facilitator = Rbac::isFacilitator($user);
+    $rbacShown = $facilitator ? array_map(fn($levels) => ['facilitator' => $levels['facilitator']], $rbacNow) : $rbacNow;
     jsonResponse([
-        'rbac' => $rbacNow,
+        'rbac' => $rbacShown,
+        'rbacVisible' => !$facilitator,
         // what this person may change in the table (empty for a fixed cell), and which changes ask for a confirmation
-        'rbacEditable' => editableMatrix($user, $rbacNow),
+        'rbacEditable' => $facilitator ? (object) [] : editableMatrix($user, $rbacNow),
         'rbacSensitive' => ['modules' => Rbac::SENSITIVE_MODULES, 'roles' => ['counselor']],
         // Uploading class rosters: administrator or Guidance Counselor with Full access to the roster module.
         'canEditRoster' => Rbac::accessLevel('rac', Rbac::roleKey($user)) === 'full'
