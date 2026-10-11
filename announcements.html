@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Announcements — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -550,8 +550,19 @@
       : '';
   }
 
+  let annLoadedOnce = false;
   async function loadAnnouncements() {
-    const data = await (await fetch('api/announcements.php')).json();
+    const annList = document.getElementById('announcementsList');
+    if (!annLoadedOnce) PP.showSkeleton(annList, PP.skeleton.cards(3));
+    let data;
+    try {
+      data = await PP.fetchJson('api/announcements.php');
+    } catch (e) {
+      if (!annLoadedOnce) PP.showError(annList, e.message, loadAnnouncements);
+      return;
+    }
+    annLoadedOnce = true;
+    annList.removeAttribute('aria-busy');
     all = data.announcements || [];
     renderSummary(data.summary);
     renderList();
@@ -648,9 +659,12 @@
   }
   async function loadTemplates() {
     try {
-      const res = await fetch('api/announcement-templates.php');
-      templates = res.ok ? (await res.json()).templates || [] : [];
-    } catch (e) { templates = []; }
+      templates = (await PP.fetchJson('api/announcement-templates.php')).templates || [];
+    } catch (e) {
+      templates = [];
+      PP.showError(templateBox, e.message, loadTemplates);
+      return;
+    }
     renderTemplates();
   }
 

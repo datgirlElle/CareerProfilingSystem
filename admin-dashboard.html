@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <title>Admin Dashboard — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
@@ -672,12 +672,30 @@
   }
 
   async function load() {
-    tbody.innerHTML = '<tr><td colspan="10" class="px-6 py-8 text-center text-sm text-gray-500">Loading…</td></tr>';
+    const statIds = ['cardTotalStudents', 'cardCompleted', 'cardPending', 'cardMismatched'];
+    const chartBoxes = ['completionChartBox', 'statusChartBox'];
+    PP.showSkeleton(tbody, PP.skeleton.rows(10, 6));
+    document.getElementById('paginationSummary').innerHTML = PP.skeleton.line('220px');
+    statIds.forEach(PP.statLoading);
+    ['cardCompletedPct', 'cardPendingPct', 'cardMismatchedPct'].forEach(function(id) { document.getElementById(id).textContent = ''; });
+    if (!completionChart) { document.getElementById('sectionCompletionCard').classList.remove('hidden'); PP.chartLoading('completionChartBox'); }
+    if (!statusChart) { document.getElementById('statusCard').classList.remove('hidden'); PP.chartLoading('statusChartBox'); }
     const params = new URLSearchParams({
       all: '1', search: state.search, strand: state.strand, section: state.section, status: state.status, counseling: state.counseling,
       registration: state.registration, assessment: state.assessment, account: state.account, academicYear: state.academicYear,
     });
-    const data = await (await fetch('api/students.php?' + params.toString())).json();
+    let data;
+    try {
+      data = await PP.fetchJson('api/students.php?' + params.toString());
+    } catch (e) {
+      PP.showError(tbody, e.message, load, 10);
+      statIds.forEach(PP.statFailed);
+      document.getElementById('paginationSummary').textContent = '';
+      chartBoxes.forEach(function(id) { PP.chartError(id, e.message, load); });
+      return;
+    }
+    tbody.removeAttribute('aria-busy');
+    chartBoxes.forEach(PP.chartLoaded);
     isPastYear = !!data.isPastYear;
     lastTotal = data.total;
     renderYearOptions(data);

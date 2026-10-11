@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Question Bank — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -297,7 +297,16 @@
   const showHidden = {};
 
   async function loadQuestions() {
-    const data = await (await fetch('api/assessment-questions.php?all=1')).json();
+    const wrap = document.getElementById('dimensionGroups');
+    if (!questions || !questions.length) PP.showSkeleton(wrap, PP.skeleton.cards(3));
+    let data;
+    try {
+      data = await PP.fetchJson('api/assessment-questions.php?all=1');
+    } catch (e) {
+      if (!questions || !questions.length) PP.showError(wrap, e.message, loadQuestions);
+      return;
+    }
+    wrap.removeAttribute('aria-busy');
     questions = data.questions || [];
     balance = data.balance || null;
     render();

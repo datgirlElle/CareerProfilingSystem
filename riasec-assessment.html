@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>RIASEC Assessment — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -271,10 +271,22 @@
 
   const OPTIONS = ['Dislike', 'Slightly Dislike', 'Neutral', 'Slightly Enjoy', 'Enjoy'];
 
-  const questionsRes = await fetch('api/assessment-questions.php');
-  const questionsData = await questionsRes.json();
-  if (!questionsRes.ok || !questionsData.questions || questionsData.questions.length === 0) {
-    document.getElementById('questionCard').innerHTML =
+  const questionCardEl = document.getElementById('questionCard');
+  PP.showSkeleton(questionCardEl, PP.skeleton.lines(5, 18));
+  let questionsData;
+  try {
+    questionsData = await PP.fetchJson('api/assessment-questions.php');
+  } catch (e) {
+    if (e.status === undefined) {
+      // The server could not be reached; a Retry reloads the page (the saved answers are kept).
+      PP.showError(questionCardEl, e.message, function() { window.location.reload(); });
+      return;
+    }
+    questionsData = { error: e.message };
+  }
+  questionCardEl.removeAttribute('aria-busy');
+  if (!questionsData.questions || questionsData.questions.length === 0) {
+    questionCardEl.innerHTML =
       '<p class="text-[#191c1e] text-lg font-medium text-center my-auto">' +
       (questionsData.error || 'The assessment is not available right now. Please check back soon.') + '</p>';
     return;

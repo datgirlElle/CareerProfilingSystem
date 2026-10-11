@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Activate Staff Account — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -106,8 +106,7 @@
       if (!identifier || !code || !password) { showMessage('Please fill out all fields.'); return; }
       if (password !== form.confirm_password.value) { showMessage('The two passwords do not match.'); return; }
       var btn = form.querySelector('button[type="submit"]');
-      var label = btn.textContent;
-      btn.disabled = true; btn.textContent = 'Creating…';
+      var stopBusy = PP.busy(btn, 'Creating…');
       try {
         var res = await fetch('api/staff-activate.php', {
           method: 'POST',
@@ -123,7 +122,7 @@
       } catch (err) {
         showMessage('Unable to reach the server. Please try again.');
       } finally {
-        btn.disabled = false; btn.textContent = label;
+        stopBusy();
       }
     });
   })();

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Account Management — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -330,7 +330,7 @@
     profilePanel.addEventListener('click', (e) => e.stopPropagation());
   })();
 
-  fetch('api/public-settings.php').then(function(r) { return r.json(); }).then(function(data) {
+  PP.swr('api/public-settings.php', function(data) {
     const ay = data && data.academicYear && data.academicYear.current;
     if (ay) document.getElementById('ayBadgeValue').textContent = ay; else document.getElementById('ayBadge').classList.add('hidden');
   }).catch(function() {});
@@ -412,12 +412,14 @@
 
     async function loadStaff() {
       if (canAssign) { try { assignmentData = await (await fetch('api/staff-assignments.php')).json(); } catch (e) {} }
-      const res = await fetch('api/staff-approvals.php');
-      if (!res.ok) {
-        staffTbody.innerHTML = '<tr><td colspan="7" class="px-5 py-8 text-center text-sm text-gray-500">Could not load staff accounts.</td></tr>';
+      let accounts;
+      try {
+        accounts = (await PP.fetchJson('api/staff-approvals.php')).accounts || [];
+      } catch (e) {
+        PP.showError(staffTbody, e.message, loadStaff, 7);
         return;
       }
-      const accounts = (await res.json()).accounts || [];
+      staffTbody.removeAttribute('aria-busy');
       const pending = accounts.filter(a => a.status === 'pending').length;
       const badge = document.getElementById('pendingBadge');
       badge.textContent = pending + ' pending';
@@ -554,14 +556,17 @@
     return '';
   }
   async function loadSections() {
-    const res = await fetch('api/sections.php?all=1');
     const container = document.getElementById('sectionsContainer');
-    if (!res.ok) {
+    if (!sectionsData || !sectionsData.length) PP.showSkeleton(container, PP.skeleton.lines(4));
+    try {
+      sectionsData = (await PP.fetchJson('api/sections.php?all=1')).sections || [];
+    } catch (e) {
       sectionsData = [];
-      container.innerHTML = '<p class="text-xs text-gray-500">You do not have access to Section Management.</p>';
+      if (e.status === 403) container.innerHTML = '<p class="text-xs text-gray-500">You do not have access to Section Management.</p>';
+      else PP.showError(container, e.message, loadSections);
       return;
     }
-    sectionsData = (await res.json()).sections || [];
+    container.removeAttribute('aria-busy');
     renderSections();
   }
   function renderSections() {
@@ -706,7 +711,8 @@
   async function loadRosterSections() {
     const body = document.getElementById('rosterSectionsBody');
     try {
-      const data = await (await fetch('api/roster-sections.php')).json();
+      const data = await PP.fetchJson('api/roster-sections.php');
+      body.removeAttribute('aria-busy');
       document.getElementById('rosterAyLabel').textContent = data.academicYear ? '(Academic Year ' + data.academicYear + ')' : '';
       const rows = data.sections || [];
       body.innerHTML = rows.length ? rows.map(function(s) {
@@ -719,7 +725,7 @@
           '<td class="px-4 py-3 text-sm text-gray-500">' + when + '</td></tr>';
       }).join('') : '<tr><td colspan="5" class="px-4 py-5 text-center text-sm text-gray-500">No sections uploaded yet for this academic year.</td></tr>';
     } catch (e) {
-      body.innerHTML = '<tr><td colspan="5" class="px-4 py-5 text-center text-sm text-gray-500">Could not load the uploaded sections.</td></tr>';
+      PP.showError(body, e.message, loadRosterSections, 5);
     }
   }
   loadRosterSections();

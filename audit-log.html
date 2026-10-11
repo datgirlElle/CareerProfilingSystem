@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Audit Log — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -372,18 +372,33 @@
       if (reset) {
         state.page = 1;
         loadedRows = [];
-        tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">Loading audit log…</td></tr>';
+        PP.showSkeleton(tbody, PP.skeleton.rows(7, 8));
+        ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive'].forEach(PP.statLoading);
       }
       loadMoreBtn.disabled = true;
-      const res = await fetch('api/audit-log.php?' + currentQuery());
-      if (res.status === 401) { window.location.replace('staff-login'); return; }
-      if (res.status === 403) {
-        tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-red-500">You do not have access to the audit log.</td></tr>';
+      let data;
+      try {
+        data = await PP.fetchJson('api/audit-log.php?' + currentQuery());
+      } catch (e) {
+        if (e.status === 401) { window.location.replace('staff-login'); return; }
         paginationSummary.textContent = '';
         loadMoreBtn.classList.add('hidden');
+        if (e.status === 403) {
+          tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-red-500">You do not have access to the audit log.</td></tr>';
+          return;
+        }
+        if (reset) {
+          ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive'].forEach(PP.statFailed);
+          PP.showError(tbody, e.message, function() { load(true); }, 7);
+        } else {
+          state.page -= 1;
+          loadMoreBtn.classList.remove('hidden');
+          loadMoreBtn.disabled = false;
+          paginationSummary.textContent = e.message;
+        }
         return;
       }
-      const data = await res.json();
+      tbody.removeAttribute('aria-busy');
       state.page = data.page;
 
       if (!modulesLoaded) {

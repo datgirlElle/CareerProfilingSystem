@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Career Dataset — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -647,7 +647,18 @@
 
   // ---- Init ----
   async function loadData() {
-    const data = await (await fetch('api/programs.php?all=1&meta=1')).json();
+    const statIds = ['statTotal', 'statActive', 'statColleges'];
+    statIds.forEach(PP.statLoading);
+    PP.showSkeleton(tbody, PP.skeleton.rows(5, 7));
+    let data;
+    try {
+      data = await PP.fetchJson('api/programs.php?all=1&meta=1');
+    } catch (e) {
+      statIds.forEach(PP.statFailed);
+      PP.showError(tbody, e.message, loadData, 5);
+      return;
+    }
+    tbody.removeAttribute('aria-busy');
     programs = data.programs;
     colleges = data.colleges;
     collegeColor = {};

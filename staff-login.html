@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Staff Sign In — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -261,7 +261,8 @@
       const username = form.username.value.trim();
       const password = form.password.value;
       const submitBtn = form.querySelector('button[type="submit"]');
-      submitBtn.disabled = true;
+      const stopBusy = PP.busy(submitBtn, 'Signing in…');
+      let redirecting = false;
 
       try {
         const res = await fetch('api/login.php', {
@@ -273,6 +274,7 @@
 
         if (data.success) {
           try { localStorage.setItem('pp_portal', 'staff'); } catch (e) {}
+          redirecting = true; // keep the spinner up until the next page loads
           window.location.href = data.redirect;
           return;
         }
@@ -280,7 +282,7 @@
       } catch (err) {
         showError('Unable to reach the server. Please try again.', false);
       } finally {
-        submitBtn.disabled = false;
+        if (!redirecting) stopBusy();
       }
     });
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Profile Settings — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -199,8 +199,10 @@
   document.getElementById('avatarRole').textContent = roleLabel;
   document.getElementById('infoName').textContent = currentUser.displayName || currentUser.username;
   document.getElementById('infoRole').textContent = roleLabel;
-  fetch('api/my-account.php').then(function (r) { return r.json(); }).then(function (a) {
-    if (!a || !a.success) return;
+  // Account details rarely change: show the saved copy at once, then refresh it quietly.
+  ['infoEmail', 'infoSince'].forEach(function (id) { var el = document.getElementById(id); if (el && el.textContent.trim() === '—') PP.statLoading(el); });
+  PP.swr('api/my-account.php', function (a) {
+    if (!a || !a.success) { ['infoEmail', 'infoSince'].forEach(function (id) { PP.statFailed(id); }); return; }
     if (a.fullName) document.getElementById('infoName').textContent = a.fullName;
     if (a.roleLabel) document.getElementById('infoRole').textContent = a.roleLabel;
     document.getElementById('infoEmail').textContent = a.email || '—';
@@ -211,7 +213,9 @@
     document.getElementById('infoSince').textContent = a.memberSince
       ? new Date(a.memberSince).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
       : '—';
-  }).catch(function () {});
+  }, 300000).catch(function () {
+    ['infoEmail', 'infoSince'].forEach(function (id) { PP.statFailed(id); });
+  });
 
   const avatarWrap = document.getElementById('avatarWrap');
   const headerAvatarWrap = document.getElementById('headerAvatarWrap');

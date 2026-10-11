@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Help Center — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -286,7 +286,7 @@
       document.getElementById('helpMessage').focus();
     }
 
-    fetch('api/public-settings.php').then(function(r) { return r.json(); }).then(function(data) {
+    PP.swr('api/public-settings.php', function(data) {
       if (data && data.officeHours && data.officeHours.text) {
         document.getElementById('officeHoursText').textContent = data.officeHours.text;
       }
@@ -324,11 +324,16 @@
       chevron.classList.toggle('is-open', !isOpen);
       btn.setAttribute('aria-expanded', String(!isOpen));
     });
-    fetch('api/faqs.php?audience=student').then(function(r) { return r.json(); }).then(function(data) {
-      renderFaqs(data && data.faqs ? data.faqs : []);
-    }).catch(function() {
-      faqList.innerHTML = '<p class="px-6 py-5 text-sm text-gray-500">The questions could not be loaded. Please refresh the page, or use the form below to ask the Guidance Office.</p>';
-    });
+    function loadStudentFaqs() {
+      PP.showSkeleton(faqList, '<div class="px-6 py-4">' + PP.skeleton.lines(5, 16) + '</div>');
+      PP.fetchJson('api/faqs.php?audience=student').then(function(data) {
+        faqList.removeAttribute('aria-busy');
+        renderFaqs(data && data.faqs ? data.faqs : []);
+      }).catch(function(e) {
+        PP.showError(faqList, 'The questions could not be loaded. ' + (e.message || ''), loadStudentFaqs);
+      });
+    }
+    loadStudentFaqs();
     // Help message form
     document.getElementById('helpForm').addEventListener('submit', async function(e) {
       e.preventDefault();

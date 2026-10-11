@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Monitoring Details — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -340,10 +340,29 @@
       '</tr>';
     }
 
+    let renderedTab = null;
     async function render() {
       const q = document.getElementById('searchInput').value.trim();
       const url = 'api/monitoring.php?tab=' + encodeURIComponent(activeTab) + (q ? '&search=' + encodeURIComponent(q) : '');
-      const data = await (await fetch(url)).json();
+      const body = document.getElementById('tableBody');
+      const cols = headForTab(activeTab).length;
+      // A new tab shows placeholders; typing in the search box keeps the old rows until the new ones arrive.
+      if (renderedTab !== activeTab) {
+        document.getElementById('tableHeadRow').innerHTML = headForTab(activeTab)
+          .map(h => '<th class="px-6 py-3 text-sm font-bold text-slate-500">' + h + '</th>').join('');
+        PP.showSkeleton(body, PP.skeleton.rows(cols, 6));
+      }
+      let data;
+      try {
+        data = await PP.fetchJson(url);
+      } catch (e) {
+        PP.showError(body, e.message, render, cols);
+        document.getElementById('resultCount').textContent = '';
+        renderedTab = null;
+        return;
+      }
+      body.removeAttribute('aria-busy');
+      renderedTab = activeTab;
 
       rowsById = {};
       if (activeTab === 'needs-review' || activeTab === 'counseling') {

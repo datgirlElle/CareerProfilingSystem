@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <script src="js/time-format.js"></script>
 <title>My Assessments — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
@@ -302,7 +302,13 @@
     notifPanel.addEventListener('click', function(e) { e.stopPropagation(); });
     profilePanel.addEventListener('click', function(e) { e.stopPropagation(); });
 
-    const assessmentStatusData = await (await fetch('api/assessment-status.php')).json();
+    let assessmentStatusData;
+    try {
+      assessmentStatusData = await PP.fetchJson('api/assessment-status.php');
+    } catch (e) {
+      PP.pageError(e.message);
+      return;
+    }
     const assessment = assessmentStatusData.completed ? assessmentStatusData : null;
 
     (async function renderExamSchedule() {
@@ -452,7 +458,13 @@
 
       const wPill = document.getElementById('worksheetStatusPill');
       const wBtn = document.getElementById('worksheetActionBtn');
-      const recommendation = await (await fetch('api/recommendations.php')).json();
+      let recommendation;
+      try {
+        recommendation = await PP.fetchJson('api/recommendations.php');
+      } catch (e) {
+        PP.pageError(e.message);
+        return;
+      }
 
       if (recommendation.hasRecommendation) {
         wPill.className = 'inline-flex items-center gap-2 bg-green-50 border border-green-100 rounded-full px-3.5 py-1.5';

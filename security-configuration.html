@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Security Configuration — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -518,7 +518,25 @@
     let state = null;
 
     async function loadState() {
-      state = await (await fetch('api/security-config.php')).json();
+      const firstLoad = !state;
+      const overviewIds = ['overviewLockouts', 'overviewActiveUsers', 'overviewPendingFlags', 'overviewSharedLogins'];
+      if (firstLoad) {
+        PP.showSkeleton(document.getElementById('rbacTableBody'), PP.skeleton.rows(5, 6));
+        PP.showSkeleton(document.getElementById('policyListContainer'), PP.skeleton.lines(5));
+        overviewIds.forEach(PP.statLoading);
+      }
+      try {
+        state = await PP.fetchJson('api/security-config.php');
+      } catch (e) {
+        if (firstLoad) {
+          overviewIds.forEach(PP.statFailed);
+          PP.showError(document.getElementById('rbacTableBody'), e.message, loadState, 5);
+          PP.showError(document.getElementById('policyListContainer'), e.message, loadState);
+        }
+        return;
+      }
+      document.getElementById('rbacTableBody').removeAttribute('aria-busy');
+      document.getElementById('policyListContainer').removeAttribute('aria-busy');
       renderRbacTable();
       renderPolicyList();
       renderSecuritySettings();

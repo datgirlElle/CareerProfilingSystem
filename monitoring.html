@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Monitoring — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -448,8 +448,22 @@
     '</tr>';
   }
 
+  let loadedOnce = false;
   async function load() {
-    const data = await (await fetch('api/monitoring.php?tab=needs-review&limit=5')).json();
+    const statIds = ['cardNeedsReview', 'cardCompleted', 'cardPending', 'cardCounseling'];
+    if (!loadedOnce) { statIds.forEach(PP.statLoading); PP.showSkeleton(flaggedTableBody, PP.skeleton.rows(7, 5)); }
+    let data;
+    try {
+      data = await PP.fetchJson('api/monitoring.php?tab=needs-review&limit=5');
+    } catch (e) {
+      if (loadedOnce) return; // a refresh after an action failed: keep what is already on screen
+      statIds.forEach(PP.statFailed);
+      PP.showError(flaggedTableBody, e.message, load, 7);
+      document.getElementById('flaggedSummary').textContent = '';
+      return;
+    }
+    loadedOnce = true;
+    flaggedTableBody.removeAttribute('aria-busy');
     rowsById = {};
     data.rows.forEach(r => { rowsById[r.flagId] = r; });
 

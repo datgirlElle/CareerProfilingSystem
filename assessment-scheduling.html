@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Assessment Scheduling — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -510,11 +510,25 @@
   const archiveToggle = document.getElementById('archiveToggle');
   archiveToggle.addEventListener('click', () => { showArchived = !showArchived; loadSchedules(); });
 
+  let listLoadedOnce = false;
   async function loadSchedules() {
     const query = new URLSearchParams();
     if (showArchived) query.set('archived', '1');
     if (selectedAy) query.set('academicYear', selectedAy);
-    const data = await (await fetch('api/exam-schedules.php' + (query.toString() ? '?' + query.toString() : ''))).json();
+    const statIds = ['cardTotal', 'cardStudents', 'cardRooms', 'cardCompleted'];
+    if (!listLoadedOnce) { statIds.forEach(PP.statLoading); PP.showSkeleton(listEl, PP.skeleton.cards(3)); }
+    let data;
+    try {
+      data = await PP.fetchJson('api/exam-schedules.php' + (query.toString() ? '?' + query.toString() : ''));
+    } catch (e) {
+      if (!listLoadedOnce) {
+        statIds.forEach(PP.statFailed);
+        PP.showError(listEl, e.message, loadSchedules);
+      }
+      return;
+    }
+    listLoadedOnce = true;
+    listEl.removeAttribute('aria-busy');
     // A past school year is looked at, not changed: its sessions have all ended, so show them as archived, with no creating.
     viewingPast = !!data.isPastYear;
     if (viewingPast && !showArchived) { showArchived = true; return loadSchedules(); }

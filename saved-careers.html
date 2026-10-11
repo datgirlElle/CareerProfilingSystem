@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Saved Careers — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -223,14 +223,17 @@
     }
 
     async function loadSaved() {
+      errorEl.classList.add('hidden');
+      if (!listEl.children.length) {
+        loadingEl.classList.remove('hidden');
+        PP.showSkeleton(loadingEl, PP.skeleton.cards(3));
+      }
       try {
-        const res = await fetch('api/saved-programs.php?details=1');
-        if (!res.ok) throw new Error('bad status');
-        const data = await res.json();
+        const data = await PP.fetchJson('api/saved-programs.php?details=1');
         renderList(data.programs || []);
       } catch (e) {
         loadingEl.classList.add('hidden');
-        errorEl.textContent = 'Could not load your saved careers. Please refresh the page.';
+        PP.showError(errorEl, 'Could not load your saved careers. ' + (e.message || ''), loadSaved);
         errorEl.classList.remove('hidden');
       }
     }

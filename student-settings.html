@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>My Profile — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -278,13 +278,15 @@
     document.getElementById('profileMeta').textContent = currentUser.strand + ' • Grade ' + currentUser.gradeLevel + (currentUser.section ? ' • ' + currentUser.section : '');
     document.getElementById('profileSchoolId').textContent = currentUser.schoolId;
     document.getElementById('profileFullName').textContent = currentUser.firstName + ' ' + currentUser.lastName;
-    fetch('api/my-account.php').then(function (r) { return r.json(); }).then(function (a) {
-      if (!a || !a.success) return;
+    // Account details rarely change: show the saved copy at once, then refresh it quietly.
+    PP.statLoading('profileEmail');
+    PP.swr('api/my-account.php', function (a) {
+      if (!a || !a.success) { PP.statFailed('profileEmail'); return; }
       document.getElementById('profileEmail').textContent = a.email || '—';
       if (a.memberSince && document.getElementById('profileSince').textContent === '—') {
         document.getElementById('profileSince').textContent = new Date(a.memberSince).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
       }
-    }).catch(function () {});
+    }, 300000).catch(function () { PP.statFailed('profileEmail'); });
     document.getElementById('profileStrand').textContent = currentUser.strand;
     document.getElementById('profileGrade').textContent = 'Grade ' + currentUser.gradeLevel;
     document.getElementById('profileSection').textContent = currentUser.section || '—';

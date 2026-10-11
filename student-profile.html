@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Student Profile — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -455,14 +455,21 @@
   }
   async function loadCounselingNotes(studentId) {
     counselingNotesStudentId = studentId;
-    const res = await fetch('api/counseling-notes.php?studentId=' + studentId);
-    if (!res.ok) {
+    let data;
+    try {
+      data = await PP.fetchJson('api/counseling-notes.php?studentId=' + studentId);
+    } catch (e) {
+      if (e.status === undefined) {
+        // Could not reach the server: keep the card and offer a retry instead of hiding it.
+        document.getElementById('counselingNotesCard').classList.remove('hidden');
+        PP.showError(document.getElementById('counselingNotesList'), e.message, function() { loadCounselingNotes(studentId); });
+        return;
+      }
       // No access to this module at all — don't show a broken empty card.
       document.getElementById('counselingNotesCard').classList.add('hidden');
       document.getElementById('profileGrid').classList.add('solo');
       return;
     }
-    const data = await res.json();
     document.getElementById('counselingNotesCard').classList.remove('hidden');
     document.getElementById('counselingNoteComposer').classList.remove('hidden');
     document.getElementById('counselingNoteComposer').classList.add('flex');
@@ -503,12 +510,27 @@
     document.getElementById('detailsGrid').classList.add('hidden');
     document.getElementById('notFoundState').classList.remove('hidden');
   } else {
-    const res = await fetch('api/students.php?id=' + encodeURIComponent(studentUserId));
-    const data = await res.json();
-    if (!res.ok || !data.student) {
+    const nameSkeleton = '<span class="sk" style="display:inline-block;width:220px;height:1em"></span>';
+    PP.showSkeleton(document.getElementById('studentName'), nameSkeleton);
+    PP.showSkeleton(document.getElementById('studentId'), '<span class="sk" style="display:inline-block;width:150px;height:.9em"></span>');
+    let data = null, loadError = null;
+    try {
+      data = await PP.fetchJson('api/students.php?id=' + encodeURIComponent(studentUserId));
+    } catch (e) {
+      loadError = e;
+    }
+    if (loadError && loadError.status === undefined) {
+      // The server could not be reached (not "this student does not exist"): say so, with a retry.
+      document.getElementById('detailsGrid').classList.add('hidden');
+      const nf = document.getElementById('notFoundState');
+      nf.classList.remove('hidden');
+      PP.showError(nf, loadError.message, function() { window.location.reload(); });
+    } else if (loadError || !data.student) {
       document.getElementById('detailsGrid').classList.add('hidden');
       document.getElementById('notFoundState').classList.remove('hidden');
     } else {
+      document.getElementById('studentName').removeAttribute('aria-busy');
+      document.getElementById('studentId').removeAttribute('aria-busy');
       const s = data.student;
       toggleActiveUserId = s.userId;
       renderToggleActiveButton(s.isActive);

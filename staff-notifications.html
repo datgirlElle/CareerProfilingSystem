@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Notifications — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -257,19 +257,23 @@
     markBtn.classList.add('hidden');
   }
 
-  try {
-    const res = await fetch('api/notifications.php?full=1');
-    if (!res.ok) throw new Error('bad status');
-    const data = await res.json();
-    const items = data.items || [];
-    render(items);
-    if (items.some(function(n) { return n.unread; })) {
-      markBtn.classList.remove('hidden');
+  async function loadFull() {
+    stateEl.classList.remove('hidden');
+    listEl.classList.add('hidden');
+    PP.showSkeleton(stateEl, PP.skeleton.lines(4, 16));
+    try {
+      const data = await PP.fetchJson('api/notifications.php?full=1');
+      stateEl.removeAttribute('aria-busy');
+      const items = data.items || [];
+      render(items);
+      if (items.some(function(n) { return n.unread; })) {
+        markBtn.classList.remove('hidden');
+      }
+    } catch (e) {
+      PP.showError(stateEl, 'Could not load notifications. ' + (e.message || ''), loadFull);
     }
-  } catch (e) {
-    stateEl.textContent = 'Could not load notifications. Please refresh the page.';
-    stateEl.classList.add('text-[#ed1c24]');
   }
+  await loadFull();
 
   // Items keep their "Unread" look on this visit; they count as read from
   // the next time the page (or the bell) loads.

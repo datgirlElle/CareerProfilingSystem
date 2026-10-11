@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Staff Sign Up — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -224,9 +224,7 @@
       }
 
       var submitBtn = form.querySelector('button[type="submit"]');
-      var defaultHtml = submitBtn.innerHTML;
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Signing up…';
+      var stopBusy = PP.busy(submitBtn, 'Signing up…');
       try {
         var res = await fetch('api/staff-register.php', {
           method: 'POST',
@@ -243,8 +241,7 @@
       } catch (err) {
         showMessage('Unable to reach the server. Please try again.');
       } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = defaultHtml;
+        stopBusy();
       }
     });
   })();

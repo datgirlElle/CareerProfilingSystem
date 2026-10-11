@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Help Center — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -481,16 +481,15 @@
   }
 
   async function loadFaqs() {
-    faqList.innerHTML = '<p class="px-6 py-6 text-sm text-gray-500">Loading…</p>';
+    PP.showSkeleton(faqList, '<div class="px-6 py-4">' + PP.skeleton.lines(5, 16) + '</div>');
     try {
-      const res = await fetch('api/faqs.php?audience=' + audience);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not load the FAQs.');
+      const data = await PP.fetchJson('api/faqs.php?audience=' + audience);
+      faqList.removeAttribute('aria-busy');
       faqs = data.faqs || [];
       canEdit = !!data.canEdit;
       renderFaqs();
     } catch (e) {
-      faqList.innerHTML = '<p class="px-6 py-6 text-sm text-[#ed1c24]">' + escapeHtml(e.message || 'Could not load the FAQs.') + '</p>';
+      PP.showError(faqList, e.message || 'Could not load the FAQs.', loadFaqs);
     }
   }
 

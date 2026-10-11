@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Analytics Dashboard — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -250,14 +250,14 @@
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex flex-col">
           <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-4">Students by Strand</p>
           <!-- Fills whatever height the card gets from its neighbour (the RIASEC card is taller), so no blank space is left under the pie -->
-          <div style="position:relative;flex:1 1 auto;min-height:240px"><canvas id="strandChart"></canvas></div>
+          <div id="strandBox" style="position:relative;flex:1 1 auto;min-height:240px"><canvas id="strandChart"></canvas></div>
           <div class="border-t border-slate-100 pt-4 mt-4">
             <p class="text-sm text-slate-500">Total Students: <span id="strandChartTotal">0</span></p>
           </div>
         </div>
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
           <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-4">Average RIASEC Dimension Scores</p>
-          <canvas id="riasecChart" height="220"></canvas>
+          <div id="riasecBox" style="position:relative"><canvas id="riasecChart" height="220"></canvas></div>
           <div class="border-t border-slate-100 pt-4 mt-4 text-center">
             <p class="text-sm text-slate-500">Scores range from 0 to 50</p>
           </div>
@@ -268,7 +268,7 @@
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
           <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-4">Students by Section</p>
-          <canvas id="sectionChart" height="220"></canvas>
+          <div id="sectionBox" style="position:relative"><canvas id="sectionChart" height="220"></canvas></div>
         </div>
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
           <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-1">Overall Assessment</p>
@@ -285,7 +285,7 @@
       <!-- Assessment Completion by Academic Year -->
       <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 mb-6">
         <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-4">Assessment Completion by Academic Year</p>
-        <canvas id="yearChart" height="180"></canvas>
+        <div id="yearBox" style="position:relative"><canvas id="yearChart" height="180"></canvas></div>
         <p id="yearChartEmpty" class="hidden text-sm text-slate-400 text-center py-6">No Academic Year data yet.</p>      </div>
 
       <!-- Recommended Careers Table -->
@@ -294,7 +294,7 @@
           <p class="text-[11px] font-semibold tracking-wide text-slate-800 uppercase">Top 5 Recommended Careers (Institution-Wide)</p>
         </div>
         <div class="px-5 py-5">
-          <div style="position:relative;height:280px">
+          <div id="topCareersBox" style="position:relative;height:280px">
             <canvas id="topCareersChart" aria-label="Top 5 recommended programs by number of students matched"></canvas>
           </div>
           <p id="topCareersEmpty" class="hidden px-5 py-8 text-center text-sm text-slate-500">No recommendations computed yet.</p>
@@ -571,7 +571,23 @@
     if (section) labelParts.push(section);
     filtersBtnLabel.textContent = labelParts.length ? 'Filters: ' + labelParts.join(', ') : 'Filters';
     const params = new URLSearchParams({ strand: strand || '', section: section, academicYear: selectedAy });
-    const data = await (await fetch('api/analytics.php?' + params.toString())).json();
+    const statIds = ['metricCompletionRate', 'metricCompletionCount', 'metricCounselingRate', 'metricCounselingCount', 'metricMmclRate', 'metricMmclCount', 'metricTopStrand', 'metricStrandPercent', 'statsCompleted'];
+    const chartBoxes = ['strandBox', 'riasecBox', 'sectionBox', 'statsChartBox', 'yearBox', 'topCareersBox'];
+    statIds.forEach(PP.statLoading);
+    document.getElementById('topCareersSummary').innerHTML = PP.skeleton.line('260px');
+    ['statsChartBox', 'topCareersBox'].forEach(function(id) { document.getElementById(id).classList.remove('hidden'); });
+    ['statsChartEmpty', 'topCareersEmpty'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
+    chartBoxes.forEach(PP.chartLoading);
+    let data;
+    try {
+      data = await PP.fetchJson('api/analytics.php?' + params.toString());
+    } catch (e) {
+      statIds.forEach(PP.statFailed);
+      document.getElementById('topCareersSummary').textContent = '';
+      chartBoxes.forEach(function(id) { PP.chartError(id, e.message, function() { load(strand, section); }); });
+      return;
+    }
+    chartBoxes.forEach(PP.chartLoaded);
     // School year drop-down: the current year plus any past year that has data (never a future one).
     if (data.academicYears && data.academicYears.length) {
       ayFilter.innerHTML = data.academicYears.map(function(y) { return '<option value="' + escapeHtml(y) + '">' + escapeHtml(y) + '</option>'; }).join('');
@@ -602,6 +618,9 @@
       document.getElementById('metricTopStrand').textContent = data.topStrand.strand;
       document.getElementById('metricStrandPercent').textContent = data.topStrand.percent + '%';
       document.getElementById('metricStrandCount').textContent = data.topStrand.count;
+    } else {
+      PP.statFailed('metricTopStrand');
+      PP.statFailed('metricStrandPercent');
     }
 
     document.getElementById('strandChartTotal').textContent = data.totalStudents;

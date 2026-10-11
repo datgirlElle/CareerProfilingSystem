@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>All Recommended Careers — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -272,7 +272,17 @@
   });
 
   (async function loadData() {
-    const data = await (await fetch('api/programs.php?all=1&stats=1')).json();
+    const careersBody = document.getElementById('careersTableBody');
+    PP.showSkeleton(careersBody, PP.skeleton.rows(5, 6));
+    let data;
+    try {
+      data = await PP.fetchJson('api/programs.php?all=1&stats=1');
+    } catch (e) {
+      PP.showError(careersBody, e.message, loadData, 5);
+      document.getElementById('resultCount').textContent = '';
+      return;
+    }
+    careersBody.removeAttribute('aria-busy');
     const counts = data.stats.matchedCounts;
     const total = data.stats.totalStudentsWithRecommendations;
     const maxCount = Math.max(1, ...Object.values(counts).map(Number));

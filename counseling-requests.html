@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Counseling Requests — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -314,13 +314,20 @@
 
   async function loadRetakes() {
     const list = document.getElementById('requestsList');
-    const res = await fetch('api/retake-requests.php?status=' + encodeURIComponent(retakeStatus));
-    if (!res.ok) {
-      list.innerHTML = '<p class="text-sm text-slate-400 text-center py-8">You do not have access to retake requests.</p>';
-      renderTabs({});
+    PP.showSkeleton(list, PP.skeleton.cards(3));
+    let data;
+    try {
+      data = await PP.fetchJson('api/retake-requests.php?status=' + encodeURIComponent(retakeStatus));
+    } catch (e) {
+      if (e.status === 403) {
+        list.innerHTML = '<p class="text-sm text-slate-400 text-center py-8">You do not have access to retake requests.</p>';
+        renderTabs({});
+      } else {
+        PP.showError(list, e.message, loadRetakes);
+      }
       return;
     }
-    const data = await res.json();
+    list.removeAttribute('aria-busy');
     document.getElementById('retakeCount').textContent = data.pendingCount ? '(' + data.pendingCount + ')' : '';
     renderTabs({ pending: data.pendingCount });
     list.innerHTML = data.requests.length
@@ -352,9 +359,16 @@
   async function load() {
     if (view === 'retakes') { await loadRetakes(); return; }
     const list = document.getElementById('requestsList');
-    list.innerHTML = '<p class="text-sm text-slate-400 text-center py-8">Loading…</p>';
+    PP.showSkeleton(list, PP.skeleton.cards(3));
 
-    const data = await (await fetch('api/help-requests.php?status=' + encodeURIComponent(activeStatus))).json();
+    let data;
+    try {
+      data = await PP.fetchJson('api/help-requests.php?status=' + encodeURIComponent(activeStatus));
+    } catch (e) {
+      PP.showError(list, e.message, load);
+      return;
+    }
+    list.removeAttribute('aria-busy');
     renderTabs({ open: data.openCount });
     fetch('api/retake-requests.php?status=pending').then(r => r.ok ? r.json() : null).then(d => { if (d) document.getElementById('retakeCount').textContent = d.pendingCount ? '(' + d.pendingCount + ')' : ''; }).catch(() => {});
 

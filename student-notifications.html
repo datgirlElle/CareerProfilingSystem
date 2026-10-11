@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
 <title>Notifications — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -279,10 +279,11 @@
     async function loadNotifications() {
       const loadingEl = document.getElementById('loadingState');
       const errorEl = document.getElementById('listError');
+      errorEl.classList.add('hidden');
+      loadingEl.classList.remove('hidden');
+      PP.showSkeleton(loadingEl, PP.skeleton.lines(4, 16));
       try {
-        const res = await fetch('api/notifications.php?full=1');
-        if (!res.ok) throw new Error('bad status');
-        const data = await res.json();
+        const data = await PP.fetchJson('api/notifications.php?full=1');
         const items = data.items || [];
         loadingEl.classList.add('hidden');
         document.getElementById('annList').innerHTML = items.filter(function(n) { return n.type === 'announcement'; }).map(function(n) { return rowHtml(n, true); }).join('');
@@ -290,7 +291,7 @@
         refreshSections();
       } catch (e) {
         loadingEl.classList.add('hidden');
-        errorEl.textContent = 'Could not load your notifications. Please refresh the page.';
+        PP.showError(errorEl, 'Could not load your notifications. ' + (e.message || ''), loadNotifications);
         errorEl.classList.remove('hidden');
       }
     }
