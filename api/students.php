@@ -225,7 +225,7 @@ $assessmentFilter = (string) ($_GET['assessment'] ?? '');     // assessed | notA
 $asCsv = ($_GET['format'] ?? '') === 'csv';
 
 $rows = $pdo->query(
-    'SELECT s.user_id, s.school_id, s.first_name_enc, s.last_name_enc, s.strand, s.grade_level, s.section, s.registered_at,
+    'SELECT s.user_id, s.school_id, s.first_name_enc, s.last_name_enc, s.strand, s.grade_level, s.section, s.registered_at, s.academic_year,
             u.is_active, u.email, a.top_types, a.completed_at
      FROM students s
      JOIN users u ON u.id = s.user_id
@@ -258,6 +258,12 @@ foreach ($helpRequestRows as $hr) {
 }
 
 $allRegisteredSchoolIds = array_column($rows, 'school_id'); // before scoping: a student registered elsewhere is not 'Not Registered'
+// ?academicYear= looks back at a past school year: only the students registered in that year and that year's class roster.
+// The current year (the default) keeps showing everyone registered.
+$viewAy = AcademicYear::resolve($pdo, (string) ($_GET['academicYear'] ?? ''));
+if (AcademicYear::isPast($viewAy)) {
+    $rows = array_values(array_filter($rows, fn($r) => $r['academic_year'] === $viewAy));
+}
 $rows = array_values(array_filter($rows, fn($r) => StaffScope::allows($scope, $r['strand'], $r['section'])));
 $mismatchIds = Mismatch::studentIds($pdo); // finished students whose chosen program isn't in their Top Matches
 
@@ -290,10 +296,10 @@ $students = array_map(function ($r) use ($counseledIds, $mismatchIds) {
 // roster upload, not just who happened to sign up. A roster row whose
 // school_id already matches a registered student is skipped entirely;
 // the real account's live data always wins over the one-time CSV snapshot.
-$currentAy = AcademicYear::current();
+$currentAy = $viewAy;
 if ($currentAy !== '') {
     $registeredSchoolIds = $allRegisteredSchoolIds;
-    $rosterStmt = $pdo->prepare('SELECT school_id, name_enc, strand, section, email FROM assessment_roster WHERE academic_year = ?');
+    $rosterStmt = $pdo->prepare('SELECT id, school_id, name_enc, strand, section, email FROM assessment_roster WHERE academic_year = ?');
     $rosterStmt->execute([$currentAy]);
     foreach ($rosterStmt->fetchAll() as $rr) {
         if (in_array($rr['school_id'], $registeredSchoolIds, true) || !StaffScope::allows($scope, $rr['strand'], $rr['section'])) {
@@ -312,6 +318,8 @@ if ($currentAy !== '') {
             'mismatched' => false,
             'registeredAt' => null,
             'assessmentDate' => null,
+            'rosterId' => (int) $rr['id'],
+            'hasEmail' => trim((string) $rr['email']) !== '',
             '_email' => $rr['email'],
         ];
     }
@@ -439,6 +447,9 @@ jsonResponse([
     'totalPages' => $totalPages,
     'startIndex' => $total > 0 ? $offset + 1 : 0,
     'sections' => array_values($sectionSummary),
+    'academicYear' => $viewAy,
+    'academicYears' => AcademicYear::available($pdo),
+    'isPastYear' => AcademicYear::isPast($viewAy),
     'summary' => [
         'totalStudents' => $totalStudents,
         'completedCount' => $completedCount,

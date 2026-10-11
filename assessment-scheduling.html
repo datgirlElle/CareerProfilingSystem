@@ -240,7 +240,13 @@
         <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
           <div class="border-b border-slate-200 px-6 py-4 flex items-center justify-between gap-3 flex-wrap">
             <h2 class="text-base font-semibold text-slate-900"><span id="listTitle">Scheduled Sessions</span> <span id="listAyLabel" class="text-slate-400 font-normal"></span></h2>
-            <button type="button" id="archiveToggle" class="text-xs font-medium text-[#19427b] hover:underline">Show archived</button>
+            <div class="flex items-center gap-3">
+              <div class="flex items-center gap-2">
+                <label for="ayFilter" class="text-xs font-medium text-slate-600">School year</label>
+                <select id="ayFilter" class="border border-slate-300 rounded-md px-2.5 py-1.5 text-xs text-slate-700 bg-white"></select>
+              </div>
+              <button type="button" id="archiveToggle" class="text-xs font-medium text-[#19427b] hover:underline">Show archived</button>
+            </div>
           </div>
           <div id="schedulesList" class="divide-y divide-slate-100">
             <p class="px-6 py-8 text-center text-sm text-slate-400">Loading…</p>
@@ -435,7 +441,7 @@
               <p class="text-xs text-slate-500 mt-0.5">${escapeHtml(scopeLabel(s))}</p>
               ${s.notes ? '<p class="text-xs text-slate-400 mt-1">' + escapeHtml(s.notes) + '</p>' : ''}
             </div>
-            ${canWrite && !s.isArchived ? `<button type="button" class="btn-danger delete-schedule-btn text-xs font-medium text-[#ed1c24] hover:underline shrink-0" data-id="${s.id}">Delete</button>` : ''}
+            ${canWrite && !viewingPast && !s.isArchived ? `<button type="button" class="btn-danger delete-schedule-btn text-xs font-medium text-[#ed1c24] hover:underline shrink-0" data-id="${s.id}">Delete</button>` : ''}
           </div>
           <div class="w-full h-1.5 rounded-full bg-slate-100">
             <div class="h-1.5 rounded-full bg-[#19427b]" style="width:${pct}%"></div>
@@ -444,7 +450,7 @@
           <div class="flex items-center gap-2 mt-1">
             <span class="text-xs text-slate-500">Access code:</span>
             <span class="font-mono text-xs tracking-[2px] bg-slate-50 border ${s.isArchived ? 'border-slate-200 text-slate-400 line-through' : 'border-slate-200'} rounded px-2 py-1">${escapeHtml(s.accessCode)}</span>
-            ${canWrite && !s.isArchived ? `<button type="button" class="regen-code-btn text-xs font-medium text-[#19427b] hover:underline" data-id="${s.id}">Regenerate</button>` : ''}
+            ${canWrite && !viewingPast && !s.isArchived ? `<button type="button" class="regen-code-btn text-xs font-medium text-[#19427b] hover:underline" data-id="${s.id}">Regenerate</button>` : ''}
           </div>
         </div>
       </div>
@@ -501,11 +507,27 @@
   }
 
   let showArchived = false;
+  let selectedAy = '';
+  let viewingPast = false;
+  const ayFilter = document.getElementById('ayFilter');
+  ayFilter.addEventListener('change', () => { selectedAy = ayFilter.value; showArchived = false; loadSchedules(); });
   const archiveToggle = document.getElementById('archiveToggle');
   archiveToggle.addEventListener('click', () => { showArchived = !showArchived; loadSchedules(); });
 
   async function loadSchedules() {
-    const data = await (await fetch('api/exam-schedules.php' + (showArchived ? '?archived=1' : ''))).json();
+    const query = new URLSearchParams();
+    if (showArchived) query.set('archived', '1');
+    if (selectedAy) query.set('academicYear', selectedAy);
+    const data = await (await fetch('api/exam-schedules.php' + (query.toString() ? '?' + query.toString() : ''))).json();
+    // A past school year is looked at, not changed: its sessions have all ended, so show them as archived, with no creating.
+    viewingPast = !!data.isPastYear;
+    if (viewingPast && !showArchived) { showArchived = true; return loadSchedules(); }
+    if (data.academicYears && data.academicYears.length) {
+      ayFilter.innerHTML = data.academicYears.map(y => '<option value="' + escapeHtml(y) + '">' + escapeHtml(y) + '</option>').join('');
+      ayFilter.value = data.academicYear;
+    }
+    archiveToggle.classList.toggle('hidden', viewingPast);
+    if (canWrite) document.getElementById('createCard').classList.toggle('hidden', viewingPast);
     listAyLabel.textContent = data.academicYear ? '— AY ' + data.academicYear : '';
     document.getElementById('listTitle').textContent = showArchived ? 'Archived Sessions' : 'Scheduled Sessions';
     archiveToggle.textContent = showArchived ? 'Back to active sessions' : 'Show archived (' + (data.archivedCount || 0) + ')';

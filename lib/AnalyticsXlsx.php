@@ -23,18 +23,23 @@ class AnalyticsXlsx
      * @param array<int,string>|null $scope see StaffScope
      * @return array<int,array{name:string,strand:string,section:string,registered:bool,assessed:bool,date:?string,riasec:string}>
      */
-    public static function studentRows(PDO $pdo, ?array $scope, string $strand = '', string $section = ''): array
+    public static function studentRows(PDO $pdo, ?array $scope, string $strand = '', string $section = '', string $academicYear = ''): array
     {
+        $ay = AcademicYear::resolve($pdo, $academicYear);
+        $pastAy = AcademicYear::isPast($ay);
         $rows = [];
         $registeredIds = [];
         $stmt = $pdo->query(
-            'SELECT s.school_id, s.first_name_enc, s.last_name_enc, s.strand, s.section, a.top_types, a.completed_at
+            'SELECT s.school_id, s.first_name_enc, s.last_name_enc, s.strand, s.section, s.academic_year, a.top_types, a.completed_at
              FROM students s
              JOIN users u ON u.id = s.user_id
              LEFT JOIN assessments a ON a.student_id = s.user_id AND a.is_latest = TRUE'
         );
         foreach ($stmt->fetchAll() as $r) {
             $registeredIds[$r['school_id']] = true;
+            if ($pastAy && $r['academic_year'] !== $ay) {
+                continue;
+            }
             $done = $r['completed_at'] !== null;
             $types = $done ? (json_decode((string) $r['top_types'], true) ?: []) : [];
             $rows[] = [
@@ -45,7 +50,6 @@ class AnalyticsXlsx
                 'riasec' => QuestionBank::hollandCode($types),
             ];
         }
-        $ay = AcademicYear::current();
         if ($ay !== '') {
             $rosterStmt = $pdo->prepare('SELECT school_id, name_enc, strand, section FROM assessment_roster WHERE academic_year = ?');
             $rosterStmt->execute([$ay]);
@@ -72,10 +76,10 @@ class AnalyticsXlsx
      * @param array<int,string>|null $scope
      * @return string the .xlsx file's bytes
      */
-    public static function build(PDO $pdo, ?array $scope, string $strand, string $section, string $password, string $generatedBy, string $emailedTo): string
+    public static function build(PDO $pdo, ?array $scope, string $strand, string $section, string $password, string $generatedBy, string $emailedTo, string $academicYear = ''): string
     {
-        $students = self::studentRows($pdo, $scope, $strand, $section);
-        $ay = AcademicYear::current();
+        $ay = AcademicYear::resolve($pdo, $academicYear);
+        $students = self::studentRows($pdo, $scope, $strand, $section, $ay);
 
         // Per section, counted the way the dashboard counts them.
         $bySection = [];
@@ -138,7 +142,7 @@ class AnalyticsXlsx
         }
 
         // ---- RIASEC
-        $avg = AnalyticsReport::compute($pdo, $strand, $section)['riasecAverages'];
+        $avg = AnalyticsReport::compute($pdo, $strand, $section, $ay)['riasecAverages'];
         $riasecRows = [array_map(fn($h) => $S($h, XlsxWriter::S_HEADER), ['Type', 'Letter', 'Average score'])];
         $rCats = $rVals = [];
         foreach (self::RIASEC_NAMES as $letter => $label) {

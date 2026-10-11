@@ -209,6 +209,32 @@
       new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   }
 
+  // Invite to counseling: sends the student the CGC booking link by email and as a notification. Counseling belongs to the
+  // Guidance Counselors and the Head of Guidance (the Counseling Notes permission), so the button only shows for them.
+  let canInvite = currentUser.role === 'admin';
+  try {
+    const inviteCfg = await (await fetch('api/security-config.php')).json();
+    canInvite = ((inviteCfg.rbac && inviteCfg.rbac.counselingNotes && inviteCfg.rbac.counselingNotes[currentUser.rbacRole || currentUser.role]) || 'none') === 'full';
+  } catch (e) {}
+  async function sendCounselingInvite(studentId) {
+    const res = await fetch('api/counseling-invite.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ studentId: Number(studentId) })
+    });
+    const data = await res.json();
+    if (!data.success) return { ok: false, text: data.error || 'Could not send the invitation.' };
+    return data.emailSent
+      ? { ok: true, text: 'Invitation sent by email and notification.' }
+      : { ok: false, text: 'Notification sent. The email could not be sent' + (data.hasEmail ? '.' : ' because this student has no verified email.') };
+  }
+  function showToast(text, isError) {
+    const el = document.createElement('div');
+    el.className = 'fixed bottom-4 right-4 z-[60] max-w-sm px-4 py-3 rounded-lg shadow-lg text-sm font-medium whitespace-pre-wrap ' + (isError ? 'bg-[#ed1c24] text-white' : 'bg-green-600 text-white');
+    el.textContent = text;
+    document.body.appendChild(el);
+    setTimeout(function() { el.remove(); }, 6000);
+  }
+
   let activeStatus = 'open';
 
   function renderCard(r) {
@@ -218,6 +244,9 @@
     const resolveBtn = r.status === 'open'
       ? '<button type="button" class="resolve-btn shrink-0 bg-[#ed1c24] text-white text-xs font-semibold uppercase tracking-wide rounded-md px-4 py-2 hover:opacity-90" data-id="' + r.id + '">Mark Resolved</button>'
       : '';
+    const inviteBtn = canInvite && r.studentId
+      ? '<button type="button" class="invite-btn shrink-0 border border-[#0f2a6b] text-[#0f2a6b] text-xs font-semibold uppercase tracking-wide rounded-md px-4 py-2 hover:bg-slate-50" data-student-id="' + r.studentId + '" data-name="' + escapeHtml(r.name) + '">Invite to Counseling</button>'
+      : '';
     return '<div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex flex-col gap-3">' +
       '<div class="flex items-start justify-between gap-4 flex-wrap">' +
         '<div><h3 class="text-base font-semibold text-slate-900">' + escapeHtml(r.subject) + '</h3>' +
@@ -225,7 +254,7 @@
         statusBadge +
       '</div>' +
       '<p class="text-sm text-slate-700 leading-relaxed">' + escapeHtml(r.message) + '</p>' +
-      (resolveBtn ? '<div class="flex justify-end">' + resolveBtn + '</div>' : '') +
+      ((inviteBtn || resolveBtn) ? '<div class="flex justify-end gap-2">' + inviteBtn + resolveBtn + '</div>' : '') +
     '</div>';
   }
 
@@ -246,6 +275,20 @@
       ? data.requests.map(renderCard).join('')
       : '<p class="text-sm text-slate-400 text-center py-8">No requests in this view.</p>';
 
+    list.querySelectorAll('.invite-btn').forEach(btn => {
+      btn.addEventListener('click', async function() {
+        if (!window.confirm('Invite ' + btn.dataset.name + ' to a counseling session? They will be sent the CGC booking link by email and in their notifications.')) return;
+        btn.disabled = true;
+        try {
+          const result = await sendCounselingInvite(btn.dataset.studentId);
+          showToast(result.text, !result.ok);
+        } catch (e) {
+          showToast('Unable to reach the server. Please try again.', true);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
     list.querySelectorAll('.resolve-btn').forEach(btn => {
       btn.addEventListener('click', async function() {
         btn.disabled = true;

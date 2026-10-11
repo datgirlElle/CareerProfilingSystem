@@ -121,9 +121,15 @@
     <main id="main-content" class="flex-1 p-4 sm:p-8 overflow-auto">
 
       <!-- Page Header -->
-      <div class="mb-8">
-        <h1 class="text-2xl font-bold text-gray-900">Student Information Dashboard</h1>
-        <p class="text-sm text-gray-500 mt-1">Overview of student assessments and counseling status</p>
+      <div class="mb-8 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Student Information Dashboard</h1>
+          <p class="text-sm text-gray-500 mt-1">Overview of student assessments and counseling status</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <label for="ayFilter" class="text-xs font-medium text-gray-600">School year</label>
+          <select id="ayFilter" class="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></select>
+        </div>
       </div>
 
       <!-- Summary Cards: totals and shares only (the assessment is taken once a year, so there is no monthly trend) -->
@@ -343,6 +349,26 @@
   </div>
 </div>
 
+<div id="inviteModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-md p-6 flex flex-col gap-4">
+    <h3 class="text-lg font-semibold text-black" id="inviteTitle">Invite to register</h3>
+    <div class="flex flex-col gap-2 text-sm text-gray-700">
+      <p><span class="font-medium text-gray-900">To:</span> <span id="inviteTo"></span></p>
+      <p><span class="font-medium text-gray-900">Subject:</span> Create your ProfilePath account</p>
+      <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-600 flex flex-col gap-2">
+        <p>Hi <span id="inviteFirst">there</span>,</p>
+        <p>The Center for Guidance and Counseling invites you to create your ProfilePath account so you can take the career assessment. Register with your Student Number and your school email, the one this message was sent to.</p>
+        <p><span class="inline-block bg-[#0f2a6b] text-white text-xs font-semibold rounded-md px-3 py-1.5">Create my account</span></p>
+      </div>
+    </div>
+    <p id="inviteError" class="hidden text-sm text-[#ed1c24]"></p>
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" id="inviteCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+      <button type="button" id="inviteSendBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Send invitation</button>
+    </div>
+  </div>
+</div>
+
 <div id="logoutConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
   <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
     <h3 class="text-lg font-semibold text-black">Log Out?</h3>
@@ -450,7 +476,9 @@
   const searchInput = document.getElementById('studentSearch');
   const noResults = document.getElementById('noResults');
   const tbody = document.getElementById('studentTbody');
-  const state = { search: '', strand: '', section: '', status: '', counseling: '', registration: '', assessment: '' };
+  const state = { search: '', strand: '', section: '', status: '', counseling: '', registration: '', assessment: '', academicYear: '' };
+  let isPastYear = false;
+  let lastTotal = 0;
   let statusSection = ''; // '' = all sections, otherwise "STRAND|SECTION"
   let statusChart = null;
 
@@ -558,15 +586,15 @@
     }
   }
   document.getElementById('downloadListBtn').addEventListener('click', function() {
-    downloadCsv({ search: state.search, strand: state.strand, section: state.section, status: state.status, counseling: state.counseling, registration: state.registration, assessment: state.assessment });
+    downloadCsv({ search: state.search, strand: state.strand, section: state.section, status: state.status, counseling: state.counseling, registration: state.registration, assessment: state.assessment, academicYear: state.academicYear });
   });
   function pickedSectionParams() {
     if (!statusSection) return {};
     const parts = statusSection.split('|');
     return { strand: parts[0], section: parts[1] };
   }
-  document.getElementById('dlNotRegistered').addEventListener('click', function() { downloadCsv(Object.assign({ registration: 'notRegistered' }, pickedSectionParams())); });
-  document.getElementById('dlNotAssessed').addEventListener('click', function() { downloadCsv(Object.assign({ assessment: 'notAssessed' }, pickedSectionParams())); });
+  document.getElementById('dlNotRegistered').addEventListener('click', function() { downloadCsv(Object.assign({ registration: 'notRegistered', academicYear: state.academicYear }, pickedSectionParams())); });
+  document.getElementById('dlNotAssessed').addEventListener('click', function() { downloadCsv(Object.assign({ assessment: 'notAssessed', academicYear: state.academicYear }, pickedSectionParams())); });
 
   const STATUS_STYLE = {
     Completed: { bg: 'bg-[#f0fdf4] border-[#bbf7d0] text-emerald-500', dot: 'images/admin/dot-green.svg' },
@@ -601,7 +629,9 @@
     // A roster-only entry has no account to open a profile for — no link,
     // just a dash, matching the other empty-data cells in this row.
     const actionCell = isRosterOnly
-      ? '<span class="text-gray-400 text-xs">—</span>'
+      ? (s.hasEmail && !isPastYear
+          ? '<button type="button" class="invite-btn text-xs font-semibold rounded-md px-3 py-1.5 border text-[#0f2a6b] border-[#0f2a6b] hover:bg-slate-50" data-roster-id="' + s.rosterId + '" data-name="' + escapeHtml(s.name) + '">Invite</button>'
+          : '<span class="text-gray-400 text-xs">—</span>')
       : '<a href="student-profile?' + params.toString() + '" class="inline-flex items-center justify-center w-8 h-8 border border-gray-200 rounded shadow-sm hover:bg-gray-50">' +
           '<svg class="w-4 h-4" viewBox="0 -960 960 960" fill="#64748B"><path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/></svg></a>';
     return '<tr>' +
@@ -623,9 +653,12 @@
     tbody.innerHTML = '<tr><td colspan="9" class="px-6 py-8 text-center text-sm text-gray-500">Loading…</td></tr>';
     const params = new URLSearchParams({
       all: '1', search: state.search, strand: state.strand, section: state.section, status: state.status, counseling: state.counseling,
-      registration: state.registration, assessment: state.assessment,
+      registration: state.registration, assessment: state.assessment, academicYear: state.academicYear,
     });
     const data = await (await fetch('api/students.php?' + params.toString())).json();
+    isPastYear = !!data.isPastYear;
+    lastTotal = data.total;
+    renderYearOptions(data);
 
     document.getElementById('cardTotalStudents').textContent = data.summary.totalStudents.toLocaleString();
     document.getElementById('cardCompleted').textContent = data.summary.completedCount.toLocaleString();
@@ -647,10 +680,13 @@
       : '';
 
     // Staff can email everyone currently listed when the list is Pending or Mismatched students.
+    // Past school years are looked at, not acted on: no emails from them.
     const emailBtn = document.getElementById('emailListedBtn');
-    emailBtn.classList.toggle('hidden', !(state.status === 'Pending' || state.status === 'Mismatched'));
-    emailBtn.classList.toggle('flex', state.status === 'Pending' || state.status === 'Mismatched');
-    emailBtn.textContent = state.status === 'Mismatched' ? 'Email: visit the Guidance Office' : 'Email: assessment reminder';
+    const inviteMode = !isPastYear && state.registration === 'notRegistered' && !(state.status === 'Pending' || state.status === 'Mismatched');
+    const showEmail = !isPastYear && (state.status === 'Pending' || state.status === 'Mismatched' || inviteMode);
+    emailBtn.classList.toggle('hidden', !showEmail);
+    emailBtn.classList.toggle('flex', showEmail);
+    emailBtn.textContent = inviteMode ? 'Email: invite to register' : (state.status === 'Mismatched' ? 'Email: visit the Guidance Office' : 'Email: assessment reminder');
 
     document.getElementById('paginationSummary').innerHTML =
       'Showing <span class="font-medium text-gray-900">' + data.total.toLocaleString() + '</span> student' + (data.total === 1 ? '' : 's') + '. Scroll the table to see more.';
@@ -659,6 +695,10 @@
   // "Email these students": a reminder to the Pending students, or a request to visit the
   // Guidance Office for the Mismatched ones, limited to the current strand/section filters.
   document.getElementById('emailListedBtn').addEventListener('click', async function() {
+    if (state.registration === 'notRegistered' && !(state.status === 'Pending' || state.status === 'Mismatched')) {
+      openInvite({ to: lastTotal + ' student' + (lastTotal === 1 ? '' : 's') + ' not registered yet (those with an email on the class roster)', body: { all: true, strand: state.strand, section: state.section } });
+      return;
+    }
     const kind = state.status === 'Mismatched' ? 'mismatch' : 'pending';
     const what = kind === 'mismatch' ? 'ask the listed students to visit the Guidance Office' : 'send the listed students an assessment reminder';
     if (!window.confirm('Email these students? This will ' + what + '. A student receives at most one such email per day; students without an account are skipped.')) return;
@@ -683,6 +723,65 @@
     } finally {
       btn.disabled = false; btn.textContent = label;
     }
+  });
+
+  // ---- Invite students who are on the class roster but have not registered: a pop-up shows the email, then sends it.
+  const inviteModal = document.getElementById('inviteModal');
+  let inviteBody = null;
+  function closeInvite() {
+    inviteModal.classList.remove('is-open');
+    setTimeout(function() { inviteModal.classList.add('hidden'); }, 260);
+  }
+  function openInvite(opts) {
+    inviteBody = opts.body;
+    document.getElementById('inviteTo').textContent = opts.to;
+    document.getElementById('inviteFirst').textContent = opts.first || 'there';
+    document.getElementById('inviteError').classList.add('hidden');
+    inviteModal.classList.remove('hidden');
+    setTimeout(function() { inviteModal.classList.add('is-open'); }, 16);
+  }
+  document.getElementById('inviteCancelBtn').addEventListener('click', closeInvite);
+  inviteModal.addEventListener('click', function(e) { if (e.target.id === 'inviteModal') closeInvite(); });
+  document.getElementById('inviteSendBtn').addEventListener('click', async function() {
+    const btn = this, errEl = document.getElementById('inviteError');
+    btn.disabled = true;
+    try {
+      const res = await fetch('api/student-invite.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(inviteBody) });
+      const data = await res.json();
+      if (!data.success) { errEl.textContent = data.error || 'Could not send the invitation.'; errEl.classList.remove('hidden'); return; }
+      closeInvite();
+      const summary = document.getElementById('paginationSummary');
+      summary.textContent = 'Invited ' + data.sent + ' of ' + data.listed + ' student' + (data.listed === 1 ? '' : 's') +
+        (data.alreadyInvitedToday ? ' (' + data.alreadyInvitedToday + ' already invited today)' : '') +
+        (data.failed ? '. ' + data.failed + ' could not be delivered.' : '.');
+    } catch (e) {
+      errEl.textContent = 'Unable to reach the server. Please try again.';
+      errEl.classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+  tbody.addEventListener('click', function(e) {
+    const btn = e.target.closest('.invite-btn');
+    if (!btn) return;
+    const name = btn.dataset.name || '';
+    // Roster names are LASTNAME, FIRSTNAME MIDDLE.
+    const afterComma = name.indexOf(',') >= 0 ? name.slice(name.indexOf(',') + 1).trim() : name;
+    const first = (afterComma.split(/\s+/)[0] || '').toLowerCase().replace(/^./, function(c) { return c.toUpperCase(); });
+    openInvite({ to: name, first: first, body: { rosterId: Number(btn.dataset.rosterId) } });
+  });
+
+  // ---- School year: the current one by default, or any past year that has data (never a future one).
+  const ayFilter = document.getElementById('ayFilter');
+  function renderYearOptions(data) {
+    const years = data.academicYears || [];
+    if (!years.length) return;
+    ayFilter.innerHTML = years.map(function(y) { return '<option value="' + escapeHtml(y) + '">' + escapeHtml(y) + '</option>'; }).join('');
+    ayFilter.value = data.academicYear;
+  }
+  ayFilter.addEventListener('change', function() {
+    state.academicYear = ayFilter.value;
+    load();
   });
 
   searchInput.addEventListener('input', () => {

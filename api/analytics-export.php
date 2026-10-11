@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/QuestionBank.php';
+require_once __DIR__ . '/../lib/AcademicYear.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     jsonResponse(['error' => 'Method not allowed'], 405);
@@ -21,6 +22,7 @@ $section = trim((string) ($_GET['section'] ?? ''));
 if ($academicYear === '') {
     jsonResponse(['error' => 'academicYear is required.'], 400);
 }
+$academicYear = AcademicYear::resolve($pdo, $academicYear);
 
 $conds = ['s.academic_year = ?'];
 $params = [$academicYear];

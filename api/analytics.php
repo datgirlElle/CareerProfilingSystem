@@ -20,4 +20,5 @@ $pdo = Database::get();
 $strand = trim((string) ($_GET['strand'] ?? ''));
 $section = trim((string) ($_GET['section'] ?? ''));
 
-jsonResponse(AnalyticsReport::compute($pdo, $strand, $section));
+// ?academicYear=2025-2026 looks back at a past school year (only years that exist, never a future one).
+jsonResponse(AnalyticsReport::compute($pdo, $strand, $section, trim((string) ($_GET['academicYear'] ?? ''))));

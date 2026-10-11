@@ -112,6 +112,10 @@
           <p class="text-sm text-slate-500 mt-1">Insights and trends based on student assessments and career profiling data.</p>
         </div>
         <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2">
+            <label for="ayFilter" class="text-xs font-medium text-slate-600">School year</label>
+            <select id="ayFilter" class="border border-slate-300 rounded-md px-3 py-2.5 text-sm text-slate-700 bg-white shadow-sm"></select>
+          </div>
           <div class="relative">
             <button type="button" id="filtersBtn" class="flex items-center gap-2 bg-white border border-slate-300 rounded-md px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
               <img src="images/analytics/icon-filter.svg" alt="" class="w-3.5 h-3">
@@ -555,14 +559,28 @@
   let statsChartInstance = null;
   let careersChartInstance = null;
 
+  let selectedAy = '';
+  let shownStrand = '', shownSection = '';
+  const ayFilter = document.getElementById('ayFilter');
+  ayFilter.addEventListener('change', function() {
+    selectedAy = ayFilter.value;
+    load(shownStrand, shownSection);
+  });
   async function load(strand, section) {
     section = section || '';
+    shownStrand = strand || '';
+    shownSection = section;
     const labelParts = [];
     if (strand) labelParts.push(strand);
     if (section) labelParts.push(section);
     filtersBtnLabel.textContent = labelParts.length ? 'Filters: ' + labelParts.join(', ') : 'Filters';
-    const params = new URLSearchParams({ strand: strand || '', section: section });
+    const params = new URLSearchParams({ strand: strand || '', section: section, academicYear: selectedAy });
     const data = await (await fetch('api/analytics.php?' + params.toString())).json();
+    // School year drop-down: the current year plus any past year that has data (never a future one).
+    if (data.academicYears && data.academicYears.length) {
+      ayFilter.innerHTML = data.academicYears.map(function(y) { return '<option value="' + escapeHtml(y) + '">' + escapeHtml(y) + '</option>'; }).join('');
+      ayFilter.value = data.academicYear;
+    }
     updateExportLink(data);
     if (!sectionsByStrand && data.sectionsByStrand) {
       sectionsByStrand = data.sectionsByStrand;
@@ -737,7 +755,7 @@
 
   // "Export Report (Excel)": a protected workbook with charts. Its edit password is emailed to whoever
   // downloads it, so the file is fetched here (rather than a plain link) to show what happened.
-  let lastExportFilter = { strand: '', section: '' };
+  let lastExportFilter = { strand: '', section: '', academicYear: '' };
   function showExportToast(text, isError) {
     const el = document.createElement('div');
     el.className = 'fixed bottom-4 right-4 z-[60] max-w-sm px-4 py-3 rounded-lg shadow-lg text-sm font-medium whitespace-pre-wrap ' + (isError ? 'bg-[#ed1c24] text-white' : 'bg-green-600 text-white');
@@ -749,7 +767,7 @@
     const btn = this, label = btn.textContent;
     btn.disabled = true; btn.textContent = 'Preparing…';
     try {
-      const params = new URLSearchParams({ strand: lastExportFilter.strand, section: lastExportFilter.section });
+      const params = new URLSearchParams({ strand: lastExportFilter.strand, section: lastExportFilter.section, academicYear: lastExportFilter.academicYear });
       const res = await fetch('api/analytics-export-xlsx.php?' + params.toString());
       if (!res.ok) {
         let message = 'Could not export the report. Please try again.';
@@ -777,7 +795,7 @@
   });
 
   function updateExportLink(data) {
-    lastExportFilter = { strand: data.strand || '', section: data.section || '' };
+    lastExportFilter = { strand: data.strand || '', section: data.section || '', academicYear: data.academicYear || '' };
     const ay = data.assessmentStats && data.assessmentStats.academicYear ? data.assessmentStats.academicYear : '';
     const btn = document.getElementById('exportCsvBtn');
     if (!ay) {

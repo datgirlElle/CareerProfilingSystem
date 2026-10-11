@@ -308,10 +308,12 @@
         <p id="reviewReason" class="text-sm text-slate-800"></p>
       </div>
     </div>
-    <div class="px-6 py-4 border-t border-slate-100 flex flex-wrap gap-2 justify-end">
-      <button type="button" data-action="dismiss" class="review-action-btn px-3.5 py-2 text-sm font-medium text-slate-600 border border-slate-300 rounded-md hover:bg-slate-50">Dismiss Flag</button>
-      <button type="button" data-action="escalate" class="review-action-btn px-3.5 py-2 text-sm font-medium text-orange-600 border border-orange-200 bg-orange-50 rounded-md hover:bg-orange-100">Escalate to Counselor</button>
-      <button type="button" data-action="approve" class="review-action-btn px-3.5 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:bg-red-600">Approve Recommendation</button>
+    <p id="reviewInviteMsg" class="hidden px-6 pb-3 text-sm"></p>
+    <div class="px-6 py-4 border-t border-slate-100" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button type="button" id="reviewInviteBtn" class="hidden px-3.5 py-2.5 text-sm font-medium text-center text-[#0f2a6b] border border-[#0f2a6b] rounded-md hover:bg-slate-50" style="grid-column:1/-1">Invite to Counseling</button>
+      <button type="button" data-action="dismiss" class="review-action-btn px-3.5 py-2.5 text-sm font-medium text-center text-slate-600 border border-slate-300 rounded-md hover:bg-slate-50">Dismiss Flag</button>
+      <button type="button" data-action="escalate" class="review-action-btn px-3.5 py-2.5 text-sm font-medium text-center text-orange-600 border border-orange-200 bg-orange-50 rounded-md hover:bg-orange-100">Escalate to Counselor</button>
+      <button type="button" data-action="approve" class="review-action-btn px-3.5 py-2.5 text-sm font-medium text-center text-white bg-[#ed1c24] rounded-md hover:opacity-90" style="grid-column:1/-1">Approve Recommendation</button>
     </div>
   </div>
 </div>
@@ -416,6 +418,24 @@
     return pct >= 70 ? 'text-green-600' : pct >= 50 ? 'text-orange-600' : 'text-[#ed1c24]';
   };
 
+  // Invite to counseling: sends the student the CGC booking link by email and as a notification. Counseling belongs to the
+  // Guidance Counselors and the Head of Guidance (the Counseling Notes permission), so the button only shows for them.
+  let canInvite = currentUser.role === 'admin';
+  try {
+    const inviteCfg = await (await fetch('api/security-config.php')).json();
+    canInvite = ((inviteCfg.rbac && inviteCfg.rbac.counselingNotes && inviteCfg.rbac.counselingNotes[currentUser.rbacRole || currentUser.role]) || 'none') === 'full';
+  } catch (e) {}
+  async function sendCounselingInvite(studentId) {
+    const res = await fetch('api/counseling-invite.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ studentId: Number(studentId) })
+    });
+    const data = await res.json();
+    if (!data.success) return { ok: false, text: data.error || 'Could not send the invitation.' };
+    return data.emailSent
+      ? { ok: true, text: 'Invitation sent by email and notification.' }
+      : { ok: false, text: 'Notification sent. The email could not be sent' + (data.hasEmail ? '.' : ' because this student has no verified email.') };
+  }
   const flaggedTableBody = document.getElementById('flaggedTableBody');
   let rowsById = {};
 
@@ -462,6 +482,21 @@
     });
   }
 
+  document.getElementById('reviewInviteBtn').addEventListener('click', async function() {
+    const btn = this, msg = document.getElementById('reviewInviteMsg');
+    if (!window.confirm('Invite this student to a counseling session? They will be sent the CGC booking link by email and in their notifications.')) return;
+    btn.disabled = true;
+    try {
+      const result = await sendCounselingInvite(btn.dataset.studentId);
+      msg.textContent = result.text;
+      msg.className = 'px-6 pb-3 text-sm ' + (result.ok ? 'text-green-600' : 'text-[#ed1c24]');
+    } catch (e) {
+      msg.textContent = 'Unable to reach the server. Please try again.';
+      msg.className = 'px-6 pb-3 text-sm text-[#ed1c24]';
+    } finally {
+      btn.disabled = false;
+    }
+  });
   let currentFlagId = null;
   function openReviewModal(r) {
     currentFlagId = r.flagId;
@@ -471,6 +506,10 @@
     document.getElementById('reviewMatch').textContent = r.match;
     document.getElementById('reviewCareer').textContent = r.career;
     document.getElementById('reviewReason').textContent = r.reason;
+    const inviteBtn = document.getElementById('reviewInviteBtn');
+    inviteBtn.classList.toggle('hidden', !canInvite);
+    inviteBtn.dataset.studentId = r.userId;
+    document.getElementById('reviewInviteMsg').classList.add('hidden');
     document.getElementById('reviewModal').classList.remove('hidden');
   }
   function closeReviewModal() {

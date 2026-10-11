@@ -16,7 +16,7 @@ require_once __DIR__ . '/AcademicYear.php';
 class AnalyticsReport
 {
     /** @return array<string,mixed> */
-    public static function compute(PDO $pdo, string $strand = '', string $section = ''): array
+    public static function compute(PDO $pdo, string $strand = '', string $section = '', string $academicYear = ''): array
     {
         $validStrands = ['STEM', 'ABM', 'ICT', 'HUMSS'];
         if (!in_array($strand, $validStrands, true)) {
@@ -24,12 +24,17 @@ class AnalyticsReport
         }
         $hasStrand = $strand !== '';
         $hasSection = $section !== '';
+        // The school year being looked at: the current one unless a past year was picked. A past year narrows every student
+        // figure to the students registered in that year.
+        $ay = AcademicYear::resolve($pdo, $academicYear);
+        $pastAy = AcademicYear::isPast($ay);
+        $hasFilter = $hasStrand || $hasSection || $pastAy;
 
         // Builds the "WHERE ... AND ..." (or "" ) clause plus matching bind params
         // for whichever of the two filters are active, given the students-table
         // alias in use. Every metric below joins to `students s` one way or
         // another, so this alias is always 's'.
-        $studentFilterClause = function (string $leadKeyword = 'WHERE') use ($hasStrand, $strand, $hasSection, $section): array {
+        $studentFilterClause = function (string $leadKeyword = 'WHERE') use ($hasStrand, $strand, $hasSection, $section, $pastAy, $ay): array {
             $conds = [];
             $params = [];
             if ($hasStrand) {
@@ -39,6 +44,10 @@ class AnalyticsReport
             if ($hasSection) {
                 $conds[] = 's.section = ?';
                 $params[] = $section;
+            }
+            if ($pastAy) {
+                $conds[] = 's.academic_year = ?';
+                $params[] = $ay;
             }
             if (!$conds) {
                 return ['', []];
@@ -79,8 +88,8 @@ class AnalyticsReport
         $thresholdRow = $pdo->query("SELECT value FROM security_policies WHERE key = 'monitoring.lowConfidenceThreshold'")->fetchColumn();
         $threshold = $thresholdRow !== false ? (float) $thresholdRow : 0.50;
 
-        $latestRecScores = (function () use ($pdo, $hasStrand, $hasSection, $studentFilterClause) {
-            $needsJoin = $hasStrand || $hasSection;
+        $latestRecScores = (function () use ($pdo, $hasFilter, $studentFilterClause) {
+            $needsJoin = $hasFilter;
             [$clause, $params] = $studentFilterClause();
             $sql = 'SELECT DISTINCT ON (r.student_id) r.top_score FROM recommendations r'
                 . ($needsJoin ? ' JOIN students s ON s.user_id = r.student_id' . $clause : '')
@@ -114,8 +123,8 @@ class AnalyticsReport
             return $stmt->fetch();
         })();
 
-        $careerCounts = (function () use ($pdo, $hasStrand, $hasSection, $studentFilterClause) {
-            $needsJoin = $hasStrand || $hasSection;
+        $careerCounts = (function () use ($pdo, $hasFilter, $studentFilterClause) {
+            $needsJoin = $hasFilter;
             [$clause, $params] = $studentFilterClause();
             $sql = "SELECT top_program_id, COUNT(*) AS cnt FROM (
                         SELECT DISTINCT ON (r.student_id) r.student_id, r.top_program_id
@@ -136,7 +145,7 @@ class AnalyticsReport
         // upload used to REPLACE this count outright rather than add to it,
         // so a small or stale roster could show something like "2 of 1" once
         // more students registered than the roster had ever listed.
-        $currentAy = AcademicYear::current();
+        $currentAy = $ay; // the school year being looked at
         $expectedCount = (int) (function () use ($pdo, $currentAy, $hasStrand, $strand, $hasSection, $section) {
             $studentConds = ['academic_year = ?'];
             $studentParams = [$currentAy];
@@ -232,6 +241,8 @@ class AnalyticsReport
         return [
             'strand' => $strand,
             'section' => $section,
+            'academicYear' => $ay,
+            'academicYears' => AcademicYear::available($pdo),
             'totalStudents' => $totalStudents,
             'expectedTotal' => $expectedTotal,
             // Not active-only — a filter dropdown should still offer a
