@@ -383,12 +383,12 @@
       const data = ' data-id="' + a.id + '" data-name="' + escapeHtml(a.fullName || a.email) + '"';
       if (a.status === 'pending') {
         return '<div class="flex items-center justify-center gap-2">' +
-          '<button type="button" class="' + btn + 'text-white bg-emerald-600 border-emerald-600 hover:opacity-90" data-action="approve"' + data + '>Approve</button>' +
+          '<button type="button" class="' + btn + 'text-white bg-[#ed1c24] border-[#ed1c24] hover:opacity-90" data-action="approve"' + data + '>Approve</button>' +
           '<button type="button" class="' + btn + 'text-[#ed1c24] border-[#ed1c24] hover:bg-red-50" data-action="reject"' + data + '>Reject</button>' +
         '</div>';
       }
       if (a.status === 'rejected') {
-        return '<button type="button" class="' + btn + 'text-emerald-600 border-emerald-300 hover:bg-emerald-50" data-action="approve"' + data + '>Approve instead</button>';
+        return '<button type="button" class="' + btn + 'text-[#ed1c24] border-[#ed1c24] hover:bg-red-50" data-action="approve"' + data + '>Approve instead</button>';
       }
       if (!a.activated) {
         return '<div class="flex items-center justify-center gap-2">' +
@@ -396,7 +396,7 @@
           '<button type="button" class="' + btn + 'text-[#ed1c24] border-[#ed1c24] hover:bg-red-50" data-action="toggleActive"' + data + ' data-active="1">Deactivate</button>' +
         '</div>';
       }
-      return '<button type="button" class="' + btn + (a.isActive ? 'text-[#ed1c24] border-[#ed1c24] hover:bg-red-50' : 'text-emerald-600 border-emerald-300 hover:bg-emerald-50') + '" data-action="toggleActive"' + data + ' data-active="' + (a.isActive ? '1' : '0') + '">' + (a.isActive ? 'Deactivate' : 'Activate') + '</button>';
+      return '<button type="button" class="' + btn + (a.isActive ? 'text-[#ed1c24] border-[#ed1c24] hover:bg-red-50' : 'text-[#19427b] border-[#19427b] hover:bg-slate-50') + '" data-action="toggleActive"' + data + ' data-active="' + (a.isActive ? '1' : '0') + '">' + (a.isActive ? 'Deactivate' : 'Activate') + '</button>';
     }
 
     // Which sections each staff member handles (none ticked = sees every section).
