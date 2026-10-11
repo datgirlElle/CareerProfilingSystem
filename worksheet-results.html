@@ -395,15 +395,13 @@
 
   const goalTitle = statedCareer || 'your chosen career';
   const programTitle = statedProgram ? statedProgram.title : 'its program';
-  const cosine = statedProgram && statedProgram.cosineSimilarity !== null && statedProgram.cosineSimilarity !== undefined
-    ? ' (Cosine Similarity: ' + statedProgram.cosineSimilarity.toFixed(3) + ')' : '';
   const analysis = !statedProgram
     ? 'Your career, "' + goalTitle + '," does not closely match any careers or programs we have listed, so there is no preferred course to compare. ' +
       'Your Best RIASEC Match is on your Career Results page. A Guidance Counselor can help you find the program that leads to this career.'
     : isAligned
     ? programTitle + ', the MMCL program for "' + goalTitle + '," is also your Best RIASEC Match: its RIASEC code (' + statedProgram.hollandCode +
-      ') is among the codes most similar to your RIASEC profile' + cosine + '.'
-    : programTitle + ', the MMCL program for "' + goalTitle + '," is the course you selected, but it is not your Best RIASEC Match' + cosine + '. ' +
+      ') is among the codes most similar to your RIASEC profile' + '.'
+    : programTitle + ', the MMCL program for "' + goalTitle + '," is the course you selected, but it is not your Best RIASEC Match. ' +
       'That\'s okay. See your Career Results for your Best RIASEC Match and alternative courses, and if you\'d like help deciding, ' +
       'we highly recommend talking with a Guidance Counselor.';
   document.getElementById('analysisText').textContent = analysis;
