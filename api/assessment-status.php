@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/ExamSchedule.php';
+require_once __DIR__ . '/../lib/RetakeRequest.php';
 
 $user = Auth::requireLogin();
 if ($user['role'] !== 'student') {
@@ -21,9 +22,14 @@ if (!$row) {
     jsonResponse(['completed' => false, 'window' => ExamSchedule::windowFor(ExamSchedule::sessionsForStudent($pdo, (int) $user['id']))]);
 }
 
+$retake = RetakeRequest::stateFor($pdo, (int) $user['id']);
+
 jsonResponse([
     'completed' => true,
     'completedAt' => $row['completed_at'],
+    // 'none', 'pending', 'approved' (the student may retake now) or 'declined'
+    'retake' => $retake,
+    'retakeApproved' => $retake['status'] === 'approved',
     'scores' => [
         'R' => (int) $row['score_r'],
         'I' => (int) $row['score_i'],

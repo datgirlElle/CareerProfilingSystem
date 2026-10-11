@@ -3,6 +3,7 @@
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/RateLimiter.php';
 require_once __DIR__ . '/../lib/ExamSchedule.php';
+require_once __DIR__ . '/../lib/RetakeRequest.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -11,6 +12,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $user = Auth::requireLogin();
 if ($user['role'] !== 'student') {
     jsonResponse(['success' => false, 'error' => 'Only students take the RIASEC assessment.'], 403);
+}
+
+// An approved retake is the Guidance Office's go-ahead: no session or access code is needed for it.
+if (!empty((readJsonBody())['retake'])) {
+    if (!RetakeRequest::isApproved(Database::get(), (int) $user['id'])) {
+        jsonResponse(['success' => false, 'error' => 'You do not have an approved retake. Please seek the assistance of the Guidance Office.'], 403);
+    }
+    $_SESSION['assessmentUnlocked'] = true;
+    AuditLogger::log($user['id'], 'student', 'retake_started', 'assessment', null, 'Started an approved retake');
+    jsonResponse(['success' => true]);
 }
 
 // The assessment is taken once. Anyone who has already finished it is turned away right here,

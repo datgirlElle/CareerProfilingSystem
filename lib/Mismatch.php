@@ -34,7 +34,8 @@ class Mismatch
     {
         $rows = $pdo->query(
             'SELECT DISTINCT ON (student_id) student_id, stated_program_id, scores
-             FROM recommendations ORDER BY student_id, computed_at DESC'
+             FROM recommendations WHERE source_assessment_id IN (SELECT id FROM assessments WHERE is_latest = TRUE)
+             ORDER BY student_id, computed_at DESC'
         )->fetchAll();
         $out = [];
         foreach ($rows as $r) {

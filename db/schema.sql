@@ -345,6 +345,25 @@ CREATE TABLE retake_grants (
     completed_at                TIMESTAMPTZ
 );
 
+-- A student's request to retake the RIASEC assessment. A counselor or the Head of Guidance approves or declines it; an
+-- approved request lets the student retake once (api/assessment-submit.php), and the earlier result stays on record as
+-- an older attempt. Only recommendations built from the latest assessment count (see lib/RetakeRequest.php).
+CREATE TABLE retake_requests (
+    id                          SERIAL PRIMARY KEY,
+    student_id                  INT NOT NULL REFERENCES students(user_id) ON DELETE CASCADE,
+    attempt_number              INT NOT NULL,
+    reason_enc                  TEXT NOT NULL,
+    status                      VARCHAR(10) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'declined', 'completed')),
+    requested_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    decided_by                  INT REFERENCES users(id) ON DELETE SET NULL,
+    decided_at                  TIMESTAMPTZ,
+    decision_note_enc           TEXT,
+    completed_attempt_number    INT,
+    completed_at                TIMESTAMPTZ
+);
+-- A student has at most one request waiting or approved at a time.
+CREATE UNIQUE INDEX idx_retake_requests_open ON retake_requests (student_id) WHERE status IN ('pending', 'approved');
+
 -- A running, timestamped log of free-text notes a counselor/admin writes
 -- about a student (session summaries, follow-up items) -- distinct from
 -- the auto-derived Availed/Did Not Avail counseling status already shown

@@ -6,7 +6,7 @@ return [
     'student' => [
         ['What is the RIASEC Career Interest Assessment?', 'It\'s an interest inventory based on Holland\'s RIASEC theory. Your answers show how strongly you lean toward each of six interest areas — Realistic, Investigative, Artistic, Social, Enterprising, and Conventional — which are then used to suggest careers that fit you.'],
         ['Can I pause and come back later?', 'Yes. Your answers are saved automatically as you go, so you can close the page and continue from where you left off.'],
-        ['Can I retake the assessment?', 'Right now each account keeps a single result. If you believe your results don\'t reflect you accurately, message the Guidance Office below and a counselor can help.'],
+        ['Can I retake the assessment?', 'Yes, if the Guidance Office approves it. On the Assessments page, choose Request a retake and tell them why. You will be notified when it is approved, and your earlier result stays on your record.'],
         ['What is the Career Worksheet?', 'It unlocks after you finish the RIASEC assessment. You\'ll write down a career you\'re considering and pick electives aligned to your strand and results.'],
         ['How do I change my password?', 'Open My Profile from the menu at the top right, then click Edit next to Password. Enter your current password and choose a new one.'],
     ],

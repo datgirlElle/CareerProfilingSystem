@@ -91,7 +91,7 @@ class AnalyticsReport
         $latestRecScores = (function () use ($pdo, $hasFilter, $studentFilterClause) {
             $needsJoin = $hasFilter;
             [$clause, $params] = $studentFilterClause();
-            $sql = 'SELECT DISTINCT ON (r.student_id) r.top_score FROM recommendations r'
+            $sql = 'SELECT DISTINCT ON (r.student_id) r.top_score FROM recommendations r JOIN assessments la ON la.id = r.source_assessment_id AND la.is_latest = TRUE'
                 . ($needsJoin ? ' JOIN students s ON s.user_id = r.student_id' . $clause : '')
                 . ' ORDER BY r.student_id, r.computed_at DESC';
             $stmt = $pdo->prepare($sql);
@@ -128,7 +128,7 @@ class AnalyticsReport
             [$clause, $params] = $studentFilterClause();
             $sql = "SELECT top_program_id, COUNT(*) AS cnt FROM (
                         SELECT DISTINCT ON (r.student_id) r.student_id, r.top_program_id
-                        FROM recommendations r"
+                        FROM recommendations r JOIN assessments la ON la.id = r.source_assessment_id AND la.is_latest = TRUE"
                 . ($needsJoin ? ' JOIN students s ON s.user_id = r.student_id' . $clause : '')
                 . " ORDER BY r.student_id, r.computed_at DESC
                     ) latest GROUP BY top_program_id ORDER BY cnt DESC LIMIT 5";

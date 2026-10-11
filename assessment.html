@@ -168,6 +168,7 @@
           </div>
           <div class="border-l border-slate-100 pl-10 shrink-0">
             <a href="assessment-instructions" id="riasecActionBtn" class="inline-block bg-[#ed1c24] text-white text-[15px] font-semibold rounded-md px-8 py-3.5 shadow-sm hover:opacity-90">Take Assessment</a>
+            <div id="retakeArea" class="hidden flex-col gap-2 mt-3" style="align-items:stretch;text-align:center"></div>
           </div>
         </div>
 
@@ -202,6 +203,21 @@
         <span>&middot;</span>
         <a href="accessibility" class="hover:text-gray-600 hover:underline">Accessibility</a>
       </footer>
+  </div>
+</div>
+
+<div id="retakeModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-md p-6 flex flex-col gap-4">
+    <h3 class="text-lg font-semibold text-black">Request a retake</h3>
+    <div>
+      <label for="retakeReason" class="block text-xs font-medium text-gray-600 mb-1">Why would you like to retake the assessment?</label>
+      <textarea id="retakeReason" rows="4" maxlength="500" class="w-full border border-gray-300 rounded-md px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></textarea>
+    </div>
+    <p id="retakeError" class="hidden text-sm text-[#ed1c24]"></p>
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" id="retakeCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+      <button type="button" id="retakeSendBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Send request</button>
+    </div>
   </div>
 </div>
 
@@ -366,7 +382,60 @@
       }
     }
 
+    // Retake by request: ask the Guidance Office, wait for the answer, retake once it is approved. The earlier result stays on record.
+    function renderRetake(retake) {
+      const area = document.getElementById('retakeArea');
+      const status = (retake && retake.status) || 'none';
+      const outline = 'inline-block border border-[#ed1c24] text-[#ed1c24] text-sm font-semibold rounded-md px-6 py-2.5 hover:bg-red-50';
+      let html = '';
+      if (status === 'approved') {
+        html = '<a href="assessment-instructions" class="inline-block bg-[#ed1c24] text-white text-sm font-semibold rounded-md px-6 py-2.5 hover:opacity-90">Retake Assessment</a>';
+      } else if (status === 'pending') {
+        html = '<span class="inline-block bg-amber-50 border border-amber-100 text-amber-600 text-sm font-medium rounded-full px-4 py-1.5">Retake requested</span>';
+      } else {
+        if (status === 'declined') html += '<span class="text-xs text-slate-500">Your last retake request was not approved.</span>';
+        html += '<button type="button" id="retakeOpenBtn" class="' + outline + '">Request a retake</button>';
+      }
+      area.innerHTML = html;
+      area.classList.remove('hidden');
+      area.classList.add('flex');
+      const openBtn = document.getElementById('retakeOpenBtn');
+      if (openBtn) openBtn.addEventListener('click', function() {
+        document.getElementById('retakeError').classList.add('hidden');
+        document.getElementById('retakeReason').value = '';
+        const modal = document.getElementById('retakeModal');
+        modal.classList.remove('hidden');
+        setTimeout(function() { modal.classList.add('is-open'); document.getElementById('retakeReason').focus(); }, 16);
+      });
+    }
+    (function() {
+      const modal = document.getElementById('retakeModal');
+      function close() { modal.classList.remove('is-open'); setTimeout(function() { modal.classList.add('hidden'); }, 260); }
+      document.getElementById('retakeCancelBtn').addEventListener('click', close);
+      modal.addEventListener('click', function(e) { if (e.target.id === 'retakeModal') close(); });
+      document.getElementById('retakeSendBtn').addEventListener('click', async function() {
+        const btn = this, err = document.getElementById('retakeError');
+        btn.disabled = true;
+        try {
+          const res = await fetch('api/retake-requests.php', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'request', reason: document.getElementById('retakeReason').value })
+          });
+          const data = await res.json();
+          if (!data.success) { err.textContent = data.error || 'Could not send your request.'; err.classList.remove('hidden'); return; }
+          close();
+          renderRetake({ status: 'pending' });
+        } catch (e) {
+          err.textContent = 'Unable to reach the server. Please try again.';
+          err.classList.remove('hidden');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    })();
+
     if (assessment && assessment.completed) {
+      renderRetake(assessment.retake);
       const pill = document.getElementById('riasecStatusPill');
       const statusText = document.getElementById('riasecStatusText');
       const btn = document.getElementById('riasecActionBtn');
