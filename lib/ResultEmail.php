@@ -7,9 +7,9 @@ require_once __DIR__ . '/Mismatch.php';
 
 /**
  * The email a student gets automatically once their worksheet is in, with no staff action.
- * A match (the program their career leads to is among their Top Matches) gets a thank-you
- * listing those programs; a mismatch gets a request to visit the Guidance Office and no
- * course is named. It is sent once a day at most, and a failure to send never stops the
+ * A match (the program their career leads to is also one of their Best RIASEC Match programs)
+ * gets a thank-you listing the Best RIASEC Match programs; a mismatch gets a request to visit
+ * the Guidance Office and no course is named. It is sent once a day at most, and a failure to send never stops the
  * student from submitting.
  */
 class ResultEmail
@@ -30,7 +30,7 @@ class ResultEmail
         return [
             'subject' => 'Your career assessment results',
             'heading' => 'Thank you for completing your assessment',
-            'message' => 'Thank you for completing the RIASEC career assessment and the Career Worksheet. These MMCL programs are among your Top Matches: ' . implode(', ', $topTitles) . '. You can see the careers that fit each program under Career Results in ProfilePath.',
+            'message' => 'Thank you for completing the RIASEC career assessment and the Career Worksheet. Your Best RIASEC Match (the MMCL programs most similar to your RIASEC profile): ' . implode(', ', $topTitles) . '. You can see the careers that fit each program under Career Results in ProfilePath.',
             'cta' => 'View My Results',
             'ctaPath' => '/results',
         ];

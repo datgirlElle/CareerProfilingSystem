@@ -92,8 +92,11 @@ CREATE TABLE programs (
     id                  SERIAL PRIMARY KEY,
     college_id          INT NOT NULL REFERENCES colleges(id),
     title_enc           TEXT NOT NULL,
-    holland_code_enc    TEXT NOT NULL,
+    holland_code_enc    TEXT NOT NULL,      -- final (validator-revised) code; used by the CBF
+    original_holland_code_enc TEXT,         -- code before validator revision; audit only
     description_enc     TEXT,
+    -- SHS strands aligned with this program (CBF "strand" feature); '{}' = not specified.
+    related_strands     TEXT[] NOT NULL DEFAULT '{}',
     -- Careers this program leads to, shown to students on Career Results and
     -- offered on the Career Worksheet. Plain reference data (like colleges),
     -- not student data, so it is not encrypted and can be loaded with SQL.
@@ -161,7 +164,15 @@ CREATE TABLE recommendations (
     top_program_id          INT NOT NULL REFERENCES programs(id),
     top_score               NUMERIC(5, 4) NOT NULL,
     source_assessment_id    INT NOT NULL REFERENCES assessments(id),
-    source_worksheet_id     INT REFERENCES worksheets(id)
+    source_worksheet_id     INT REFERENCES worksheets(id),
+    -- Match/mismatch outcome (RecommendationPipeline::finalRecommendation); NULL on results saved before it existed.
+    match_status            VARCHAR(10) CHECK (match_status IN ('match', 'mismatch')),
+    mismatch_reason         VARCHAR(40),
+    -- Pipeline stages (lib/RecommendationPipeline.php); NULL on results saved before they existed.
+    cbf_program_ids         INT[],              -- Best RIASEC Match (CBF: highest cosine similarity)
+    prediction_program_ids  INT[],              -- prediction model output; NULL while the model is not enabled
+    final_program_ids       INT[],              -- final Best Match (CBF + prediction + worksheet); NULL until the prediction model exists
+    model_version           VARCHAR(80)         -- imported WEKA model used
 );
 
 CREATE TABLE monitoring_flags (

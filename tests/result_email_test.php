@@ -21,7 +21,7 @@ $titles = ['BS Nursing', 'BS Computer Science', 'BS Biology'];
 
 echo "=== the automatic result email ===\n";
 $match = ResultEmail::build(false, $titles);
-check('a match thanks the student and lists the Top Matches', strpos($match['message'], 'Top Matches') !== false && strpos($match['message'], 'BS Nursing') !== false);
+check('a match thanks the student and lists the Best RIASEC Match', strpos($match['message'], 'Best RIASEC Match') !== false && strpos($match['message'], 'BS Nursing') !== false);
 check('the programs are listed alphabetically, not ranked', strpos($match['message'], 'BS Biology, BS Computer Science, BS Nursing') !== false);
 check('no percentage or score appears', strpos($match['message'], '%') === false && stripos($match['message'], 'score') === false);
 check('a match links to Career Results', $match['ctaPath'] === '/results');

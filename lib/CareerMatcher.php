@@ -137,12 +137,18 @@ class CareerMatcher
         foreach ($programs as $p) {
             $byId[(int) $p['id']] = $p;
         }
-        $studentVec = CBFEngine::scoresToVector($studentScores);
+        // Same vectors as the CBF (lib/CBFEngine.php): mean item scores vs binary course codes.
+        try {
+            $studentVec = CBFEngine::studentVector($studentScores);
+        } catch (InvalidArgumentException $e) {
+            return $top[0]['id'];
+        }
         $bestId = $top[0]['id'];
         $bestCosine = -1.0;
         foreach ($top as $candidate) {
-            $cosine = CBFEngine::cosineSimilarity($studentVec, CBFEngine::hollandCodeToVector($byId[$candidate['id']]['hollandCode']));
-            if ($cosine > $bestCosine) {
+            $courseVec = CBFEngine::courseVector($byId[$candidate['id']]['hollandCode'] ?? null);
+            $cosine = $courseVec !== null ? CBFEngine::cosineSimilarity($studentVec, $courseVec) : null;
+            if ($cosine !== null && $cosine > $bestCosine) {
                 $bestCosine = $cosine;
                 $bestId = $candidate['id'];
             }

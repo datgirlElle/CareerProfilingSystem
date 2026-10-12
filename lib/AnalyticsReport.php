@@ -126,12 +126,14 @@ class AnalyticsReport
         $careerCounts = (function () use ($pdo, $hasFilter, $studentFilterClause) {
             $needsJoin = $hasFilter;
             [$clause, $params] = $studentFilterClause();
-            $sql = "SELECT top_program_id, COUNT(*) AS cnt FROM (
-                        SELECT DISTINCT ON (r.student_id) r.student_id, r.top_program_id
+            // Students whose CBF candidates (courses most similar to their RIASEC profile)
+            // include each program (latest result per student; older results: top CBF program).
+            $sql = "SELECT unnest(COALESCE(cbf_program_ids, ARRAY[top_program_id])) AS top_program_id, COUNT(*) AS cnt FROM (
+                        SELECT DISTINCT ON (r.student_id) r.student_id, r.top_program_id, r.cbf_program_ids
                         FROM recommendations r JOIN assessments la ON la.id = r.source_assessment_id AND la.is_latest = TRUE"
                 . ($needsJoin ? ' JOIN students s ON s.user_id = r.student_id' . $clause : '')
                 . " ORDER BY r.student_id, r.computed_at DESC
-                    ) latest GROUP BY top_program_id ORDER BY cnt DESC LIMIT 5";
+                    ) latest GROUP BY 1 ORDER BY cnt DESC, 1 LIMIT 5";
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
             return $stmt->fetchAll();
@@ -254,7 +256,7 @@ class AnalyticsReport
             // assessed students), so the cards read consistently at a glance.
             'completion' => ['rate' => $pct($assessedCount, $expectedTotal), 'count' => $assessedCount, 'total' => $expectedTotal],
             'worksheet' => ['rate' => $pct($worksheetCount, $expectedTotal), 'count' => $worksheetCount, 'total' => $expectedTotal],
-            // Share of students whose top match score meets the confidence
+            // Share of students whose highest cosine similarity meets the confidence
             // threshold (security_policies monitoring.lowConfidenceThreshold) —
             // a rate, not an average. "threshold" is exposed so the UI can say
             // exactly what the cut-off is.

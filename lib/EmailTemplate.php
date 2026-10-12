@@ -9,7 +9,8 @@
  */
 class EmailTemplate
 {
-    public static function render(string $heading, string $bodyHtml, string $ctaLabel, string $link, string $expiryNote): string
+    public static function render(string $heading, string $bodyHtml, string $ctaLabel, string $link, string $expiryNote,
+        string $footerNote = "If you didn't request this, you can safely ignore this email."): string
     {
         $year = date('Y');
         return <<<HTML
@@ -46,7 +47,7 @@ class EmailTemplate
 <tr>
 <td style="background-color:#f8fafc;padding:20px 32px;border-top:1px solid #e2e8f0;">
 <p style="margin:0;font-size:12px;line-height:1.6;color:#94a3b8;">Center for Guidance and Counseling &mdash; Mapúa MCL<br>
-If you didn't request this, you can safely ignore this email.</p>
+{$footerNote}</p>
 </td>
 </tr>
 </table>

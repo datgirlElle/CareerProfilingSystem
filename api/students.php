@@ -234,7 +234,7 @@ if (AcademicYear::isPast($viewAy)) {
     $rows = array_values(array_filter($rows, fn($r) => $r['academic_year'] === $viewAy));
 }
 $rows = array_values(array_filter($rows, fn($r) => StaffScope::allows($scope, $r['strand'], $r['section'])));
-$mismatchIds = Mismatch::studentIds($pdo); // finished students whose chosen program isn't in their Top Matches
+$mismatchIds = Mismatch::studentIds($pdo); // finished students whose Preferred Course isn't a Best RIASEC Match
 
 $students = array_map(function ($r) use ($counseledIds, $mismatchIds) {
     $hasAssessment = $r['completed_at'] !== null;
