@@ -332,6 +332,62 @@
   };
   PP.clearCache = clearAllCaches;
 
+  // ---------- Pop-up messages (the same on the staff pages and the student portal) ----------
+  // PP.toast(text, isError): a small message in the bottom-right corner for 5 seconds, green for success, red for a problem.
+  // PP.confirm(text, { okLabel, danger }): a "Cancel / Confirm" dialog; resolves true or false. danger = a delete, so the button is red.
+  PP.toast = function (message, isError) {
+    var container = document.getElementById('toastContainer');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toastContainer';
+      container.className = 'fixed bottom-4 right-4 z-[60] flex flex-col gap-2 pointer-events-none';
+      document.body.appendChild(container);
+    }
+    var toast = document.createElement('div');
+    toast.className = 'pointer-events-auto max-w-sm px-4 py-3 rounded-lg shadow-lg text-sm font-medium whitespace-pre-wrap ' + (isError ? 'bg-[#ed1c24] text-white' : 'bg-green-600 text-white');
+    toast.setAttribute('role', isError ? 'alert' : 'status');
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(function () { toast.remove(); }, 5000);
+  };
+
+  PP.confirm = function (message, opts) {
+    opts = opts || {};
+    return new Promise(function (resolve) {
+      var modal = document.createElement('div');
+      modal.className = 'modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4';
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
+      modal.innerHTML =
+        '<div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">' +
+          '<p class="text-sm text-gray-700" style="white-space:pre-line"></p>' +
+          '<div class="flex justify-end gap-2 pt-1">' +
+            '<button type="button" data-cancel class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>' +
+            '<button type="button" data-ok class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90' + (opts.danger ? ' btn-danger' : '') + '"></button>' +
+          '</div>' +
+        '</div>';
+      modal.querySelector('p').textContent = message;
+      var okBtn = modal.querySelector('[data-ok]');
+      var cancelBtn = modal.querySelector('[data-cancel]');
+      okBtn.textContent = opts.okLabel || 'Confirm';
+      document.body.appendChild(modal);
+      modal.classList.remove('hidden');
+      setTimeout(function () { modal.classList.add('is-open'); (opts.danger ? cancelBtn : okBtn).focus(); }, 16);
+
+      function done(result) {
+        document.removeEventListener('keydown', onKey, true);
+        modal.classList.remove('is-open');
+        setTimeout(function () { modal.remove(); }, 260);
+        resolve(result);
+      }
+      function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); done(false); } }
+      document.addEventListener('keydown', onKey, true);
+      okBtn.addEventListener('click', function () { done(true); });
+      cancelBtn.addEventListener('click', function () { done(false); });
+      modal.addEventListener('click', function (e) { if (e.target === modal) done(false); });
+    });
+  };
+
   // Pages ship a plain "Loading…" placeholder in their tables and lists. Swap those for skeletons the moment the page
   // is parsed; the page's own script replaces them with real rows (or the error state) when its data arrives.
   function upgradePlaceholders() {

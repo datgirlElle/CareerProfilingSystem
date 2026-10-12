@@ -336,7 +336,7 @@
     list.querySelectorAll('.retake-decide').forEach(btn => {
       btn.addEventListener('click', async function() {
         const approve = btn.dataset.decision === 'approve';
-        if (!window.confirm(approve ? 'Approve this retake? The student can retake the assessment once. Their earlier result stays on record.' : 'Decline this retake request?')) return;
+        if (!(await PP.confirm(approve ? 'Approve this retake? The student can retake the assessment once. Their earlier result stays on record.' : 'Decline this retake request?', { okLabel: approve ? 'Approve' : 'Decline' }))) return;
         const note = (list.querySelector('.retake-note[data-id="' + btn.dataset.id + '"]') || {}).value || '';
         btn.disabled = true;
         try {
@@ -378,7 +378,7 @@
 
     list.querySelectorAll('.invite-btn').forEach(btn => {
       btn.addEventListener('click', async function() {
-        if (!window.confirm('Invite ' + btn.dataset.name + ' to a counseling session? They will be sent the CGC booking link by email and in their notifications.')) return;
+        if (!(await PP.confirm('Invite ' + btn.dataset.name + ' to a counseling session? They will be sent the CGC booking link by email and in their notifications.'))) return;
         btn.disabled = true;
         try {
           const result = await sendCounselingInvite(btn.dataset.studentId);

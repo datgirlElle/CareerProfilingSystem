@@ -342,14 +342,22 @@
       if (!subject || !message) return;
 
       const submitBtn = e.target.querySelector('button[type="submit"]');
-      submitBtn.disabled = true;
-      const res = await fetch('api/help-requests.php', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subject: subject, message: message })
-      });
-      submitBtn.disabled = false;
-      if (!res.ok) return;
-      const data = await res.json();
+      const stopBusy = PP.busy(submitBtn, 'Sending…');
+      let res, data;
+      try {
+        res = await fetch('api/help-requests.php', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subject: subject, message: message })
+        });
+        data = await res.json().catch(function() { return {}; });
+      } catch (err) {
+        stopBusy();
+        PP.toast('Unable to reach the server. Please try again.', true);
+        return;
+      }
+      stopBusy();
+      if (!res.ok) { PP.toast(data.error || 'Could not send your message. Please try again.', true); return; }
+      PP.toast('Your message was sent to the Guidance Office.', false);
 
       document.getElementById('messageIdle').classList.add('hidden');
       const sent = document.getElementById('messageSent');

@@ -440,7 +440,7 @@
   // Admin only: delete a student's answers so they can retake the assessment (rare, and only when
   // the Guidance Office allows it). Shown only for a student who has finished it.
   document.getElementById('resetAssessmentBtn').addEventListener('click', async function() {
-    if (!window.confirm('Delete this student\'s answers?\n\nThis removes their RIASEC assessment, Career Worksheet and recommendations so they can take the assessment again once a session is open. It cannot be undone.')) return;
+    if (!(await PP.confirm('Delete this student\'s answers?\n\nThis removes their RIASEC assessment, Career Worksheet and recommendations so they can take the assessment again once a session is open. It cannot be undone.', { okLabel: 'Delete answers', danger: true }))) return;
     const btn = this;
     btn.disabled = true;
     try {
@@ -449,10 +449,10 @@
         body: JSON.stringify({ type: 'resetAssessment', userId: toggleActiveUserId })
       });
       const data = await res.json();
-      if (!data.success) { window.alert(data.error || 'Could not reset the assessment.'); btn.disabled = false; return; }
+      if (!data.success) { PP.toast(data.error || 'Could not reset the assessment.', true); btn.disabled = false; return; }
       window.location.reload();
     } catch (e) {
-      window.alert('Unable to reach the server. Please try again.');
+      PP.toast('Unable to reach the server. Please try again.', true);
       btn.disabled = false;
     }
   });

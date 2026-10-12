@@ -595,29 +595,37 @@
   const fExamDateEl = document.getElementById('fExamDate');
   const fStartTimeEl = document.getElementById('fStartTime');
   const fEndTimeEl = document.getElementById('fEndTime');
-  function todayStr() {
-    const d = new Date();
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  // The date and time right now at the school (Asia/Manila), whatever the clock of the computer in use says.
+  function schoolNow() {
+    const parts = {};
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+      .formatToParts(new Date()).forEach(function(p) { parts[p.type] = p.value; });
+    return { date: parts.year + '-' + parts.month + '-' + parts.day, time: parts.hour + ':' + parts.minute };
   }
-  function nextHalfHour() {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() < 30 ? 30 : 60, 0, 0);
-    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  function todayStr() { return schoolNow().date; }
+  function addMinutes(hhmm, minutes) {
+    const total = Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5)) + minutes;
+    return String(Math.floor(total / 60)).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0');
   }
-  function applyDateGuard() {
-    if (fExamDateEl.value === todayStr()) {
-      fStartTimeEl.min = nextHalfHour();
-    } else {
-      fStartTimeEl.removeAttribute('min');
-    }
-  }
-  fExamDateEl.min = todayStr();
-  fExamDateEl.addEventListener('change', applyDateGuard);
-  applyDateGuard();
 
   // Start and end time: hour / minute / AM-PM-NN drop-downs (js/time-format.js), never 24-hour time.
   const startPicker = TimeFmt.picker(document.getElementById('fStartTimeBox'), fStartTimeEl, 'Start');
   const endPicker = TimeFmt.picker(document.getElementById('fEndTimeBox'), fEndTimeEl, 'End');
+
+  // A time that has already passed can't be picked: the date picker starts at today, and for today the hours and
+  // minutes before now are greyed out. The end time can't be at or before the start time.
+  function applyTimeLimits() {
+    const now = schoolNow();
+    fExamDateEl.min = now.date;
+    const isToday = fExamDateEl.value === now.date;
+    startPicker.setMin(isToday ? now.time : null);
+    endPicker.setMin(fStartTimeEl.value ? addMinutes(fStartTimeEl.value, 5) : (isToday ? now.time : null));
+  }
+  fExamDateEl.addEventListener('change', applyTimeLimits);
+  fExamDateEl.addEventListener('input', applyTimeLimits);
+  fStartTimeEl.addEventListener('input', applyTimeLimits);
+  applyTimeLimits();
+  setInterval(applyTimeLimits, 30000); // the hours that have gone by keep moving while the page stays open
   [fExamDateEl, fStartTimeEl, fEndTimeEl, document.getElementById('fRoom')].forEach(function(el) {
     el.addEventListener('input', updateRoomConflictHint);
     el.addEventListener('change', updateRoomConflictHint);
@@ -669,7 +677,7 @@
       dateErrorEl.classList.remove('hidden');
       return;
     }
-    if (examDate === todayStr() && startTime < nextHalfHour()) {
+    if (examDate === todayStr() && startTime < schoolNow().time) {
       dateErrorEl.textContent = 'Start time has already passed for today. Pick a later time.';
       dateErrorEl.classList.remove('hidden');
       return;
@@ -705,6 +713,7 @@
     successEl.classList.remove('hidden');
     e.target.reset();
     updateSectionOptions(); // form.reset() doesn't restore the disabled attribute JS set
+    setTimeout(applyTimeLimits, 0); // after the pickers have followed the reset
     await loadSchedules();
   });
 

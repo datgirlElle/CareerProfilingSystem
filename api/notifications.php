@@ -278,22 +278,19 @@ usort($items, fn($a, $b) => strcmp($b['ts'], $a['ts']));
 $items = array_slice($items, 0, $total);
 
 // Read state. Notifications here are computed live rather than stored, so
-// staff read state is a single per-user "read up to" timestamp
-// (users.notifications_read_at): anything at or before it counts as read,
-// anything newer as unread. Students keep the original behaviour (every
-// item shown counts toward the badge). If the column isn't there yet
+// each person's read state (staff and students alike) is a single per-user
+// "read up to" timestamp (users.notifications_read_at): anything at or before
+// it counts as read, anything newer as unread. If the column isn't there yet
 // (migration not run) everything simply counts as unread instead of the
 // whole feed failing to load.
 $readAt = null;
-if ($isStaff) {
-    try {
-        $stmt = $pdo->prepare('SELECT notifications_read_at FROM users WHERE id = ?');
-        $stmt->execute([$user['id']]);
-        $value = $stmt->fetchColumn();
-        $readAt = $value ? strtotime($value) : null;
-    } catch (Throwable $e) {
-        $readAt = null;
-    }
+try {
+    $stmt = $pdo->prepare('SELECT notifications_read_at FROM users WHERE id = ?');
+    $stmt->execute([$user['id']]);
+    $value = $stmt->fetchColumn();
+    $readAt = $value ? strtotime($value) : null;
+} catch (Throwable $e) {
+    $readAt = null;
 }
 $unreadCount = 0;
 foreach ($items as &$item) {
@@ -304,4 +301,4 @@ foreach ($items as &$item) {
 }
 unset($item);
 
-jsonResponse(['items' => $items, 'count' => count($items), 'unreadCount' => $unreadCount, 'tracksRead' => $isStaff]);
+jsonResponse(['items' => $items, 'count' => count($items), 'unreadCount' => $unreadCount, 'tracksRead' => true]);

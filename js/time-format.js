@@ -56,6 +56,52 @@
     colon.setAttribute('aria-hidden', 'true');
     box.appendChild(hour); box.appendChild(colon); box.appendChild(minute); box.appendChild(period);
 
+    // Earliest time that may be picked ("HH:MM", or null for no limit). Choices that would give an earlier time are
+    // greyed out (disabled), and a time already chosen that falls before it is cleared. See setMin() below.
+    var minTime = null;
+    function toHHMM(h, m, p) {
+      if (p === 'NN') return (h === '12' && m === '00') ? '12:00' : null;
+      var hh = Number(h) % 12;
+      if (p === 'PM') hh += 12;
+      return String(hh).padStart(2, '0') + ':' + m;
+    }
+    function allValues(select) {
+      return Array.prototype.map.call(select.options, function (o) { return o.value; }).filter(function (v) { return v !== ''; });
+    }
+    // True when some time that agrees with the given choices is at or after the limit.
+    function anyAllowed(hours, minutes, periods) {
+      for (var i = 0; i < hours.length; i++) {
+        for (var j = 0; j < minutes.length; j++) {
+          for (var k = 0; k < periods.length; k++) {
+            var t = toHHMM(hours[i], minutes[j], periods[k]);
+            if (t !== null && t >= minTime) return true;
+          }
+        }
+      }
+      return false;
+    }
+    function applyMin() {
+      [hour, minute, period].forEach(function (s) { Array.prototype.forEach.call(s.options, function (o) { o.disabled = false; }); });
+      if (!minTime) return;
+      var chosen = {
+        h: hour.value ? [hour.value] : allValues(hour),
+        m: minute.value ? [minute.value] : allValues(minute),
+        p: period.value ? [period.value] : allValues(period)
+      };
+      Array.prototype.forEach.call(hour.options, function (o) { if (o.value) o.disabled = !anyAllowed([o.value], chosen.m, chosen.p); });
+      Array.prototype.forEach.call(minute.options, function (o) { if (o.value) o.disabled = !anyAllowed(chosen.h, [o.value], chosen.p); });
+      Array.prototype.forEach.call(period.options, function (o) { if (o.value) o.disabled = !anyAllowed(chosen.h, chosen.m, [o.value]); });
+    }
+    function setMin(limit) {
+      minTime = limit || null;
+      if (minTime && hidden.value && hidden.value < minTime) {
+        hour.value = ''; minute.value = ''; period.value = '';
+        wasNoon = false;
+        sync();
+      }
+      applyMin();
+    }
+
     var wasNoon = false;
     function sync() {
       // NN is noon: it is always 12:00, so the hour and minutes are filled in and locked.
@@ -71,6 +117,7 @@
         if (period.value === 'PM' || noon) hh += 12;
         value = String(hh).padStart(2, '0') + ':' + minute.value;
       }
+      applyMin();
       if (hidden.value !== value) {
         hidden.value = value;
         hidden.dispatchEvent(new Event('input', { bubbles: true }));
@@ -82,7 +129,7 @@
     // The form's reset button puts the drop-downs back to their first option; follow it.
     if (hidden.form) hidden.form.addEventListener('reset', function () { setTimeout(sync, 0); });
 
-    return { sync: sync };
+    return { sync: sync, setMin: setMin };
   }
 
   window.TimeFmt = { format: format, picker: picker };

@@ -428,6 +428,7 @@
           if (!data.success) { err.textContent = data.error || 'Could not send your request.'; err.classList.remove('hidden'); return; }
           close();
           renderRetake({ status: 'pending' });
+          PP.toast('Retake request sent to the Guidance Office.', false);
         } catch (e) {
           err.textContent = 'Unable to reach the server. Please try again.';
           err.classList.remove('hidden');

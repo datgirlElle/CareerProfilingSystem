@@ -439,7 +439,7 @@
 
     document.getElementById('reviewInviteBtn').addEventListener('click', async function() {
       const btn = this, msg = document.getElementById('reviewInviteMsg');
-      if (!window.confirm('Invite this student to a counseling session? They will be sent the CGC booking link by email and in their notifications.')) return;
+      if (!(await PP.confirm('Invite this student to a counseling session? They will be sent the CGC booking link by email and in their notifications.'))) return;
       btn.disabled = true;
       try {
         const result = await sendCounselingInvite(btn.dataset.studentId);

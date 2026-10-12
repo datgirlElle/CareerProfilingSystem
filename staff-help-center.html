@@ -519,7 +519,7 @@
       if (f) openModal(f);
     } else if (del) {
       const f = faqs.find(function(x) { return x.id === Number(del.dataset.id); });
-      if (!f || !window.confirm('Delete this FAQ?\n\n' + f.question + '\n\nThis cannot be undone.')) return;
+      if (!f || !(await PP.confirm('Delete this FAQ?\n\n' + f.question + '\n\nThis cannot be undone.', { okLabel: 'Delete', danger: true }))) return;
       const data = await postFaq({ type: 'delete', id: f.id });
       if (data.success) { showMessage('FAQ deleted.', false); await loadFaqs(); } else { showMessage(data.error || 'Could not delete the FAQ.', true); }
     } else if (move) {
