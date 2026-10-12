@@ -18,14 +18,14 @@ class Mailer
 {
     public static function send(string $toEmail, string $toName, string $subject, string $bodyHtml, string $bodyText): bool
     {
-        $apiKey = getenv('BREVO_API_KEY');
+        $apiKey = envValue('BREVO_API_KEY');
         if (!$apiKey) {
             error_log("[Mailer] BREVO_API_KEY not configured — logging instead of sending.\nTo: $toName <$toEmail>\nSubject: $subject\n\n$bodyText");
             return false;
         }
 
         $payload = json_encode([
-            'sender' => ['name' => getenv('SMTP_FROM_NAME') ?: 'ProfilePath', 'email' => getenv('SMTP_FROM_EMAIL')],
+            'sender' => ['name' => envValue('SMTP_FROM_NAME') ?: 'ProfilePath', 'email' => envValue('SMTP_FROM_EMAIL')],
             'to' => [['email' => $toEmail, 'name' => $toName]],
             'subject' => $subject,
             'htmlContent' => $bodyHtml,

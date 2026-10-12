@@ -9,7 +9,7 @@ require_once __DIR__ . '/../lib/StaffScope.php';
 
 // "Email these students" on Student Information: a reminder to everyone currently
 // listed as Pending (hasn't taken the assessment), or a request to visit the Guidance
-// Office for everyone whose chosen program isn't among their Top Matches (Mismatched).
+// Office for everyone whose Preferred Course isn't one of their Best RIASEC Match programs (Mismatched).
 // A student is emailed at most once a day per kind, and students on the roster who
 // haven't registered have no email, so they are skipped.
 $user = Rbac::requireRole('admin', 'counselor');

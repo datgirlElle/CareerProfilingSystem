@@ -66,7 +66,7 @@ class Crypto
     private static function cipher(): ModifiedAES256
     {
         if (self::$cipher === null) {
-            $key = base64_decode((string) getenv('APP_AES_KEY'), true);
+            $key = base64_decode((string) envValue('APP_AES_KEY'), true);
             if ($key === false || strlen($key) !== 32) {
                 throw new RuntimeException('APP_AES_KEY must be set to a base64-encoded 32-byte key');
             }

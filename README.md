@@ -4,7 +4,7 @@ A web-based career profiling system for senior high school students, built aroun
 interest assessment, content-based career recommendations, and counselor/admin tooling for
 academic monitoring, security, and reporting.
 
-- **Backend:** PHP 8.4 (built-in server, no framework)
+- **Backend:** PHP 8.0+ (8.4 in production; built-in server, no framework)
 - **Database:** PostgreSQL 17
 - **Frontend:** Static HTML/CSS/JS (no build step)
 - **Deployment:** [Render](https://render.com) via Docker (see `render.yaml`, `Dockerfile`)
@@ -32,7 +32,7 @@ config/     .env loader
 
 ## Prerequisites
 
-- PHP 8.4+ with the `pdo_pgsql` extension
+- PHP 8.0+ (8.4 in production) with the `pdo_pgsql` and `pgsql` extensions enabled
 - PostgreSQL 17 (running locally, or a connection string to a remote instance)
 
 ## Local setup
@@ -74,6 +74,14 @@ config/     .env loader
    php db/migrate_add_program_careers.php
    php db/migrate_add_staff_approval.php
    php db/migrate_announcement_features.php
+   php db/migrate_add_program_related_strands.php
+   php db/migrate_final_holland_codes.php
+   php db/migrate_add_recommendation_status.php
+   php db/migrate_add_recommendation_sets.php
+   php db/migrate_add_counseling_invites.php
+   php db/migrate_add_facilitator_role.php
+   php db/migrate_add_retake_requests.php
+   php db/migrate_add_staff_accounts_rbac.php
    ```
 
 4. **Seed reference data and a default admin account:**
@@ -102,11 +110,43 @@ config/     .env loader
 ```bash
 php tests/aes_roundtrip_test.php
 php tests/cbf_test.php
+php tests/pipeline_test.php
+php tests/prediction_model_test.php
+php tests/result_email_test.php
 php tests/rbac_audit_test.php
 ```
 
 The first two are self-contained (no database needed). `rbac_audit_test.php` needs a database
 connection matching `.env`.
+
+## Recommendation engine (CBF with cosine similarity)
+
+Three recommendation sources are kept separate (`lib/RecommendationPipeline.php`):
+
+1. **CBF** (`lib/CBFEngine.php`): the student's RIASEC profile (mean item score per type,
+   [R, I, A, S, E, C]) is compared with every program's Holland code (binary vector) using cosine
+   similarity, cos(S, C) = (S · C) / (||S|| × ||C||). No weights (no 70/30, no 1.00/0.67/0.33).
+2. **Worksheet**: the Preferred Course from the Career Electives Worksheet.
+3. **Prediction model (WEKA)**: not available yet; excluded and not called. The existing WEKA
+   code (`lib/PredictionModel.php`, `db/import_weka_tree.php`) is kept for the separate WEKA work.
+
+The results page shows, in order: RIASEC profile, **Preferred Course** (what the student selected),
+**Best RIASEC Match** (courses tied at the highest cosine similarity; CBF only) and **Alternative
+Courses** (next-highest similarity). The Preferred Course never changes the CBF result. The final
+Best Match (CBF + prediction model + worksheet) is not computed until the prediction model exists.
+Cosine similarity is shown as "Cosine Similarity: 0.xxx", never as a percentage or an accuracy.
+
+To see the full CBF calculation for a student (student vector, and for every course its vector,
+dot product, magnitudes and cosine similarity):
+
+```bash
+php db/cbf_debug.php <school_id>          # readable report
+php db/cbf_debug.php <school_id> --csv    # all courses (e.g. for Chapter 4)
+php db/cbf_debug.php <school_id> --json   # everything as JSON
+```
+
+or, logged in as an admin/counselor, open `/cbf-debug?schoolId=<school_id>` (also linked from a
+student's profile).
 
 ## Deployment
 

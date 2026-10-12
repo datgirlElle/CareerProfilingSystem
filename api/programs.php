@@ -1,6 +1,8 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/CBFEngine.php';
+require_once __DIR__ . '/../lib/CBFData.php';
 require_once __DIR__ . '/../lib/Careers.php';
 
 $pdo = Database::get();
@@ -13,7 +15,7 @@ if ($method === 'GET') {
         Rbac::requireAccess('career', 'limited');
     }
 
-    $sql = 'SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, p.careers, p.status, p.college_id, c.code AS college_code, c.name AS college_name
+    $sql = 'SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, p.original_holland_code_enc, p.careers, p.status, p.college_id, c.code AS college_code, c.name AS college_name
             FROM programs p JOIN colleges c ON c.id = p.college_id';
     if (!$includeInactive) {
         $sql .= " WHERE p.status = 'Active'";
@@ -25,6 +27,8 @@ if ($method === 'GET') {
         'id' => (int) $r['id'],
         'title' => Crypto::dec($r['title_enc']),
         'hollandCode' => Crypto::dec($r['holland_code_enc']),
+        // Code before the validator's revision, kept for audit (null = none recorded).
+        'originalHollandCode' => $r['original_holland_code_enc'] !== null ? Crypto::dec($r['original_holland_code_enc']) : null,
         'description' => $r['description_enc'] !== null ? Crypto::dec($r['description_enc']) : '',
         // Raw list staff maintain (may be empty); `careerOptions` is what a
         // student can actually pick: that list, or the program title if empty.
@@ -44,19 +48,25 @@ if ($method === 'GET') {
             'code' => $r['code'],
             'name' => $r['name'],
         ], $pdo->query('SELECT id, code, name FROM colleges ORDER BY code')->fetchAll());
+        // Feature vocabularies from config/cbf.php, so the admin forms and the
+        // Career Electives Worksheet use exactly the lists the CBF engine compares on.
+        $cbfConfig = CBFEngine::config();
+        $response['strands'] = $cbfConfig['strands'];
+        $response['electiveClusters'] = $cbfConfig['elective_clusters'];
+        $response['collegeElectives'] = $cbfConfig['college_electives'];
     }
 
     if (isset($_GET['stats'])) {
-        // Institution-wide count of students whose #1 recommendation is each program,
-        // from the latest recommendation snapshot per student.
+        // Institution-wide count of students whose CBF candidates (courses most similar to
+        // their RIASEC profile) include each program; latest result per student.
         $counts = $pdo->query(
-            "SELECT top_program_id, COUNT(*) AS cnt FROM (
-                SELECT DISTINCT ON (student_id) student_id, top_program_id
+            "SELECT unnest(COALESCE(cbf_program_ids, ARRAY[top_program_id])) AS program_id, COUNT(*) AS cnt FROM (
+                SELECT DISTINCT ON (student_id) student_id, top_program_id, cbf_program_ids
                 FROM recommendations WHERE source_assessment_id IN (SELECT id FROM assessments WHERE is_latest = TRUE)
                 ORDER BY student_id, computed_at DESC
-             ) latest GROUP BY top_program_id"
+             ) latest GROUP BY 1"
         )->fetchAll(PDO::FETCH_KEY_PAIR);
-        $totalStudentsWithRecs = array_sum($counts);
+        $totalStudentsWithRecs = (int) $pdo->query('SELECT COUNT(DISTINCT student_id) FROM recommendations')->fetchColumn();
         $response['stats'] = [
             'matchedCounts' => array_map('intval', $counts),
             'totalStudentsWithRecommendations' => $totalStudentsWithRecs,

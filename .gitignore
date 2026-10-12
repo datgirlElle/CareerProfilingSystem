@@ -24,3 +24,6 @@ desktop.ini
 # Re-download from https://github.com/tailwindlabs/tailwindcss/releases if needed:
 #   tailwindcss -i css/tailwind-src.css -o css/tailwind.css --minify
 build-tools/
+
+__pycache__/
+*.pyc

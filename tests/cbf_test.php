@@ -1,86 +1,141 @@
 <?php
-
+/**
+ * CBF (lib/CBFEngine.php): controlled development tests of the cosine-similarity math.
+ *
+ *   php tests/cbf_test.php
+ *
+ * DEVELOPMENT TEST DATA ONLY. Every student profile below is a made-up input used to
+ * check the software. None of it is research data, and nothing here measures accuracy.
+ */
 require_once __DIR__ . '/../lib/CBFEngine.php';
+require_once __DIR__ . '/../lib/CBFData.php';
 
-$failures = 0;
 $passed = 0;
-
+$failures = 0;
 function check(string $label, bool $condition): void
 {
-    global $failures, $passed;
-    if ($condition) {
-        $passed++;
-        echo "  PASS: $label\n";
-    } else {
-        $failures++;
-        echo "  FAIL: $label\n";
+    global $passed, $failures;
+    $condition ? $passed++ : $failures++;
+    echo ($condition ? '  PASS: ' : '  FAIL: ') . $label . "\n";
+}
+function near(?float $a, float $b, float $eps = 0.0005): bool
+{
+    return $a !== null && abs($a - $b) < $eps;
+}
+function throws(callable $f): bool
+{
+    try { $f(); } catch (InvalidArgumentException $e) { return true; }
+    return false;
+}
+
+echo "=== Feature space and configuration ===\n";
+check('dimension order is [R, I, A, S, E, C]', CBFEngine::DIMENSIONS === ['R', 'I', 'A', 'S', 'E', 'C']);
+$cfg = CBFEngine::config();
+foreach (['weights', 'final_score', 'holland_rank_weights', 'student_vector', 'riasec_subtract_floor', 'match_rule'] as $removed) {
+    check("no '$removed' setting (no weights/percentages in the CBF)", !array_key_exists($removed, $cfg));
+}
+check('assessment structure: 10 items per type, answers 1-5', $cfg['riasec_items_per_type'] === 10 && $cfg['riasec_answer_min'] === 1 && $cfg['riasec_answer_max'] === 5);
+
+echo "\n=== Course vector (binary, guidance-approved code) ===\n";
+check('AES -> [0, 0, 1, 1, 1, 0]', CBFEngine::courseVector('AES') === [0, 0, 1, 1, 1, 0]);
+check('IRC -> [1, 1, 0, 0, 0, 1]', CBFEngine::courseVector('IRC') === [1, 1, 0, 0, 0, 1]);
+check('letter order carries no weight: IRC, RIC and ICR give the same vector',
+    CBFEngine::courseVector('IRC') === CBFEngine::courseVector('RIC') && CBFEngine::courseVector('RIC') === CBFEngine::courseVector('ICR'));
+check('lower-case code accepted', CBFEngine::courseVector('aes') === [0, 0, 1, 1, 1, 0]);
+check('missing code -> null (flagged, not invented)', CBFEngine::courseVector(null) === null && CBFEngine::courseVector('') === null);
+check('invalid letter -> null', CBFEngine::courseVector('AEX') === null);
+check('repeated letter -> null', CBFEngine::courseVector('AAS') === null);
+check('wrong length -> null', CBFEngine::courseVector('AE') === null && CBFEngine::courseVector('AESI') === null);
+foreach (require __DIR__ . '/../db/program_codes.php' as [, $title, , $final]) {
+    if (CBFEngine::courseVector($final) === null) {
+        check("program list: $title has a valid code", false);
     }
 }
+check('every program in db/program_codes.php has a valid final code', true);
 
-function approx(float $a, float $b, float $eps = 0.0001): bool
-{
-    return abs($a - $b) < $eps;
-}
+echo "\n=== Student vector (the student's actual RIASEC result) ===\n";
+check('totals R45 I45 A45 S45 E35 C25 -> mean item scores [4.5, 4.5, 4.5, 4.5, 3.5, 2.5]',
+    CBFEngine::studentVector(['R' => 45, 'I' => 45, 'A' => 45, 'S' => 45, 'E' => 35, 'C' => 25]) === [4.5, 4.5, 4.5, 4.5, 3.5, 2.5]);
+check('keys in any order are placed in R,I,A,S,E,C order',
+    CBFEngine::studentVector(['C' => 10, 'E' => 20, 'S' => 30, 'A' => 40, 'I' => 50, 'R' => 10]) === [1.0, 5.0, 4.0, 3.0, 2.0, 1.0]);
+check('no assessment (null) -> rejected, no value substituted', throws(fn() => CBFEngine::studentVector(null)));
+check('a missing score -> rejected', throws(fn() => CBFEngine::studentVector(['R' => 30, 'I' => 30, 'A' => 30, 'S' => 30, 'E' => 30])));
+check('a null score -> rejected', throws(fn() => CBFEngine::studentVector(['R' => 30, 'I' => null, 'A' => 30, 'S' => 30, 'E' => 30, 'C' => 30])));
+check('a non-numeric score -> rejected', throws(fn() => CBFEngine::studentVector(['R' => 'x', 'I' => 30, 'A' => 30, 'S' => 30, 'E' => 30, 'C' => 30])));
+check('a score below 10 or above 50 -> rejected',
+    throws(fn() => CBFEngine::studentVector(['R' => 9, 'I' => 30, 'A' => 30, 'S' => 30, 'E' => 30, 'C' => 30]))
+    && throws(fn() => CBFEngine::studentVector(['R' => 51, 'I' => 30, 'A' => 30, 'S' => 30, 'E' => 30, 'C' => 30])));
 
-echo "=== hollandCodeToVector: rank-weighted letters, order R,I,A,S,E,C ===\n";
-check('RIC -> [3,2,0,0,0,1]', CBFEngine::hollandCodeToVector('RIC') === [3, 2, 0, 0, 0, 1]);
-check('SEC -> [0,0,0,3,2,1]', CBFEngine::hollandCodeToVector('SEC') === [0, 0, 0, 3, 2, 1]);
-check('AES -> [0,0,3,1,2,0]', CBFEngine::hollandCodeToVector('AES') === [0, 0, 3, 1, 2, 0]);
+echo "\n=== Cosine similarity: hand-computed values ===\n";
+// Controlled example from the methodology (mathematical check only):
+$S = [4.5, 4.5, 4.5, 4.5, 3.5, 2.5];
+$C = CBFEngine::courseVector('AES');
+check('example: S·C = 4.5 + 4.5 + 3.5 = 12.5', near(CBFEngine::dotProduct($S, $C), 12.5));
+check('example: ||S|| = sqrt(99.5) = 9.9750', near(CBFEngine::magnitude($S), 9.9750));
+check('example: ||C|| = sqrt(3) = 1.7321', near(CBFEngine::magnitude($C), 1.7321));
+check('example: cos = 12.5 / (9.9750 x 1.7321) = 0.724 (BA Communication, AES)', near(CBFEngine::cosineSimilarity($S, $C), 0.7235));
+check('identical direction -> 1', near(CBFEngine::cosineSimilarity([1, 1, 0, 0, 0, 1], [2, 2, 0, 0, 0, 2]), 1.0));
+check('no shared dimension -> 0', near(CBFEngine::cosineSimilarity([1, 1, 1, 0, 0, 0], [0, 0, 0, 1, 1, 1]), 0.0));
+check('scaling the student vector does not change cosine (totals vs mean item scores)',
+    near(CBFEngine::cosineSimilarity([45, 45, 45, 45, 35, 25], $C), CBFEngine::cosineSimilarity($S, $C), 1e-9));
+check('zero-magnitude vector -> null (undefined), not a misleading 0', CBFEngine::cosineSimilarity([0, 0, 0, 0, 0, 0], $C) === null);
 
-echo "\n=== cosineSimilarity: hand-computed known vectors ===\n";
-// Student scored 50 on Realistic and 0 elsewhere. Program A = "RIC" -> [3,2,0,0,0,1].
-// dot = 50*3 = 150; |studentVec| = 50; |programVec| = sqrt(9+4+1) = sqrt(14).
-// cosine = 150 / (50 * sqrt(14)) = 3 / sqrt(14) = 0.801783725...
-$studentVec = CBFEngine::scoresToVector(['R' => 50, 'I' => 0, 'A' => 0, 'S' => 0, 'E' => 0, 'C' => 0]);
-$programVecRIC = CBFEngine::hollandCodeToVector('RIC');
-$cosineRIC = CBFEngine::cosineSimilarity($studentVec, $programVecRIC);
-check('pure-Realistic student vs RIC program ~= 0.8018', approx($cosineRIC, 3 / sqrt(14)));
-
-// Program B = "SEC" -> [0,0,0,3,2,1]. Shares no dimension with the student's R=50, so dot = 0.
-$programVecSEC = CBFEngine::hollandCodeToVector('SEC');
-check('pure-Realistic student vs SEC program == 0', CBFEngine::cosineSimilarity($studentVec, $programVecSEC) === 0.0);
-
-// Identical vectors -> cosine 1.
-check('identical vectors cosine == 1', approx(CBFEngine::cosineSimilarity($programVecRIC, $programVecRIC), 1.0));
-
-// Zero vector -> defined as 0, not NaN/division-by-zero.
-check('zero vector cosine == 0 (no div-by-zero)', CBFEngine::cosineSimilarity([0, 0, 0, 0, 0, 0], $programVecRIC) === 0.0);
-
-echo "\n=== recommend(): Final Match Score = 0.70*cosine + 0.30*stated-indicator ===\n";
-// Programs 1, 3, and 4 all have R as the PRIMARY letter, so — for a purely-Realistic
-// student — they all land on the same cosine (only the primary-letter weight matters
-// when the student's vector is zero everywhere else). Program 2 shares no letters with
-// the student at all (cosine 0), so it only wins a top-3 spot via the +0.30 indicator.
+echo "\n=== CBF over all courses ===\n";
 $programs = [
-    ['id' => 1, 'hollandCode' => 'RIC'],
-    ['id' => 2, 'hollandCode' => 'SEC'], // zero RIASEC overlap
-    ['id' => 3, 'hollandCode' => 'RCI'],
-    ['id' => 4, 'hollandCode' => 'RSA'],
+    ['id' => 1, 'title' => 'BA Communication', 'hollandCode' => 'AES'],
+    ['id' => 2, 'title' => 'BS Computer Science', 'hollandCode' => 'IRC'],
+    ['id' => 3, 'title' => 'BS Information Technology', 'hollandCode' => 'IRC'],
+    ['id' => 4, 'title' => 'BS Psychology', 'hollandCode' => 'SIA'],
+    ['id' => 5, 'title' => 'BS Accountancy', 'hollandCode' => 'CEI'],
+    ['id' => 6, 'title' => 'Unmapped Program', 'hollandCode' => null],
+    ['id' => 7, 'title' => 'Bad Code Program', 'hollandCode' => 'XYZ'],
 ];
-$scores = ['R' => 50, 'I' => 0, 'A' => 0, 'S' => 0, 'E' => 0, 'C' => 0];
-$rPrimaryCosine = 3 / sqrt(14); // shared by programs 1, 3, and 4
+$ircStudent = ['R' => 38, 'I' => 45, 'A' => 18, 'S' => 20, 'E' => 22, 'C' => 35]; // mean [3.8,4.5,1.8,2.0,2.2,3.5]
+$r = CBFEngine::compute($ircStudent, $programs);
+check('every valid course is compared (5 of 5)', count($r['results']) === 5);
+check('missing and invalid mappings are flagged, not given a similarity',
+    array_column($r['excluded'], 'id') === [6, 7] && !in_array(6, array_column($r['results'], 'id'), true));
+$cos = array_column($r['results'], 'cosine');
+$sortedDesc = $cos;
+rsort($sortedDesc);
+check('results sorted by cosine similarity, highest first', $cos === $sortedDesc);
+$byId = array_column($r['results'], null, 'id');
+check('hand check, IRC course: S·C = 3.8 + 4.5 + 3.5 = 11.8', near($byId[2]['dotProduct'], 11.8));
+check('hand check, ||S|| = sqrt(59.02) = 7.6824', near($r['studentMagnitude'], 7.6824));
+check('hand check, cosine = 11.8 / (7.6824 x 1.7321) = 0.8868', near($byId[2]['cosine'], 0.8868));
+check('tied similarity: both IRC courses have the same cosine', $byId[2]['cosine'] === $byId[3]['cosine']);
+check('tied courses keep the program-list order', array_column($r['results'], 'id')[0] === 2 && array_column($r['results'], 'id')[1] === 3);
+check('multiple CBF candidates: every course tied at the highest similarity', $r['candidates'] === [2, 3]);
+check('candidates come only from the RIASEC profile (no worksheet, no prediction input exists)',
+    (new ReflectionMethod('CBFEngine', 'compute'))->getNumberOfParameters() === 3);
 
-// Case 1: student stated program 1 (a strong match) on the worksheet.
-$result = CBFEngine::recommend($scores, $programs, 1);
-$expectedFinal = round(0.70 * $rPrimaryCosine + 0.30 * 1.0, 4);
-check('stated program (id=1) final score == 0.70*cosine + 0.30', $result['top3'][0]['id'] === 1 && approx($result['top3'][0]['score'], $expectedFinal));
-check('non-stated program never gets the +0.30 indicator', $result['all'][1]['indicator'] === 0.0 && $result['all'][2]['indicator'] === 0.0);
-check('top3 has exactly 3 entries', count($result['top3']) === 3);
-check('statedOutsideTop3 is null when the stated program IS in the top 3', $result['statedOutsideTop3'] === null);
+// Ties between scores are handled by the math, not by a letter-order rule:
+$tie = CBFEngine::compute(['R' => 10, 'I' => 40, 'A' => 10, 'S' => 10, 'E' => 40, 'C' => 40], [
+    ['id' => 1, 'title' => 'CEI course', 'hollandCode' => 'CEI'],
+    ['id' => 2, 'title' => 'EIC course', 'hollandCode' => 'EIC'],
+    ['id' => 3, 'title' => 'ECS course', 'hollandCode' => 'ECS'],
+]);
+check('same three letters in a different order -> same similarity, both candidates', $tie['candidates'] === [1, 2]);
 
-// Case 2: no worksheet yet (statedProgramId null) -> every indicator term is 0, ranking is cosine-only.
-$resultNoWorksheet = CBFEngine::recommend($scores, $programs, null);
-check('no stated program -> top pick is still an R-primary program', in_array($resultNoWorksheet['top3'][0]['id'], [1, 3, 4], true));
-check('no stated program -> top score caps at 0.70*cosine (no +0.30 possible)', approx($resultNoWorksheet['top3'][0]['score'], round(0.70 * $rPrimaryCosine, 4)));
+$single = CBFEngine::compute(['R' => 12, 'I' => 18, 'A' => 48, 'S' => 44, 'E' => 30, 'C' => 14], $programs);
+check('single best course: A-S-E student -> BA Communication is the only candidate', $single['candidates'] === [1]);
+check('alternatives = every course at the next-highest similarity', $r['alternatives'] === array_values(array_map(fn($x) => $x['id'],
+    array_filter($r['results'], fn($x) => $x['cosine'] === $r['results'][2]['cosine']))));
+check('alternatives never repeat a Best RIASEC Match course', !array_intersect($r['alternatives'], $r['candidates']));
+check('selectAlternatives on saved results', array_column(CBFEngine::selectAlternatives([['id' => 1, 'cosine' => 0.9], ['id' => 2, 'cosine' => 0.9], ['id' => 3, 'cosine' => 0.8], ['id' => 4, 'cosine' => 0.8], ['id' => 5, 'cosine' => 0.7]]), 'id') === [3, 4]);
+check('no alternatives when every course is tied at the top', CBFEngine::selectAlternatives([['id' => 1, 'cosine' => 0.9], ['id' => 2, 'cosine' => 0.9]]) === []);
+check('invalid RIASEC profile -> compute() refuses instead of guessing', throws(fn() => CBFEngine::compute(null, $programs)));
+check('no valid course at all -> no candidates',
+    CBFEngine::compute($ircStudent, [['id' => 9, 'title' => 'x', 'hollandCode' => '']])['candidates'] === []);
+check('selectCandidates on saved results uses the same rule',
+    array_column(CBFEngine::selectCandidates([['id' => 1, 'cosine' => 0.8868], ['id' => 2, 'cosine' => 0.8868], ['id' => 3, 'cosine' => 0.7741]]), 'id') === [1, 2]);
 
-// Case 3: student stated the zero-overlap program (id=2). Even with +0.30, its score
-// (0 + 0.30 = 0.30) loses to all three R-primary programs' ~0.56 pure-cosine scores,
-// so it should be correctly excluded from the top 3 and surfaced separately instead.
-$resultBadStated = CBFEngine::recommend($scores, $programs, 2);
-$statedIds = array_column($resultBadStated['top3'], 'id');
-check('stated-but-poor-fit program falls outside the top 3', !in_array(2, $statedIds, true));
-check('statedOutsideTop3 correctly surfaces program id=2 separately', $resultBadStated['statedOutsideTop3'] !== null && $resultBadStated['statedOutsideTop3']['id'] === 2);
-check('statedOutsideTop3 score == 0.30 (cosine 0 + full indicator)', approx($resultBadStated['statedOutsideTop3']['score'], 0.30));
+echo "\n=== Postgres text[] parsing ===\n";
+check('bare and quoted elements are both read', CBFData::parseTextArray('{Animation,"Biology 1-2",Entrepreneurship}') === ['Animation', 'Biology 1-2', 'Entrepreneurship']);
+check('escaped quotes/backslashes are unescaped', CBFData::parseTextArray('{"a \\"b\\"","c\\\\d"}') === ['a "b"', 'c\\d']);
+check('empty array -> []', CBFData::parseTextArray('{}') === [] && CBFData::parseTextArray(null) === []);
+check('literal round-trips through the parser', CBFData::parseTextArray(CBFData::textArrayLiteral(['Physics 1-2', 'Animation'])) === ['Physics 1-2', 'Animation']);
+check('INT[] literal round-trips', CBFData::parseIntArray(CBFData::intArrayLiteral([3, 4, 6])) === [3, 4, 6] && CBFData::parseIntArray('{}') === [] && CBFData::parseIntArray(null) === null);
 
 echo "\n=== Summary: $passed passed, $failures failed ===\n";
-exit($failures > 0 ? 1 : 0);
+exit($failures ? 1 : 0);

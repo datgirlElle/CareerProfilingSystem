@@ -113,7 +113,7 @@ function sendAnnouncementEmails(array $recipients, string $title, string $bodyTe
     }
     $safeTitle = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
     $safeBody = nl2br(htmlspecialchars($bodyText, ENT_QUOTES, 'UTF-8'));
-    $appUrl = rtrim((string) getenv('APP_URL'), '/');
+    $appUrl = rtrim((string) envValue('APP_URL'), '/');
 
     // A school-wide announcement can mean sending to every student on the roster, well
     // past a single request's usual runtime — there's no background job queue in this

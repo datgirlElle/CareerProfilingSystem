@@ -1,6 +1,20 @@
 <?php
+/**
+ * The student's latest recommendation (lib/RecommendationPipeline.php, computed when the
+ * Career Electives Worksheet is submitted).
+ *
+ * Students get exactly what the results page shows:
+ *   preferredCourse   the course the student selected (worksheet), shown on its own
+ *   bestRiasecMatch   CBF: course(s) with the highest cosine similarity to the student's
+ *                     RIASEC profile (ties listed together)
+ *   alternatives      CBF: course(s) at the next-highest cosine similarity
+ *   each course carries its cosine similarity (0-1), never a percentage
+ *   finalBestMatch    null: needs the prediction model (WEKA), which is not available yet
+ * Staff (studentId=...) also get `cbf`: every course's cosine calculation.
+ */
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/CBFData.php';
 require_once __DIR__ . '/../lib/Careers.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
@@ -20,26 +34,26 @@ if ($requestedStudentId !== null && $requestedStudentId !== (int) $user['id']) {
     }
     $studentId = (int) $user['id'];
 }
+$isStaff = $user['role'] !== 'student';
 
-$stmt = $pdo->prepare(
-    'SELECT id, computed_at, stated_program_id, scores, top_program_id, top_score, source_worksheet_id
-     FROM recommendations WHERE student_id = ? AND source_assessment_id = (SELECT id FROM assessments WHERE student_id = recommendations.student_id AND is_latest = TRUE)
-     ORDER BY computed_at DESC LIMIT 1'
-);
-$stmt->execute([$studentId]);
-$row = $stmt->fetch();
+try {
+    $stmt = $pdo->prepare(
+        'SELECT id, computed_at, stated_program_id, scores, source_worksheet_id, match_status, mismatch_reason,
+                cbf_program_ids, final_program_ids
+         FROM recommendations WHERE student_id = ? AND source_assessment_id = (SELECT id FROM assessments WHERE student_id = recommendations.student_id AND is_latest = TRUE)
+         ORDER BY computed_at DESC LIMIT 1'
+    );
+    $stmt->execute([$studentId]);
+    $row = $stmt->fetch();
+} catch (PDOException $e) {
+    // Most likely a database that has not been migrated yet (missing pipeline columns).
+    error_log('[recommendations] ' . $e->getMessage());
+    jsonResponse(['error' => 'Your results could not be loaded right now. Please try again later or contact the Guidance Office.',
+        'setupHint' => 'Run: php db/migrate_add_recommendation_status.php && php db/migrate_add_recommendation_sets.php'], 500);
+}
 
 if (!$row) {
     jsonResponse(['hasRecommendation' => false]);
-}
-
-function parsePgTextArray(?string $raw): array
-{
-    if ($raw === null || $raw === '{}') {
-        return [];
-    }
-    preg_match_all('/"((?:[^"\\\\]|\\\\.)*)"/', $raw, $m);
-    return array_map(fn($s) => str_replace(['\\"', '\\\\'], ['"', '\\'], $s), $m[1]);
 }
 
 $electives = [];
@@ -49,37 +63,30 @@ if ($row['source_worksheet_id'] !== null) {
     $wsStmt->execute([(int) $row['source_worksheet_id']]);
     $wsRow = $wsStmt->fetch();
     if ($wsRow) {
-        $electives = parsePgTextArray($wsRow['electives']);
+        $electives = CBFData::parseTextArray($wsRow['electives']);
         $statedCareer = $wsRow['stated_career'];
     }
 }
 
-$scores = json_decode($row['scores'], true);
-usort($scores, fn($a, $b) => $b['score'] <=> $a['score']);
-$top3Scores = array_slice($scores, 0, 3);
+$scores = json_decode($row['scores'], true) ?: [];
+usort($scores, fn($a, $b) => [$b['cosine'], $a['programId']] <=> [$a['cosine'], $b['programId']]);
+$cosineOf = array_column($scores, 'cosine', 'programId');
+$preferredId = $row['stated_program_id'] !== null ? (int) $row['stated_program_id'] : null;
 
-$statedProgramId = $row['stated_program_id'] !== null ? (int) $row['stated_program_id'] : null;
-$top3Ids = array_column($top3Scores, 'programId');
-$statedInTop3 = $statedProgramId !== null && in_array($statedProgramId, $top3Ids, true);
+// Results saved by this CBF version store each course's dot product; older results
+// (before the CBF revision) should be recomputed (php db/recompute_recommendations.php).
+$isCurrent = isset($scores[0]['dotProduct']);
+// Best RIASEC Match: courses tied at the highest cosine similarity (CBF only).
+$bestIds = $isCurrent && $row['cbf_program_ids'] !== null
+    ? CBFData::parseIntArray($row['cbf_program_ids'])
+    : array_map('intval', array_column(CBFEngine::selectCandidates($scores, 'cosine'), 'programId'));
+// Alternative Courses: courses at the next-highest cosine similarity (CBF only).
+$alternativeIds = array_map('intval', array_column(CBFEngine::selectAlternatives($scores, 'cosine'), 'programId'));
+$candidateIds = array_merge($bestIds, $alternativeIds);
 
-$statedOutsideTop3Score = null;
-if ($statedProgramId !== null && !$statedInTop3) {
-    foreach ($scores as $s) {
-        if ($s['programId'] === $statedProgramId) {
-            $statedOutsideTop3Score = $s;
-            break;
-        }
-    }
-}
-
-$neededIds = $top3Ids;
-if ($statedProgramId !== null) {
-    $neededIds[] = $statedProgramId;
-}
-$neededIds = array_values(array_unique($neededIds));
-
+$neededIds = array_merge($candidateIds, $preferredId !== null ? [$preferredId] : [], $isStaff ? array_column($scores, 'programId') : []);
 $programs = [];
-if ($neededIds) {
+if ($neededIds = array_values(array_unique(array_map('intval', $neededIds)))) {
     $placeholders = implode(',', array_fill(0, count($neededIds), '?'));
     $programStmt = $pdo->prepare(
         "SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, p.careers, p.status, c.code AS college_code, c.name AS college_name
@@ -97,46 +104,54 @@ if ($neededIds) {
             'careers' => Careers::effective(Careers::parse($r['careers']), $title),
             'collegeCode' => $r['college_code'],
             'collegeName' => $r['college_name'],
-            // The program row is never hard-deleted (see api/programs.php),
-            // so a student's existing result still resolves correctly even
-            // after staff deactivate it — this just lets the UI flag it.
+            // Programs are never hard-deleted (see api/programs.php), so an existing result
+            // still resolves after staff deactivate one; this lets the UI flag it.
             'isActive' => $r['status'] === 'Active',
+            // Cosine similarity between the student's RIASEC profile and this course (0-1).
+            'cosineSimilarity' => isset($cosineOf[(int) $r['id']]) ? (float) $cosineOf[(int) $r['id']] : null,
         ];
     }
 }
+$programsFor = fn(array $ids) => array_values(array_filter(array_map(fn($id) => $programs[$id] ?? null, $ids)));
 
-function enrichEntry(array $scoreEntry, array $programs): ?array
-{
-    $program = $programs[$scoreEntry['programId']] ?? null;
-    if ($program === null) {
-        return null;
-    }
-    return $program + [
-        'cosine' => (float) $scoreEntry['cosine'],
-        'score' => (float) $scoreEntry['score'],
-        'matchPercent' => (int) round($scoreEntry['score'] * 100),
-    ];
-}
-
-$top3 = array_values(array_filter(array_map(fn($s) => enrichEntry($s, $programs), $top3Scores)));
-
-$statedProgramScore = null;
-foreach ($scores as $s) {
-    if ($s['programId'] === $statedProgramId) {
-        $statedProgramScore = $s;
-        break;
-    }
-}
-
-jsonResponse([
+$response = [
     'hasRecommendation' => true,
     'computedAt' => $row['computed_at'],
-    'statedProgramId' => $statedProgramId,
+    // CBF (RIASEC profile + course RIASEC codes + cosine similarity) only:
+    'bestRiasecMatch' => $programsFor($bestIds),         // tied courses all listed, never tie-broken
+    'alternatives' => $programsFor($alternativeIds),     // next-highest similarity
+    // The student's own selection (Career Electives Worksheet), shown separately; it never
+    // changes the CBF result.
+    'preferredCourse' => $preferredId !== null && isset($programs[$preferredId])
+        ? $programs[$preferredId] + ['inBestRiasecMatch' => in_array($preferredId, $bestIds, true)]
+        : null,
+    // The final Best Match (CBF + prediction model + worksheet) needs the prediction model,
+    // which is not available yet, so it is not computed.
+    'finalBestMatch' => null,
+    'sources' => ['cbf' => 'available', 'worksheet' => $preferredId !== null ? 'available' : 'empty', 'prediction' => 'unavailable'],
+    'isComplete' => false,
+    // What the student typed on the Career Worksheet, and the program it was linked to (if any).
+    'statedProgramId' => $preferredId,
     'statedCareer' => $statedCareer,
-    'statedProgram' => $statedProgramScore !== null ? enrichEntry($statedProgramScore, $programs) : null,
     'electives' => $electives,
-    'topProgramId' => (int) $row['top_program_id'],
-    'topScore' => (float) $row['top_score'],
-    'top3' => $top3,
-    'statedOutsideTop3' => $statedOutsideTop3Score !== null ? enrichEntry($statedOutsideTop3Score, $programs) : null,
-]);
+    'matchStatus' => $row['match_status'],
+    'mismatchReason' => $row['mismatch_reason'],
+    'needsRecompute' => !$isCurrent,
+];
+if ($isStaff) {
+    $response['cbf'] = [
+        'bestRiasecMatch' => array_column($programsFor($bestIds), 'title'),
+        'alternatives' => array_column($programsFor($alternativeIds), 'title'),
+        'studentVector' => $scores[0]['studentVector'] ?? null,
+        'studentMagnitude' => $scores[0]['studentMagnitude'] ?? null,
+        'results' => array_map(fn($sc) => [
+            'title' => $programs[(int) $sc['programId']]['title'] ?? (string) $sc['programId'],
+            'hollandCode' => $sc['hollandCode'] ?? ($programs[(int) $sc['programId']]['hollandCode'] ?? null),
+            'courseVector' => $sc['courseVector'] ?? null,
+            'dotProduct' => $sc['dotProduct'] ?? null,
+            'courseMagnitude' => $sc['courseMagnitude'] ?? null,
+            'cosineSimilarity' => (float) $sc['cosine'],
+        ], $scores),
+    ];
+}
+jsonResponse($response);

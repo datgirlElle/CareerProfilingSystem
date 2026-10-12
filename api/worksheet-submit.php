@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/CBFEngine.php';
+require_once __DIR__ . '/../lib/CBFData.php';
 require_once __DIR__ . '/../lib/Careers.php';
 require_once __DIR__ . '/../lib/CareerMatcher.php';
 require_once __DIR__ . '/../lib/ResultEmail.php';
@@ -40,25 +41,17 @@ if (!$assessment) {
     jsonResponse(['success' => false, 'error' => 'Complete the RIASEC assessment before submitting the worksheet.'], 400);
 }
 
+// RIASEC totals (10-50 scale); used only to link the typed career to a program.
 $scores = [
     'R' => (int) $assessment['score_r'], 'I' => (int) $assessment['score_i'], 'A' => (int) $assessment['score_a'],
     'S' => (int) $assessment['score_s'], 'E' => (int) $assessment['score_e'], 'C' => (int) $assessment['score_c'],
 ];
 
 $allPrograms = CareerMatcher::loadPrograms($pdo);
-$activePrograms = array_map(fn($p) => ['id' => $p['id'], 'hollandCode' => $p['hollandCode']], $allPrograms);
 
-// Link the typed career to a program (null if nothing is close enough: then
-// there is no worksheet bonus and the recommendation is interest-fit only).
+// Link the typed career to a program: that program is the student's Preferred Course
+// (null if nothing is close enough; the CBF result does not depend on it either way).
 $programId = CareerMatcher::resolve($career, $allPrograms, $scores);
-
-$recommendation = CBFEngine::recommend($scores, $activePrograms, $programId);
-$topProgramId = (int) $recommendation['top3'][0]['id'];
-$topScore = (float) $recommendation['top3'][0]['score'];
-
-$scoresForStorage = array_map(fn($s) => [
-    'programId' => $s['id'], 'cosine' => $s['cosine'], 'indicator' => $s['indicator'], 'score' => $s['score'],
-], $recommendation['all']);
 
 $pdo->beginTransaction();
 try {
@@ -77,45 +70,26 @@ try {
     ]);
     $worksheetId = (int) $worksheetInsert->fetchColumn();
 
-    $recInsert = $pdo->prepare(
-        'INSERT INTO recommendations (student_id, stated_program_id, scores, top_program_id, top_score, source_assessment_id, source_worksheet_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id'
-    );
-    $recInsert->execute([
-        $studentId, $programId, json_encode($scoresForStorage), $topProgramId, $topScore,
-        (int) $assessment['id'], $worksheetId,
-    ]);
-    $recommendationId = (int) $recInsert->fetchColumn();
-
-    $policyRows = $pdo->query("SELECT value FROM security_policies WHERE key = 'monitoring.lowConfidenceThreshold'")->fetchColumn();
-    $threshold = $policyRows !== false ? (float) $policyRows : 0.50;
-
-    if ($topScore < $threshold) {
-        $pendingCheck = $pdo->prepare(
-            "SELECT id FROM monitoring_flags WHERE student_id = ? AND reason = 'low_confidence' AND status = 'pending'"
-        );
-        $pendingCheck->execute([$studentId]);
-        if (!$pendingCheck->fetch()) {
-            $flagInsert = $pdo->prepare(
-                "INSERT INTO monitoring_flags (student_id, recommendation_id, reason, status)
-                 VALUES (?, ?, 'low_confidence', 'pending')"
-            );
-            $flagInsert->execute([$studentId, $recommendationId]);
-        }
+    // CBF (RIASEC profile vs every program's RIASEC code, cosine similarity), the Preferred
+    // Course compared with it, and the low-confidence monitoring flag (lib/CBFData.php).
+    $saved = CBFData::saveRecommendation($pdo, $studentId, CBFData::studentProfile($pdo, $studentId, $electives), $programId, (int) $assessment['id'], $worksheetId);
+    if ($saved === null) {
+        throw new RuntimeException('No active programs.');
     }
+    $recommendationId = $saved['recommendationId'];
+    $topScore = $saved['topScore'];
 
     $pdo->commit();
 } catch (Throwable $e) {
     $pdo->rollBack();
+    error_log('[worksheet-submit] ' . $e->getMessage());
     jsonResponse(['success' => false, 'error' => 'Failed to save worksheet. Please try again.'], 500);
 }
 
 AuditLogger::log($studentId, 'student', 'submit_worksheet', 'worksheet', (string) $worksheetId, "Top match score: $topScore");
 
-// Automatic result email, no staff action: a thank-you with the Top Matches, or a request to see the
-// Guidance Office when the program they chose isn't among them (lib/Mismatch.php).
-$titlesById = array_column($allPrograms, 'title', 'id');
-$topTitles = array_values(array_filter(array_map(fn($p) => $titlesById[$p['id']] ?? null, $recommendation['top3'])));
-ResultEmail::send($pdo, $studentId, Mismatch::isMismatch($programId, $scoresForStorage), $topTitles);
+// Automatic result email, no staff action: a thank-you with the Best RIASEC Match, or a request to see the
+// Guidance Office when the Preferred Course differs from it (status from lib/RecommendationPipeline.php).
+ResultEmail::send($pdo, $studentId, $saved['status'] === 'mismatch', $saved['bestRiasecMatchTitles']);
 
 jsonResponse(['success' => true, 'worksheetId' => $worksheetId, 'recommendationId' => $recommendationId]);

@@ -48,8 +48,8 @@ check('gibberish has no link', CareerMatcher::resolve('zzzz qqqq', $programs, nu
 check('empty text has no link', CareerMatcher::resolve('   ', $programs, null) === null);
 
 echo "\n=== resolve: ties go to the student's RIASEC fit ===\n";
-$realistic = ['R' => 45, 'I' => 20, 'A' => 5, 'S' => 5, 'E' => 30, 'C' => 25];
-$investigative = ['R' => 10, 'I' => 48, 'A' => 5, 'S' => 5, 'E' => 5, 'C' => 40];
+$realistic = ['R' => 45, 'I' => 20, 'A' => 10, 'S' => 10, 'E' => 30, 'C' => 25]; // RIASEC totals are 10-50
+$investigative = ['R' => 10, 'I' => 48, 'A' => 10, 'S' => 10, 'E' => 10, 'C' => 40];
 // "engineer" is generic, so every engineering program matches equally.
 check('"engineer" for a Realistic/Enterprising student -> REC Mechanical (id 8)', CareerMatcher::resolve('engineer', $programs, $realistic) === 8);
 check('"engineer" for an Investigative/Conventional student -> IRC/RIC program', in_array(CareerMatcher::resolve('engineer', $programs, $investigative), [1, 4, 7], true));
