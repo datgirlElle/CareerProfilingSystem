@@ -146,9 +146,6 @@
                     <th class="px-3 py-4 text-xs font-semibold tracking-wide text-slate-500 uppercase text-center">
                       <div class="flex items-center justify-center gap-1"><img src="images/security/icon-counselor.svg" alt="" class="w-2.5 h-3">Guidance Facilitator</div>
                     </th>
-                    <th class="px-3 py-4 text-xs font-semibold tracking-wide text-slate-500 uppercase text-center">
-                      <div class="flex items-center justify-center gap-1"><img src="images/security/icon-student.svg" alt="" class="w-2.5 h-3">Student</div>
-                    </th>
                   </tr>
                 </thead>
                 <tbody id="rbacTableBody" class="divide-y divide-slate-200"></tbody>
@@ -170,16 +167,6 @@
               </div>
             </div>
           </div>
-
-          <!-- Login & Access Policies -->
-          <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-            <div class="border-b border-slate-200 px-5 py-5">
-              <h2 class="text-base font-semibold text-slate-900">Login &amp; Access Policies</h2>
-              <p class="text-xs text-slate-500">Enforce strong access policies to protect user accounts.</p>
-            </div>
-            <div class="p-2" id="policyListContainer"></div>
-          </div>
-
           <!-- Report Settings (the Guidance Office hours and booking link are on the Help Center page) -->
           <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
             <div class="border-b border-slate-200 flex items-center gap-3 px-5 py-5">
@@ -218,6 +205,13 @@
               </div>
             </div>
             <div class="p-5 flex flex-col gap-6">
+                            <!-- Login & Access Policies -->
+              <div class="border border-slate-200 rounded-lg p-[17px]">
+                <h3 class="text-sm font-semibold text-slate-800">Login &amp; Access Policies</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Enforce strong access policies to protect user accounts.</p>
+                <div class="mt-2 -mx-2" id="policyListContainer"></div>
+              </div>
+
 
               <div class="border border-slate-200 rounded-lg p-[17px] flex flex-col gap-4">
                 <div class="flex items-start justify-between">
@@ -270,96 +264,6 @@
               </div>
             </div>
           </div>
-
-          <!-- Built-in Protections (display only: these are always on and have no settings) -->
-          <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-            <div class="border-b border-slate-200 flex items-center gap-3 px-5 py-5">
-              <img src="images/security/icon-shield-small.svg" alt="" class="w-4 h-3">
-              <div>
-                <h2 class="text-base font-semibold text-slate-900">Built-in Protections</h2>
-                <p class="text-xs text-slate-500">Safeguards that are always on. They have no settings to change.</p>
-              </div>
-            </div>
-            <div class="p-5 flex flex-col gap-4">
-              <div class="border border-slate-200 rounded-lg p-[17px] flex items-start justify-between gap-3">
-                <div class="flex flex-col gap-1.5">
-                  <p class="text-sm font-semibold text-slate-800">Assessment Access Code Limit</p>
-                  <p class="text-xs text-slate-500">A student who enters a wrong code 3 times within 5 minutes is blocked and must wait before trying again.</p>
-                </div>
-                <span class="bg-green-50 border border-green-200 text-green-700 text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded w-fit shrink-0">Active</span>
-              </div>
-              <div class="border border-slate-200 rounded-lg p-[17px] flex items-start justify-between gap-3">
-                <div class="flex flex-col gap-1.5">
-                  <p class="text-sm font-semibold text-slate-800">Password Reset Limits</p>
-                  <p class="text-xs text-slate-500">At most 3 reset requests per hour for one account and 20 per hour from one network address. The reply never reveals whether an account exists.</p>
-                </div>
-                <span class="bg-green-50 border border-green-200 text-green-700 text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded w-fit shrink-0">Active</span>
-              </div>
-              <div class="border border-slate-200 rounded-lg p-[17px] flex items-start justify-between gap-3">
-                <div class="flex flex-col gap-1.5">
-                  <p class="text-sm font-semibold text-slate-800">Request Forgery Protection</p>
-                  <p class="text-xs text-slate-500">Every action that changes data must carry a valid session token, so another site cannot trigger it on a user's behalf.</p>
-                </div>
-                <span class="bg-green-50 border border-green-200 text-green-700 text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded w-fit shrink-0">Active</span>
-              </div>
-              <div class="border border-slate-200 rounded-lg p-[17px] flex items-start justify-between gap-3">
-                <div class="flex flex-col gap-1.5">
-                  <p class="text-sm font-semibold text-slate-800">Browser Security Headers</p>
-                  <p class="text-xs text-slate-500">A content security policy, clickjacking protection, and HTTPS-only transport are sent with every response.</p>
-                </div>
-                <span class="bg-green-50 border border-green-200 text-green-700 text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded w-fit shrink-0">Active</span>
-              </div>
-              <div class="border border-slate-200 rounded-lg p-[17px] flex items-start justify-between gap-3">
-                <div class="flex flex-col gap-1.5">
-                  <p class="text-sm font-semibold text-slate-800">Roster Upload Checks</p>
-                  <p class="text-xs text-slate-500">Only CSV files up to 2 MB are accepted, and every Student Number is validated before anything is saved.</p>
-                </div>
-                <span class="bg-green-50 border border-green-200 text-green-700 text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded w-fit shrink-0">Active</span>
-              </div>
-              <div class="border border-slate-200 rounded-lg p-[17px] flex items-start justify-between gap-3">
-                <div class="flex flex-col gap-1.5">
-                  <p class="text-sm font-semibold text-slate-800">Encrypted Storage</p>
-                  <p class="text-xs text-slate-500">Student names, counseling requests and notes, announcements, and program data are encrypted at rest.</p>
-                </div>
-                <span class="bg-green-50 border border-green-200 text-green-700 text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded w-fit shrink-0">Active</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- System Security Overview -->
-          <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-            <div class="border-b border-slate-200 px-5 py-5">
-              <h2 class="text-base font-semibold text-slate-900">System Security Overview</h2>
-              <p class="text-xs text-slate-500">Overview of your system security status.</p>
-            </div>
-            <div class="p-5 grid grid-cols-2 gap-4">
-              <div class="border border-slate-200 rounded-lg p-4 flex flex-col items-center justify-center text-center">
-                <img src="images/security/icon-overview-alerts.svg" alt="" class="w-[21px] h-6 mb-2">
-                <p class="text-2xl font-bold text-slate-800" id="overviewLockouts">—</p>
-                <p class="text-xs font-medium text-slate-600">Account Lockouts</p>
-                <p class="text-[10px] text-slate-500 mt-1">Last 7 days</p>
-              </div>
-              <div class="border border-slate-200 rounded-lg p-4 flex flex-col items-center justify-center text-center">
-                <img src="images/security/icon-overview-users.svg" alt="" class="w-[30px] h-6 mb-2">
-                <p class="text-2xl font-bold text-slate-800" id="overviewActiveUsers">—</p>
-                <p class="text-xs font-medium text-slate-600">Active Users</p>
-                <p class="text-[10px] text-slate-500 mt-1">Today</p>
-              </div>
-              <div class="border border-slate-200 rounded-lg p-4 flex flex-col items-center justify-center text-center">
-                <img src="images/security/icon-overview-alerts.svg" alt="" class="w-[21px] h-6 mb-2">
-                <p class="text-2xl font-bold text-slate-800" id="overviewPendingFlags">—</p>
-                <p class="text-xs font-medium text-slate-600">Pending Monitoring Flags</p>
-                <p class="text-[10px] text-slate-500 mt-1">Awaiting review</p>
-              </div>
-              <div class="border border-slate-200 rounded-lg p-4 flex flex-col items-center justify-center text-center">
-                <img src="images/security/icon-overview-alerts.svg" alt="" class="w-[21px] h-6 mb-2">
-                <p class="text-2xl font-bold text-slate-800" id="overviewSharedLogins">—</p>
-                <p class="text-xs font-medium text-slate-600">Possible Shared Logins</p>
-                <p class="text-[10px] text-slate-500 mt-1">Last 7 days</p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div class="flex items-center justify-center gap-1.5 mt-6">
@@ -513,23 +417,20 @@
       { id: 'staffAccounts', label: 'Staff Accounts', desc: 'Account Management. Full: approve sign-ups, send access codes, deactivate staff. View Only: look at the list', icon: 'images/security/icon-module-counselor.svg', iconClass: 'w-3 h-4 mt-0.5' },
       { id: 'sections', label: 'Section Management', desc: 'Account Management. Full: add and deactivate sections. View Only: look at them', icon: 'images/security/icon-people.svg', iconClass: 'w-4 h-4 mt-0.5' }
     ];
-    const ROLES = ['admin', 'counselor', 'facilitator', 'student'];
+    const RBAC_COLUMNS = ['admin', 'counselor', 'facilitator']; // Student access is fixed, so it is not shown
     const LEVEL_LABEL = { full: 'Full Access', limited: 'View Only', none: 'No Access' };
     let state = null;
 
     async function loadState() {
       const firstLoad = !state;
-      const overviewIds = ['overviewLockouts', 'overviewActiveUsers', 'overviewPendingFlags', 'overviewSharedLogins'];
       if (firstLoad) {
         PP.showSkeleton(document.getElementById('rbacTableBody'), PP.skeleton.rows(5, 6));
         PP.showSkeleton(document.getElementById('policyListContainer'), PP.skeleton.lines(5));
-        overviewIds.forEach(PP.statLoading);
       }
       try {
         state = await PP.fetchJson('api/security-config.php');
       } catch (e) {
         if (firstLoad) {
-          overviewIds.forEach(PP.statFailed);
           PP.showError(document.getElementById('rbacTableBody'), e.message, loadState, 5);
           PP.showError(document.getElementById('policyListContainer'), e.message, loadState);
         }
@@ -541,7 +442,6 @@
       renderPolicyList();
       renderSecuritySettings();
       renderPrincipalContact();
-      renderOverview();
       renderLastUpdated();
     }
 
@@ -562,14 +462,6 @@
         });
       }
     }
-
-    function renderOverview() {
-      document.getElementById('overviewLockouts').textContent = state.overview.lockouts7d;
-      document.getElementById('overviewSharedLogins').textContent = state.overview.sharedLogins7d;
-      document.getElementById('overviewActiveUsers').textContent = state.overview.activeUsersToday;
-      document.getElementById('overviewPendingFlags').textContent = state.overview.pendingFlags;
-    }
-
     function renderLastUpdated() {
       const el = document.getElementById('lastUpdatedText');
       if (state.lastUpdated) {
@@ -620,7 +512,7 @@
       if (state.rbacVisible === false) return;
       const tbody = document.getElementById('rbacTableBody');
       tbody.innerHTML = MODULES.map(m => {
-        const cells = ROLES.map(r => {
+        const cells = RBAC_COLUMNS.map(r => {
           const lvl = levelOf(m.id, r);
           if (!isEditable(m.id, r)) return '<td class="px-3 py-3 text-center">' + permIcon(lvl) + '</td>';
           const changed = (m.id + '|' + r) in pending;
