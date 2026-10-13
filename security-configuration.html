@@ -146,9 +146,6 @@
                     <th class="px-3 py-4 text-xs font-semibold tracking-wide text-slate-500 uppercase text-center">
                       <div class="flex items-center justify-center gap-1"><img src="images/security/icon-counselor.svg" alt="" class="w-2.5 h-3">Guidance Facilitator</div>
                     </th>
-                    <th class="px-3 py-4 text-xs font-semibold tracking-wide text-slate-500 uppercase text-center">
-                      <div class="flex items-center justify-center gap-1"><img src="images/security/icon-student.svg" alt="" class="w-2.5 h-3">Student</div>
-                    </th>
                   </tr>
                 </thead>
                 <tbody id="rbacTableBody" class="divide-y divide-slate-200"></tbody>
@@ -513,7 +510,7 @@
       { id: 'staffAccounts', label: 'Staff Accounts', desc: 'Account Management. Full: approve sign-ups, send access codes, deactivate staff. View Only: look at the list', icon: 'images/security/icon-module-counselor.svg', iconClass: 'w-3 h-4 mt-0.5' },
       { id: 'sections', label: 'Section Management', desc: 'Account Management. Full: add and deactivate sections. View Only: look at them', icon: 'images/security/icon-people.svg', iconClass: 'w-4 h-4 mt-0.5' }
     ];
-    const ROLES = ['admin', 'counselor', 'facilitator', 'student'];
+    const RBAC_COLUMNS = ['admin', 'counselor', 'facilitator']; // Student access is fixed, so it is not shown
     const LEVEL_LABEL = { full: 'Full Access', limited: 'View Only', none: 'No Access' };
     let state = null;
 
@@ -620,7 +617,7 @@
       if (state.rbacVisible === false) return;
       const tbody = document.getElementById('rbacTableBody');
       tbody.innerHTML = MODULES.map(m => {
-        const cells = ROLES.map(r => {
+        const cells = RBAC_COLUMNS.map(r => {
           const lvl = levelOf(m.id, r);
           if (!isEditable(m.id, r)) return '<td class="px-3 py-3 text-center">' + permIcon(lvl) + '</td>';
           const changed = (m.id + '|' + r) in pending;
