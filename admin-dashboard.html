@@ -741,7 +741,7 @@
     }
     const kind = state.status === 'Mismatched' ? 'mismatch' : 'pending';
     const what = kind === 'mismatch' ? 'ask the listed students to visit the Guidance Office' : 'send the listed students an assessment reminder';
-    if (!window.confirm('Email these students? This will ' + what + '. A student receives at most one such email per day; students without an account are skipped.')) return;
+    if (!(await PP.confirm('Email these students? This will ' + what + '. A student receives at most one such email per day; students without an account are skipped.'))) return;
     const btn = this, label = btn.textContent;
     btn.disabled = true; btn.textContent = 'Sending…';
     const summary = document.getElementById('paginationSummary');
@@ -823,7 +823,7 @@
     const summary = document.getElementById('paginationSummary');
     const inviteBtn = e.target.closest('.counsel-invite-btn');
     if (inviteBtn) {
-      if (!window.confirm('Invite "' + inviteBtn.dataset.name + '" to a counseling session? They will be sent the CGC booking link by email and in their notifications.')) return;
+      if (!(await PP.confirm('Invite "' + inviteBtn.dataset.name + '" to a counseling session? They will be sent the CGC booking link by email and in their notifications.'))) return;
       inviteBtn.disabled = true;
       try {
         const res = await fetch('api/counseling-invite.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studentId: Number(inviteBtn.dataset.id) }) });
@@ -841,8 +841,8 @@
     const toggleBtn = e.target.closest('.toggle-active-btn');
     if (toggleBtn) {
       const willDeactivate = toggleBtn.dataset.active === '1';
-      if (!window.confirm((willDeactivate ? 'Deactivate' : 'Activate') + ' "' + toggleBtn.dataset.name + '"? ' +
-        (willDeactivate ? 'They will no longer be able to sign in. You can reactivate later.' : 'They will be able to sign in again.'))) return;
+      if (!(await PP.confirm((willDeactivate ? 'Deactivate' : 'Activate') + ' "' + toggleBtn.dataset.name + '"? ' +
+        (willDeactivate ? 'They will no longer be able to sign in. You can reactivate later.' : 'They will be able to sign in again.'), { okLabel: willDeactivate ? 'Deactivate' : 'Activate', danger: willDeactivate }))) return;
       toggleBtn.disabled = true;
       try {
         const res = await fetch('api/students.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'toggleActive', userId: Number(toggleBtn.dataset.id) }) });

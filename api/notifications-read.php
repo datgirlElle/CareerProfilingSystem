@@ -7,11 +7,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $user = Auth::requireLogin();
-if ($user['role'] !== 'admin' && $user['role'] !== 'counselor') {
-    jsonResponse(['success' => false, 'error' => 'Forbidden'], 403);
-}
 
-// "Mark all as read" — everything up to now counts as read; see the note in
+// "Mark all as read" (staff and students alike) — everything up to now counts as read; see the note in
 // api/notifications.php for why this is one timestamp rather than per-item.
 $stmt = Database::get()->prepare('UPDATE users SET notifications_read_at = NOW() WHERE id = ?');
 $stmt->execute([$user['id']]);

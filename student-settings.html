@@ -239,23 +239,28 @@
     const photoInput = document.getElementById('photoInput');
     const changePhotoBtn = document.getElementById('changePhotoBtn');
     const photoError = document.getElementById('photoError');
-    function showPhotoError(msg) {
-      photoError.textContent = msg;
-      photoError.classList.remove('hidden');
-    }
+    // Pop-up messages, the same as on the staff pages (js/ui-state.js).
+    function showPhotoError(msg) { PP.toast(msg, true); }
     async function saveAvatar(dataUrl) {
       photoError.classList.add('hidden');
-      const res = await fetch('api/update-avatar.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ avatarDataUrl: dataUrl })
-      });
-      const data = await res.json();
+      let data;
+      try {
+        const res = await fetch('api/update-avatar.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ avatarDataUrl: dataUrl })
+        });
+        data = await res.json();
+      } catch (e) {
+        showPhotoError('Unable to reach the server. Please try again.');
+        return;
+      }
       if (!data.success) {
         showPhotoError(data.error || 'Failed to save photo.');
         return;
       }
       renderAvatar(data.avatarUrl);
+      PP.toast(dataUrl ? 'Photo updated.' : 'Photo removed.', false);
     }
     changePhotoBtn.addEventListener('click', () => photoInput.click());
     photoInput.addEventListener('change', () => {

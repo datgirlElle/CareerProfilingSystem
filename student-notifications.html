@@ -247,16 +247,21 @@
 
     async function deleteKeys(keys, rows) {
       if (!keys.length) return;
-      const res = await fetch('api/notifications-dismiss.php', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys: keys })
-      });
-      const data = await res.json();
-      if (!data.success) {
-        const errorEl = document.getElementById('listError');
-        errorEl.textContent = data.error || 'Could not delete. Please try again.';
-        errorEl.classList.remove('hidden');
+      let data;
+      try {
+        const res = await fetch('api/notifications-dismiss.php', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys: keys })
+        });
+        data = await res.json();
+      } catch (e) {
+        PP.toast('Unable to reach the server. Please try again.', true);
         return;
       }
+      if (!data.success) {
+        PP.toast(data.error || 'Could not delete. Please try again.', true);
+        return;
+      }
+      if (keys.length > 1) PP.toast('Notifications cleared.', false);
       rows.forEach(function(r) { r.remove(); });
       refreshSections();
       if (window.ProfilePathNotifications) window.ProfilePathNotifications.reload();
@@ -270,8 +275,10 @@
       deleteKeys([row.dataset.key], [row]).finally(function() { btn.disabled = false; });
     });
     [['clearAnnBtn', 'annList'], ['clearUpdBtn', 'updList']].forEach(function(pair) {
-      document.getElementById(pair[0]).addEventListener('click', function() {
+      document.getElementById(pair[0]).addEventListener('click', async function() {
         const rows = Array.from(document.getElementById(pair[1]).querySelectorAll('.notif-row'));
+        if (!rows.length) return;
+        if (!(await PP.confirm('Clear all ' + (pair[1] === 'annList' ? 'announcements' : 'updates') + '? They will be removed from this list.', { okLabel: 'Clear all', danger: true }))) return;
         deleteKeys(rows.map(function(r) { return r.dataset.key; }), rows);
       });
     });
@@ -289,6 +296,12 @@
         document.getElementById('annList').innerHTML = items.filter(function(n) { return n.type === 'announcement'; }).map(function(n) { return rowHtml(n, true); }).join('');
         document.getElementById('updList').innerHTML = items.filter(function(n) { return n.type !== 'announcement'; }).map(function(n) { return rowHtml(n, false); }).join('');
         refreshSections();
+        // Opening the full list counts as reading it, the same as the bell's "Mark all as read".
+        if (items.length) {
+          fetch('api/notifications-read.php', { method: 'POST' }).then(function() {
+            if (window.ProfilePathNotifications) window.ProfilePathNotifications.reload();
+          }).catch(function() {});
+        }
       } catch (e) {
         loadingEl.classList.add('hidden');
         PP.showError(errorEl, 'Could not load your notifications. ' + (e.message || ''), loadNotifications);

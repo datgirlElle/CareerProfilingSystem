@@ -272,6 +272,8 @@
   const OPTIONS = ['Dislike', 'Slightly Dislike', 'Neutral', 'Slightly Enjoy', 'Enjoy'];
 
   const questionCardEl = document.getElementById('questionCard');
+  // The card's own markup (question, options, Previous / Next) is put back once the questions arrive.
+  const questionCardHtml = questionCardEl.innerHTML;
   PP.showSkeleton(questionCardEl, PP.skeleton.lines(5, 18));
   let questionsData;
   try {
@@ -285,6 +287,7 @@
     questionsData = { error: e.message };
   }
   questionCardEl.removeAttribute('aria-busy');
+  questionCardEl.innerHTML = questionCardHtml;
   if (!questionsData.questions || questionsData.questions.length === 0) {
     questionCardEl.innerHTML =
       '<p class="text-[#191c1e] text-lg font-medium text-center my-auto">' +

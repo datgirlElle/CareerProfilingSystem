@@ -33,7 +33,10 @@
     help_resolved: { icon: 'help', bg: '#dcfce7', fg: '#15803d' },
     flag_resolved: { icon: 'flag', bg: '#dcfce7', fg: '#15803d' },
     announcement: { icon: 'announce', bg: '#ede9fe', fg: '#6d28d9' },
-    schedule_published: { icon: 'exam', bg: '#dbeafe', fg: '#1d4ed8' }
+    schedule_published: { icon: 'exam', bg: '#dbeafe', fg: '#1d4ed8' },
+    retake_request: { icon: 'help', bg: '#ffedd5', fg: '#c2410c' },
+    retake_decision: { icon: 'help', bg: '#dcfce7', fg: '#15803d' },
+    counseling_invite: { icon: 'help', bg: '#dbeafe', fg: '#1d4ed8' }
   };
 
   function escapeHtml(str) {
