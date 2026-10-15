@@ -105,14 +105,19 @@
           <h1 class="text-2xl font-bold text-gray-900">Audit Log</h1>
           <p class="text-sm text-gray-500 mt-1">Track system activities and changes for security and compliance.</p>
         </div>
-                  <div class="flex items-end gap-3 flex-wrap">
-            <div class="flex flex-col gap-1">
-              <label for="filterFrom" class="text-xs font-medium text-gray-600">From</label>
-              <input type="date" id="filterFrom" class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
-            </div>
-            <div class="flex flex-col gap-1">
-              <label for="filterTo" class="text-xs font-medium text-gray-600">To</label>
-              <input type="date" id="filterTo" class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
+                  <div class="flex items-start gap-3 flex-wrap">
+                        <div class="flex flex-col gap-1">
+              <div class="flex items-end gap-3">
+                <div class="flex flex-col gap-1">
+                  <label for="filterFrom" class="text-xs font-medium text-gray-600">From</label>
+                  <input type="date" id="filterFrom" aria-describedby="dateRangeMessage" class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
+                </div>
+                <div class="flex flex-col gap-1">
+                  <label for="filterTo" class="text-xs font-medium text-gray-600">To</label>
+                  <input type="date" id="filterTo" aria-describedby="dateRangeMessage" class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
+                </div>
+              </div>
+              <p id="dateRangeMessage" role="alert" class="hidden text-xs text-red-600"></p>
             </div>
             <div class="flex flex-col gap-1">
               <label for="filterStatus" class="text-xs font-medium text-gray-600">Status</label>
@@ -337,6 +342,7 @@
     const loadMoreBtn = document.getElementById('loadMoreBtn');
     const PAGE_SIZE = 50;
     let loadedRows = [];
+    let loadRequestId = 0;
     const paginationSummary = document.getElementById('paginationSummary');
 
     const state = { page: 1, sort: 'desc', search: '', status: 'All', module: 'All', from: '', to: '' };
@@ -373,17 +379,47 @@
     // load(true) starts a fresh list (filters/sort/search changed);
     // load(false) appends the next batch after the rows already shown.
     async function load(reset = true) {
+
+      const invalidDateRange =
+        filterFrom.value &&
+        filterTo.value &&
+        filterFrom.value > filterTo.value;
+
+      if (invalidDateRange) {
+        ++loadRequestId;
+        loadedRows = [];
+        state.page = 1;
+        exportBtn.disabled = true;
+
+        tbody.innerHTML =
+          '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-red-600">Fix the date range to see results.</td></tr>';
+
+        ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive',
+         'summarySuccessPct', 'summaryFailedPct'].forEach(id => {
+          document.getElementById(id).textContent = '—';
+        });
+
+        paginationSummary.textContent = '';
+        loadMoreBtn.classList.add('hidden');
+        loadMoreBtn.disabled = true;
+        return;
+      }
+
       if (reset) {
         state.page = 1;
         loadedRows = [];
         PP.showSkeleton(tbody, PP.skeleton.rows(7, 8));
         ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive'].forEach(PP.statLoading);
       }
+
+      const requestId = ++loadRequestId;
       loadMoreBtn.disabled = true;
       let data;
       try {
         data = await PP.fetchJson('api/audit-log.php?' + currentQuery());
+        if (requestId !== loadRequestId) return;
       } catch (e) {
+        if (requestId !== loadRequestId) return;
         if (e.status === 401) { window.location.replace('staff-login'); return; }
         paginationSummary.textContent = '';
         loadMoreBtn.classList.add('hidden');
@@ -472,13 +508,48 @@
       state.page = 1;
       load();
     });
-          [filterFrom, filterTo].forEach(el => el.addEventListener('change', () => {
+    const dateMsg = document.getElementById('dateRangeMessage');
+      [filterFrom, filterTo].forEach(el => el.addEventListener('change', () => {
+        const bad = filterFrom.value && filterTo.value &&
+                    filterFrom.value > filterTo.value;
+
+        dateMsg.textContent = bad
+          ? 'The start date is after the end date. Choose a start date on or before the end date.'
+          : '';
+
+        dateMsg.classList.toggle('hidden', !bad);
+        filterFrom.setAttribute('aria-invalid', bad ? 'true' : 'false');
+        filterTo.setAttribute('aria-invalid', bad ? 'true' : 'false');
+        exportBtn.disabled = !!bad;
+
+        if (bad) {
+          ++loadRequestId;
+          loadedRows = [];
+          state.page = 1;
+
+          tbody.innerHTML =
+            '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-red-600">Fix the date range to see results.</td></tr>';
+
+          ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive']
+            .forEach(id => {
+              document.getElementById(id).textContent = '—';
+            });
+
+          ['summarySuccessPct', 'summaryFailedPct'].forEach(id => {
+            document.getElementById(id).textContent = '—';
+          });
+
+          paginationSummary.textContent = '';
+          loadMoreBtn.classList.add('hidden');
+          loadMoreBtn.disabled = true;
+          return;
+        }
+
         state.from = filterFrom.value;
         state.to = filterTo.value;
         state.page = 1;
         load();
-      }));
-
+   }));
     let sortAscending = false;
     sortTimestampBtn.addEventListener('click', () => {
       sortAscending = !sortAscending;

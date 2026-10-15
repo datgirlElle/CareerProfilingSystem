@@ -13,14 +13,17 @@ const FAILED_SUFFIX = '_failed';
 const FAILED_SQL = "(al.action LIKE '%_failed' OR al.action IN ('login_lockout', 'login_shared_suspected'))";
 
 $actionLabels = [
-    'login' => 'Logged in',
-    'login_failed' => 'Failed login attempt',
-    'login_lockout' => 'Account locked out',
+    'login' => 'Signed in',
+    'login_failed' => 'Failed sign-in',
+    'login_lockout' => 'Account locked',
     'login_shared_suspected' => 'Possible shared account',
-    'logout' => 'Logged out',
+    'logout' => 'Signed out',
     'register' => 'Registered new account',
     'submit_assessment' => 'Submitted RIASEC assessment',
     'update_question' => 'Updated assessment question',
+    'update_rbac' => 'Access permissions changed',
+    'update_policy' => 'Security setting changed',
+    'update_settings' => 'Security setting changed',
 ];
 
 $roleLabels = [
@@ -67,6 +70,14 @@ function buildFilters(array $q): array
         $where[] = 'al.target_type = ?';
         $params[] = $q['module'];
     }
+        if (!empty($q['from']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $q['from'])) {
+        $where[] = 'al.created_at >= CAST(? AS date)';
+        $params[] = $q['from'];
+    }
+    if (!empty($q['to']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $q['to'])) {
+        $where[] = "al.created_at < CAST(? AS date) + INTERVAL '1 day'";
+        $params[] = $q['to'];
+    }
     if (!empty($q['search'])) {
         $where[] = "((COALESCE(u.role, '') <> 'student' AND (u.username ILIKE ? OR u.full_name ILIKE ?)) OR al.action ILIKE ? OR al.target_type ILIKE ?)";
         $like = '%' . $q['search'] . '%';
@@ -87,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['export'])) {
     header('Content-Type: text/csv');
     header('Content-Disposition: attachment; filename="audit-log-export.csv"');
     $out = fopen('php://output', 'w');
-    fputcsv($out, ['Timestamp', 'User', 'Role', 'Action', 'Module', 'IP Address', 'Status'], escape: '\\');
+    fputcsv($out, ['Timestamp', 'User', 'Role', 'Action', 'Category', 'IP Address', 'Status'], escape: '\\');
     foreach ($stmt as $row) {
         $status = (str_ends_with($row['action'], FAILED_SUFFIX) || in_array($row['action'], ['login_lockout', 'login_shared_suspected'], true)) ? 'Failed' : 'Success';
         fputcsv($out, [
@@ -137,6 +148,7 @@ $rows = array_map(function ($r) use ($actionLabels, $roleLabels) {
 
 $modules = $pdo->query('SELECT DISTINCT target_type FROM audit_log WHERE target_type IS NOT NULL ORDER BY target_type')
     ->fetchAll(PDO::FETCH_COLUMN);
+    $firstDate = $pdo->query('SELECT MIN(created_at)::date FROM audit_log')->fetchColumn() ?: null;
 
 // Summary cards reflect the whole audit log, independent of the table's current
 // search/filter state below — otherwise a narrow filter makes "successful"/"failed"
@@ -155,6 +167,7 @@ jsonResponse([
     'total' => $total,
     'totalPages' => $totalPages,
     'modules' => $modules,
+    'firstDate' => $firstDate,
     'summary' => [
         'total' => $globalTotal,
         'successful' => $successCount,
