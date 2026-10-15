@@ -105,30 +105,35 @@
           <h1 class="text-2xl font-bold text-gray-900">Audit Log</h1>
           <p class="text-sm text-gray-500 mt-1">Track system activities and changes for security and compliance.</p>
         </div>
-        <div class="flex items-center gap-3">
-          <div class="relative">
-            <button type="button" id="filtersBtn" class="flex items-center gap-2 bg-white border border-gray-300 rounded-md px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm">
-              <img src="images/audit/icon-filter.svg" alt="" class="w-4 h-4">
-              Filters
-            </button>
-            <div id="filtersPanel" class="hidden absolute right-0 top-[calc(100%+8px)] w-64 bg-white border border-gray-200 rounded-xl shadow-lg p-4 z-20">
-              <div class="flex flex-col gap-1 mb-3">
-                <label class="text-xs font-medium text-gray-600">Status</label>
-                <select id="filterStatus" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
-                  <option value="All">All Status</option>
-                  <option value="Success">Success</option>
-                  <option value="Failed">Failed</option>
-                </select>
+                  <div class="flex items-start gap-3 flex-wrap">
+                        <div class="flex flex-col gap-1">
+              <div class="flex items-end gap-3">
+                <div class="flex flex-col gap-1">
+                  <label for="filterFrom" class="text-xs font-medium text-gray-600">From</label>
+                  <input type="date" id="filterFrom" aria-describedby="dateRangeMessage" class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
+                </div>
+                <div class="flex flex-col gap-1">
+                  <label for="filterTo" class="text-xs font-medium text-gray-600">To</label>
+                  <input type="date" id="filterTo" aria-describedby="dateRangeMessage" class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
+                </div>
               </div>
-              <div class="flex flex-col gap-1">
-                <label class="text-xs font-medium text-gray-600">Module</label>
-                <select id="filterModule" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
-                  <option value="All">All Modules</option>
-                </select>
-              </div>
+              <p id="dateRangeMessage" role="alert" class="hidden text-xs text-red-600"></p>
+            </div>
+            <div class="flex flex-col gap-1">
+              <label for="filterStatus" class="text-xs font-medium text-gray-600">Status</label>
+              <select id="filterStatus" class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
+                <option value="All">All Status</option>
+                <option value="Success">Success</option>
+                <option value="Failed">Failed</option>
+              </select>
+            </div>
+            <div class="flex flex-col gap-1">
+              <label for="filterModule" class="text-xs font-medium text-gray-600">Category</label>
+              <select id="filterModule" class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
+                <option value="All">All Categories</option>
+              </select>
             </div>
           </div>
-        </div>
       </div>
 
       <!-- Summary Cards -->
@@ -203,7 +208,7 @@
                 <th class="px-6 py-3 text-xs font-semibold text-gray-500">User</th>
                 <th class="px-6 py-3 text-xs font-semibold text-gray-500">Role</th>
                 <th class="px-6 py-3 text-xs font-semibold text-gray-500">Action</th>
-                <th class="px-6 py-3 text-xs font-semibold text-gray-500">Module / Affected Data</th>
+                <th class="px-6 py-3 text-xs font-semibold text-gray-500">Category</th>
                 <th class="px-6 py-3 text-xs font-semibold text-gray-500">IP Address</th>
                 <th class="px-6 py-3 text-xs font-semibold text-gray-500">Status</th>
               </tr>
@@ -327,8 +332,8 @@
   (function() {
     const tbody = document.getElementById('auditTableBody');
     const searchInput = document.getElementById('searchInput');
-    const filtersBtn = document.getElementById('filtersBtn');
-    const filtersPanel = document.getElementById('filtersPanel');
+    const filterFrom = document.getElementById('filterFrom');
+    const filterTo = document.getElementById('filterTo');
     const filterStatus = document.getElementById('filterStatus');
     const filterModule = document.getElementById('filterModule');
     const sortTimestampBtn = document.getElementById('sortTimestampBtn');
@@ -337,18 +342,21 @@
     const loadMoreBtn = document.getElementById('loadMoreBtn');
     const PAGE_SIZE = 50;
     let loadedRows = [];
+    let loadRequestId = 0;
     const paginationSummary = document.getElementById('paginationSummary');
 
-    const state = { page: 1, sort: 'desc', search: '', status: 'All', module: 'All' };
+    const state = { page: 1, sort: 'desc', search: '', status: 'All', module: 'All', from: '', to: '' };
     let modulesLoaded = false;
     let searchDebounce = null;
 
-    filtersBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      filtersPanel.classList.toggle('hidden');
-    });
-    filtersPanel.addEventListener('click', (e) => e.stopPropagation());
-    document.addEventListener('click', () => filtersPanel.classList.add('hidden'));
+          const CATEGORY_LABEL = { user: 'User Accounts', security_policies: 'Security Policies', security_rbac: 'Access Permissions' };
+      function categoryLabel(m) {
+        return CATEGORY_LABEL[m] || String(m).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      }
+      function todayStr() {
+        const d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      }
 
     function escapeHtml(str) {
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -361,6 +369,8 @@
         sort: state.sort,
         status: state.status,
         module: state.module,
+        from: state.from,
+        to: state.to,
         search: state.search,
       }, extra || {}));
       return params.toString();
@@ -369,17 +379,47 @@
     // load(true) starts a fresh list (filters/sort/search changed);
     // load(false) appends the next batch after the rows already shown.
     async function load(reset = true) {
+
+      const invalidDateRange =
+        filterFrom.value &&
+        filterTo.value &&
+        filterFrom.value > filterTo.value;
+
+      if (invalidDateRange) {
+        ++loadRequestId;
+        loadedRows = [];
+        state.page = 1;
+        exportBtn.disabled = true;
+
+        tbody.innerHTML =
+          '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-red-600">Fix the date range to see results.</td></tr>';
+
+        ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive',
+         'summarySuccessPct', 'summaryFailedPct'].forEach(id => {
+          document.getElementById(id).textContent = '—';
+        });
+
+        paginationSummary.textContent = '';
+        loadMoreBtn.classList.add('hidden');
+        loadMoreBtn.disabled = true;
+        return;
+      }
+
       if (reset) {
         state.page = 1;
         loadedRows = [];
         PP.showSkeleton(tbody, PP.skeleton.rows(7, 8));
         ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive'].forEach(PP.statLoading);
       }
+
+      const requestId = ++loadRequestId;
       loadMoreBtn.disabled = true;
       let data;
       try {
         data = await PP.fetchJson('api/audit-log.php?' + currentQuery());
+        if (requestId !== loadRequestId) return;
       } catch (e) {
+        if (requestId !== loadRequestId) return;
         if (e.status === 401) { window.location.replace('staff-login'); return; }
         paginationSummary.textContent = '';
         loadMoreBtn.classList.add('hidden');
@@ -401,12 +441,14 @@
       tbody.removeAttribute('aria-busy');
       state.page = data.page;
 
-      if (!modulesLoaded) {
-        filterModule.innerHTML = '<option value="All">All Modules</option>' +
-          data.modules.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
-        filterModule.value = state.module;
-        modulesLoaded = true;
-      }
+              if (!modulesLoaded) {
+          filterModule.innerHTML = '<option value="All">All Categories</option>' +
+            data.modules.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(categoryLabel(m))}</option>`).join('');
+          filterModule.value = state.module;
+          if (data.firstDate) { filterFrom.min = filterTo.min = data.firstDate; }
+          filterFrom.max = filterTo.max = todayStr();
+          modulesLoaded = true;
+        }
 
       loadedRows = loadedRows.concat(data.rows);
       renderSummary(data.summary);
@@ -441,7 +483,7 @@
           '<td class="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">' + escapeHtml(r.user) + '</td>' +
           '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(r.role) + '</td>' +
           '<td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">' + escapeHtml(r.action) + '</td>' +
-          '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(r.module) + '</td>' +
+          '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(categoryLabel(r.module)) + '</td>' +
           '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(r.ip) + '</td>' +
           '<td class="px-6 py-4">' + badge + '</td>' +
         '</tr>';
@@ -466,7 +508,48 @@
       state.page = 1;
       load();
     });
+    const dateMsg = document.getElementById('dateRangeMessage');
+      [filterFrom, filterTo].forEach(el => el.addEventListener('change', () => {
+        const bad = filterFrom.value && filterTo.value &&
+                    filterFrom.value > filterTo.value;
 
+        dateMsg.textContent = bad
+          ? 'The start date is after the end date. Choose a start date on or before the end date.'
+          : '';
+
+        dateMsg.classList.toggle('hidden', !bad);
+        filterFrom.setAttribute('aria-invalid', bad ? 'true' : 'false');
+        filterTo.setAttribute('aria-invalid', bad ? 'true' : 'false');
+        exportBtn.disabled = !!bad;
+
+        if (bad) {
+          ++loadRequestId;
+          loadedRows = [];
+          state.page = 1;
+
+          tbody.innerHTML =
+            '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-red-600">Fix the date range to see results.</td></tr>';
+
+          ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive']
+            .forEach(id => {
+              document.getElementById(id).textContent = '—';
+            });
+
+          ['summarySuccessPct', 'summaryFailedPct'].forEach(id => {
+            document.getElementById(id).textContent = '—';
+          });
+
+          paginationSummary.textContent = '';
+          loadMoreBtn.classList.add('hidden');
+          loadMoreBtn.disabled = true;
+          return;
+        }
+
+        state.from = filterFrom.value;
+        state.to = filterTo.value;
+        state.page = 1;
+        load();
+   }));
     let sortAscending = false;
     sortTimestampBtn.addEventListener('click', () => {
       sortAscending = !sortAscending;
