@@ -16,6 +16,62 @@
     body {
       font-family: 'Inter', sans-serif;
     }
+    /* Clear filters: gray while no filter is on, sidebar navy (#001c43) once any filter is on. Never hidden. */
+    .clear-filters-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid #e5e7eb;
+      background: #f9fafb;
+      color: #9ca3af;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 14px;
+      line-height: 20px;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: not-allowed;
+      transition: background-color var(--dur-button) var(--ease-standard),
+                  border-color var(--dur-button) var(--ease-standard),
+                  color var(--dur-button) var(--ease-standard),
+                  transform var(--dur-button) var(--ease-standard),
+                  filter var(--dur-button) var(--ease-standard);
+    }
+    .clear-filters-btn:not(:disabled) {
+      border-color: #001c43;
+      background: #eef2f8;
+      color: #001c43;
+      cursor: pointer;
+    }
+    .clear-filters-btn:not(:disabled):hover {
+      background: #e1e8f3;
+    }
+    .clear-filters-btn:focus-visible {
+      outline: 2px solid #001c43;
+      outline-offset: 2px;
+    }
+    /* Date range error: floats under From and To (in the gap above the cards) so the filter row never shifts. */
+    .date-range-msg {
+      position: absolute;
+      left: 0;
+      top: 100%;
+      margin-top: 4px;
+      white-space: nowrap;
+    }
+    #filterFrom[aria-invalid="true"],
+    #filterTo[aria-invalid="true"] {
+      border-color: #dc2626;
+      box-shadow: 0 0 0 1px #dc2626;
+    }
+    /* Same funnel icon as the Clear Filters button on Career Dataset, drawn in the button's text color. */
+    .clear-filters-icon {
+      width: 16px;
+      height: 14px;
+      flex-shrink: 0;
+      background-color: currentColor;
+      -webkit-mask: url('images/admin/icon-clear-filters.svg') no-repeat center / contain;
+      mask: url('images/admin/icon-clear-filters.svg') no-repeat center / contain;
+    }
   </style>
   <link rel="stylesheet" href="css/motion.css">
 </head>
@@ -128,7 +184,7 @@
             <p class="text-sm text-gray-500 mt-1">Track system activities and changes for security and compliance.</p>
           </div>
           <div class="flex items-start gap-3 flex-wrap">
-            <div class="flex flex-col gap-1">
+            <div class="relative flex flex-col gap-1">
               <div class="flex items-end gap-3">
                 <div class="flex flex-col gap-1">
                   <label for="filterFrom" class="text-xs font-medium text-gray-600">From</label>
@@ -141,7 +197,7 @@
                     class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
                 </div>
               </div>
-              <p id="dateRangeMessage" role="alert" class="hidden text-xs text-red-600"></p>
+              <p id="dateRangeMessage" role="alert" class="hidden text-xs text-red-600 date-range-msg"></p>
             </div>
             <div class="flex flex-col gap-1">
               <label for="filterStatus" class="text-xs font-medium text-gray-600">Status</label>
@@ -158,6 +214,13 @@
                 class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
                 <option value="All">All Categories</option>
               </select>
+            </div>
+            <div class="flex flex-col gap-1">
+              <span class="text-xs font-medium" aria-hidden="true">&nbsp;</span>
+              <button type="button" id="clearFiltersBtn" disabled class="clear-filters-btn">
+                <span class="clear-filters-icon" aria-hidden="true"></span>
+                Clear filters
+              </button>
             </div>
           </div>
         </div>
@@ -390,6 +453,16 @@
         const state = { page: 1, sort: 'desc', search: '', status: 'All', module: 'All', from: '', to: '' };
         let modulesLoaded = false;
         let searchDebounce = null;
+        let firstDate = '';
+
+        // The calendars only offer valid ranges: To cannot start before From, From cannot end after To.
+        // Typed dates can still be out of order, so the change handler below keeps its error message.
+        function syncDateLimits() {
+          filterFrom.min = firstDate;
+          filterFrom.max = filterTo.value || todayStr();
+          filterTo.min = filterFrom.value || firstDate;
+          filterTo.max = todayStr();
+        }
 
         const CATEGORY_LABEL = { user: 'User Accounts', faq: 'FAQ', security_policies: 'Security Policies', security_rbac: 'Access Permissions' };
         function categoryLabel(m) {
@@ -486,8 +559,8 @@
             filterModule.innerHTML = '<option value="All">All Categories</option>' +
               data.modules.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(categoryLabel(m))}</option>`).join('');
             filterModule.value = state.module;
-            if (data.firstDate) { filterFrom.min = filterTo.min = data.firstDate; }
-            filterFrom.max = filterTo.max = todayStr();
+            firstDate = data.firstDate || '';
+            syncDateLimits();
             modulesLoaded = true;
           }
 
@@ -551,12 +624,11 @@
         });
         const dateMsg = document.getElementById('dateRangeMessage');
         [filterFrom, filterTo].forEach(el => el.addEventListener('change', () => {
+          syncDateLimits();
           const bad = filterFrom.value && filterTo.value &&
             filterFrom.value > filterTo.value;
 
-          dateMsg.textContent = bad
-            ? 'The start date is after the end date. Choose a start date on or before the end date.'
-            : '';
+          dateMsg.textContent = bad ? 'From date must be on or before To date.' : '';
 
           dateMsg.classList.toggle('hidden', !bad);
           filterFrom.setAttribute('aria-invalid', bad ? 'true' : 'false');
@@ -590,6 +662,46 @@
           state.page = 1;
           load();
         }));
+        // Clear filters: enabled (navy) while any filter or the search box is set, disabled (gray) otherwise.
+        const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+        function updateClearBtn() {
+          clearFiltersBtn.disabled = !(
+            filterFrom.value || filterTo.value ||
+            filterStatus.value !== 'All' || filterModule.value !== 'All' ||
+            searchInput.value.trim() !== ''
+          );
+        }
+        [searchInput, filterStatus, filterModule, filterFrom, filterTo].forEach(el => {
+          el.addEventListener('input', updateClearBtn);
+          el.addEventListener('change', updateClearBtn);
+        });
+        clearFiltersBtn.addEventListener('click', () => {
+          clearTimeout(searchDebounce);
+          searchInput.value = '';
+          filterStatus.value = 'All';
+          filterModule.value = 'All';
+          filterFrom.value = '';
+          filterTo.value = '';
+          syncDateLimits();
+          state.search = '';
+          state.status = 'All';
+          state.module = 'All';
+          state.from = '';
+          state.to = '';
+          state.page = 1;
+          dateMsg.textContent = '';
+          dateMsg.classList.add('hidden');
+          filterFrom.setAttribute('aria-invalid', 'false');
+          filterTo.setAttribute('aria-invalid', 'false');
+          exportBtn.disabled = false;
+          updateClearBtn();
+          // The button just became disabled, which drops keyboard focus. Keep focus in the filter row.
+          filterFrom.focus();
+          load();
+        });
+        // A browser can restore typed filter values on reload, so set the starting state from the inputs.
+        updateClearBtn();
+
         let sortAscending = false;
         sortTimestampBtn.addEventListener('click', () => {
           sortAscending = !sortAscending;
