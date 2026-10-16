@@ -64,7 +64,7 @@ function roleLabel(?string $role, array $labels): string
     return $labels[$role] ?? ucfirst($role);
 }
 
-function buildFilters(array $q): array
+function buildFilters(array $q, array $actionLabels, array $roleLabels): array
 {
     $where = ['1=1'];
     $params = [];
@@ -83,18 +83,91 @@ function buildFilters(array $q): array
     if (!empty($q['to']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $q['to'])) {
         $where[] = "al.created_at < CAST(? AS date) + INTERVAL '1 day'";
         $params[] = $q['to'];
+    }    
+        $terms = array_values(array_filter(
+        array_map('trim', explode(',', (string) ($q['search'] ?? ''))),
+        fn($t) => $t !== ''
+    ));
+    if ($terms) {
+        $pdo = Database::get();
+        $actions = $pdo->query('SELECT DISTINCT action FROM audit_log')->fetchAll(PDO::FETCH_COLUMN);
+        $targets = $pdo->query('SELECT DISTINCT target_type FROM audit_log WHERE target_type IS NOT NULL')->fetchAll(PDO::FETCH_COLUMN);
+        $students = $pdo->query('SELECT user_id, first_name_enc, last_name_enc FROM students')->fetchAll();
+        // Same names the page shows in the Category column.
+        $categoryLabels = ['user' => 'User Accounts', 'faq' => 'FAQ', 'security_policies' => 'Security Policies', 'security_rbac' => 'Access Permissions'];
+
+        foreach ($terms as $t) {
+            $has = fn(string $text): bool => mb_stripos($text, $t) !== false;
+            $like = '%' . addcslashes($t, '\\%_') . '%';
+            $or = [];
+
+            // Staff name or username (student names are encrypted, handled below).
+            $or[] = "(COALESCE(u.role, '') <> 'student' AND (u.username ILIKE ? OR u.full_name ILIKE ?))";
+            array_push($params, $like, $like);
+
+            // IP address.
+            $or[] = 'al.ip_address::text ILIKE ?';
+            $params[] = $like;
+
+            // Student names: decrypt in PHP, then filter by user id (ids are integers).
+            $ids = [];
+            foreach ($students as $s) {
+                $name = trim(Crypto::dec($s['last_name_enc']) . ', ' . Crypto::dec($s['first_name_enc']), ' ,');
+                if ($has($name)) {
+                    $ids[] = (int) $s['user_id'];
+                }
+            }
+            if ($ids) {
+                $or[] = 'al.actor_user_id IN (' . implode(',', $ids) . ')';
+            }
+
+            // Action, as shown on screen (for example "Create FAQ").
+            $codes = array_values(array_filter($actions, fn($a) => $has(actionLabel($a, $actionLabels))));
+            if ($codes) {
+                $or[] = 'al.action IN (' . implode(',', array_fill(0, count($codes), '?')) . ')';
+                array_push($params, ...$codes);
+            }
+
+            // Category, as shown on screen.
+            $cats = array_values(array_filter($targets, fn($c) => $has($categoryLabels[$c] ?? ucwords(str_replace('_', ' ', $c)))));
+            if ($cats) {
+                $or[] = 'al.target_type IN (' . implode(',', array_fill(0, count($cats), '?')) . ')';
+                array_push($params, ...$cats);
+            }
+
+            // Role, as shown on screen.
+            $roles = array_keys(array_filter($roleLabels, fn($label) => $has($label)));
+            if ($roles) {
+                $or[] = 'al.actor_role IN (' . implode(',', array_fill(0, count($roles), '?')) . ')';
+                array_push($params, ...$roles);
+            }
+
+            // Rows with no user behind them.
+            if ($has('Unregistered user')) {
+                $or[] = "(al.actor_user_id IS NULL AND al.action = 'login_failed')";
+            }
+            if ($has('System')) {
+                $or[] = "(al.actor_user_id IS NULL AND al.action <> 'login_failed')";
+            }
+
+            // Status.
+            if ($has('Failed')) {
+                $or[] = FAILED_SQL;
+            }
+            if ($has('Success')) {
+                $or[] = 'NOT ' . FAILED_SQL;
+            }
+
+            $where[] = '(' . implode(' OR ', $or) . ')';
+        }
     }
-    if (!empty($q['search'])) {
-        $where[] = "((COALESCE(u.role, '') <> 'student' AND (u.username ILIKE ? OR u.full_name ILIKE ?)) OR al.action ILIKE ? OR al.target_type ILIKE ?)";
-        $like = '%' . $q['search'] . '%';
-        array_push($params, $like, $like, $like, $like);
-    }
-    return [implode(' AND ', $where), $params];
+            return [implode(' AND ', $where), $params];
 }
+
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['export'])) {
     // CSV export of everything matching the current filters (no pagination limit).
-    [$where, $params] = buildFilters($_GET);
+    [$where, $params] = buildFilters($_GET, $actionLabels, $roleLabels);
     $sql = "SELECT al.created_at, u.username, u.full_name, al.actor_role, al.action, al.target_type, al.ip_address, st.first_name_enc, st.last_name_enc
             FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id LEFT JOIN students st ON st.user_id = al.actor_user_id
             WHERE $where ORDER BY al.created_at DESC";
@@ -121,7 +194,7 @@ $page = max(1, (int) ($_GET['page'] ?? 1));
 $pageSize = min(100, max(1, (int) ($_GET['pageSize'] ?? 10)));
 $sort = ($_GET['sort'] ?? 'desc') === 'asc' ? 'ASC' : 'DESC';
 
-[$where, $params] = buildFilters($_GET);
+[$where, $params] = buildFilters($_GET, $actionLabels, $roleLabels);
 
 $countSql = "SELECT COUNT(*) FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id WHERE $where";
 $countStmt = $pdo->prepare($countSql);
