@@ -24,6 +24,9 @@ $actionLabels = [
     'update_rbac' => 'Access permissions changed',
     'update_policy' => 'Security setting changed',
     'update_settings' => 'Security setting changed',
+    'create_faq' => 'Create FAQ',
+    'update_faq' => 'Update FAQ',
+    'delete_faq' => 'Delete FAQ',
 ];
 
 $roleLabels = [
@@ -46,6 +49,9 @@ function actorLabel(array $r): string
     }
     if (trim((string) ($r['full_name'] ?? '')) !== '') {
         return $r['full_name'];
+    }
+        if (!isset($r['username']) && ($r['action'] ?? '') === 'login_failed') {
+        return 'Unregistered user';
     }
     return $r['username'] ?? 'System';
 }
