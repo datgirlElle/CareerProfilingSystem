@@ -408,12 +408,6 @@ function buildFilters(array $q, array $actionLabels, array $roleLabels, array $c
         $where[] = 'al.target_type = ?';
         $params[] = $q['module'];
     }
-    // Exact role (set by clicking a role in a card breakdown). Searching a role name is not exact:
-    // "Student" also matches actions such as "Activated student account".
-    if (is_string($q['role'] ?? null) && isset(ROLE_BUCKETS[$q['role']])) {
-        $where[] = ROLE_BUCKET_SQL . ' = ?';
-        $params[] = $q['role'];
-    }
     if (!empty($q['from']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $q['from'])) {
         $where[] = 'al.created_at >= CAST(? AS date)';
         $params[] = $q['from'];
@@ -506,7 +500,16 @@ function buildFilters(array $q, array $actionLabels, array $roleLabels, array $c
             $where[] = '(' . implode(' OR ', $or) . ')';
         }
     }
-    return [implode(' AND ', $where), $params];
+
+    // Exact role (set by clicking a role in a card breakdown). Searching a role name is not exact:
+    // "Student" also matches actions such as "Activated student account". It goes last, so the
+    // filters without it come back too: the card breakdowns count every role with them.
+    $allRoles = [implode(' AND ', $where), $params];
+    if (is_string($q['role'] ?? null) && isset(ROLE_BUCKETS[$q['role']])) {
+        $where[] = ROLE_BUCKET_SQL . ' = ?';
+        $params[] = $q['role'];
+    }
+    return [implode(' AND ', $where), $params, ...$allRoles];
 }
 
 
@@ -672,7 +675,7 @@ $page = max(1, (int) ($_GET['page'] ?? 1));
 $pageSize = min(100, max(1, (int) ($_GET['pageSize'] ?? 10)));
 $sort = ($_GET['sort'] ?? 'desc') === 'asc' ? 'ASC' : 'DESC';
 
-[$where, $params] = buildFilters($_GET, $actionLabels, $roleLabels, $categoryLabels);
+[$where, $params, $whereAllRoles, $paramsAllRoles] = buildFilters($_GET, $actionLabels, $roleLabels, $categoryLabels);
 
 $countSql = "SELECT COUNT(*) FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id WHERE $where";
 $countStmt = $pdo->prepare($countSql);
@@ -709,9 +712,11 @@ $modules = $pdo->query('SELECT DISTINCT target_type FROM audit_log WHERE target_
 
 // Summary cards follow the same search/filters as the table, so they always describe the rows
 // below it. Successful is Total minus Failed over that same set, so the two always add up to
-// Total and the percentages stay meaningful. With no filters, Users Active keeps its usual
-// "last 7 days" meaning; with filters, it counts the distinct users in the filtered rows.
+// Total and the percentages stay meaningful. With no filters (a picked role aside), Users Active
+// keeps its usual "last 7 days" meaning; with filters, it counts the distinct users in the
+// filtered rows.
 $filtered = $where !== '1=1';
+$activeLastWeek = $whereAllRoles === '1=1';
 $summaryStmt = $pdo->prepare(
     "SELECT COUNT(*) FILTER (WHERE " . FAILED_SQL . "), COUNT(DISTINCT al.actor_user_id)
      FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id
@@ -720,37 +725,40 @@ $summaryStmt = $pdo->prepare(
 $summaryStmt->execute($params);
 [$failedCount, $usersInResults] = array_map('intval', $summaryStmt->fetch(PDO::FETCH_NUM));
 $successCount = $total - $failedCount;
-if ($filtered) {
-    $usersActive = $usersInResults;
-    $overallTotal = (int) $pdo->query('SELECT COUNT(*) FROM audit_log')->fetchColumn();
+$overallTotal = $filtered ? (int) $pdo->query('SELECT COUNT(*) FROM audit_log')->fetchColumn() : $total;
+if ($activeLastWeek) {
+    $activeStmt = $pdo->prepare(
+        "SELECT COUNT(DISTINCT al.actor_user_id) FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id
+         WHERE al.created_at >= NOW() - INTERVAL '7 days' AND $where"
+    );
+    $activeStmt->execute($params);
+    $usersActive = (int) $activeStmt->fetchColumn();
 } else {
-    $usersActive = (int) $pdo->query(
-        "SELECT COUNT(DISTINCT actor_user_id) FROM audit_log WHERE created_at >= NOW() - INTERVAL '7 days'"
-    )->fetchColumn();
-    $overallTotal = $total;
+    $usersActive = $usersInResults;
 }
 
-// Card breakdowns by role, over the same rows as the cards (so they follow the filters). Every group
-// is always listed, in a fixed order, so the rows add up to the card's number.
+// Card breakdowns by role. They follow every filter except the picked role, so picking a role keeps
+// the other roles' numbers in view, and the picked role's number matches the card. Every group is
+// always listed, in a fixed order (the page leaves "No account" off all but the Total card).
 $breakdownStmt = $pdo->prepare(
     'SELECT ' . ROLE_BUCKET_SQL . ' AS bucket, COUNT(*) AS total,
             COUNT(*) FILTER (WHERE ' . FAILED_SQL . ") AS failed,
             COUNT(*) FILTER (WHERE al.action IN ('" . implode("', '", BLOCKED_ACTIONS) . "')) AS blocked,
             COUNT(DISTINCT al.actor_user_id) AS people
      FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id
-     WHERE $where GROUP BY bucket"
+     WHERE $whereAllRoles GROUP BY bucket"
 );
-$breakdownStmt->execute($params);
+$breakdownStmt->execute($paramsAllRoles);
 $byBucket = [];
 foreach ($breakdownStmt->fetchAll() as $b) {
     $byBucket[$b['bucket']] = $b;
 }
 // Without filters, Users Active means the last 7 days, so its breakdown does too.
-$peopleLastWeek = $filtered ? [] : $pdo->query(
+$peopleLastWeek = $activeLastWeek ? $pdo->query(
     'SELECT ' . ROLE_BUCKET_SQL . " AS bucket, COUNT(DISTINCT al.actor_user_id)
      FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id
      WHERE al.created_at >= NOW() - INTERVAL '7 days' GROUP BY bucket"
-)->fetchAll(PDO::FETCH_KEY_PAIR);
+)->fetchAll(PDO::FETCH_KEY_PAIR) : [];
 $breakdown = [];
 foreach (ROLE_BUCKETS as $key => $label) {
     $b = $byBucket[$key] ?? ['total' => 0, 'failed' => 0, 'blocked' => 0, 'people' => 0];
@@ -761,7 +769,7 @@ foreach (ROLE_BUCKETS as $key => $label) {
         'successful' => (int) $b['total'] - (int) $b['failed'],
         'failed' => (int) $b['failed'],
         'blocked' => (int) $b['blocked'],
-        'people' => $key === 'none' ? 0 : (int) ($filtered ? $b['people'] : ($peopleLastWeek[$key] ?? 0)),
+        'people' => $key === 'none' ? 0 : (int) ($activeLastWeek ? ($peopleLastWeek[$key] ?? 0) : $b['people']),
     ];
 }
 
@@ -779,6 +787,7 @@ jsonResponse([
         'failed' => $failedCount,
         'usersActive' => $usersActive,
         'filtered' => $filtered,
+        'activeLastWeek' => $activeLastWeek,
         'overallTotal' => $overallTotal,
         'breakdown' => $breakdown,
     ],
