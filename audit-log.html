@@ -91,6 +91,10 @@
       white-space: nowrap;
       border: 0;
     }
+    /* Failed rows: thin red bar on the left so failures stand out while scrolling. */
+    .row-failed td:first-child {
+      box-shadow: inset 3px 0 0 #dc2626;
+    }
     /* motion.css gives disabled buttons no visual change, so show it here (no results, bad date range). */
     #exportBtn:disabled {
       opacity: 0.5;
@@ -332,7 +336,7 @@
           <div class="border-b border-gray-200 flex items-center justify-between px-4 py-4 flex-wrap gap-3">
             <div class="relative flex-1 max-w-[448px]">
               <img src="images/audit/icon-search.svg" alt="" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4">
-              <input type="text" id="searchInput" placeholder="Search activities..." aria-label="Search activities"
+              <input type="text" id="searchInput" placeholder="Search name, action, IP (use commas to combine)" aria-label="Search activities"
                 class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
             </div>
             <div class="flex items-center gap-3">
@@ -740,15 +744,20 @@
 
         function renderRows(rows, filtered) {
           if (rows.length === 0) {
+            // With filters on, the way out (Clear filters) sits right under the message.
             tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">' +
-              (filtered ? 'No activities match your filters.' : 'No activities recorded yet.') + '</td></tr>';
+              (filtered
+                ? 'No activities match your filters.' +
+                  '<div class="mt-3"><button type="button" data-action="clear-filters" class="clear-filters-btn">' +
+                  '<span class="clear-filters-icon" aria-hidden="true"></span>Clear filters</button></div>'
+                : 'No activities recorded yet.') + '</td></tr>';
             return;
           }
           tbody.innerHTML = rows.map(function (r) {
             const badge = r.status === 'Failed'
               ? '<span class="bg-red-100 text-red-700 text-xs font-medium px-2.5 py-1 rounded-full">Failed</span>'
               : '<span class="bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">Success</span>';
-            return '<tr>' +
+            return '<tr' + (r.status === 'Failed' ? ' class="row-failed"' : '') + '>' +
               '<td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">' + escapeHtml(r.timestamp) + '</td>' +
               '<td class="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">' + escapeHtml(r.user) + '</td>' +
               '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(r.role) + '</td>' +
@@ -870,6 +879,10 @@
           // The button just became disabled, which drops keyboard focus. Keep focus in the filter row.
           filterRange.focus();
           load();
+        });
+        // The Clear filters button inside an empty result does the same as the one in the header.
+        tbody.addEventListener('click', e => {
+          if (e.target.closest('[data-action="clear-filters"]')) clearFiltersBtn.click();
         });
         // A browser can restore typed filter values on reload, so set the starting state from the inputs.
         // Restored dates stay visible under "Custom range..." instead of hiding behind "Any time".
