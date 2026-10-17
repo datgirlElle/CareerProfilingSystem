@@ -1,127 +1,208 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
-<title>Audit Log — Career Profiling System</title>
-<link rel="icon" type="image/png" href="images/brand/favicon-64.png">
-<link rel="stylesheet" href="css/tailwind.css">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  body{ font-family:'Inter', sans-serif; }
-</style>
-<link rel="stylesheet" href="css/motion.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="js/csrf.js"></script>
+  <script src="js/ui-state.js"></script>
+  <title>Audit Log — Career Profiling System</title>
+  <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
+  <link rel="stylesheet" href="css/tailwind.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    /* Clear filters: gray while no filter is on, sidebar navy (#001c43) once any filter is on. Never hidden. */
+    .clear-filters-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid #e5e7eb;
+      background: #f9fafb;
+      color: #9ca3af;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 14px;
+      line-height: 20px;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: not-allowed;
+      transition: background-color var(--dur-button) var(--ease-standard),
+                  border-color var(--dur-button) var(--ease-standard),
+                  color var(--dur-button) var(--ease-standard),
+                  transform var(--dur-button) var(--ease-standard),
+                  filter var(--dur-button) var(--ease-standard);
+    }
+    .clear-filters-btn:not(:disabled) {
+      border-color: #001c43;
+      background: #eef2f8;
+      color: #001c43;
+      cursor: pointer;
+    }
+    .clear-filters-btn:not(:disabled):hover {
+      background: #e1e8f3;
+    }
+    .clear-filters-btn:focus-visible {
+      outline: 2px solid #001c43;
+      outline-offset: 2px;
+    }
+    /* Date range error: floats under From and To (in the gap above the cards) so the filter row never shifts. */
+    .date-range-msg {
+      position: absolute;
+      left: 0;
+      top: 100%;
+      margin-top: 4px;
+      white-space: nowrap;
+    }
+    #filterFrom[aria-invalid="true"],
+    #filterTo[aria-invalid="true"] {
+      border-color: #dc2626;
+      box-shadow: 0 0 0 1px #dc2626;
+    }
+    /* Same funnel icon as the Clear Filters button on Career Dataset, drawn in the button's text color. */
+    .clear-filters-icon {
+      width: 16px;
+      height: 14px;
+      flex-shrink: 0;
+      background-color: currentColor;
+      -webkit-mask: url('images/admin/icon-clear-filters.svg') no-repeat center / contain;
+      mask: url('images/admin/icon-clear-filters.svg') no-repeat center / contain;
+    }
+  </style>
+  <link rel="stylesheet" href="css/motion.css">
 </head>
+
 <body class="bg-[#f9fafb]">
-<a href="#main-content" class="skip-link">Skip to main content</a>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
 
-<div class="flex min-h-screen">
+  <div class="flex min-h-screen">
 
-  <!-- Mobile sidebar backdrop -->
-  <div id="sidebarBackdrop" class="hidden fixed inset-0 bg-black/40 z-30 md:hidden"></div>
+    <!-- Mobile sidebar backdrop -->
+    <div id="sidebarBackdrop" class="hidden fixed inset-0 bg-black/40 z-30 md:hidden"></div>
 
-  <!-- Sidebar -->
-  <aside id="sidebar" class="w-[260px] shrink-0 bg-[#001c43] flex flex-col fixed inset-y-0 left-0 z-40 -translate-x-full transition-transform duration-200 md:sticky md:top-0 md:translate-x-0 h-screen">
-    <div class="sidebar-brand bg-white shrink-0">
-      <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="sidebar-brand-mmcl">
-      <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="sidebar-brand-cgc">
-    </div>
-    <div class="sidebar-app">
-      <img src="images/brand/profilepath-horizontal.png" alt="ProfilePath" width="190" height="75">
-      <p class="sidebar-app-role">Admin Dashboard</p>
-    </div>
-    <nav id="adminNav" data-active="audit-log" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
-    <script src="js/admin-nav.js"></script>
-    <div class="border-t border-white/5 pt-[25px] pb-6">
-      <a href="staff-login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
-        <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>
-        Logout
-      </a>
-    </div>
-
-  </aside>
-
-  <!-- Main Content -->
-  <div class="flex-1 flex flex-col min-w-0">
-
-    <!-- Top Header -->
-    <header class="bg-white border-b border-gray-200 flex items-center justify-between px-6 h-16 shrink-0 relative">
-      <button type="button" id="menuToggle" class="relative z-50 w-10 h-10 -m-2.5 flex items-center justify-center md:invisible">
-        <img src="images/admin/icon-menu.svg" alt="Menu" class="w-5 h-4">
-      </button>
-      <div class="flex items-center gap-6">
-
-        <div id="ayBadge" class="hidden sm:flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-full px-3 py-1">
-          <span class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">AY</span>
-          <span id="ayBadgeValue" class="text-xs font-semibold text-slate-700">—</span>
-        </div>
-
-        <!-- Notifications -->
-        <div class="relative">
-          <button type="button" id="notifBtn" class="relative w-5 h-5">
-            <svg class="w-full h-full" viewBox="0 -960 960 960" fill="#64748B"><path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"/></svg>
-            <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#ed1c24] text-white text-[10px] font-bold flex items-center justify-center"></span>
-          </button>
-          <div id="notifPanel" class="hidden fixed left-4 right-4 top-[76px] z-50 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+12px)] sm:w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-              <p class="text-sm font-semibold text-gray-900">Notifications</p>
-              <span id="notifCountLabel" class="text-xs text-gray-500">Loading…</span>
-            </div>
-            <ul id="notifList" class="max-h-80 overflow-auto divide-y divide-gray-100">
-              <li class="px-4 py-6 text-center text-sm text-gray-500">Loading…</li>
-            </ul>
-            <a href="staff-notifications" class="block text-center text-sm font-medium text-[#ed1c24] px-4 py-3 border-t border-gray-100 hover:bg-gray-50">View all notifications</a>
-          </div>
-        </div>
-
-        <!-- Profile -->
-        <div class="relative">
-          <button type="button" id="profileBtn" class="flex items-center gap-3">
-            <span id="headerAvatarWrap" class="w-9 h-9 rounded-full bg-[#001c43] flex items-center justify-center overflow-hidden shrink-0">
-              <img src="images/admin/icon-avatar.svg" alt="" class="w-3.5 h-4">
-            </span>
-            <span class="text-left">
-              <span class="block text-sm font-semibold text-gray-800" id="headerUserName">&nbsp;</span>
-              <span class="block text-xs text-gray-500" id="headerUserRole">&nbsp;</span>
-            </span>
-            <img src="images/admin/icon-chevron-down.svg" alt="" class="w-3.5 h-2">
-          </button>
-          <div id="profilePanel" class="hidden absolute right-0 top-[calc(100%+12px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
-            <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">Profile Settings</a>
-          </div>
-        </div>
+    <!-- Sidebar -->
+    <aside id="sidebar"
+      class="w-[260px] shrink-0 bg-[#001c43] flex flex-col fixed inset-y-0 left-0 z-40 -translate-x-full transition-transform duration-200 md:sticky md:top-0 md:translate-x-0 h-screen">
+      <div class="sidebar-brand bg-white shrink-0">
+        <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="sidebar-brand-mmcl">
+        <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="sidebar-brand-cgc">
       </div>
-    </header>
+      <div class="sidebar-app">
+        <img src="images/brand/profilepath-horizontal.png" alt="ProfilePath" width="190" height="75">
+        <p class="sidebar-app-role">Admin Dashboard</p>
+      </div>
+      <nav id="adminNav" data-active="audit-log" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
+      <script src="js/admin-nav.js"></script>
+      <div class="border-t border-white/5 pt-[25px] pb-6">
+        <a href="staff-login" id="sidebarLogout"
+          class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+          <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor">
+            <path
+              d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z" />
+          </svg>
+          Logout
+        </a>
+      </div>
 
-    <!-- Page Content -->
-    <main id="main-content" class="flex-1 p-4 sm:p-8 overflow-auto">
+    </aside>
 
-      <!-- Page Header -->
-      <div class="flex items-center justify-between flex-wrap gap-4 mb-6">
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900">Audit Log</h1>
-          <p class="text-sm text-gray-500 mt-1">Track system activities and changes for security and compliance.</p>
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col min-w-0">
+
+      <!-- Top Header -->
+      <header class="bg-white border-b border-gray-200 flex items-center justify-between px-6 h-16 shrink-0 relative">
+        <button type="button" id="menuToggle"
+          class="relative z-50 w-10 h-10 -m-2.5 flex items-center justify-center md:invisible">
+          <img src="images/admin/icon-menu.svg" alt="Menu" class="w-5 h-4">
+        </button>
+        <div class="flex items-center gap-6">
+
+          <div id="ayBadge"
+            class="hidden sm:flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-full px-3 py-1">
+            <span class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">AY</span>
+            <span id="ayBadgeValue" class="text-xs font-semibold text-slate-700">—</span>
+          </div>
+
+          <!-- Notifications -->
+          <div class="relative">
+            <button type="button" id="notifBtn" class="relative w-5 h-5">
+              <svg class="w-full h-full" viewBox="0 -960 960 960" fill="#64748B">
+                <path
+                  d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z" />
+              </svg>
+              <span id="notifBadge"
+                class="hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#ed1c24] text-white text-[10px] font-bold flex items-center justify-center"></span>
+            </button>
+            <div id="notifPanel"
+              class="hidden fixed left-4 right-4 top-[76px] z-50 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+12px)] sm:w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+              <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                <p class="text-sm font-semibold text-gray-900">Notifications</p>
+                <span id="notifCountLabel" class="text-xs text-gray-500">Loading…</span>
+              </div>
+              <ul id="notifList" class="max-h-80 overflow-auto divide-y divide-gray-100">
+                <li class="px-4 py-6 text-center text-sm text-gray-500">Loading…</li>
+              </ul>
+              <a href="staff-notifications"
+                class="block text-center text-sm font-medium text-[#ed1c24] px-4 py-3 border-t border-gray-100 hover:bg-gray-50">View
+                all notifications</a>
+            </div>
+          </div>
+
+          <!-- Profile -->
+          <div class="relative">
+            <button type="button" id="profileBtn" class="flex items-center gap-3">
+              <span id="headerAvatarWrap"
+                class="w-9 h-9 rounded-full bg-[#001c43] flex items-center justify-center overflow-hidden shrink-0">
+                <img src="images/admin/icon-avatar.svg" alt="" class="w-3.5 h-4">
+              </span>
+              <span class="text-left">
+                <span class="block text-sm font-semibold text-gray-800" id="headerUserName">&nbsp;</span>
+                <span class="block text-xs text-gray-500" id="headerUserRole">&nbsp;</span>
+              </span>
+              <img src="images/admin/icon-chevron-down.svg" alt="" class="w-3.5 h-2">
+            </button>
+            <div id="profilePanel"
+              class="hidden absolute right-0 top-[calc(100%+12px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
+              <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">Profile
+                Settings</a>
+            </div>
+          </div>
         </div>
-                  <div class="flex items-start gap-3 flex-wrap">
-                        <div class="flex flex-col gap-1">
+      </header>
+
+      <!-- Page Content -->
+      <main id="main-content" class="flex-1 p-4 sm:p-8 overflow-auto">
+
+        <!-- Page Header -->
+        <div class="flex items-center justify-between flex-wrap gap-4 mb-6">
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">Audit Log</h1>
+            <p class="text-sm text-gray-500 mt-1">Track system activities and changes for security and compliance.</p>
+          </div>
+          <div class="flex items-start gap-3 flex-wrap">
+            <div class="relative flex flex-col gap-1">
               <div class="flex items-end gap-3">
                 <div class="flex flex-col gap-1">
                   <label for="filterFrom" class="text-xs font-medium text-gray-600">From</label>
-                  <input type="date" id="filterFrom" aria-describedby="dateRangeMessage" class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
+                  <input type="date" id="filterFrom" aria-describedby="dateRangeMessage"
+                    class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
                 </div>
                 <div class="flex flex-col gap-1">
                   <label for="filterTo" class="text-xs font-medium text-gray-600">To</label>
-                  <input type="date" id="filterTo" aria-describedby="dateRangeMessage" class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
+                  <input type="date" id="filterTo" aria-describedby="dateRangeMessage"
+                    class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
                 </div>
               </div>
-              <p id="dateRangeMessage" role="alert" class="hidden text-xs text-red-600"></p>
+              <p id="dateRangeMessage" role="alert" class="hidden text-xs text-red-600 date-range-msg"></p>
             </div>
             <div class="flex flex-col gap-1">
               <label for="filterStatus" class="text-xs font-medium text-gray-600">Status</label>
-              <select id="filterStatus" class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
+              <select id="filterStatus"
+                class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
                 <option value="All">All Status</option>
                 <option value="Success">Success</option>
                 <option value="Failed">Failed</option>
@@ -129,459 +210,531 @@
             </div>
             <div class="flex flex-col gap-1">
               <label for="filterModule" class="text-xs font-medium text-gray-600">Category</label>
-              <select id="filterModule" class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
+              <select id="filterModule"
+                class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
                 <option value="All">All Categories</option>
               </select>
             </div>
-          </div>
-      </div>
-
-      <!-- Summary Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-
-        <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
-          <span class="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-            <img src="images/audit/card-icon-total.svg" alt="" class="w-6 h-6">
-          </span>
-          <div>
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Total Activities</p>
-            <p class="text-3xl font-bold text-gray-900" id="summaryTotal">—</p>
-            <p class="text-xs mt-1 text-gray-500">All logged actions</p>
+            <div class="flex flex-col gap-1">
+              <span class="text-xs font-medium" aria-hidden="true">&nbsp;</span>
+              <button type="button" id="clearFiltersBtn" disabled class="clear-filters-btn">
+                <span class="clear-filters-icon" aria-hidden="true"></span>
+                Clear filters
+              </button>
+            </div>
           </div>
         </div>
 
-        <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
-          <span class="w-[50px] h-[50px] rounded-lg bg-green-50 border border-green-100 flex items-center justify-center shrink-0">
-            <img src="images/audit/card-icon-success.svg" alt="" class="w-6 h-6">
-          </span>
-          <div>
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Successful</p>
-            <p class="text-3xl font-bold text-gray-900" id="summarySuccess">—</p>
-            <p class="text-xs mt-1"><span class="text-green-600 font-medium" id="summarySuccessPct">—</span> <span class="text-gray-500">of total</span></p>
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+
+          <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
+            <span class="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+              <img src="images/audit/card-icon-total.svg" alt="" class="w-6 h-6">
+            </span>
+            <div>
+              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Total Activities</p>
+              <p class="text-3xl font-bold text-gray-900" id="summaryTotal">—</p>
+              <p class="text-xs mt-1 text-gray-500">All logged actions</p>
+            </div>
+          </div>
+
+          <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
+            <span
+              class="w-[50px] h-[50px] rounded-lg bg-green-50 border border-green-100 flex items-center justify-center shrink-0">
+              <img src="images/audit/card-icon-success.svg" alt="" class="w-6 h-6">
+            </span>
+            <div>
+              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Successful</p>
+              <p class="text-3xl font-bold text-gray-900" id="summarySuccess">—</p>
+              <p class="text-xs mt-1"><span class="text-green-600 font-medium" id="summarySuccessPct">—</span> <span
+                  class="text-gray-500">of total</span></p>
+            </div>
+          </div>
+
+          <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
+            <span
+              class="w-[50px] h-[50px] rounded-lg bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
+              <img src="images/audit/card-icon-failed.svg" alt="" class="w-6 h-6">
+            </span>
+            <div>
+              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Failed</p>
+              <p class="text-3xl font-bold text-gray-900" id="summaryFailed">—</p>
+              <p class="text-xs mt-1"><span class="text-red-600 font-medium" id="summaryFailedPct">—</span> <span
+                  class="text-gray-500">of total</span></p>
+            </div>
+          </div>
+
+          <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
+            <span class="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
+              <img src="images/audit/card-icon-users.svg" alt="" class="w-6 h-6">
+            </span>
+            <div>
+              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Users Active</p>
+              <p class="text-3xl font-bold text-gray-900" id="summaryActive">—</p>
+              <p class="text-xs mt-1 text-gray-500">last 7 days</p>
+            </div>
           </div>
         </div>
 
-        <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
-          <span class="w-[50px] h-[50px] rounded-lg bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
-            <img src="images/audit/card-icon-failed.svg" alt="" class="w-6 h-6">
-          </span>
-          <div>
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Failed</p>
-            <p class="text-3xl font-bold text-gray-900" id="summaryFailed">—</p>
-            <p class="text-xs mt-1"><span class="text-red-600 font-medium" id="summaryFailedPct">—</span> <span class="text-gray-500">of total</span></p>
+        <!-- Data Table Section -->
+        <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+
+          <div class="border-b border-gray-200 flex items-center justify-between px-4 py-4 flex-wrap gap-3">
+            <div class="relative flex-1 max-w-[448px]">
+              <img src="images/audit/icon-search.svg" alt="" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4">
+              <input type="text" id="searchInput" placeholder="Search logs..." aria-label="Search audit logs"
+                class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+            </div>
+            <button type="button" id="exportBtn"
+              class="flex items-center gap-2 bg-white border border-gray-300 rounded-md px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm">
+              <img src="images/audit/icon-export.svg" alt="" class="w-4 h-4">
+              Export
+            </button>
+          </div>
+
+          <div class="overflow-auto max-h-[65vh]" id="auditScroll">
+            <table class="w-full text-left border-collapse min-w-[1200px]">
+              <thead class="bg-gray-50 border-b border-gray-200 sticky top-0 z-[1]">
+                <tr>
+                  <th class="px-6 py-3 text-xs font-semibold text-gray-500">
+                    <button type="button" id="sortTimestampBtn" class="flex items-center gap-1.5">Timestamp <span
+                        id="sortIcon" class="text-gray-500">⇅</span></button>
+                  </th>
+                  <th class="px-6 py-3 text-xs font-semibold text-gray-500">Name</th>
+                  <th class="px-6 py-3 text-xs font-semibold text-gray-500">Role</th>
+                  <th class="px-6 py-3 text-xs font-semibold text-gray-500">Action</th>
+                  <th class="px-6 py-3 text-xs font-semibold text-gray-500">Category</th>
+                  <th class="px-6 py-3 text-xs font-semibold text-gray-500">IP Address</th>
+                  <th class="px-6 py-3 text-xs font-semibold text-gray-500">Status</th>
+                </tr>
+              </thead>
+              <tbody id="auditTableBody" class="divide-y divide-gray-100">
+                <tr>
+                  <td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">Loading audit log…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="border-t border-gray-200 flex items-center justify-between px-6 py-4 flex-wrap gap-3">
+            <p class="text-sm text-gray-700" id="paginationSummary">Loading…</p>
+            <button type="button" id="loadMoreBtn"
+              class="hidden text-sm font-medium text-[#ed1c24] border border-[#ed1c24] rounded-md px-4 py-2 hover:bg-red-50">Load
+              more</button>
           </div>
         </div>
 
-        <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
-          <span class="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
-            <img src="images/audit/card-icon-users.svg" alt="" class="w-6 h-6">
-          </span>
-          <div>
-            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Users Active</p>
-            <p class="text-3xl font-bold text-gray-900" id="summaryActive">—</p>
-            <p class="text-xs mt-1 text-gray-500">last 7 days</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Data Table Section -->
-      <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-
-        <div class="border-b border-gray-200 flex items-center justify-between px-4 py-4 flex-wrap gap-3">
-          <div class="relative flex-1 max-w-[448px]">
-            <img src="images/audit/icon-search.svg" alt="" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4">
-            <input type="text" id="searchInput" placeholder="Search logs..." aria-label="Search audit logs" class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
-          </div>
-          <button type="button" id="exportBtn" class="flex items-center gap-2 bg-white border border-gray-300 rounded-md px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm">
-            <img src="images/audit/icon-export.svg" alt="" class="w-4 h-4">
-            Export
-          </button>
+        <!-- Footer Info Box -->
+        <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-start gap-3 mt-6">
+          <img src="images/audit/icon-info.svg" alt="" class="w-5 h-5 shrink-0">
+          <p class="text-sm text-blue-800">Audit logs are retained for 365 days in accordance with data privacy and
+            institutional security policies.</p>
         </div>
 
-        <div class="overflow-auto max-h-[65vh]" id="auditScroll">
-          <table class="w-full text-left border-collapse min-w-[1200px]">
-            <thead class="bg-gray-50 border-b border-gray-200 sticky top-0 z-[1]">
-              <tr>
-                <th class="px-6 py-3 text-xs font-semibold text-gray-500">
-                  <button type="button" id="sortTimestampBtn" class="flex items-center gap-1.5">Timestamp <span id="sortIcon" class="text-gray-500">⇅</span></button>
-                </th>
-                <th class="px-6 py-3 text-xs font-semibold text-gray-500">User</th>
-                <th class="px-6 py-3 text-xs font-semibold text-gray-500">Role</th>
-                <th class="px-6 py-3 text-xs font-semibold text-gray-500">Action</th>
-                <th class="px-6 py-3 text-xs font-semibold text-gray-500">Category</th>
-                <th class="px-6 py-3 text-xs font-semibold text-gray-500">IP Address</th>
-                <th class="px-6 py-3 text-xs font-semibold text-gray-500">Status</th>
-              </tr>
-            </thead>
-            <tbody id="auditTableBody" class="divide-y divide-gray-100">
-              <tr><td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">Loading audit log…</td></tr>
-            </tbody>
-          </table>
-        </div>
+      </main>
 
-        <div class="border-t border-gray-200 flex items-center justify-between px-6 py-4 flex-wrap gap-3">
-          <p class="text-sm text-gray-700" id="paginationSummary">Loading…</p>
-          <button type="button" id="loadMoreBtn" class="hidden text-sm font-medium text-[#ed1c24] border border-[#ed1c24] rounded-md px-4 py-2 hover:bg-red-50">Load more</button>
-        </div>
-      </div>
-
-      <!-- Footer Info Box -->
-      <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-start gap-3 mt-6">
-        <img src="images/audit/icon-info.svg" alt="" class="w-5 h-5 shrink-0">
-        <p class="text-sm text-blue-800">Audit logs are retained for 365 days in accordance with data privacy and institutional security policies.</p>
-      </div>
-
-    </main>
-
-      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+      <footer
+        class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
         <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
         <span>&middot;</span>
         <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
         <span>&middot;</span>
         <a href="accessibility" class="hover:text-gray-600 hover:underline">Accessibility</a>
       </footer>
-  </div>
-</div>
-
-<div id="logoutConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
-    <h3 class="text-lg font-semibold text-black">Log Out?</h3>
-    <p class="text-sm text-gray-500">Are you sure you want to log out?</p>
-    <div class="flex justify-end gap-2 pt-1">
-      <button type="button" id="logoutCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
-      <button type="button" id="logoutConfirmBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Log Out</button>
     </div>
   </div>
-</div>
 
-<script>
-(async function() {
-  const sessionData = await (await fetch('api/session.php')).json();
-  const currentUser = sessionData.user;
-  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'counselor')) {
-    window.location.replace('staff-login');
-    return;
-  }
+  <div id="logoutConfirmModal"
+    class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
+      <h3 class="text-lg font-semibold text-black">Log Out?</h3>
+      <p class="text-sm text-gray-500">Are you sure you want to log out?</p>
+      <div class="flex justify-end gap-2 pt-1">
+        <button type="button" id="logoutCancelBtn"
+          class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+        <button type="button" id="logoutConfirmBtn"
+          class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Log Out</button>
+      </div>
+    </div>
+  </div>
 
-  const headerAvatarWrap = document.getElementById('headerAvatarWrap');
-  if (currentUser.avatarUrl) {
-    headerAvatarWrap.innerHTML = `<img src="${currentUser.avatarUrl}" alt="" class="w-full h-full object-cover">`;
-  }
-  const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
-  document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
-  document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
-
-  const logoutModal = document.getElementById('logoutConfirmModal');
-  function openLogoutModal(e) {
-    e.preventDefault();
-    logoutModal.classList.remove('hidden');
-    setTimeout(function() { logoutModal.classList.add('is-open'); }, 16);
-  }
-  function closeLogoutModal() {
-    logoutModal.classList.remove('is-open');
-    setTimeout(function() { logoutModal.classList.add('hidden'); }, 260);
-  }
-  function performLogout() {
-    fetch('api/logout.php', { method: 'POST' }).finally(function() {
-      window.location.href = 'staff-login';
-    });
-  }
-  document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
-  document.getElementById('logoutCancelBtn').addEventListener('click', closeLogoutModal);
-  document.getElementById('logoutConfirmBtn').addEventListener('click', performLogout);
-  logoutModal.addEventListener('click', function(e) { if (e.target.id === 'logoutConfirmModal') closeLogoutModal(); });
-
-  (function() {
-    const sidebar = document.getElementById('sidebar');
-    const menuToggle = document.getElementById('menuToggle');
-    const backdrop = document.getElementById('sidebarBackdrop');
-    function openSidebar() { sidebar.classList.remove('-translate-x-full'); backdrop.classList.remove('hidden'); menuToggle.classList.add('invisible'); }
-    function closeSidebar() { sidebar.classList.add('-translate-x-full'); backdrop.classList.add('hidden'); menuToggle.classList.remove('invisible'); }
-    menuToggle.addEventListener('click', () => {
-      sidebar.classList.contains('-translate-x-full') ? openSidebar() : closeSidebar();
-    });
-    backdrop.addEventListener('click', closeSidebar);
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSidebar(); });
-  })();
-
-  (function() {
-    const notifBtn = document.getElementById('notifBtn');
-    const notifPanel = document.getElementById('notifPanel');
-    const profileBtn = document.getElementById('profileBtn');
-    const profilePanel = document.getElementById('profilePanel');
-    function toggleDropdown(panel, ...others) {
-      others.forEach(p => p.classList.add('hidden'));
-      panel.classList.toggle('hidden');
-    }
-    notifBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleDropdown(notifPanel, profilePanel); });
-    profileBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleDropdown(profilePanel, notifPanel); });
-    document.addEventListener('click', () => {
-      notifPanel.classList.add('hidden');
-      profilePanel.classList.add('hidden');
-    });
-
-  // Close open dropdown panels on scroll — they were anchored under their
-  // trigger button, and letting them sit still while the page scrolls away
-  // from that anchor looks broken, so just dismiss them instead.
-  window.addEventListener('scroll', () => {
-    document.getElementById('notifPanel')?.classList.add('hidden');
-    document.getElementById('profilePanel')?.classList.add('hidden');
-  }, { passive: true });
-  })();
-
-  (function() {
-    const tbody = document.getElementById('auditTableBody');
-    const searchInput = document.getElementById('searchInput');
-    const filterFrom = document.getElementById('filterFrom');
-    const filterTo = document.getElementById('filterTo');
-    const filterStatus = document.getElementById('filterStatus');
-    const filterModule = document.getElementById('filterModule');
-    const sortTimestampBtn = document.getElementById('sortTimestampBtn');
-    const sortIcon = document.getElementById('sortIcon');
-    const exportBtn = document.getElementById('exportBtn');
-    const loadMoreBtn = document.getElementById('loadMoreBtn');
-    const PAGE_SIZE = 50;
-    let loadedRows = [];
-    let loadRequestId = 0;
-    const paginationSummary = document.getElementById('paginationSummary');
-
-    const state = { page: 1, sort: 'desc', search: '', status: 'All', module: 'All', from: '', to: '' };
-    let modulesLoaded = false;
-    let searchDebounce = null;
-
-          const CATEGORY_LABEL = { user: 'User Accounts', security_policies: 'Security Policies', security_rbac: 'Access Permissions' };
-      function categoryLabel(m) {
-        return CATEGORY_LABEL[m] || String(m).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-      }
-      function todayStr() {
-        const d = new Date();
-        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  <script>
+    (async function () {
+      const sessionData = await (await fetch('api/session.php')).json();
+      const currentUser = sessionData.user;
+      if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'counselor')) {
+        window.location.replace('staff-login');
+        return;
       }
 
-    function escapeHtml(str) {
-      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
+      const headerAvatarWrap = document.getElementById('headerAvatarWrap');
+      if (currentUser.avatarUrl) {
+        headerAvatarWrap.innerHTML = `<img src="${currentUser.avatarUrl}" alt="" class="w-full h-full object-cover">`;
+      }
+      const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
+      document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
+      document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
 
-    function currentQuery(extra) {
-      const params = new URLSearchParams(Object.assign({
-        page: state.page,
-        pageSize: PAGE_SIZE,
-        sort: state.sort,
-        status: state.status,
-        module: state.module,
-        from: state.from,
-        to: state.to,
-        search: state.search,
-      }, extra || {}));
-      return params.toString();
-    }
+      const logoutModal = document.getElementById('logoutConfirmModal');
+      function openLogoutModal(e) {
+        e.preventDefault();
+        logoutModal.classList.remove('hidden');
+        setTimeout(function () { logoutModal.classList.add('is-open'); }, 16);
+      }
+      function closeLogoutModal() {
+        logoutModal.classList.remove('is-open');
+        setTimeout(function () { logoutModal.classList.add('hidden'); }, 260);
+      }
+      function performLogout() {
+        fetch('api/logout.php', { method: 'POST' }).finally(function () {
+          window.location.href = 'staff-login';
+        });
+      }
+      document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
+      document.getElementById('logoutCancelBtn').addEventListener('click', closeLogoutModal);
+      document.getElementById('logoutConfirmBtn').addEventListener('click', performLogout);
+      logoutModal.addEventListener('click', function (e) { if (e.target.id === 'logoutConfirmModal') closeLogoutModal(); });
 
-    // load(true) starts a fresh list (filters/sort/search changed);
-    // load(false) appends the next batch after the rows already shown.
-    async function load(reset = true) {
+      (function () {
+        const sidebar = document.getElementById('sidebar');
+        const menuToggle = document.getElementById('menuToggle');
+        const backdrop = document.getElementById('sidebarBackdrop');
+        function openSidebar() { sidebar.classList.remove('-translate-x-full'); backdrop.classList.remove('hidden'); menuToggle.classList.add('invisible'); }
+        function closeSidebar() { sidebar.classList.add('-translate-x-full'); backdrop.classList.add('hidden'); menuToggle.classList.remove('invisible'); }
+        menuToggle.addEventListener('click', () => {
+          sidebar.classList.contains('-translate-x-full') ? openSidebar() : closeSidebar();
+        });
+        backdrop.addEventListener('click', closeSidebar);
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSidebar(); });
+      })();
 
-      const invalidDateRange =
-        filterFrom.value &&
-        filterTo.value &&
-        filterFrom.value > filterTo.value;
-
-      if (invalidDateRange) {
-        ++loadRequestId;
-        loadedRows = [];
-        state.page = 1;
-        exportBtn.disabled = true;
-
-        tbody.innerHTML =
-          '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-red-600">Fix the date range to see results.</td></tr>';
-
-        ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive',
-         'summarySuccessPct', 'summaryFailedPct'].forEach(id => {
-          document.getElementById(id).textContent = '—';
+      (function () {
+        const notifBtn = document.getElementById('notifBtn');
+        const notifPanel = document.getElementById('notifPanel');
+        const profileBtn = document.getElementById('profileBtn');
+        const profilePanel = document.getElementById('profilePanel');
+        function toggleDropdown(panel, ...others) {
+          others.forEach(p => p.classList.add('hidden'));
+          panel.classList.toggle('hidden');
+        }
+        notifBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleDropdown(notifPanel, profilePanel); });
+        profileBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleDropdown(profilePanel, notifPanel); });
+        document.addEventListener('click', () => {
+          notifPanel.classList.add('hidden');
+          profilePanel.classList.add('hidden');
         });
 
-        paginationSummary.textContent = '';
-        loadMoreBtn.classList.add('hidden');
-        loadMoreBtn.disabled = true;
-        return;
-      }
+        // Close open dropdown panels on scroll — they were anchored under their
+        // trigger button, and letting them sit still while the page scrolls away
+        // from that anchor looks broken, so just dismiss them instead.
+        window.addEventListener('scroll', () => {
+          document.getElementById('notifPanel')?.classList.add('hidden');
+          document.getElementById('profilePanel')?.classList.add('hidden');
+        }, { passive: true });
+      })();
 
-      if (reset) {
-        state.page = 1;
-        loadedRows = [];
-        PP.showSkeleton(tbody, PP.skeleton.rows(7, 8));
-        ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive'].forEach(PP.statLoading);
-      }
+      (function () {
+        const tbody = document.getElementById('auditTableBody');
+        const searchInput = document.getElementById('searchInput');
+        const filterFrom = document.getElementById('filterFrom');
+        const filterTo = document.getElementById('filterTo');
+        const filterStatus = document.getElementById('filterStatus');
+        const filterModule = document.getElementById('filterModule');
+        const sortTimestampBtn = document.getElementById('sortTimestampBtn');
+        const sortIcon = document.getElementById('sortIcon');
+        const exportBtn = document.getElementById('exportBtn');
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        const PAGE_SIZE = 50;
+        let loadedRows = [];
+        let loadRequestId = 0;
+        const paginationSummary = document.getElementById('paginationSummary');
 
-      const requestId = ++loadRequestId;
-      loadMoreBtn.disabled = true;
-      let data;
-      try {
-        data = await PP.fetchJson('api/audit-log.php?' + currentQuery());
-        if (requestId !== loadRequestId) return;
-      } catch (e) {
-        if (requestId !== loadRequestId) return;
-        if (e.status === 401) { window.location.replace('staff-login'); return; }
-        paginationSummary.textContent = '';
-        loadMoreBtn.classList.add('hidden');
-        if (e.status === 403) {
-          tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-red-500">You do not have access to the audit log.</td></tr>';
-          return;
+        const state = { page: 1, sort: 'desc', search: '', status: 'All', module: 'All', from: '', to: '' };
+        let modulesLoaded = false;
+        let searchDebounce = null;
+        let firstDate = '';
+
+        // The calendars only offer valid ranges: To cannot start before From, From cannot end after To.
+        // Typed dates can still be out of order, so the change handler below keeps its error message.
+        function syncDateLimits() {
+          filterFrom.min = firstDate;
+          filterFrom.max = filterTo.value || todayStr();
+          filterTo.min = filterFrom.value || firstDate;
+          filterTo.max = todayStr();
         }
-        if (reset) {
-          ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive'].forEach(PP.statFailed);
-          PP.showError(tbody, e.message, function() { load(true); }, 7);
-        } else {
-          state.page -= 1;
-          loadMoreBtn.classList.remove('hidden');
+
+        const CATEGORY_LABEL = { user: 'User Accounts', faq: 'FAQ', security_policies: 'Security Policies', security_rbac: 'Access Permissions' };
+        function categoryLabel(m) {
+          return CATEGORY_LABEL[m] || String(m).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        }
+        function todayStr() {
+          const d = new Date();
+          return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+
+        function escapeHtml(str) {
+          return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function currentQuery(extra) {
+          const params = new URLSearchParams(Object.assign({
+            page: state.page,
+            pageSize: PAGE_SIZE,
+            sort: state.sort,
+            status: state.status,
+            module: state.module,
+            from: state.from,
+            to: state.to,
+            search: state.search,
+          }, extra || {}));
+          return params.toString();
+        }
+
+        // load(true) starts a fresh list (filters/sort/search changed);
+        // load(false) appends the next batch after the rows already shown.
+        async function load(reset = true) {
+          const invalidDateRange =
+            filterFrom.value &&
+            filterTo.value &&
+            filterFrom.value > filterTo.value;
+
+          if (invalidDateRange) {
+            ++loadRequestId;
+            loadedRows = [];
+            state.page = 1;
+            exportBtn.disabled = true;
+
+            tbody.innerHTML =
+              '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-red-600">Fix the date range to see results.</td></tr>';
+
+            ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive',
+              'summarySuccessPct', 'summaryFailedPct'].forEach(id => {
+                document.getElementById(id).textContent = '—';
+              });
+
+            paginationSummary.textContent = '';
+            loadMoreBtn.classList.add('hidden');
+            loadMoreBtn.disabled = true;
+            return;
+          }
+
+          if (reset) {
+            state.page = 1;
+            loadedRows = [];
+            PP.showSkeleton(tbody, PP.skeleton.rows(7, 8));
+            ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive'].forEach(PP.statLoading);
+          }
+
+          const requestId = ++loadRequestId;
+          loadMoreBtn.disabled = true;
+          let data;
+          try {
+            data = await PP.fetchJson('api/audit-log.php?' + currentQuery());
+            if (requestId !== loadRequestId) return;
+          } catch (e) {
+            if (requestId !== loadRequestId) return;
+            if (e.status === 401) { window.location.replace('staff-login'); return; }
+            paginationSummary.textContent = '';
+            loadMoreBtn.classList.add('hidden');
+            if (e.status === 403) {
+              tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-red-500">You do not have access to the audit log.</td></tr>';
+              return;
+            }
+            if (reset) {
+              ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive'].forEach(PP.statFailed);
+              PP.showError(tbody, e.message, function () { load(true); }, 7);
+            } else {
+              state.page -= 1;
+              loadMoreBtn.classList.remove('hidden');
+              loadMoreBtn.disabled = false;
+              paginationSummary.textContent = e.message;
+            }
+            return;
+          }
+          tbody.removeAttribute('aria-busy');
+          state.page = data.page;
+
+          if (!modulesLoaded) {
+            filterModule.innerHTML = '<option value="All">All Categories</option>' +
+              data.modules.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(categoryLabel(m))}</option>`).join('');
+            filterModule.value = state.module;
+            firstDate = data.firstDate || '';
+            syncDateLimits();
+            modulesLoaded = true;
+          }
+
+          loadedRows = loadedRows.concat(data.rows);
+          renderSummary(data.summary);
+          renderRows(loadedRows);
+          paginationSummary.textContent = 'Showing ' + loadedRows.length.toLocaleString() + ' of ' + data.total.toLocaleString() + ' logs';
+          loadMoreBtn.classList.toggle('hidden', data.page >= data.totalPages);
           loadMoreBtn.disabled = false;
-          paginationSummary.textContent = e.message;
         }
-        return;
-      }
-      tbody.removeAttribute('aria-busy');
-      state.page = data.page;
+        loadMoreBtn.addEventListener('click', () => { state.page += 1; load(false); });
 
-              if (!modulesLoaded) {
-          filterModule.innerHTML = '<option value="All">All Categories</option>' +
-            data.modules.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(categoryLabel(m))}</option>`).join('');
-          filterModule.value = state.module;
-          if (data.firstDate) { filterFrom.min = filterTo.min = data.firstDate; }
-          filterFrom.max = filterTo.max = todayStr();
-          modulesLoaded = true;
+        function renderSummary(summary) {
+          document.getElementById('summaryTotal').textContent = summary.total.toLocaleString();
+          document.getElementById('summarySuccess').textContent = summary.successful.toLocaleString();
+          document.getElementById('summaryFailed').textContent = summary.failed.toLocaleString();
+          document.getElementById('summaryActive').textContent = summary.usersActive.toLocaleString();
+          const pct = (n) => summary.total > 0 ? ((n / summary.total) * 100).toFixed(1) + '%' : '—';
+          document.getElementById('summarySuccessPct').textContent = pct(summary.successful);
+          document.getElementById('summaryFailedPct').textContent = pct(summary.failed);
         }
 
-      loadedRows = loadedRows.concat(data.rows);
-      renderSummary(data.summary);
-      renderRows(loadedRows);
-      paginationSummary.textContent = 'Showing ' + loadedRows.length.toLocaleString() + ' of ' + data.total.toLocaleString() + ' logs';
-      loadMoreBtn.classList.toggle('hidden', data.page >= data.totalPages);
-      loadMoreBtn.disabled = false;
-    }
-    loadMoreBtn.addEventListener('click', () => { state.page += 1; load(false); });
+        function renderRows(rows) {
+          if (rows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">No matching audit log entries.</td></tr>';
+            return;
+          }
+          tbody.innerHTML = rows.map(function (r) {
+            const badge = r.status === 'Failed'
+              ? '<span class="bg-red-100 text-red-700 text-xs font-medium px-2.5 py-1 rounded-full">Failed</span>'
+              : '<span class="bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">Success</span>';
+            return '<tr>' +
+              '<td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">' + escapeHtml(r.timestamp) + '</td>' +
+              '<td class="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">' + escapeHtml(r.user) + '</td>' +
+              '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(r.role) + '</td>' +
+              '<td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">' + escapeHtml(r.action) + '</td>' +
+              '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(categoryLabel(r.module)) + '</td>' +
+              '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(r.ip) + '</td>' +
+              '<td class="px-6 py-4">' + badge + '</td>' +
+              '</tr>';
+          }).join('');
+        }
 
-    function renderSummary(summary) {
-      document.getElementById('summaryTotal').textContent = summary.total.toLocaleString();
-      document.getElementById('summarySuccess').textContent = summary.successful.toLocaleString();
-      document.getElementById('summaryFailed').textContent = summary.failed.toLocaleString();
-      document.getElementById('summaryActive').textContent = summary.usersActive.toLocaleString();
-      const pct = (n) => summary.total > 0 ? ((n / summary.total) * 100).toFixed(1) + '%' : '—';
-      document.getElementById('summarySuccessPct').textContent = pct(summary.successful);
-      document.getElementById('summaryFailedPct').textContent = pct(summary.failed);
-    }
-
-    function renderRows(rows) {
-      if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">No matching audit log entries.</td></tr>';
-        return;
-      }
-      tbody.innerHTML = rows.map(function(r) {
-        const badge = r.status === 'Failed'
-          ? '<span class="bg-red-100 text-red-700 text-xs font-medium px-2.5 py-1 rounded-full">Failed</span>'
-          : '<span class="bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">Success</span>';
-        return '<tr>' +
-          '<td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">' + escapeHtml(r.timestamp) + '</td>' +
-          '<td class="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">' + escapeHtml(r.user) + '</td>' +
-          '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(r.role) + '</td>' +
-          '<td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">' + escapeHtml(r.action) + '</td>' +
-          '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(categoryLabel(r.module)) + '</td>' +
-          '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(r.ip) + '</td>' +
-          '<td class="px-6 py-4">' + badge + '</td>' +
-        '</tr>';
-      }).join('');
-    }
-
-    searchInput.addEventListener('input', () => {
-      clearTimeout(searchDebounce);
-      searchDebounce = setTimeout(() => {
-        state.search = searchInput.value.trim();
-        state.page = 1;
-        load();
-      }, 300);
-    });
-    filterStatus.addEventListener('change', () => {
-      state.status = filterStatus.value;
-      state.page = 1;
-      load();
-    });
-    filterModule.addEventListener('change', () => {
-      state.module = filterModule.value;
-      state.page = 1;
-      load();
-    });
-    const dateMsg = document.getElementById('dateRangeMessage');
-      [filterFrom, filterTo].forEach(el => el.addEventListener('change', () => {
-        const bad = filterFrom.value && filterTo.value &&
-                    filterFrom.value > filterTo.value;
-
-        dateMsg.textContent = bad
-          ? 'The start date is after the end date. Choose a start date on or before the end date.'
-          : '';
-
-        dateMsg.classList.toggle('hidden', !bad);
-        filterFrom.setAttribute('aria-invalid', bad ? 'true' : 'false');
-        filterTo.setAttribute('aria-invalid', bad ? 'true' : 'false');
-        exportBtn.disabled = !!bad;
-
-        if (bad) {
-          ++loadRequestId;
-          loadedRows = [];
+        searchInput.addEventListener('input', () => {
+          clearTimeout(searchDebounce);
+          searchDebounce = setTimeout(() => {
+            state.search = searchInput.value.trim();
+            state.page = 1;
+            load();
+          }, 300);
+        });
+        filterStatus.addEventListener('change', () => {
+          state.status = filterStatus.value;
           state.page = 1;
+          load();
+        });
+        filterModule.addEventListener('change', () => {
+          state.module = filterModule.value;
+          state.page = 1;
+          load();
+        });
+        const dateMsg = document.getElementById('dateRangeMessage');
+        [filterFrom, filterTo].forEach(el => el.addEventListener('change', () => {
+          syncDateLimits();
+          const bad = filterFrom.value && filterTo.value &&
+            filterFrom.value > filterTo.value;
 
-          tbody.innerHTML =
-            '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-red-600">Fix the date range to see results.</td></tr>';
+          dateMsg.textContent = bad ? 'From date must be on or before To date.' : '';
 
-          ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive']
-            .forEach(id => {
+          dateMsg.classList.toggle('hidden', !bad);
+          filterFrom.setAttribute('aria-invalid', bad ? 'true' : 'false');
+          filterTo.setAttribute('aria-invalid', bad ? 'true' : 'false');
+          exportBtn.disabled = !!bad;
+
+          if (bad) {
+            ++loadRequestId;
+            loadedRows = [];
+            state.page = 1;
+
+            tbody.innerHTML =
+              '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-red-600">Fix the date range to see results.</td></tr>';
+
+            ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive']
+              .forEach(id => {
+                document.getElementById(id).textContent = '—';
+              });
+
+            ['summarySuccessPct', 'summaryFailedPct'].forEach(id => {
               document.getElementById(id).textContent = '—';
             });
 
-          ['summarySuccessPct', 'summaryFailedPct'].forEach(id => {
-            document.getElementById(id).textContent = '—';
-          });
-
-          paginationSummary.textContent = '';
-          loadMoreBtn.classList.add('hidden');
-          loadMoreBtn.disabled = true;
-          return;
+            paginationSummary.textContent = '';
+            loadMoreBtn.classList.add('hidden');
+            loadMoreBtn.disabled = true;
+            return;
+          }
+          state.from = filterFrom.value;
+          state.to = filterTo.value;
+          state.page = 1;
+          load();
+        }));
+        // Clear filters: enabled (navy) while any filter or the search box is set, disabled (gray) otherwise.
+        const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+        function updateClearBtn() {
+          clearFiltersBtn.disabled = !(
+            filterFrom.value || filterTo.value ||
+            filterStatus.value !== 'All' || filterModule.value !== 'All' ||
+            searchInput.value.trim() !== ''
+          );
         }
+        [searchInput, filterStatus, filterModule, filterFrom, filterTo].forEach(el => {
+          el.addEventListener('input', updateClearBtn);
+          el.addEventListener('change', updateClearBtn);
+        });
+        clearFiltersBtn.addEventListener('click', () => {
+          clearTimeout(searchDebounce);
+          searchInput.value = '';
+          filterStatus.value = 'All';
+          filterModule.value = 'All';
+          filterFrom.value = '';
+          filterTo.value = '';
+          syncDateLimits();
+          state.search = '';
+          state.status = 'All';
+          state.module = 'All';
+          state.from = '';
+          state.to = '';
+          state.page = 1;
+          dateMsg.textContent = '';
+          dateMsg.classList.add('hidden');
+          filterFrom.setAttribute('aria-invalid', 'false');
+          filterTo.setAttribute('aria-invalid', 'false');
+          exportBtn.disabled = false;
+          updateClearBtn();
+          // The button just became disabled, which drops keyboard focus. Keep focus in the filter row.
+          filterFrom.focus();
+          load();
+        });
+        // A browser can restore typed filter values on reload, so set the starting state from the inputs.
+        updateClearBtn();
 
-        state.from = filterFrom.value;
-        state.to = filterTo.value;
-        state.page = 1;
+        let sortAscending = false;
+        sortTimestampBtn.addEventListener('click', () => {
+          sortAscending = !sortAscending;
+          state.sort = sortAscending ? 'asc' : 'desc';
+          sortIcon.textContent = sortAscending ? '↑' : '↓';
+          state.page = 1;
+          load();
+        });
+
+        exportBtn.addEventListener('click', () => {
+          window.location.href = 'api/audit-log.php?' + currentQuery({ export: 1 });
+        });
+
         load();
-   }));
-    let sortAscending = false;
-    sortTimestampBtn.addEventListener('click', () => {
-      sortAscending = !sortAscending;
-      state.sort = sortAscending ? 'asc' : 'desc';
-      sortIcon.textContent = sortAscending ? '↑' : '↓';
-      state.page = 1;
-      load();
-    });
+      })();
+    })();
+  </script>
 
-    exportBtn.addEventListener('click', () => {
-      window.location.href = 'api/audit-log.php?' + currentQuery({ export: 1 });
-    });
-
-    load();
-  })();
-})();
-</script>
-
-<script src="js/motion.js" defer></script>
-<script src="js/notifications.js" defer></script>
-<script>
-(function() {
-  var el = document.getElementById('ayBadgeValue');
-  if (!el) return;
-  fetch('api/security-config.php').then(function(r) { return r.json(); }).then(function(data) {
-    if (data && data.academicYear && data.academicYear.current) {
-      el.textContent = data.academicYear.current;
-    } else {
-      document.getElementById('ayBadge').classList.add('hidden');
-    }
-  }).catch(function() {});
-})();
-</script>
+  <script src="js/motion.js" defer></script>
+  <script src="js/notifications.js" defer></script>
+  <script>
+    (function () {
+      var el = document.getElementById('ayBadgeValue');
+      if (!el) return;
+      fetch('api/security-config.php').then(function (r) { return r.json(); }).then(function (data) {
+        if (data && data.academicYear && data.academicYear.current) {
+          el.textContent = data.academicYear.current;
+        } else {
+          document.getElementById('ayBadge').classList.add('hidden');
+        }
+      }).catch(function () { });
+    })();
+  </script>
 </body>
+
 </html>
