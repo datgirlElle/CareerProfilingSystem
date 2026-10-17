@@ -4,6 +4,7 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/Mailer.php';
 require_once __DIR__ . '/../lib/EmailTemplate.php';
 require_once __DIR__ . '/../lib/AcademicYear.php';
+require_once __DIR__ . '/../lib/AuditChange.php';
 
 // Sending announcements is staff-only (the Announcements permission). A student has no access to that permission,
 // but still reads the announcements sent to them and marks them read: that is all a student can do here, because
@@ -456,7 +457,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($type === 'update') {
         Rbac::requireAccess('announcements', 'full');
         $id = (int) ($body['id'] ?? 0);
-        $existing = $pdo->prepare('SELECT id, emailed_at, status FROM announcements WHERE id = ?');
+        $existing = $pdo->prepare('SELECT id, emailed_at, status, title, body_enc, target_type, publish_at FROM announcements WHERE id = ?');
         $existing->execute([$id]);
         $row = $existing->fetch();
         if (!$row) {
@@ -467,6 +468,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $isDraft = !empty($body['draft']);
         $in = readAnnouncementInput($body, $isDraft);
+        // Who it went to before the edit (a count only), for the audit log's before -> after.
+        $recipients = $pdo->prepare('SELECT COUNT(*) FROM announcement_recipients WHERE announcement_id = ?');
+        $recipients->execute([$id]);
+        $beforeRecipients = (int) $recipients->fetchColumn();
 
         $pdo->beginTransaction();
         try {
@@ -483,7 +488,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             jsonResponse(['success' => false, 'error' => 'Failed to save your changes. Please try again.'], 500);
         }
 
-        AuditLogger::log($user['id'], $user['role'], 'update_announcement', 'announcement', (string) $id, "\"{$in['title']}\"" . ($isDraft ? ' (draft)' : ''));
+        // Before -> after for the audit log (only what changed is kept; long messages are cut).
+        try {
+            $oldBody = $row['body_enc'] !== null ? Crypto::dec($row['body_enc']) : '';
+        } catch (Throwable $e) {
+            $oldBody = '(message could not be read)';
+        }
+        // Audience as a count (never names), status as Draft, Published or "Scheduled for ...".
+        $audience = fn(string $type, int $count) => $type === 'specific' ? $count . ' student' . ($count === 1 ? '' : 's') : 'Everyone';
+        $status = function (bool $draft, ?string $publishAt): string {
+            if ($draft) {
+                return 'Draft';
+            }
+            $at = $publishAt !== null ? strtotime($publishAt) : false;
+            return ($at !== false && $at > time()) ? 'Scheduled for ' . date('M j, Y g:i A', $at) : 'Published';
+        };
+        AuditLogger::log($user['id'], $user['role'], 'update_announcement', 'announcement', (string) $id, AuditChange::detail(
+            'Announcement',
+            [
+                'title' => $row['title'], 'message' => $oldBody,
+                'audience' => $audience((string) $row['target_type'], $beforeRecipients),
+                'status' => $status($row['status'] === 'draft', $row['publish_at']),
+            ],
+            [
+                'title' => $in['title'], 'message' => $in['bodyText'],
+                'audience' => $audience($in['targetType'], count($in['studentIds'])),
+                'status' => $status($isDraft, $in['publishAt']),
+            ],
+            ['title' => 'Title', 'message' => 'Message', 'audience' => 'Audience', 'status' => 'Status']
+        ));
 
         $emailed = null;
         if (!$isDraft && ($in['publishAt'] === null || strtotime($in['publishAt']) <= time())) {

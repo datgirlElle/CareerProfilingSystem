@@ -5,6 +5,7 @@ require_once __DIR__ . '/../lib/RateLimiter.php';
 require_once __DIR__ . '/../lib/AuditLogPdf.php';
 require_once __DIR__ . '/../lib/StaffPosition.php';
 require_once __DIR__ . '/../lib/QuestionBank.php';
+require_once __DIR__ . '/../lib/AuditChange.php';
 
 $user = Rbac::requireAccess('rac', 'full'); // audit visibility lives alongside the other security/system admin tools
 
@@ -609,11 +610,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
 
     $detail = null;
     $detailNote = null;
+    $changes = [];
     if (in_array($r['action'], HIDDEN_DETAIL_ACTIONS, true) || ($hideStudent && $studentAccountAction)) {
         $detailNote = "Hidden: sensitive student data. Open the student's record to see it.";
     } elseif ($r['detail_enc'] !== null) {
         try {
-            $detail = readableDetail(Crypto::dec($r['detail_enc']));
+            $plain = Crypto::dec($r['detail_enc']);
+            // Edits saved by AuditChange carry before -> after; anything else is shown as plain text.
+            $parsed = AuditChange::parse($plain);
+            if ($parsed !== null) {
+                $changes = $parsed['changes'];
+                $detail = $parsed['summary'] !== '' ? $parsed['summary'] : null;
+                // An announcement's message is for people with Announcements access (drafts too);
+                // anyone else only learns that it changed.
+                $messageHidden = false;
+                if ($r['target_type'] === 'announcement' && Rbac::accessLevel('announcements', Rbac::roleKey($user)) === 'none') {
+                    $kept = array_values(array_filter($changes, fn($c) => $c['field'] !== 'Message'));
+                    $messageHidden = count($kept) < count($changes);
+                    $changes = $kept;
+                }
+                if ($messageHidden) {
+                    $detail = trim(($detail ?? '') . "\nThe message changed too (hidden: you have no access to Announcements).");
+                } elseif (!$changes) {
+                    $detail = trim(($detail ?? '') . "\nSaved with no changes.");
+                }
+            } else {
+                $detail = readableDetail($plain);
+            }
         } catch (Throwable $e) {
             $detailNote = 'Could not be read.';
         }
@@ -640,6 +663,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
         'target' => $targetText,
         'detail' => $detail,
         'detailNote' => $detailNote,
+        'changes' => $changes,
     ]);
 }
 

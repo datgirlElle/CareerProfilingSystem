@@ -4,6 +4,7 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/AcademicYear.php';
 require_once __DIR__ . '/../lib/OfficeHours.php';
 require_once __DIR__ . '/../lib/BookingLink.php';
+require_once __DIR__ . '/../lib/AuditChange.php';
 
 $user = Rbac::requireRole('admin', 'counselor');
 $pdo = Database::get();
@@ -251,6 +252,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
             $stmt->execute([$k, $v, $user['id']]);
         };
+        // The values as they were (defaults included), for the audit log's before -> after.
+        $before = loadPolicies($pdo)['policies'][$key];
 
         $enabled = !empty($body['enabled']) ? 'true' : 'false';
         $set("$key.enabled", $enabled);
@@ -268,8 +271,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $set('monitoring.retentionDays', (string) max(7, min(365, (int) ($body['retentionDays'] ?? 90))));
         }
 
-        AuditLogger::log($user['id'], $user['role'], 'update_policy', 'security_policies', $key, json_encode($body));
-        jsonResponse(['success' => true] + loadPolicies($pdo));
+        $policyNames = ['password' => 'Password policy', 'lockout' => 'Account lockout', 'monitoring' => 'Login monitoring'];
+        $policyLabels = [
+            'password' => [
+                'enabled' => 'Status', 'minLength' => 'Minimum password length', 'requireUpper' => 'Needs an uppercase letter',
+                'requireLower' => 'Needs a lowercase letter', 'requireNumber' => 'Needs a number', 'requireSymbol' => 'Needs a symbol',
+            ],
+            'lockout' => ['enabled' => 'Status', 'maxAttempts' => 'Failed attempts before lockout', 'lockoutMinutes' => 'Lockout length (minutes)'],
+            'monitoring' => ['enabled' => 'Status', 'retentionDays' => 'Log retention (days)'],
+        ];
+        $fresh = loadPolicies($pdo);
+        AuditLogger::log($user['id'], $user['role'], 'update_policy', 'security_policies', $key, AuditChange::detail(
+            $policyNames[$key], $before, $fresh['policies'][$key], $policyLabels[$key],
+            ['requireUpper', 'requireLower', 'requireNumber', 'requireSymbol']
+        ));
+        jsonResponse(['success' => true] + $fresh);
     }
 
     if ($type === 'officeHours') {
@@ -279,6 +295,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             jsonResponse(['success' => false, 'error' => $checked['error']], 400);
         }
         $text = OfficeHours::text($checked['schedule']);
+        $beforeText = loadPolicies($pdo)['officeHours']['text'];
         $stmt = $pdo->prepare(
             'INSERT INTO security_policies (key, value, updated_by) VALUES (?, ?, ?)
              ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by'
@@ -286,7 +303,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute(['officeHours.schedule', json_encode($checked['schedule']), $user['id']]);
         $stmt->execute(['officeHours.text', $text, $user['id']]); // what api/public-settings.php sends to students
 
-        AuditLogger::log($user['id'], $user['role'], 'update_office_hours', 'security_policies', 'officeHours.text', "Set to: $text");
+        AuditLogger::log($user['id'], $user['role'], 'update_office_hours', 'security_policies', 'officeHours.text',
+            AuditChange::detail('Office hours', ['text' => $beforeText], ['text' => $text], ['text' => 'Office hours']));
         jsonResponse(['success' => true] + loadPolicies($pdo));
     }
 
@@ -295,12 +313,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($checked['error'] !== null) {
             jsonResponse(['success' => false, 'error' => $checked['error']], 400);
         }
+        $beforeUrl = loadPolicies($pdo)['booking']['url'];
         $stmt = $pdo->prepare(
             'INSERT INTO security_policies (key, value, updated_by) VALUES (?, ?, ?)
              ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by'
         );
         $stmt->execute([BookingLink::KEY, $checked['url'], $user['id']]);
-        AuditLogger::log($user['id'], $user['role'], 'update_booking_link', 'security_policies', BookingLink::KEY, $checked['url'] === '' ? 'Cleared' : 'Set to: ' . $checked['url']);
+        AuditLogger::log($user['id'], $user['role'], 'update_booking_link', 'security_policies', BookingLink::KEY,
+            AuditChange::detail('Booking link', ['url' => $beforeUrl], ['url' => $checked['url']], ['url' => 'Booking link']));
         jsonResponse(['success' => true] + loadPolicies($pdo));
     }
 
@@ -320,10 +340,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
             $stmt->execute([$k, $v, $user['id']]);
         };
+        $beforeContact = loadPolicies($pdo)['principal'];
         $set('principal.name', $name);
         $set('principal.email', $email);
 
-        AuditLogger::log($user['id'], $user['role'], 'update_principal_contact', 'security_policies', 'principal', "Set to: $name <$email>");
+        AuditLogger::log($user['id'], $user['role'], 'update_principal_contact', 'security_policies', 'principal',
+            AuditChange::detail('Principal contact', $beforeContact, ['name' => $name, 'email' => $email], ['name' => 'Name', 'email' => 'Email']));
         jsonResponse(['success' => true] + loadPolicies($pdo));
     }
 
@@ -335,12 +357,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
             $stmt->execute([$k, $v, $user['id']]);
         };
+        $beforeSettings = loadPolicies($pdo)['settings'];
         $set('twoFactor', !empty($body['twoFactor']) ? 'true' : 'false');
         $set('sessionTimeoutEnabled', !empty($body['sessionTimeoutEnabled']) ? 'true' : 'false');
         $set('timeoutMinutes', (string) max(5, min(240, (int) ($body['timeoutMinutes'] ?? 30))));
 
-        AuditLogger::log($user['id'], $user['role'], 'update_settings', 'security_policies', 'settings', json_encode($body));
-        jsonResponse(['success' => true] + loadPolicies($pdo));
+        $fresh = loadPolicies($pdo);
+        AuditLogger::log($user['id'], $user['role'], 'update_settings', 'security_policies', 'settings', AuditChange::detail(
+            'Sign-in and session settings', $beforeSettings, $fresh['settings'],
+            ['twoFactor' => 'Two-step sign-in', 'sessionTimeoutEnabled' => 'Session timeout', 'timeoutMinutes' => 'Timeout length (minutes)']
+        ));
+        jsonResponse(['success' => true] + $fresh);
     }
 
     jsonResponse(['success' => false, 'error' => 'Unknown type.'], 400);

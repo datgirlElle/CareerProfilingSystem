@@ -234,6 +234,49 @@
       color: #6b7280;
       font-style: italic;
     }
+    /* "What changed": old value red and crossed out, new value green, one field per block. */
+    .change-summary {
+      margin-bottom: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #111827;
+    }
+    .change {
+      margin-top: 10px;
+      max-width: 760px;
+    }
+    .change-field {
+      margin-bottom: 3px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #374151;
+    }
+    .change-old,
+    .change-new {
+      display: flex;
+      gap: 8px;
+      padding: 4px 10px;
+      font-size: 14px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .change-old {
+      border-radius: 6px 6px 0 0;
+      background: #fef2f2;
+      color: #991b1b;
+    }
+    .change-new {
+      border-radius: 0 0 6px 6px;
+      background: #f0fdf4;
+      color: #166534;
+    }
+    .change-new ins {
+      text-decoration: none;
+    }
+    .change-sign {
+      flex-shrink: 0;
+      font-weight: 700;
+    }
     .detail-meta {
       display: flex;
       flex-wrap: wrap;
@@ -1213,7 +1256,29 @@
 
           // Nothing saved and nothing hidden: no empty Details box, only the bottom line.
           const parts = [];
-          if (d.detail || d.detailNote) {
+          const changes = Array.isArray(d.changes) ? d.changes : [];
+          if (changes.length) {
+            // An edit: what it was (d.detail), then each changed field, old value red and crossed out,
+            // new value green. Screen readers hear "Before:" and "After:".
+            const what = el('section');
+            what.appendChild(el('h3', 'detail-heading', 'What changed'));
+            if (d.detail) what.appendChild(el('p', 'change-summary', d.detail));
+            changes.forEach(c => {
+              const item = el('div', 'change');
+              item.appendChild(el('div', 'change-field', c.field));
+              [['change-old', 'Before: ', '-', 'del', c.before], ['change-new', 'After: ', '+', 'ins', c.after]].forEach(([cls, spoken, sign, tag, value]) => {
+                const line = el('div', cls);
+                line.appendChild(el('span', 'visually-hidden', spoken));
+                const mark = el('span', 'change-sign', sign);
+                mark.setAttribute('aria-hidden', 'true');
+                line.appendChild(mark);
+                line.appendChild(el(tag, '', value));
+                item.appendChild(line);
+              });
+              what.appendChild(item);
+            });
+            parts.push(what);
+          } else if (d.detail || d.detailNote) {
             const main = el('section');
             main.appendChild(el('h3', 'detail-heading', 'Details'));
             main.appendChild(d.detail ? el('p', 'detail-text', d.detail) : el('p', 'detail-text is-note', d.detailNote));
