@@ -68,7 +68,7 @@ function sampleRows(int $count): array
             $i % 5 === 0 ? 'Failed sign-in' : 'Signed in',
             'User Accounts',
             '192.0.2.' . ($i % 250),
-            $i % 5 === 0 ? 'Failed' : 'Success',
+            $i % 7 === 0 ? 'Blocked' : ($i % 5 === 0 ? 'Failed' : 'Success'),
         ];
     }
     return $rows;
@@ -128,6 +128,7 @@ check('header shows who exported it and the activity count', str_contains($pages
     && str_contains($pages[0], 'Activities: ' . $rowCount));
 check('Failed status is drawn in red', str_contains($pages[0], '0.8 0.11 0.14 rg') && str_contains($pages[0], '(Failed)'));
 check('"Success" fits its column (not cut)', str_contains($pages[0], '(Success)'));
+check('Blocked status is drawn in orange', str_contains($pages[0], '0.76 0.25 0.05 rg') && str_contains($pages[0], '(Blocked)'));
 check('timestamps are not cut', str_contains(implode('', $pages), '(Oct 17, 2026 1:59:00 PM)'));
 check('the very long name is cut in the table', str_contains($pages[0], 'Santos, Maria') && !str_contains($pages[0], 'Villanueva-Reyes'));
 check('the title has the reference', str_contains($report, '/Title (ProfilePath Audit Log EXP-20261017-TEST)'));

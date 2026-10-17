@@ -3,6 +3,7 @@
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/RateLimiter.php';
 require_once __DIR__ . '/../lib/AuditLogPdf.php';
+require_once __DIR__ . '/../lib/StaffPosition.php';
 
 $user = Rbac::requireAccess('rac', 'full'); // audit visibility lives alongside the other security/system admin tools
 
@@ -13,6 +14,9 @@ $pdo = Database::get();
 const FAILED_SUFFIX = '_failed';
 // An account lockout is a security event too, so it reads as Failed in the log.
 const FAILED_SQL = "(al.action LIKE '%_failed' OR al.action IN ('login_lockout', 'login_shared_suspected'))";
+// A lockout is shown as "Blocked". It stays a failure in FAILED_SQL, so the Status filter and the
+// summary cards still count it as Failed.
+const BLOCKED_ACTIONS = ['login_lockout'];
 
 $actionLabels = [
     'login' => 'Signed in',
@@ -51,6 +55,15 @@ function actionLabel(string $action, array $labels): string
     return $labels[$action] ?? ucwords(str_replace('_', ' ', $action));
 }
 
+/** "Blocked" (an account lockout), "Failed" (the same rule as FAILED_SQL) or "Success". */
+function statusOf(string $action): string
+{
+    if (in_array($action, BLOCKED_ACTIONS, true)) {
+        return 'Blocked';
+    }
+    return (str_ends_with($action, FAILED_SUFFIX) || in_array($action, ['login_lockout', 'login_shared_suspected'], true)) ? 'Failed' : 'Success';
+}
+
 /** Who did it: staff by username, a student by name (their username is their Student Number, which staff don't see). */
 function actorLabel(array $r): string
 {
@@ -61,16 +74,23 @@ function actorLabel(array $r): string
     if (trim((string) ($r['full_name'] ?? '')) !== '') {
         return $r['full_name'];
     }
-        if (!isset($r['username']) && ($r['action'] ?? '') === 'login_failed') {
+    if (!isset($r['username']) && ($r['action'] ?? '') === 'login_failed') {
         return 'Unregistered user';
     }
     return $r['username'] ?? 'System';
 }
 
-function roleLabel(?string $role, array $labels): string
+/**
+ * Counselors and facilitators share actor_role 'counselor'; users.staff_position tells them apart.
+ * It is the person's current position (the log did not store it at the time).
+ */
+function roleLabel(?string $role, array $labels, ?string $position = null): string
 {
     if ($role === null) {
         return '-';
+    }
+    if ($role === 'counselor') {
+        return StaffPosition::label($position);
     }
     return $labels[$role] ?? ucfirst($role);
 }
@@ -119,15 +139,15 @@ function buildFilters(array $q, array $actionLabels, array $roleLabels, array $c
         $where[] = 'al.target_type = ?';
         $params[] = $q['module'];
     }
-        if (!empty($q['from']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $q['from'])) {
+    if (!empty($q['from']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $q['from'])) {
         $where[] = 'al.created_at >= CAST(? AS date)';
         $params[] = $q['from'];
     }
     if (!empty($q['to']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $q['to'])) {
         $where[] = "al.created_at < CAST(? AS date) + INTERVAL '1 day'";
         $params[] = $q['to'];
-    }    
-        $terms = array_values(array_filter(
+    }
+    $terms = array_values(array_filter(
         array_map('trim', explode(',', (string) ($q['search'] ?? ''))),
         fn($t) => $t !== ''
     ));
@@ -176,11 +196,17 @@ function buildFilters(array $q, array $actionLabels, array $roleLabels, array $c
                 array_push($params, ...$cats);
             }
 
-            // Role, as shown on screen.
-            $roles = array_keys(array_filter($roleLabels, fn($label) => $has($label)));
+            // Role, as shown on screen. Counselors and facilitators share actor_role 'counselor'.
+            $roles = array_keys(array_filter(array_diff_key($roleLabels, ['counselor' => true]), fn($label) => $has($label)));
             if ($roles) {
                 $or[] = 'al.actor_role IN (' . implode(',', array_fill(0, count($roles), '?')) . ')';
                 array_push($params, ...$roles);
+            }
+            if ($has(StaffPosition::LABELS['counselor'])) {
+                $or[] = "(al.actor_role = 'counselor' AND COALESCE(u.staff_position, 'counselor') <> 'facilitator')";
+            }
+            if ($has(StaffPosition::LABELS['facilitator'])) {
+                $or[] = "(al.actor_role = 'counselor' AND u.staff_position = 'facilitator')";
             }
 
             // Rows with no user behind them.
@@ -198,11 +224,14 @@ function buildFilters(array $q, array $actionLabels, array $roleLabels, array $c
             if ($has('Success')) {
                 $or[] = 'NOT ' . FAILED_SQL;
             }
+            if ($has('Blocked')) {
+                $or[] = "al.action IN ('" . implode("', '", BLOCKED_ACTIONS) . "')";
+            }
 
             $where[] = '(' . implode(' OR ', $or) . ')';
         }
     }
-            return [implode(' AND ', $where), $params];
+    return [implode(' AND ', $where), $params];
 }
 
 
@@ -225,7 +254,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['export'])) {
 
     $filters = exportFilterText($_GET, $categoryLabels);
     [$where, $params] = buildFilters($_GET, $actionLabels, $roleLabels, $categoryLabels);
-    $sql = "SELECT al.created_at, u.username, u.full_name, al.actor_role, al.action, al.target_type, al.ip_address, st.first_name_enc, st.last_name_enc
+    $sql = "SELECT al.created_at, u.username, u.full_name, u.staff_position, al.actor_role, al.action, al.target_type, al.ip_address, st.first_name_enc, st.last_name_enc
             FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id LEFT JOIN students st ON st.user_id = al.actor_user_id
             WHERE $where ORDER BY al.created_at DESC LIMIT " . (MAX_EXPORT_ROWS + 1);
     $stmt = $pdo->prepare($sql);
@@ -247,11 +276,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['export'])) {
             $rows[] = [
                 (new DateTime($row['created_at']))->format('M j, Y g:i:s A'),
                 actorLabel($row),
-                roleLabel($row['actor_role'], $roleLabels),
+                roleLabel($row['actor_role'], $roleLabels, $row['staff_position']),
                 actionLabel($row['action'], $actionLabels),
                 categoryLabel($row['target_type'], $categoryLabels),
                 (string) ($row['ip_address'] ?? '-'),
-                (str_ends_with($row['action'], FAILED_SUFFIX) || in_array($row['action'], ['login_lockout', 'login_shared_suspected'], true)) ? 'Failed' : 'Success',
+                statusOf($row['action']),
             ];
         }
         $pdfBytes = AuditLogPdf::build($rows, [
@@ -278,7 +307,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['export'])) {
 }
 
 $page = max(1, (int) ($_GET['page'] ?? 1));
-// The page loads more rows on demand ("Load more"), so the size is caller-chosen (capped).
+// The page picks the page size (25, 50 or 100); anything else is kept between 1 and 100.
 $pageSize = min(100, max(1, (int) ($_GET['pageSize'] ?? 10)));
 $sort = ($_GET['sort'] ?? 'desc') === 'asc' ? 'ASC' : 'DESC';
 
@@ -292,7 +321,7 @@ $totalPages = max(1, (int) ceil($total / $pageSize));
 $page = min($page, $totalPages);
 $offset = ($page - 1) * $pageSize;
 
-$sql = "SELECT al.id, al.created_at, u.username, u.full_name, al.actor_role, al.action, al.target_type, al.target_id, al.ip_address, st.first_name_enc, st.last_name_enc
+$sql = "SELECT al.id, al.created_at, u.username, u.full_name, u.staff_position, al.actor_role, al.action, al.target_type, al.target_id, al.ip_address, st.first_name_enc, st.last_name_enc
         FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id LEFT JOIN students st ON st.user_id = al.actor_user_id
         WHERE $where
         ORDER BY al.created_at $sort
@@ -305,11 +334,11 @@ $rows = array_map(function ($r) use ($actionLabels, $roleLabels) {
         'id' => (int) $r['id'],
         'timestamp' => (new DateTime($r['created_at']))->format('M j, Y g:i:s A'),
         'user' => actorLabel($r),
-        'role' => roleLabel($r['actor_role'], $roleLabels),
+        'role' => roleLabel($r['actor_role'], $roleLabels, $r['staff_position']),
         'action' => actionLabel($r['action'], $actionLabels),
         'module' => $r['target_type'] ?? '-',
         'ip' => $r['ip_address'],
-        'status' => (str_ends_with($r['action'], FAILED_SUFFIX) || in_array($r['action'], ['login_lockout', 'login_shared_suspected'], true)) ? 'Failed' : 'Success',
+        'status' => statusOf($r['action']),
     ];
 }, $stmt->fetchAll());
 
