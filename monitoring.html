@@ -107,55 +107,6 @@
         </div>
       </div>
 
-      <!-- How a student gets flagged -->
-      <div class="bg-white border border-slate-100 rounded-xl shadow-sm p-[21px] mb-6">
-        <p class="text-sm font-bold text-slate-900">How a student gets flagged</p>
-        <ol class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <li class="flex gap-3">
-            <span class="shrink-0 w-6 h-6 rounded-full bg-[#001c43] text-white text-xs font-semibold flex items-center justify-center">1</span>
-            <div>
-              <p class="text-sm font-medium text-slate-800">Takes the assessment</p>
-              <p class="text-xs text-slate-500 mt-0.5">The student completes the RIASEC Assessment.</p>
-            </div>
-          </li>
-          <li class="flex gap-3">
-            <span class="shrink-0 w-6 h-6 rounded-full bg-[#001c43] text-white text-xs font-semibold flex items-center justify-center">2</span>
-            <div>
-              <p class="text-sm font-medium text-slate-800">Submits the worksheet</p>
-              <p class="text-xs text-slate-500 mt-0.5">They pick the program they are interested in and their electives.</p>
-            </div>
-          </li>
-          <li class="flex gap-3">
-            <span class="shrink-0 w-6 h-6 rounded-full bg-[#001c43] text-white text-xs font-semibold flex items-center justify-center">3</span>
-            <div>
-              <p class="text-sm font-medium text-slate-800">System checks the match</p>
-              <p class="text-xs text-slate-500 mt-0.5">If the student's highest cosine similarity (Best RIASEC Match) is below <span id="flowThreshold" class="font-semibold text-slate-700">0.50</span>, they are flagged automatically. The cut-off is set in Security Configuration.</p>
-            </div>
-          </li>
-          <li class="flex gap-3">
-            <span class="shrink-0 w-6 h-6 rounded-full bg-[#ed1c24] text-white text-xs font-semibold flex items-center justify-center">4</span>
-            <div>
-              <p class="text-sm font-medium text-slate-800">Counselor reviews</p>
-              <p class="text-xs text-slate-500 mt-0.5">The student waits under Needs Review until a counselor picks one of the three actions below.</p>
-            </div>
-          </li>
-        </ol>
-        <div class="mt-5 pt-5 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <div>
-            <p class="text-xs font-semibold text-slate-800">Approve Recommendation</p>
-            <p class="text-xs text-slate-500 mt-0.5">The system's result stands. The flag closes and the student is notified that a counselor reviewed their assessment.</p>
-          </div>
-          <div>
-            <p class="text-xs font-semibold text-slate-800">Escalate to Counselor</p>
-            <p class="text-xs text-slate-500 mt-0.5">The student needs a follow-up. They move to the Counseling Queue.</p>
-          </div>
-          <div>
-            <p class="text-xs font-semibold text-slate-800">Dismiss Flag</p>
-            <p class="text-xs text-slate-500 mt-0.5">No action needed. The flag closes and the student is not notified.</p>
-          </div>
-        </div>
-      </div>
-
       <!-- Summary Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
 
@@ -256,7 +207,6 @@
 
         <div class="bg-slate-50 border-t border-slate-100 flex items-center justify-between px-4 py-4 flex-wrap gap-3">
           <p class="text-sm text-slate-500" id="flaggedSummary">Loading…</p>
-          <a href="monitoring-details?tab=needs-review" class="text-sm font-medium text-[#ed1c24] hover:underline">View all flagged recommendations</a>
         </div>
       </div>
 
@@ -471,7 +421,6 @@
     document.getElementById('cardCompleted').textContent = data.summary.completedToday;
     document.getElementById('cardPending').textContent = data.summary.pending;
     document.getElementById('cardCounseling').textContent = data.summary.counseling;
-    if (typeof data.threshold === 'number') document.getElementById('flowThreshold').textContent = data.threshold.toFixed(2);
     document.getElementById('flaggedCount').textContent = data.summary.needsReview;
 
     flaggedTableBody.innerHTML = data.rows.length

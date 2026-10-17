@@ -104,14 +104,13 @@
         <p class="text-sm text-gray-500 mt-1">Approve staff sign-ups, manage sections, and keep the class roster up to date.</p>
       </div>
 
-      <div class="flex flex-col gap-6 max-w-[1100px]">
+      <div class="flex flex-col gap-6">
 
         <!-- Staff sign-ups (admin only) -->
         <section id="staffSection" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           <div class="border-b border-gray-200 px-5 py-5 flex items-start justify-between gap-3 flex-wrap">
             <div>
               <h2 class="text-base font-semibold text-gray-900">Staff Accounts</h2>
-              <p class="text-xs text-gray-500 mt-1">Guidance counselors and facilitators sign up on their own (no password) and wait here for your approval. After you approve, they are emailed a temporary access code to create their own password. You never see it.</p>
             </div>
             <span id="pendingBadge" class="hidden text-xs font-semibold bg-amber-50 border border-amber-200 text-amber-700 rounded-full px-3 py-1"></span>
           </div>
@@ -139,8 +138,6 @@
         <section class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           <div class="border-b border-gray-200 px-5 py-5">
             <h2 class="text-base font-semibold text-gray-900">Sections</h2>
-            <p class="text-xs text-gray-500 mt-1">Sections offered per strand, used for the class roster, assessment scheduling, and student records. Deactivating one keeps existing students' data intact but stops it being offered for new schedules and roster uploads.</p>
-            <p class="text-xs text-gray-500 mt-1">A section code is <span class="font-medium text-gray-700">one letter and four digits</span>, like S1114. The letter matches the strand (S for STEM, A for ABM, I for ICT, H for HUMSS) and the first two digits are the grade level (11 or 12).</p>
           </div>
           <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4" id="sectionsContainer">
             <p class="text-xs text-gray-400">Loading…</p>
@@ -152,13 +149,8 @@
         <section class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           <div class="border-b border-gray-200 px-5 py-5">
             <h2 class="text-base font-semibold text-gray-900">Class Roster</h2>
-            <p class="text-xs text-gray-500 mt-1">Upload the list of students expected this Academic Year. Students on the roster who haven't registered yet show as Not Registered on Student Information.</p>
           </div>
           <div class="p-5 flex flex-col gap-4">
-            <ol class="text-sm text-gray-600 list-decimal pl-5 flex flex-col gap-1">
-              <li>Download the template. Type the Strand and Section once at the top (a section code is one letter and four digits, like S1114: S for STEM, A for ABM, I for ICT, H for HUMSS). Then list each student's Student Number (10 to 12 digits), Student Name as LASTNAME, FIRSTNAME MIDDLE, and the student's email (@live.mcl.edu.ph). The email is required for every student.</li>
-              <li>Save it as a .csv or Excel (.xlsx) file and upload it here. Each file is one section; upload a section again to replace just that section's list. Students can register only if their Student Number is on the roster, and the Academic Year is set automatically.</li>
-            </ol>
             <div class="flex items-center gap-3 flex-wrap">
               <a id="downloadTemplateBtn" href="api/roster-template.php" class="inline-flex items-center gap-2 bg-white border border-gray-300 rounded-md px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
                 <svg class="w-4 h-4" viewBox="0 -960 960 960" fill="currentColor"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>

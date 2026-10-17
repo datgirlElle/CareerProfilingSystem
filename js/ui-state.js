@@ -84,16 +84,30 @@
     window.location.reload();
   }
 
+  // Staff header: name and role beside the avatar, for the pages that do not fill them in themselves.
+  function fillStaffHeader(user) {
+    if (!user || user.role === 'student') return;
+    function apply() {
+      var nameEl = document.getElementById('headerUserName');
+      var roleEl = document.getElementById('headerUserRole');
+      if (nameEl && !nameEl.textContent.trim()) nameEl.textContent = user.displayName || user.username || '';
+      if (roleEl && !roleEl.textContent.trim()) roleEl.textContent = user.positionLabel || ({ admin: 'Administrator', counselor: 'Guidance Counselor' })[user.role] || '';
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(apply, 0); });
+    else setTimeout(apply, 0);
+  }
+
   function sessionCall(input, init) {
     var cached = cacheServed ? null : readProfile();
     cacheServed = true;
     var network = patchedFetch(input, init);
     if (!cached) {
       return network.then(function (res) {
-        res.clone().json().then(writeProfile).catch(function () {});
+        res.clone().json().then(function (data) { writeProfile(data); fillStaffHeader(data && data.user); }).catch(function () {});
         return res;
       });
     }
+    fillStaffHeader(cached.user);
     network.then(function (res) { return res.clone().json(); })
       .then(function (fresh) { reconcile(cached, fresh); })
       .catch(function () { /* offline or a server error: keep what is on screen */ });
@@ -410,6 +424,40 @@
       }
     }
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', upgradePlaceholders);
-  else upgradePlaceholders();
+  // Screen readers announce the highlighted sidebar link as the current page (the staff menu already sets this).
+  function markCurrentNavLink() {
+    var links = document.querySelectorAll('#sidebar a.text-\\[\\#ed1c24\\].border-\\[\\#ed1c24\\]:not([aria-current])');
+    for (var i = 0; i < links.length; i++) links[i].setAttribute('aria-current', 'page');
+  }
+  // Icon-only header buttons get a name screen readers can announce.
+  function nameIconButtons() {
+    var bell = document.getElementById('notifBtn');
+    if (bell && !bell.getAttribute('aria-label')) bell.setAttribute('aria-label', 'Notifications');
+    var profile = document.getElementById('profileBtn');
+    if (profile && !profile.getAttribute('aria-haspopup')) profile.setAttribute('aria-haspopup', 'menu');
+  }
+  // Form fields are announced with their visible label. A <label> written just before its field (without for="")
+  // is linked to that field; a field with no label at all falls back to its placeholder as its name.
+  function linkLabels() {
+    var CONTROL = 'input:not([type=hidden]):not([type=checkbox]):not([type=radio]), select, textarea';
+    var labels = document.querySelectorAll('label:not([for])');
+    for (var i = 0; i < labels.length; i++) {
+      var label = labels[i];
+      if (label.querySelector(CONTROL + ', input')) continue; // already wraps its field
+      var next = label.nextElementSibling, field = null;
+      if (next && next.matches(CONTROL)) field = next;
+      else if (next && next.querySelectorAll(CONTROL).length === 1) field = next.querySelector(CONTROL);
+      if (field && field.id && !document.querySelector('label[for="' + field.id + '"]')) label.htmlFor = field.id;
+    }
+    var fields = document.querySelectorAll(CONTROL);
+    for (var j = 0; j < fields.length; j++) {
+      var f = fields[j];
+      if (f.labels && f.labels.length) continue;
+      if (f.getAttribute('aria-label') || f.getAttribute('aria-labelledby') || f.title) continue;
+      if (f.placeholder) f.setAttribute('aria-label', f.placeholder.replace(/…|\.\.\.$/, '').trim());
+    }
+  }
+  function onReady() { upgradePlaceholders(); markCurrentNavLink(); nameIconButtons(); linkLabels(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', onReady);
+  else onReady();
 })();
