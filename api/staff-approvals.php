@@ -43,7 +43,7 @@ $body = readJsonBody();
 $type = (string) ($body['type'] ?? '');
 $id = (int) ($body['id'] ?? 0);
 
-$stmt = $pdo->prepare("SELECT id, username, full_name, email, email_verified_at, is_active, approval_status FROM users WHERE id = ? AND role = 'counselor'");
+$stmt = $pdo->prepare("SELECT id, username, full_name, staff_position, email, email_verified_at, is_active, approval_status FROM users WHERE id = ? AND role = 'counselor'");
 $stmt->execute([$id]);
 $target = $stmt->fetch();
 if (!$target) {
@@ -118,7 +118,10 @@ if ($type === 'toggleActive') {
     // Bind an int, not a PHP bool: execute() stringifies false to '', which
     // Postgres's boolean type rejects.
     $pdo->prepare('UPDATE users SET is_active = ?, updated_at = NOW() WHERE id = ?')->execute([(int) $newState, $id]);
-    AuditLogger::log($user['id'], $user['role'], $newState ? 'activate_staff_account' : 'deactivate_staff_account', 'user', (string) $id);
+    // Who it was, as it stood at the time (the audit log shows this in the row details).
+    $who = trim((string) ($target['full_name'] ?? '')) !== '' ? $target['full_name'] : $target['username'];
+    AuditLogger::log($user['id'], $user['role'], $newState ? 'activate_staff_account' : 'deactivate_staff_account', 'user', (string) $id,
+        $who . ' (' . StaffPosition::label($target['staff_position'] ?? null) . ')');
     jsonResponse(['success' => true, 'isActive' => $newState]);
 }
 

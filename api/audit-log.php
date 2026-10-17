@@ -4,6 +4,7 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/RateLimiter.php';
 require_once __DIR__ . '/../lib/AuditLogPdf.php';
 require_once __DIR__ . '/../lib/StaffPosition.php';
+require_once __DIR__ . '/../lib/QuestionBank.php';
 
 $user = Rbac::requireAccess('rac', 'full'); // audit visibility lives alongside the other security/system admin tools
 
@@ -17,24 +18,135 @@ const FAILED_SQL = "(al.action LIKE '%_failed' OR al.action IN ('login_lockout',
 // A lockout is shown as "Blocked". It stays a failure in FAILED_SQL, so the Status filter and the
 // summary cards still count it as Failed.
 const BLOCKED_ACTIONS = ['login_lockout'];
+// Who did it, in 5 groups: for the summary card breakdowns and the exact role filter. Fixed SQL.
+// Counselors and facilitators share actor_role 'counselor'; staff_position tells them apart.
+const ROLE_BUCKET_SQL = "(CASE WHEN al.actor_user_id IS NULL THEN 'none'"
+    . " WHEN al.actor_role = 'counselor' AND u.staff_position = 'facilitator' THEN 'facilitator'"
+    . " ELSE COALESCE(al.actor_role, 'none') END)";
+const ROLE_BUCKETS = [
+    'admin' => 'Administrator', 'counselor' => 'Guidance Counselor', 'facilitator' => 'Guidance Facilitator',
+    'student' => 'Student', 'none' => 'No account',
+];
+// Details panel: on these the target is a sign-in name. A failed sign-in stores whatever was typed in
+// the username or email box (sometimes a password typed in the wrong box), and a student's username is
+// their Student Number, so the panel only shows the first 2 characters, or nothing when no account
+// matched (then the text is most likely a mistyped password).
+const SIGN_IN_ACTIONS = ['login', 'login_failed', 'login_lockout', 'login_shared_suspected', 'logout', 'staff_activation_failed'];
+// Details panel: these details are sensitive student data (a help request's subject, RIASEC results,
+// a school id, a worksheet score, a counselor's retake decision note, staff notes on a monitoring
+// flag). The other pages show them only with the right module access and inside StaffScope, so here
+// the panel says they are hidden and points to the student's record instead.
+const HIDDEN_DETAIL_ACTIONS = [
+    'submit_help_request', 'submit_assessment', 'register', 'submit_worksheet',
+    'approve_retake', 'decline_retake', 'monitoring_approve', 'monitoring_escalate', 'monitoring_dismiss',
+];
+// Staff actions on a student's account, logged with target_type 'user' and the student's user id
+// (api/students.php). Like target_type 'student', only admins see which student and the detail.
+const STUDENT_ACCOUNT_ACTIONS = ['activate_student_account', 'deactivate_student_account', 'reset_student_assessment', 'update_student_section'];
 
+// A written name for every action the app logs (past tense, plain words). An action missing here is
+// shown by its code with the underscores turned into spaces.
 $actionLabels = [
+    // Signing in and accounts
     'login' => 'Signed in',
     'login_failed' => 'Failed sign-in',
     'login_lockout' => 'Account locked',
     'login_shared_suspected' => 'Possible shared account',
     'logout' => 'Signed out',
     'register' => 'Registered new account',
+    'verify_email' => 'Verified email',
+    'request_password_reset' => 'Requested password reset',
+    'reset_password' => 'Reset password',
+    'password_reset_code_failed' => 'Password reset code failed',
+    'change_password' => 'Changed password',
+    'change_password_pending' => 'Started password change',
+    'change_password_code_resent' => 'Resent password change code',
+    'change_password_code_send_failed' => 'Password change code not sent',
+    'change_password_failed' => 'Password change failed',
+    'update_avatar' => 'Changed profile photo',
+    'remove_avatar' => 'Removed profile photo',
+    // Staff accounts
+    'staff_signup' => 'Staff signed up',
+    'create_staff_account' => 'Created staff account',   // older entries only
+    'approve_staff_account' => 'Approved staff account',
+    'reject_staff_account' => 'Rejected staff account',
+    'resend_staff_setup_code' => 'Resent staff setup code',
+    'staff_account_activated' => 'Staff account set up',
+    'staff_activation_failed' => 'Staff account setup failed',
+    'activate_staff_account' => 'Activated staff account',
+    'deactivate_staff_account' => 'Deactivated staff account',
+    'assign_staff_sections' => 'Assigned staff sections',
+    // Students, sections and programs
+    'activate_student_account' => 'Activated student account',
+    'deactivate_student_account' => 'Deactivated student account',
+    'update_student_section' => 'Changed student section',
+    'reset_student_assessment' => 'Reset student assessment',
+    'export_student_list' => 'Exported student list',
+    'export_student_roster' => 'Exported student roster',
+    'upload_roster' => 'Uploaded class roster',
+    'create_section' => 'Added section',
+    'delete_section' => 'Deleted section',
+    'activate_section' => 'Activated section',
+    'deactivate_section' => 'Deactivated section',
+    'create_program' => 'Added program',
+    'update_program' => 'Edited program',
+    'activate_program' => 'Activated program',
+    'deactivate_program' => 'Deactivated program',
+    // Assessment
     'submit_assessment' => 'Submitted RIASEC assessment',
-    'update_question' => 'Updated assessment question',
-    'update_rbac' => 'Access permissions changed',
-    'update_policy' => 'Security setting changed',
-    'update_settings' => 'Security setting changed',
-    'create_faq' => 'Create FAQ',
-    'update_faq' => 'Update FAQ',
-    'delete_faq' => 'Delete FAQ',
+    'assessment_resubmit_denied' => 'Tried to resubmit assessment',
+    'submit_worksheet' => 'Submitted worksheet',
+    'request_retake' => 'Requested assessment retake',
+    'approve_retake' => 'Approved retake request',
+    'decline_retake' => 'Declined retake request',
+    'retake_started' => 'Started assessment retake',
+    'access_code_verified' => 'Entered exam access code',
+    'access_code_failed' => 'Wrong exam access code',
+    'access_code_throttled' => 'Too many exam code attempts',
+    'add_question' => 'Added question',
+    'update_question' => 'Edited question',
+    'delete_question' => 'Deleted question',
+    'load_question_set' => 'Loaded question set',
+    'create_exam_schedule' => 'Added exam schedule',
+    'delete_exam_schedule' => 'Deleted exam schedule',
+    'regenerate_exam_schedule_code' => 'Made new exam access code',
+    // Announcements, FAQs and student support
+    'create_announcement' => 'Posted announcement',
+    'draft_announcement' => 'Saved announcement draft',
+    'update_announcement' => 'Edited announcement',
+    'delete_announcement' => 'Deleted announcement',
+    'remind_announcement' => 'Sent announcement reminder',
+    'announcement_emailed' => 'Emailed announcement',
+    'create_announcement_template' => 'Added announcement template',
+    'update_announcement_template' => 'Edited announcement template',
+    'delete_announcement_template' => 'Deleted announcement template',
+    'create_faq' => 'Added FAQ',
+    'update_faq' => 'Edited FAQ',
+    'delete_faq' => 'Deleted FAQ',
+    'submit_help_request' => 'Sent help request',
+    'resolve_help_request' => 'Resolved help request',
+    'add_counseling_note' => 'Added counseling note',
+    'invite_to_counseling' => 'Invited to counseling',
+    'invite_unregistered_students' => 'Invited unregistered students',
+    'send_student_reminders' => 'Sent student reminders',
+    'monitoring_approve' => 'Approved monitoring flag',
+    'monitoring_escalate' => 'Escalated monitoring flag',
+    'monitoring_dismiss' => 'Dismissed monitoring flag',
+    'view_cbf_debug' => 'Viewed recommendation details',
+    // Reports and exports
+    'export_analytics_xlsx' => 'Exported analytics report',
+    'export_analytics_xlsx_failed' => 'Analytics export failed',
+    'send_principal_report' => 'Sent principal report',
+    'send_principal_report_failed' => 'Principal report not sent',
     'export_audit_log' => 'Exported audit log',
     'export_audit_log_failed' => 'Audit log export failed',
+    // Security settings
+    'update_rbac' => 'Changed access permissions',
+    'update_policy' => 'Changed security setting',
+    'update_settings' => 'Changed security setting',
+    'update_office_hours' => 'Changed office hours',
+    'update_booking_link' => 'Changed booking link',
+    'update_principal_contact' => 'Changed principal contact',
 ];
 
 $roleLabels = [
@@ -95,6 +207,149 @@ function roleLabel(?string $role, array $labels, ?string $position = null): stri
     return $labels[$role] ?? ucfirst($role);
 }
 
+/** "Su***": enough to recognize a sign-in attempt without showing what was typed. */
+function maskTyped(string $text): string
+{
+    return mb_strlen($text) <= 2 ? '***' : mb_substr($text, 0, 2) . '***';
+}
+
+/**
+ * Plain words for the details. Older security setting entries saved the raw request as JSON, like
+ * {"type":"policy","key":"lockout","maxAttempts":3}; that becomes "Account lockout" plus one line per
+ * setting ("Failed attempts before lockout: 3"). Any other text is returned as it is.
+ */
+function readableDetail(string $detail): string
+{
+    $data = json_decode($detail, true);
+    if (!is_array($data) || $data === [] || array_is_list($data)) {
+        return $detail;
+    }
+    $labels = [
+        'enabled' => 'Status', 'minLength' => 'Minimum password length', 'requireUpper' => 'Needs an uppercase letter',
+        'requireLower' => 'Needs a lowercase letter', 'requireNumber' => 'Needs a number', 'requireSymbol' => 'Needs a symbol',
+        'maxAttempts' => 'Failed attempts before lockout', 'lockoutMinutes' => 'Lockout length', 'retentionDays' => 'Log retention',
+        'twoFactor' => 'Two-step sign-in', 'sessionTimeoutEnabled' => 'Session timeout', 'timeoutMinutes' => 'Timeout length',
+    ];
+    $units = ['lockoutMinutes' => 'minute', 'timeoutMinutes' => 'minute', 'retentionDays' => 'day'];
+    $switches = ['enabled', 'twoFactor', 'sessionTimeoutEnabled'];   // On/Off; other yes/no settings say Yes/No
+    $headings = ['password' => 'Password policy', 'lockout' => 'Account lockout', 'monitoring' => 'Login monitoring'];
+
+    $lines = [];
+    if (($data['type'] ?? '') === 'policy' && isset($headings[$data['key'] ?? ''])) {
+        $lines[] = $headings[$data['key']];
+    } elseif (($data['type'] ?? '') === 'settings') {
+        $lines[] = 'Sign-in and session settings';
+    }
+    foreach ($data as $key => $value) {
+        if ($key === 'type' || $key === 'key') {
+            continue;
+        }
+        $label = $labels[$key] ?? ucfirst(strtolower(preg_replace('/(?<!^)([A-Z])/', ' $1', (string) $key)));
+        if (is_bool($value)) {
+            $text = in_array($key, $switches, true) ? ($value ? 'On' : 'Off') : ($value ? 'Yes' : 'No');
+        } elseif (isset($units[$key]) && is_numeric($value)) {
+            $text = $value . ' ' . $units[$key] . ((int) $value === 1 ? '' : 's');
+        } else {
+            $text = is_scalar($value) ? (string) $value : json_encode($value);
+        }
+        $lines[] = "$label: $text";
+    }
+    return implode("\n", $lines);
+}
+
+/**
+ * The target in plain words, as [label, text], or [null, null] when there is nothing useful to show.
+ * Accounts are shown by name (a student's name only to admins, or when it is the student's own row);
+ * numbers and setting keys like "lockout" or "rac:counselor" are left out, since the details say
+ * what the activity was about and a bare id means nothing to a person.
+ */
+function readableTarget(PDO $pdo, array $r, string $target, bool $viewerIsAdmin): array
+{
+    $action = $r['action'];
+    if ($target === '') {
+        return [null, null];
+    }
+    if (str_starts_with($action, 'export_audit_log')) {
+        return ['Reference', $target];
+    }
+    if (in_array($action, SIGN_IN_ACTIONS, true)) {
+        return [$action === 'staff_activation_failed' ? 'Username or email' : 'Username', $target];
+    }
+    // A class roster invite stores a roster entry number, not an account number: no name lookup.
+    if ($action === 'invite_unregistered_students') {
+        return [null, null];
+    }
+    // Only numbers that can be a users.id (INT) are looked up.
+    if (in_array($r['target_type'], ['user', 'student'], true) && ctype_digit($target) && strlen($target) <= 10 && (int) $target <= 2147483647) {
+        if ($r['actor_user_id'] !== null && (int) $r['actor_user_id'] === (int) $target) {
+            return [null, null];   // their own account: the Name column already says who
+        }
+        $find = $pdo->prepare('SELECT u.role, u.username, u.full_name, u.staff_position, st.first_name_enc, st.last_name_enc
+                               FROM users u LEFT JOIN students st ON st.user_id = u.id WHERE u.id = ?');
+        $find->execute([(int) $target]);
+        $account = $find->fetch();
+        if (!$account) {
+            return ['Account', "#$target (removed)"];
+        }
+        if ($account['role'] === 'student') {
+            if (!$viewerIsAdmin) {
+                return [null, null];
+            }
+            try {
+                $name = trim(Crypto::dec($account['last_name_enc'] ?? '') . ', ' . Crypto::dec($account['first_name_enc'] ?? ''), ' ,');
+            } catch (Throwable $e) {
+                $name = '';
+            }
+            return ['Account', ($name !== '' ? $name : "#$target") . ' (Student)'];
+        }
+        $name = trim((string) $account['full_name']) !== '' ? $account['full_name'] : $account['username'];
+        $position = $account['role'] === 'counselor' ? StaffPosition::label($account['staff_position']) : 'Administrator';
+        return ['Account', "$name ($position)"];
+    }
+    if (ctype_digit($target) || in_array($r['target_type'], ['security_policies', 'security_rbac'], true)) {
+        return [null, null];
+    }
+    return ['About', $target];
+}
+
+/**
+ * Older entries saved less. A question entry saved only "Dimension E" or "Dimension E#5": show the
+ * type's name and, if the question still exists, its text now. Deletes that saved nothing say so.
+ * Returns [detail, note].
+ */
+function olderEntryDetail(PDO $pdo, array $r, ?string $detail): array
+{
+    if ($detail !== null && $r['target_type'] === 'assessment_question' && preg_match('/^Dimension ([RIASEC])(?:#\d+)?$/', $detail, $m)) {
+        $line = (QuestionBank::NAMES[$m[1]] ?? $m[1]) . ' question';
+        $find = $pdo->prepare('SELECT question_text_enc FROM assessment_questions WHERE id = ?');
+        $find->execute([(int) $r['target_id']]);
+        $enc = $find->fetchColumn();
+        if ($enc !== false && $r['action'] !== 'delete_question') {
+            try {
+                return [$line . "\nText now: \"" . Crypto::dec($enc) . '"', null];
+            } catch (Throwable $e) {
+                // fall through to "not saved"
+            }
+        }
+        return [$line . "\nIts text was not saved (older entry).", null];
+    }
+    if ($detail === null && in_array($r['action'], ['delete_exam_schedule', 'delete_announcement'], true)) {
+        return [null, 'What was deleted was not saved (older entry).'];
+    }
+    // Exam schedules are saved as "2026-10-14 09:20-13:00, room R301, AY 2026-2027, strand STEM";
+    // show the date and times the way people write them, one fact per line.
+    if ($detail !== null && $r['target_type'] === 'exam_schedule'
+        && preg_match('/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})(?::\d{2})?-(\d{2}:\d{2})(?::\d{2})?, room (.+?), AY ([^,]+)(.*)$/', $detail, $m)) {
+        $time = fn(string $hm) => DateTime::createFromFormat('H:i', $hm)->format('g:i A');
+        $lines = [DateTime::createFromFormat('Y-m-d', $m[1])->format('M j, Y') . ', ' . $time($m[2]) . ' to ' . $time($m[3]), "Room {$m[4]}", "AY {$m[5]}"];
+        foreach (array_filter(array_map('trim', explode(',', $m[6]))) as $extra) {
+            $lines[] = ucfirst($extra);   // "strand STEM" -> "Strand STEM", "section S1243" -> "Section S1243"
+        }
+        return [implode("\n", $lines), null];
+    }
+    return [$detail, null];
+}
+
 function categoryLabel(?string $type, array $labels): string
 {
     if ($type === null || $type === '') {
@@ -120,11 +375,12 @@ function exportFilterText(array $q, array $categoryLabels): string
     $m = $q['module'] ?? '';
     $category = (empty($m) || $m === 'All') ? 'All'
         : ((is_string($m) && preg_match('/^[a-z_]{1,50}$/', $m)) ? categoryLabel($m, $categoryLabels) : 'Unknown (no matches)');
+    $role = is_string($q['role'] ?? null) && isset(ROLE_BUCKETS[$q['role']]) ? ROLE_BUCKETS[$q['role']] : 'All';
     $search = is_string($q['search'] ?? null) ? trim($q['search']) : '';
     if (mb_strlen($search) > 60) {
         $search = mb_substr($search, 0, 60) . '...';
     }
-    return "Dates: $dates | Status: $status | Category: $category | Search: " . ($search === '' ? 'none' : '"' . $search . '"');
+    return "Dates: $dates | Status: $status | Category: $category | Role: $role | Search: " . ($search === '' ? 'none' : '"' . $search . '"');
 }
 
 function buildFilters(array $q, array $actionLabels, array $roleLabels, array $categoryLabels): array
@@ -138,6 +394,12 @@ function buildFilters(array $q, array $actionLabels, array $roleLabels, array $c
     if (!empty($q['module']) && $q['module'] !== 'All') {
         $where[] = 'al.target_type = ?';
         $params[] = $q['module'];
+    }
+    // Exact role (set by clicking a role in a card breakdown). Searching a role name is not exact:
+    // "Student" also matches actions such as "Activated student account".
+    if (is_string($q['role'] ?? null) && isset(ROLE_BUCKETS[$q['role']])) {
+        $where[] = ROLE_BUCKET_SQL . ' = ?';
+        $params[] = $q['role'];
     }
     if (!empty($q['from']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $q['from'])) {
         $where[] = 'al.created_at >= CAST(? AS date)';
@@ -306,6 +568,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['export'])) {
     exit;
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
+    // One activity for the details panel (same rac full access check as the list, at the top).
+    $stmt = $pdo->prepare(
+        'SELECT al.id, al.created_at, al.actor_user_id, u.username, u.full_name, u.staff_position, al.actor_role, al.action, al.target_type,
+                al.target_id, al.detail_enc, al.ip_address, st.first_name_enc, st.last_name_enc
+         FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id LEFT JOIN students st ON st.user_id = al.actor_user_id
+         WHERE al.id = ?'
+    );
+    $stmt->execute([(int) $_GET['id']]);
+    $r = $stmt->fetch();
+    if (!$r) {
+        jsonResponse(['error' => 'That activity was not found.'], 404);
+    }
+
+    $target = (string) ($r['target_id'] ?? '');
+    if ($target !== '' && in_array($r['action'], SIGN_IN_ACTIONS, true)) {
+        $target = $r['actor_user_id'] === null ? '***' : maskTyped($target);
+    }
+    // Which student a counseling note, invite, retake decision or account change was about: other pages
+    // show that only with the right module access and inside StaffScope, so here only admins see it.
+    $studentAccountAction = in_array($r['action'], STUDENT_ACCOUNT_ACTIONS, true);
+    $hideStudent = $user['role'] !== 'admin' && ($r['target_type'] === 'student' || $studentAccountAction);
+    if ($hideStudent) {
+        $target = '';
+    }
+    [$targetLabel, $targetText] = readableTarget($pdo, $r, $target, $user['role'] === 'admin');
+
+    $detail = null;
+    $detailNote = null;
+    if (in_array($r['action'], HIDDEN_DETAIL_ACTIONS, true) || ($hideStudent && $studentAccountAction)) {
+        $detailNote = "Hidden: sensitive student data. Open the student's record to see it.";
+    } elseif ($r['detail_enc'] !== null) {
+        try {
+            $detail = readableDetail(Crypto::dec($r['detail_enc']));
+        } catch (Throwable $e) {
+            $detailNote = 'Could not be read.';
+        }
+    }
+    if ($detailNote === null) {
+        [$detail, $detailNote] = olderEntryDetail($pdo, $r, $detail);
+    }
+    try {
+        $name = actorLabel($r);
+    } catch (Throwable $e) {
+        $name = 'Could not be read';
+    }
+
+    jsonResponse([
+        'id' => (int) $r['id'],
+        'timestamp' => (new DateTime($r['created_at']))->format('D, M j, Y g:i:s A'),
+        'name' => $name,
+        'role' => roleLabel($r['actor_role'], $roleLabels, $r['staff_position']),
+        'action' => actionLabel($r['action'], $actionLabels),
+        'category' => categoryLabel($r['target_type'], $categoryLabels),
+        'status' => statusOf($r['action']),
+        'ip' => $r['ip_address'],
+        'targetLabel' => $targetLabel,
+        'target' => $targetText,
+        'detail' => $detail,
+        'detailNote' => $detailNote,
+    ]);
+}
+
 $page = max(1, (int) ($_GET['page'] ?? 1));
 // The page picks the page size (25, 50 or 100); anything else is kept between 1 and 100.
 $pageSize = min(100, max(1, (int) ($_GET['pageSize'] ?? 10)));
@@ -369,6 +694,41 @@ if ($filtered) {
     $overallTotal = $total;
 }
 
+// Card breakdowns by role, over the same rows as the cards (so they follow the filters). Every group
+// is always listed, in a fixed order, so the rows add up to the card's number.
+$breakdownStmt = $pdo->prepare(
+    'SELECT ' . ROLE_BUCKET_SQL . ' AS bucket, COUNT(*) AS total,
+            COUNT(*) FILTER (WHERE ' . FAILED_SQL . ") AS failed,
+            COUNT(*) FILTER (WHERE al.action IN ('" . implode("', '", BLOCKED_ACTIONS) . "')) AS blocked,
+            COUNT(DISTINCT al.actor_user_id) AS people
+     FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id
+     WHERE $where GROUP BY bucket"
+);
+$breakdownStmt->execute($params);
+$byBucket = [];
+foreach ($breakdownStmt->fetchAll() as $b) {
+    $byBucket[$b['bucket']] = $b;
+}
+// Without filters, Users Active means the last 7 days, so its breakdown does too.
+$peopleLastWeek = $filtered ? [] : $pdo->query(
+    'SELECT ' . ROLE_BUCKET_SQL . " AS bucket, COUNT(DISTINCT al.actor_user_id)
+     FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id
+     WHERE al.created_at >= NOW() - INTERVAL '7 days' GROUP BY bucket"
+)->fetchAll(PDO::FETCH_KEY_PAIR);
+$breakdown = [];
+foreach (ROLE_BUCKETS as $key => $label) {
+    $b = $byBucket[$key] ?? ['total' => 0, 'failed' => 0, 'blocked' => 0, 'people' => 0];
+    $breakdown[] = [
+        'role' => $key,
+        'label' => $label,
+        'total' => (int) $b['total'],
+        'successful' => (int) $b['total'] - (int) $b['failed'],
+        'failed' => (int) $b['failed'],
+        'blocked' => (int) $b['blocked'],
+        'people' => $key === 'none' ? 0 : (int) ($filtered ? $b['people'] : ($peopleLastWeek[$key] ?? 0)),
+    ];
+}
+
 jsonResponse([
     'rows' => $rows,
     'page' => $page,
@@ -384,5 +744,6 @@ jsonResponse([
         'usersActive' => $usersActive,
         'filtered' => $filtered,
         'overallTotal' => $overallTotal,
+        'breakdown' => $breakdown,
     ],
 ]);

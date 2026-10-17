@@ -344,15 +344,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($type === 'delete') {
         $id = (int) ($body['id'] ?? 0);
         try {
-            $stmt = $pdo->prepare('DELETE FROM exam_schedules WHERE id = ?');
+            $stmt = $pdo->prepare('DELETE FROM exam_schedules WHERE id = ? RETURNING exam_date, start_time, end_time, room, academic_year, strand, section');
             $stmt->execute([$id]);
         } catch (Throwable $e) {
             jsonResponse(['success' => false, 'error' => 'Cannot delete this schedule — it still has retake grants referencing it.'], 409);
         }
-        if ($stmt->rowCount() === 0) {
+        $gone = $stmt->fetch();
+        if (!$gone) {
             jsonResponse(['success' => false, 'error' => 'Schedule not found.'], 404);
         }
-        AuditLogger::log($user['id'], $user['role'], 'delete_exam_schedule', 'exam_schedule', (string) $id);
+        // The schedule is gone after this, so the log keeps what it was (in the same words as create).
+        AuditLogger::log($user['id'], $user['role'], 'delete_exam_schedule', 'exam_schedule', (string) $id,
+            "{$gone['exam_date']} " . substr((string) $gone['start_time'], 0, 5) . '-' . substr((string) $gone['end_time'], 0, 5)
+                . ", room {$gone['room']}, AY {$gone['academic_year']}"
+                . ($gone['strand'] ? ", strand {$gone['strand']}" : '') . ($gone['section'] ? ", section {$gone['section']}" : ''));
         jsonResponse(['success' => true]);
     }
 
