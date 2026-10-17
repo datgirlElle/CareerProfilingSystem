@@ -677,11 +677,11 @@
           </div>
         </div>
 
-        <!-- Footer Info Box -->
-        <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-start gap-3 mt-6">
+        <!-- Retention note: says what is really kept (filled from the list answer, see renderRetention). -->
+        <div id="retentionBox" class="hidden bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-start gap-3 mt-6">
           <img src="images/audit/icon-info.svg" alt="" class="w-5 h-5 shrink-0">
-          <p class="text-sm text-blue-800">Audit logs are retained for 365 days in accordance with data privacy and
-            institutional security policies.</p>
+          <p class="text-sm text-blue-800"><span id="retentionText"></span>
+            <a id="retentionLink" href="security-configuration" class="hidden font-medium underline">Change this in Security Configuration.</a></p>
         </div>
 
       </main>
@@ -926,6 +926,7 @@
           }
 
           renderSummary(data.summary);
+          renderRetention(data.retention);
           renderRows(data.rows, data.summary.filtered);
           paginationSummary.innerHTML = countText(data.total, data.summary.filtered);
           exportNote.textContent = exportText(data.total, data.summary.filtered);
@@ -1042,6 +1043,18 @@
           document.getElementById('summaryActiveNote').textContent = summary.activeLastWeek ? 'last 7 days' : 'in these results';
           lastSummary = summary;
           renderBreakdown();
+        }
+
+        // The note under the table says what is really kept: deletion of old entries is off unless an
+        // administrator turned it on in Security Configuration (only they get the link).
+        function renderRetention(r) {
+          if (!r) return;
+          const days = r.days.toLocaleString() + ' days';
+          document.getElementById('retentionText').textContent = r.autoDelete
+            ? 'Entries older than ' + days + ' are deleted automatically, once a day when this page is opened.'
+            : 'All entries are kept: automatic deletion is off. When an administrator turns it on, entries older than ' + days + ' are deleted.';
+          document.getElementById('retentionLink').classList.toggle('hidden', !r.canChange);
+          document.getElementById('retentionBox').classList.remove('hidden');
         }
 
         // Card breakdowns: click a card to see its number split by role; click a role to show only its
@@ -1569,7 +1582,9 @@
           }
         });
 
-        load();
+        // Runs today's cleanup of old entries first (only when it is turned on, at most once a day), so the
+        // table never shows entries that are about to go. The table loads even if that call fails.
+        fetch('api/audit-log-cleanup.php', { method: 'POST' }).catch(() => {}).finally(() => load());
       })();
     })();
   </script>

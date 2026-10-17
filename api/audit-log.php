@@ -6,6 +6,7 @@ require_once __DIR__ . '/../lib/AuditLogPdf.php';
 require_once __DIR__ . '/../lib/StaffPosition.php';
 require_once __DIR__ . '/../lib/QuestionBank.php';
 require_once __DIR__ . '/../lib/AuditChange.php';
+require_once __DIR__ . '/../lib/AuditRetention.php';
 
 $user = Rbac::requireAccess('rac', 'full'); // audit visibility lives alongside the other security/system admin tools
 
@@ -144,6 +145,8 @@ $actionLabels = [
     'send_principal_report_failed' => 'Principal report not sent',
     'export_audit_log' => 'Exported audit log',
     'export_audit_log_failed' => 'Audit log export failed',
+    'delete_old_audit_logs' => 'Deleted old audit logs',
+    'delete_old_audit_logs_failed' => 'Old audit log cleanup failed',
     // Security settings
     'update_rbac' => 'Changed access permissions',
     'update_policy' => 'Changed security setting',
@@ -791,4 +794,6 @@ jsonResponse([
         'overallTotal' => $overallTotal,
         'breakdown' => $breakdown,
     ],
+    // For the note under the table: what is really kept, and whether this person can change it.
+    'retention' => AuditRetention::settings($pdo) + ['canChange' => $user['role'] === 'admin'],
 ]);
