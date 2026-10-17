@@ -13,11 +13,14 @@ $pdo = Database::get();
 // Actions ending in _failed are the only "Failed" outcomes this app currently logs;
 // everything else recorded is by definition a completed action.
 const FAILED_SUFFIX = '_failed';
-// An account lockout is a security event too, so it reads as Failed in the log.
-const FAILED_SQL = "(al.action LIKE '%_failed' OR al.action IN ('login_lockout', 'login_shared_suspected'))";
-// A lockout is shown as "Blocked". It stays a failure in FAILED_SQL, so the Status filter and the
-// summary cards still count it as Failed.
-const BLOCKED_ACTIONS = ['login_lockout'];
+// Security events read as Failed too: a lockout, a possible shared account, and the refusals below.
+// One list for the SQL (FAILED_SQL) and the PHP rule (statusOf), so they cannot drift apart.
+const FAILED_ACTIONS = ['login_lockout', 'login_shared_suspected', 'access_code_throttled', 'assessment_resubmit_denied'];
+define('FAILED_SQL', "(al.action LIKE '%_failed' OR al.action IN ('" . implode("', '", FAILED_ACTIONS) . "'))");
+// Refusals by the app's own rules are shown as "Blocked": an account lockout, too many exam code
+// attempts, a second try at a finished assessment. They stay failures in FAILED_SQL, so the Status
+// filter and the summary cards still count them as Failed.
+const BLOCKED_ACTIONS = ['login_lockout', 'access_code_throttled', 'assessment_resubmit_denied'];
 // Who did it, in 5 groups: for the summary card breakdowns and the exact role filter. Fixed SQL.
 // Counselors and facilitators share actor_role 'counselor'; staff_position tells them apart.
 const ROLE_BUCKET_SQL = "(CASE WHEN al.actor_user_id IS NULL THEN 'none'"
@@ -167,13 +170,13 @@ function actionLabel(string $action, array $labels): string
     return $labels[$action] ?? ucwords(str_replace('_', ' ', $action));
 }
 
-/** "Blocked" (an account lockout), "Failed" (the same rule as FAILED_SQL) or "Success". */
+/** "Blocked" (a refusal by a security rule), "Failed" (the same rule as FAILED_SQL) or "Success". */
 function statusOf(string $action): string
 {
     if (in_array($action, BLOCKED_ACTIONS, true)) {
         return 'Blocked';
     }
-    return (str_ends_with($action, FAILED_SUFFIX) || in_array($action, ['login_lockout', 'login_shared_suspected'], true)) ? 'Failed' : 'Success';
+    return (str_ends_with($action, FAILED_SUFFIX) || in_array($action, FAILED_ACTIONS, true)) ? 'Failed' : 'Success';
 }
 
 /** Who did it: staff by username, a student by name (their username is their Student Number, which staff don't see). */
@@ -220,6 +223,15 @@ function maskTyped(string $text): string
  */
 function readableDetail(string $detail): string
 {
+    // Sign-ins save "Successful login", a long dash (U+2014), then the device, for example "Chrome on
+    // Windows". LoginDevice::findConflict() reads that stored form, so only the shown text changes.
+    if (preg_match('/^Successful login\s+\x{2014}\s+(.+)$/u', $detail, $m)) {
+        return 'Device: ' . $m[1];
+    }
+    // Exports save "PDF, 38 activities. Dates: Any time | Status: All | ...": one fact per line.
+    if (preg_match('/^(PDF, \d+ activit(?:y|ies)|Refused: [^.]+)\. (Dates: .+)$/', $detail, $m)) {
+        return implode("\n", array_merge([str_replace('PDF, ', 'PDF with ', $m[1])], explode(' | ', $m[2])));
+    }
     $data = json_decode($detail, true);
     if (!is_array($data) || $data === [] || array_is_list($data)) {
         return $detail;
