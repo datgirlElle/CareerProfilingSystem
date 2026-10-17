@@ -91,6 +91,11 @@
       white-space: nowrap;
       border: 0;
     }
+    /* "Blocked" badge (account lockout): orange, so it reads as a failure but not a plain wrong password. */
+    .badge-blocked {
+      background: #ffedd5;
+      color: #c2410c;
+    }
     /* Failed rows: thin red bar on the left so failures stand out while scrolling. */
     .row-failed td:first-child {
       box-shadow: inset 3px 0 0 #dc2626;
@@ -757,10 +762,14 @@
             return;
           }
           tbody.innerHTML = rows.map(function (r) {
-            const badge = r.status === 'Failed'
-              ? '<span class="bg-red-100 text-red-700 text-xs font-medium px-2.5 py-1 rounded-full">Failed</span>'
-              : '<span class="bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">Success</span>';
-            return '<tr' + (r.status === 'Failed' ? ' class="row-failed"' : '') + '>' +
+            // Blocked (an account lockout) is a kind of Failed: its own badge, the same red row bar.
+            const failed = r.status === 'Failed' || r.status === 'Blocked';
+            const badge = r.status === 'Blocked'
+              ? '<span class="badge-blocked text-xs font-medium px-2.5 py-1 rounded-full">Blocked</span>'
+              : r.status === 'Failed'
+                ? '<span class="bg-red-100 text-red-700 text-xs font-medium px-2.5 py-1 rounded-full">Failed</span>'
+                : '<span class="bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">Success</span>';
+            return '<tr' + (failed ? ' class="row-failed"' : '') + '>' +
               '<td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">' + escapeHtml(r.timestamp) + '</td>' +
               '<td class="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">' + escapeHtml(r.user) + '</td>' +
               '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(r.role) + '</td>' +

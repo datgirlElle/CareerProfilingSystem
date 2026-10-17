@@ -22,6 +22,8 @@ class AuditLogPdf
     private const FOOTER_Y = 590.0;
 
     private const RED = [0.80, 0.11, 0.14];
+    private const ORANGE = [0.76, 0.25, 0.05];   // "Blocked" (an account lockout), as on the page
+    private const INK = [0.12, 0.13, 0.15];
     private const GREY_TEXT = [0.42, 0.45, 0.50];
     private const GREY_FILL = [0.94, 0.95, 0.96];
     private const GREY_LINE = [0.88, 0.89, 0.91];
@@ -44,7 +46,7 @@ class AuditLogPdf
 
     /**
      * @param array<int,array{0:string,1:string,2:string,3:string,4:string,5:string,6:string}> $rows
-     *        timestamp, name, role, action, category, IP address, status ("Success" or "Failed")
+     *        timestamp, name, role, action, category, IP address, status ("Success", "Failed" or "Blocked")
      * @param array{exportedBy:string,exportedAt:string,reference:string,filters:string} $meta
      * @return string the bytes of the .pdf file
      */
@@ -67,8 +69,8 @@ class AuditLogPdf
                 $x = self::MARGIN;
                 foreach (self::COLUMNS as $c => [, $width]) {
                     $value = (string) ($row[$c] ?? '');
-                    $failed = $c === 6 && $value === 'Failed';
-                    $pdf->text($x + 4, $y, $pdf->fit($value, $width - 8, self::FONT), self::FONT, false, $failed ? self::RED : [0.12, 0.13, 0.15]);
+                    $color = $c !== 6 ? self::INK : ($value === 'Failed' ? self::RED : ($value === 'Blocked' ? self::ORANGE : self::INK));
+                    $pdf->text($x + 4, $y, $pdf->fit($value, $width - 8, self::FONT), self::FONT, false, $color);
                     $x += $width;
                 }
                 $pdf->line(self::MARGIN, $y + 5, PdfWriter::WIDTH - self::MARGIN, $y + 5, self::GREY_LINE);
