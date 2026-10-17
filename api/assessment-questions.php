@@ -13,6 +13,12 @@ function activeCounts(PDO $pdo): array
     return array_map('intval', $rows);
 }
 
+/** How a question is named in the audit log: 'Enterprising question: "I would like to ..."'. */
+function questionForLog(string $dimension, string $text): string
+{
+    return (QuestionBank::NAMES[$dimension] ?? $dimension) . ' question: "' . $text . '"';
+}
+
 function readText(array $body): string
 {
     $text = trim((string) ($body['text'] ?? ''));
@@ -81,7 +87,10 @@ if ($method === 'PUT') {
     $update->execute([Crypto::enc($text), $isActive, $id]);
 
     $user = Auth::currentUser();
-    AuditLogger::log($user['id'], $user['role'], 'update_question', 'assessment_question', (string) $id, "Dimension {$question['dimension']}#{$question['order_index']}");
+    $wasActive = (bool) $question['is_active'];
+    AuditLogger::log($user['id'], $user['role'], 'update_question', 'assessment_question', (string) $id,
+        questionForLog($question['dimension'], $text)
+            . ((bool) $isActive !== $wasActive ? ($isActive ? "\nShown in the assessment" : "\nHidden from the assessment") : ''));
 
     jsonResponse(['success' => true, 'balance' => QuestionBank::balance(activeCounts($pdo))]);
 }
@@ -147,7 +156,7 @@ if ($method === 'POST') {
     }
     $newId = (int) $insert->fetchColumn();
 
-    AuditLogger::log($user['id'], $user['role'], 'add_question', 'assessment_question', (string) $newId, "Dimension $dimension");
+    AuditLogger::log($user['id'], $user['role'], 'add_question', 'assessment_question', (string) $newId, questionForLog($dimension, $text));
     jsonResponse(['success' => true, 'id' => $newId, 'balance' => QuestionBank::balance(activeCounts($pdo))]);
 }
 
@@ -159,14 +168,20 @@ if ($method === 'DELETE') {
         jsonResponse(['success' => false, 'error' => 'Missing question id.'], 400);
     }
 
-    $stmt = $pdo->prepare('DELETE FROM assessment_questions WHERE id = ? RETURNING dimension, order_index');
+    $stmt = $pdo->prepare('DELETE FROM assessment_questions WHERE id = ? RETURNING dimension, order_index, question_text_enc');
     $stmt->execute([$id]);
     $gone = $stmt->fetch();
     if (!$gone) {
         jsonResponse(['success' => false, 'error' => 'Question not found.'], 404);
     }
 
-    AuditLogger::log($user['id'], $user['role'], 'delete_question', 'assessment_question', (string) $id, "Dimension {$gone['dimension']}#{$gone['order_index']}");
+    // The question is gone after this, so the log keeps its text (a deleted question cannot be looked up later).
+    try {
+        $goneText = Crypto::dec($gone['question_text_enc']);
+    } catch (Throwable $e) {
+        $goneText = '(text could not be read)';
+    }
+    AuditLogger::log($user['id'], $user['role'], 'delete_question', 'assessment_question', (string) $id, questionForLog($gone['dimension'], $goneText));
     jsonResponse(['success' => true, 'balance' => QuestionBank::balance(activeCounts($pdo))]);
 }
 

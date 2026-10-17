@@ -403,8 +403,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($id <= 0) {
             jsonResponse(['success' => false, 'error' => 'Missing id.'], 400);
         }
-        $pdo->prepare('DELETE FROM announcements WHERE id = ?')->execute([$id]);
-        AuditLogger::log($user['id'], $user['role'], 'delete_announcement', 'announcement', (string) $id, null);
+        $deleted = $pdo->prepare('DELETE FROM announcements WHERE id = ? RETURNING title');
+        $deleted->execute([$id]);
+        $title = $deleted->fetchColumn();
+        if ($title === false) {
+            jsonResponse(['success' => false, 'error' => 'Announcement not found.'], 404);
+        }
+        // The announcement is gone after this, so the log keeps its title.
+        AuditLogger::log($user['id'], $user['role'], 'delete_announcement', 'announcement', (string) $id, "\"$title\"");
         jsonResponse(['success' => true]);
     }
 

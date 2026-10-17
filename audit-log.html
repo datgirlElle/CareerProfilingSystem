@@ -63,6 +63,108 @@
       border-color: #dc2626;
       box-shadow: 0 0 0 1px #dc2626;
     }
+    /* Summary cards open a breakdown by role: a pointer, a light hover, a navy ring when open. */
+    .summary-card {
+      cursor: pointer;
+      transition: border-color var(--dur-button) var(--ease-standard), box-shadow var(--dur-button) var(--ease-standard);
+    }
+    .summary-card:hover {
+      border-color: #cbd5e1;
+    }
+    .summary-card:focus-visible {
+      outline: 2px solid #001c43;
+      outline-offset: 2px;
+    }
+    .summary-card[aria-expanded="true"] {
+      border-color: #001c43;
+      box-shadow: 0 0 0 1px #001c43;
+    }
+    .summary-card[aria-disabled="true"] {
+      cursor: default;
+    }
+    /* Breakdown rows: role, bar, count, percent. Each row filters the table to that role. */
+    .breakdown-row {
+      display: grid;
+      grid-template-columns: 170px minmax(0, 1fr) 52px 44px;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 6px;
+      text-align: left;
+      font-size: 14px;
+      color: #374151;
+    }
+    button.breakdown-row:not(:disabled):hover {
+      background: #f8fafc;
+      transform: none;   /* motion.css lifts buttons on hover; rows in a list should not jump */
+      filter: none;
+    }
+    .breakdown-row:focus-visible {
+      outline: 2px solid #001c43;
+      outline-offset: 1px;
+    }
+    .breakdown-row:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+    .breakdown-bar {
+      height: 8px;
+      border-radius: 999px;
+      background: #eef2f7;
+      overflow: hidden;
+    }
+    .breakdown-bar > span {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+    }
+    .breakdown-count {
+      text-align: right;
+      font-weight: 600;
+      color: #111827;
+    }
+    .breakdown-pct {
+      text-align: right;
+      font-size: 12px;
+      color: #6b7280;
+    }
+    @media (max-width: 640px) {
+      .breakdown-row {
+        grid-template-columns: minmax(0, 1fr) 44px 40px;
+        row-gap: 4px;
+      }
+      .breakdown-bar {
+        grid-column: 1 / -1;
+        grid-row: 2;
+      }
+    }
+    /* Role filter chip in the table toolbar. */
+    .role-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 6px 4px 12px;
+      border: 1px solid #001c43;
+      border-radius: 999px;
+      background: #eef2f8;
+      font-size: 13px;
+      color: #001c43;
+    }
+    .role-chip.hidden {
+      display: none;
+    }
+    .role-chip button {
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      font-size: 16px;
+      line-height: 1;
+    }
+    .role-chip button:focus-visible {
+      outline: 2px solid #001c43;
+      outline-offset: 1px;
+    }
     /* A status card the Status filter rules out: stays in place, greyed, and its value shows a dash. */
     .summary-card-muted {
       background: #f9fafb;
@@ -95,6 +197,98 @@
     .badge-blocked {
       background: #ffedd5;
       color: #c2410c;
+    }
+    /* Details open right under their row and show only what the row does not: the details, and the
+       activity number, exact time and target. */
+    tr.row-selected td {
+      background: #eff6ff;
+    }
+    tr.detail-row > td {
+      padding: 0;
+      background: #f8fafc;
+      box-shadow: inset 3px 0 0 #001c43;
+    }
+    /* Stays in view while the wide table scrolls sideways; its width is set to the visible area. */
+    .detail-box {
+      position: sticky;
+      left: 0;
+      box-sizing: border-box;
+      max-width: 100%;
+      padding: 16px 24px 14px;
+    }
+    .detail-heading {
+      margin-bottom: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #6b7280;
+    }
+    .detail-text {
+      font-size: 14px;
+      color: #111827;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .detail-text.is-note {
+      color: #6b7280;
+      font-style: italic;
+    }
+    .detail-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px 18px;
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px solid #e5e7eb;
+      font-size: 12px;
+      color: #6b7280;
+    }
+    .detail-meta:first-child {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: 0;
+    }
+    .detail-meta strong {
+      font-weight: 500;
+      color: #374151;
+    }
+    .detail-close {
+      margin-left: auto;
+      padding: 4px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      background: #fff;
+      font-size: 12px;
+      color: #374151;
+    }
+    .detail-close:focus-visible {
+      outline: 2px solid #001c43;
+      outline-offset: 2px;
+    }
+    tr[data-id] {
+      cursor: pointer;
+    }
+    /* Timestamp button: looks like the text it was, underlined on hover, visible keyboard focus. */
+    .row-open-btn {
+      text-align: left;
+    }
+    button.row-open-btn:not(:disabled):hover {
+      text-decoration: underline;
+      transform: none;   /* motion.css lifts buttons on hover; a timestamp should not jump */
+      filter: none;
+    }
+    .row-open-btn:focus-visible {
+      outline: 2px solid #001c43;
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+    /* Long names are cut with "..."; the full name is in the tooltip and in the row's details. */
+    .cell-name {
+      display: inline-block;
+      max-width: 200px;
+      vertical-align: bottom;
     }
     /* Failed rows: thin red bar on the left so failures stand out while scrolling. */
     .row-failed td:first-child {
@@ -283,57 +477,72 @@
           </div>
         </div>
 
-        <!-- Summary Cards -->
+        <!-- Summary Cards: each opens a breakdown by role in #breakdownPanel (see the script). -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
 
-          <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
+          <button type="button" id="cardTotal" data-card="total" aria-expanded="false" aria-controls="breakdownPanel"
+            class="summary-card text-left w-full bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
             <span class="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
               <img src="images/audit/card-icon-total.svg" alt="" class="w-6 h-6">
             </span>
-            <div>
-              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Total Activities</p>
-              <p class="text-3xl font-bold text-gray-900" id="summaryTotal">—</p>
-              <p class="text-xs mt-1 text-gray-500" id="summaryTotalNote">All logged actions</p>
-            </div>
-          </div>
+            <span class="block">
+              <span class="block text-xs font-semibold tracking-wide text-gray-500 uppercase">Total Activities</span>
+              <span class="block text-3xl font-bold text-gray-900" id="summaryTotal">—</span>
+              <span class="block text-xs mt-1 text-gray-500" id="summaryTotalNote">All logged actions</span>
+            </span>
+          </button>
 
-          <div id="cardSuccess" class="bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
+          <button type="button" id="cardSuccess" data-card="successful" aria-expanded="false" aria-controls="breakdownPanel"
+            class="summary-card text-left w-full bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
             <span
               class="w-[50px] h-[50px] rounded-lg bg-green-50 border border-green-100 flex items-center justify-center shrink-0">
               <img src="images/audit/card-icon-success.svg" alt="" class="w-6 h-6">
             </span>
-            <div>
-              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Successful</p>
-              <p class="text-3xl font-bold text-gray-900" id="summarySuccess">—</p>
-              <p class="text-xs mt-1"><span class="text-green-600 font-medium" id="summarySuccessPct">—</span> <span
-                  class="text-gray-500" id="summarySuccessNote">of total</span></p>
-            </div>
-          </div>
+            <span class="block">
+              <span class="block text-xs font-semibold tracking-wide text-gray-500 uppercase">Successful</span>
+              <span class="block text-3xl font-bold text-gray-900" id="summarySuccess">—</span>
+              <span class="block text-xs mt-1"><span class="text-green-600 font-medium" id="summarySuccessPct">—</span> <span
+                  class="text-gray-500" id="summarySuccessNote">of total</span></span>
+            </span>
+          </button>
 
-          <div id="cardFailed" class="bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
+          <button type="button" id="cardFailed" data-card="failed" aria-expanded="false" aria-controls="breakdownPanel"
+            class="summary-card text-left w-full bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
             <span
               class="w-[50px] h-[50px] rounded-lg bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
               <img src="images/audit/card-icon-failed.svg" alt="" class="w-6 h-6">
             </span>
-            <div>
-              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Failed</p>
-              <p class="text-3xl font-bold text-gray-900" id="summaryFailed">—</p>
-              <p class="text-xs mt-1"><span class="text-red-600 font-medium" id="summaryFailedPct">—</span> <span
-                  class="text-gray-500" id="summaryFailedNote">of total</span></p>
-            </div>
-          </div>
+            <span class="block">
+              <span class="block text-xs font-semibold tracking-wide text-gray-500 uppercase">Failed</span>
+              <span class="block text-3xl font-bold text-gray-900" id="summaryFailed">—</span>
+              <span class="block text-xs mt-1"><span class="text-red-600 font-medium" id="summaryFailedPct">—</span> <span
+                  class="text-gray-500" id="summaryFailedNote">of total</span></span>
+            </span>
+          </button>
 
-          <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
+          <button type="button" id="cardActive" data-card="people" aria-expanded="false" aria-controls="breakdownPanel"
+            class="summary-card text-left w-full bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
             <span class="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
               <img src="images/audit/card-icon-users.svg" alt="" class="w-6 h-6">
             </span>
-            <div>
-              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Users Active</p>
-              <p class="text-3xl font-bold text-gray-900" id="summaryActive">—</p>
-              <p class="text-xs mt-1 text-gray-500" id="summaryActiveNote">last 7 days</p>
-            </div>
-          </div>
+            <span class="block">
+              <span class="block text-xs font-semibold tracking-wide text-gray-500 uppercase">Users Active</span>
+              <span class="block text-3xl font-bold text-gray-900" id="summaryActive">—</span>
+              <span class="block text-xs mt-1 text-gray-500" id="summaryActiveNote">last 7 days</span>
+            </span>
+          </button>
         </div>
+
+        <!-- Breakdown of the selected card by role (opened by clicking a card). -->
+        <section id="breakdownPanel" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm px-5 py-4 mb-6"
+          aria-labelledby="breakdownTitle">
+          <div class="flex items-center justify-between gap-3 mb-2">
+            <h2 id="breakdownTitle" class="text-sm font-semibold text-gray-900"></h2>
+            <button type="button" id="breakdownClose" class="detail-close">Close</button>
+          </div>
+          <div id="breakdownRows"></div>
+          <p id="breakdownNote" class="text-xs text-gray-500 mt-2"></p>
+        </section>
 
         <!-- Data Table Section -->
         <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
@@ -344,6 +553,11 @@
               <input type="text" id="searchInput" placeholder="Search name, action, IP (use commas to combine)" aria-label="Search activities"
                 class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
             </div>
+            <!-- Shown while a role from a card breakdown filters the table. -->
+            <span id="roleChip" class="role-chip hidden">
+              Role: <strong id="roleChipLabel"></strong>
+              <button type="button" id="roleChipClear" aria-label="Remove the role filter">&times;</button>
+            </span>
             <div class="flex items-center gap-3">
               <span id="exportNote" class="text-xs text-gray-500"></span>
               <button type="button" id="exportBtn" aria-describedby="exportNote"
@@ -524,7 +738,8 @@
         let exportTotal = 0; // activities the Export button would put in the PDF (from the last load)
         const paginationSummary = document.getElementById('paginationSummary');
 
-        const state = { page: 1, pageSize: 50, sort: 'desc', search: '', status: 'All', module: 'All', from: '', to: '' };
+        // role: set by clicking a role in a card breakdown ('' = all roles).
+        const state = { page: 1, pageSize: 50, sort: 'desc', search: '', status: 'All', module: 'All', from: '', to: '', role: '' };
         let modulesLoaded = false;
         let searchDebounce = null;
         let firstDate = '';
@@ -568,6 +783,7 @@
             from: state.from,
             to: state.to,
             search: state.search,
+            role: state.role,
           }, extra || {}));
           return params.toString();
         }
@@ -593,6 +809,8 @@
               'summarySuccessPct', 'summaryFailedPct'].forEach(id => {
                 document.getElementById(id).textContent = '—';
               });
+            lastSummary = null;
+            closeBreakdown(false);
 
             paginationSummary.textContent = '';
             paginationBar.innerHTML = '';
@@ -622,6 +840,7 @@
             }
             if (!opts.pageOnly) {
               ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive'].forEach(PP.statFailed);
+              closeBreakdown(false);
             }
             PP.showError(tbody, e.message, function () { load(opts); }, 7);
             return;
@@ -731,7 +950,12 @@
         // misleading 0 (for example "Failed 0" while the failed events are only filtered out).
         function renderStatusCard(key, count, total, excluded) {
           const pct = total > 0 ? ((count / total) * 100).toFixed(1) + '%' : '—';
-          document.getElementById('card' + key).classList.toggle('summary-card-muted', excluded);
+          const card = document.getElementById('card' + key);
+          card.classList.toggle('summary-card-muted', excluded);
+          // A greyed-out card has nothing to break down, so it cannot be opened.
+          card.setAttribute('aria-disabled', excluded ? 'true' : 'false');
+          card.tabIndex = excluded ? -1 : 0;
+          if (excluded && openCard === card.dataset.card) closeBreakdown(false);
           document.getElementById('summary' + key).textContent = excluded ? '—' : count.toLocaleString();
           document.getElementById('summary' + key + 'Pct').textContent = excluded ? '' : pct;
           document.getElementById('summary' + key + 'Note').textContent = excluded ? 'Excluded by Status filter' : 'of total';
@@ -748,7 +972,138 @@
             ? 'of ' + summary.overallTotal.toLocaleString() + ' activities'
             : 'All logged actions';
           document.getElementById('summaryActiveNote').textContent = summary.filtered ? 'in these results' : 'last 7 days';
+          lastSummary = summary;
+          renderBreakdown();
         }
+
+        // Card breakdowns: click a card to see its number split by role; click a role to show only its
+        // rows (an exact role filter, shown as a chip above the table). One card open at a time; the
+        // numbers follow the filters because they come with every load. Values go in with textContent.
+        const breakdownPanel = document.getElementById('breakdownPanel');
+        const breakdownTitle = document.getElementById('breakdownTitle');
+        const breakdownRows = document.getElementById('breakdownRows');
+        const breakdownNote = document.getElementById('breakdownNote');
+        const roleChip = document.getElementById('roleChip');
+        const roleChipLabel = document.getElementById('roleChipLabel');
+        const ROLE_LABELS = { admin: 'Administrator', counselor: 'Guidance Counselor', facilitator: 'Guidance Facilitator', student: 'Student', none: 'No account' };
+        // Bar colors match each card's icon.
+        const CARDS = {
+          total: { title: 'Total activities by role', count: b => b.total, color: '#2563eb' },
+          successful: { title: 'Successful activities by role', count: b => b.successful, color: '#16a34a', status: 'Success' },
+          failed: { title: 'Failed activities by role', count: b => b.failed, color: '#dc2626', status: 'Failed' },
+          people: { title: 'Active people by role', count: b => b.people, color: '#7c3aed', people: true },
+        };
+        let openCard = null;
+        let lastSummary = null;
+
+        function setCardsExpanded() {
+          document.querySelectorAll('.summary-card').forEach(card => {
+            card.setAttribute('aria-expanded', card.dataset.card === openCard ? 'true' : 'false');
+          });
+        }
+
+        function closeBreakdown(focusCard) {
+          if (openCard === null) return;
+          const card = document.querySelector('.summary-card[data-card="' + openCard + '"]');
+          openCard = null;
+          breakdownPanel.classList.add('hidden');
+          setCardsExpanded();
+          if (focusCard && card) card.focus();
+        }
+
+        function renderBreakdown() {
+          if (openCard === null || !lastSummary || !Array.isArray(lastSummary.breakdown)) return;
+          const info = CARDS[openCard];
+          // People are counted by account, so "No account" has no row on the people card.
+          const groups = lastSummary.breakdown.filter(b => !(info.people && b.role === 'none'));
+          const sum = groups.reduce((n, b) => n + info.count(b), 0);
+          // The rows are rebuilt after every load; keep keyboard focus on the role that had it.
+          const focusedRole = breakdownRows.contains(document.activeElement) ? document.activeElement.dataset.role : null;
+          breakdownTitle.textContent = info.title;
+          breakdownRows.replaceChildren(...groups.map(b => {
+            const n = info.count(b);
+            const pct = sum > 0 ? Math.round((n / sum) * 100) : 0;
+            const row = el('button', 'breakdown-row');
+            row.type = 'button';
+            row.dataset.role = b.role;
+            row.disabled = n === 0;
+            row.setAttribute('aria-label', b.label + ': ' + n.toLocaleString() + ', ' + pct + ' percent. Show only these rows.');
+            row.appendChild(el('span', '', b.label));
+            const bar = el('span', 'breakdown-bar');
+            const fill = el('span');
+            fill.style.width = pct + '%';
+            fill.style.background = info.color;
+            bar.appendChild(fill);
+            row.appendChild(bar);
+            row.appendChild(el('span', 'breakdown-count', n.toLocaleString()));
+            row.appendChild(el('span', 'breakdown-pct', pct + '%'));
+            return row;
+          }));
+          const notes = [];
+          if (openCard === 'failed') {
+            const blocked = groups.reduce((n, b) => n + b.blocked, 0);
+            if (blocked > 0) notes.push('Includes ' + blocked.toLocaleString() + ' blocked (account locks).');
+          }
+          if (info.people) notes.push(lastSummary.filtered ? 'People in these results.' : 'People active in the last 7 days.');
+          notes.push('Click a role to show only its activities.');
+          breakdownNote.textContent = notes.join(' ');
+          if (focusedRole) {
+            const again = breakdownRows.querySelector('[data-role="' + focusedRole + '"]');
+            if (again && !again.disabled) again.focus();
+            else document.getElementById('roleChipClear').focus();
+          }
+        }
+
+        function toggleCard(card) {
+          if (card.getAttribute('aria-disabled') === 'true') return;
+          if (openCard === card.dataset.card) {
+            closeBreakdown(false);
+            return;
+          }
+          openCard = card.dataset.card;
+          setCardsExpanded();
+          breakdownPanel.classList.remove('hidden');
+          renderBreakdown();
+          // When the cards are stacked (phones, tablets), the panel sits below all four; bring it into view.
+          if (window.matchMedia('(max-width: 1023px)').matches) {
+            const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            breakdownPanel.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+          }
+        }
+        // The cards are real buttons, so Enter and Space already click them.
+        document.querySelectorAll('.summary-card').forEach(card => {
+          card.addEventListener('click', () => toggleCard(card));
+        });
+        document.getElementById('breakdownClose').addEventListener('click', () => closeBreakdown(true));
+
+        function showRoleChip() {
+          roleChip.classList.toggle('hidden', state.role === '');
+          roleChipLabel.textContent = ROLE_LABELS[state.role] || '';
+        }
+        // A role row filters the table to that role; on the Successful and Failed cards it also sets
+        // the Status filter, so the table shows exactly the rows that were counted.
+        breakdownRows.addEventListener('click', e => {
+          const row = e.target.closest('.breakdown-row');
+          if (!row || row.disabled) return;
+          const status = CARDS[openCard] ? CARDS[openCard].status : undefined;
+          state.role = row.dataset.role;
+          if (status) {
+            state.status = status;
+            filterStatus.value = status;
+          }
+          state.page = 1;
+          showRoleChip();
+          updateClearBtn();
+          load();
+        });
+        document.getElementById('roleChipClear').addEventListener('click', () => {
+          state.role = '';
+          state.page = 1;
+          showRoleChip();
+          updateClearBtn();
+          searchInput.focus();
+          load();
+        });
 
         function renderRows(rows, filtered) {
           if (rows.length === 0) {
@@ -761,25 +1116,140 @@
                 : 'No activities recorded yet.') + '</td></tr>';
             return;
           }
+          // New rows replace any open details.
+          detailOpenId = null;
+          ++detailRequestId;
           tbody.innerHTML = rows.map(function (r) {
             // Blocked (an account lockout) is a kind of Failed: its own badge, the same red row bar.
             const failed = r.status === 'Failed' || r.status === 'Blocked';
-            const badge = r.status === 'Blocked'
-              ? '<span class="badge-blocked text-xs font-medium px-2.5 py-1 rounded-full">Blocked</span>'
-              : r.status === 'Failed'
-                ? '<span class="bg-red-100 text-red-700 text-xs font-medium px-2.5 py-1 rounded-full">Failed</span>'
-                : '<span class="bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">Success</span>';
-            return '<tr' + (failed ? ' class="row-failed"' : '') + '>' +
-              '<td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">' + escapeHtml(r.timestamp) + '</td>' +
-              '<td class="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">' + escapeHtml(r.user) + '</td>' +
+            const id = Number(r.id);
+            // The timestamp is a button so keyboard users can open the row's details; a click anywhere
+            // on the row opens them too. Long names are cut with "...", the full name is in the tooltip
+            // and in the details.
+            return '<tr data-id="' + id + '"' + (failed ? ' class="row-failed"' : '') + '>' +
+              '<td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap"><button type="button" class="row-open-btn" aria-expanded="false"' +
+              ' aria-label="Details of the activity at ' + escapeHtml(r.timestamp) + '">' + escapeHtml(r.timestamp) + '</button></td>' +
+              '<td class="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap"><span class="cell-name truncate" title="' +
+              escapeHtml(r.user) + '">' + escapeHtml(r.user) + '</span></td>' +
               '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(r.role) + '</td>' +
               '<td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">' + escapeHtml(r.action) + '</td>' +
               '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(categoryLabel(r.module)) + '</td>' +
               '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(r.ip) + '</td>' +
-              '<td class="px-6 py-4">' + badge + '</td>' +
+              '<td class="px-6 py-4">' + statusBadge(r.status) + '</td>' +
               '</tr>';
           }).join('');
         }
+
+        // Fixed HTML per status (the status is only compared, never inserted), for the table and the details.
+        function statusBadge(status) {
+          if (status === 'Blocked') return '<span class="badge-blocked text-xs font-medium px-2.5 py-1 rounded-full">Blocked</span>';
+          if (status === 'Failed') return '<span class="bg-red-100 text-red-700 text-xs font-medium px-2.5 py-1 rounded-full">Failed</span>';
+          return '<span class="bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">Success</span>';
+        }
+
+        // Details open in a row right under the clicked one and show only what the row does not: the
+        // details, and the activity number, exact time and target.
+        // One at a time; a second click on the row, the Close button or Esc closes them. Values go in
+        // with textContent (statusBadge() is fixed HTML).
+        let detailOpenId = null;
+        let detailRequestId = 0;
+
+        function el(tag, className, text) {
+          const node = document.createElement(tag);
+          if (className) node.className = className;
+          if (text !== undefined) node.textContent = text;
+          return node;
+        }
+
+        function closeDetails(focusRow) {
+          if (detailOpenId === null) return;
+          const tr = tbody.querySelector('tr[data-id="' + detailOpenId + '"]');
+          const detailRow = document.getElementById('activity-details-' + detailOpenId);
+          if (detailRow) detailRow.remove();
+          if (tr) {
+            tr.classList.remove('row-selected');
+            const btn = tr.querySelector('.row-open-btn');
+            btn.setAttribute('aria-expanded', 'false');
+            if (focusRow) btn.focus();
+          }
+          detailOpenId = null;
+          ++detailRequestId;
+        }
+
+        async function openDetails(tr) {
+          const id = Number(tr.dataset.id);
+          const wasOpen = detailOpenId === id;
+          closeDetails(false);
+          if (wasOpen) return;
+          detailOpenId = id;
+          const btn = tr.querySelector('.row-open-btn');
+          tr.classList.add('row-selected');
+          btn.setAttribute('aria-expanded', 'true');
+          const detailRow = el('tr', 'detail-row');
+          detailRow.id = 'activity-details-' + id;
+          btn.setAttribute('aria-controls', detailRow.id);
+          const cell = el('td');
+          cell.colSpan = 7;
+          const box = el('div', 'detail-box', 'Loading…');
+          box.setAttribute('aria-live', 'polite');
+          box.style.width = auditScroll.clientWidth + 'px';  // the visible part of the wide table
+          cell.appendChild(box);
+          detailRow.appendChild(cell);
+          tr.after(detailRow);
+
+          const requestId = ++detailRequestId;
+          let d;
+          try {
+            d = await PP.fetchJson('api/audit-log.php?id=' + encodeURIComponent(id));
+          } catch (e) {
+            if (requestId !== detailRequestId) return;
+            if (e.status === 401) { window.location.replace('staff-login'); return; }
+            box.textContent = e.status === 404 ? 'This activity was not found.' : 'Could not load the details. Please try again.';
+            return;
+          }
+          if (requestId !== detailRequestId) return;
+
+          // Nothing saved and nothing hidden: no empty Details box, only the bottom line.
+          const parts = [];
+          if (d.detail || d.detailNote) {
+            const main = el('section');
+            main.appendChild(el('h3', 'detail-heading', 'Details'));
+            main.appendChild(d.detail ? el('p', 'detail-text', d.detail) : el('p', 'detail-text is-note', d.detailNote));
+            parts.push(main);
+          }
+
+          const meta = el('div', 'detail-meta');
+          const fact = (label, value) => {
+            const part = el('span', '', label + ' ');
+            part.appendChild(el('strong', '', value));
+            meta.appendChild(part);
+          };
+          fact('Activity', '#' + d.id);
+          fact('Exact time', d.timestamp);
+          if (d.target) fact(d.targetLabel || 'About', d.target);
+          // The table cuts long names with "..."; give the full one here when it was cut.
+          const nameCell = tr.querySelector('.cell-name');
+          if (nameCell && nameCell.scrollWidth > nameCell.clientWidth) fact('Full name', d.name);
+          const close = el('button', 'detail-close', 'Close');
+          close.type = 'button';
+          close.addEventListener('click', () => closeDetails(true));
+          meta.appendChild(close);
+
+          parts.push(meta);
+          box.replaceChildren(...parts);
+        }
+
+        // Keep open details as wide as the visible part of the table.
+        window.addEventListener('resize', () => {
+          const box = document.querySelector('#activity-details-' + detailOpenId + ' .detail-box');
+          if (box) box.style.width = auditScroll.clientWidth + 'px';
+        });
+        // Esc closes the open row details first, then an open card breakdown.
+        document.addEventListener('keydown', e => {
+          if (e.key !== 'Escape') return;
+          if (detailOpenId !== null) closeDetails(true);
+          else if (openCard !== null) closeBreakdown(true);
+        });
 
         searchInput.addEventListener('input', () => {
           clearTimeout(searchDebounce);
@@ -830,6 +1300,8 @@
             ['summarySuccessPct', 'summaryFailedPct'].forEach(id => {
               document.getElementById(id).textContent = '—';
             });
+            lastSummary = null;
+            closeBreakdown(false);
 
             paginationSummary.textContent = '';
             paginationBar.innerHTML = '';
@@ -863,7 +1335,7 @@
           clearFiltersBtn.disabled = !(
             filterRange.value !== 'all' || filterFrom.value || filterTo.value ||
             filterStatus.value !== 'All' || filterModule.value !== 'All' ||
-            searchInput.value.trim() !== ''
+            searchInput.value.trim() !== '' || state.role !== ''
           );
         }
         [searchInput, filterRange, filterStatus, filterModule, filterFrom, filterTo].forEach(el => {
@@ -885,16 +1357,27 @@
           state.module = 'All';
           state.from = '';
           state.to = '';
+          state.role = '';
           state.page = 1;
+          showRoleChip();
           setDateError(false);
           updateClearBtn();
           // The button just became disabled, which drops keyboard focus. Keep focus in the filter row.
           filterRange.focus();
           load();
         });
-        // The Clear filters button inside an empty result does the same as the one in the header.
+        // Clicks in the table: the Clear filters button inside an empty result does the same as the one
+        // in the header; a click on a row (or Enter on its timestamp button) opens or closes its details.
         tbody.addEventListener('click', e => {
-          if (e.target.closest('[data-action="clear-filters"]')) clearFiltersBtn.click();
+          if (e.target.closest('[data-action="clear-filters"]')) {
+            clearFiltersBtn.click();
+            return;
+          }
+          const tr = e.target.closest('tr[data-id]');
+          if (!tr) return;
+          // Selecting text in a row (to copy an IP, say) should not open the panel.
+          if (String(window.getSelection ? window.getSelection() : '').length > 0 && !e.target.closest('.row-open-btn')) return;
+          openDetails(tr);
         });
         // A browser can restore typed filter values on reload, so set the starting state from the inputs.
         // Restored dates stay visible under "Custom range..." instead of hiding behind "Any time".
