@@ -360,7 +360,25 @@
     .row-failed td:first-child {
       box-shadow: inset 3px 0 0 #dc2626;
     }
+    .check-result {
+      padding: 10px 16px;
+      font-size: 14px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .check-result.is-ok {
+      background: var(--color-green-50);
+      color: var(--color-green-700);
+    }
+    .check-result.is-bad {
+      background: var(--color-red-50);
+      color: var(--color-red-700);
+    }
+    .check-result.is-note {
+      background: var(--color-gray-50);
+      color: #374151;
+    }
     /* motion.css gives disabled buttons no visual change, so show it here (no results, bad date range). */
+    #checkLogBtn:disabled,
     #exportBtn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
@@ -625,6 +643,9 @@
               <button type="button" id="roleChipClear" aria-label="Remove the role filter">&times;</button>
             </span>
             <div class="flex items-center gap-3">
+              <!-- Administrators only (shown from the list answer): checks the log's seals. -->
+              <button type="button" id="checkLogBtn"
+                class="hidden bg-white border border-gray-300 rounded-md px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm">Check log</button>
               <span id="exportNote" class="text-xs text-gray-500"></span>
               <button type="button" id="exportBtn" aria-describedby="exportNote"
                 class="flex items-center gap-2 bg-white border border-gray-300 rounded-md px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm">
@@ -633,6 +654,8 @@
               </button>
             </div>
           </div>
+          <!-- Result of "Check log": green when intact, red when a problem was found, grey otherwise. -->
+          <p id="checkLogResult" class="hidden check-result" role="status"></p>
 
           <div class="overflow-auto max-h-[65vh]" id="auditScroll">
             <table class="w-full text-left border-collapse min-w-[1200px]">
@@ -798,6 +821,7 @@
         const sortTimestampBtn = document.getElementById('sortTimestampBtn');
         const sortIcon = document.getElementById('sortIcon');
         const exportBtn = document.getElementById('exportBtn');
+        const checkLogBtn = document.getElementById('checkLogBtn');
         const exportNote = document.getElementById('exportNote');
         const auditScroll = document.getElementById('auditScroll');
         const paginationBar = document.getElementById('paginationBar');
@@ -927,6 +951,7 @@
 
           renderSummary(data.summary);
           renderRetention(data.retention);
+          checkLogBtn.classList.toggle('hidden', !data.canCheckLog);
           renderRows(data.rows, data.summary.filtered);
           paginationSummary.innerHTML = countText(data.total, data.summary.filtered);
           exportNote.textContent = exportText(data.total, data.summary.filtered);
@@ -1579,6 +1604,34 @@
             exportLabel.textContent = 'Export PDF';
             // The filters may have changed while the PDF was being made.
             exportBtn.disabled = exportTotal === 0 || filterFrom.getAttribute('aria-invalid') === 'true';
+          }
+        });
+
+        // "Check log" (administrators): the server checks every entry's seal and link and records the
+        // check, then the table reloads so that entry shows. kind: ok | bad (problem found) | note.
+        const checkLogResult = document.getElementById('checkLogResult');
+        function showCheckResult(text, kind) {
+          checkLogResult.textContent = text;
+          checkLogResult.className = 'check-result is-' + kind;
+        }
+        checkLogBtn.addEventListener('click', async () => {
+          checkLogBtn.disabled = true;
+          checkLogBtn.textContent = 'Checking…';
+          try {
+            const res = await fetch('api/audit-log-verify.php', { method: 'POST' });
+            if (res.status === 401) { window.location.replace('staff-login'); return; }
+            const data = await res.json().catch(() => ({}));
+            if (data.success) {
+              showCheckResult(data.message, data.intact ? 'ok' : 'bad');
+              load();
+            } else {
+              showCheckResult(data.error || 'The check could not finish. Please try again.', 'note');
+            }
+          } catch (e) {
+            showCheckResult('Unable to reach the server. Please try again.', 'note');
+          } finally {
+            checkLogBtn.disabled = false;
+            checkLogBtn.textContent = 'Check log';
           }
         });
 

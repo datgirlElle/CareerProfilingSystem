@@ -147,6 +147,8 @@ $actionLabels = [
     'export_audit_log_failed' => 'Audit log export failed',
     'delete_old_audit_logs' => 'Deleted old audit logs',
     'delete_old_audit_logs_failed' => 'Old audit log cleanup failed',
+    'verify_audit_log' => 'Checked the audit log',
+    'verify_audit_log_failed' => 'Audit log check found a problem',
     // Security settings
     'update_rbac' => 'Changed access permissions',
     'update_policy' => 'Changed security setting',
@@ -287,6 +289,9 @@ function readableTarget(PDO $pdo, array $r, string $target, bool $viewerIsAdmin)
     }
     if (str_starts_with($action, 'export_audit_log')) {
         return ['Reference', $target];
+    }
+    if ($action === 'verify_audit_log_failed') {
+        return ['Entry', '#' . $target];   // where the check found the problem
     }
     if (in_array($action, SIGN_IN_ACTIONS, true)) {
         return [$action === 'staff_activation_failed' ? 'Username or email' : 'Username', $target];
@@ -796,4 +801,6 @@ jsonResponse([
     ],
     // For the note under the table: what is really kept, and whether this person can change it.
     'retention' => AuditRetention::settings($pdo) + ['canChange' => $user['role'] === 'admin'],
+    // "Check log" (api/audit-log-verify.php) is for administrators.
+    'canCheckLog' => $user['role'] === 'admin',
 ]);

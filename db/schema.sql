@@ -196,7 +196,11 @@ CREATE TABLE audit_log (
     target_id       VARCHAR(50),
     detail_enc      TEXT,
     ip_address      INET,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- Tamper protection (lib/AuditChain.php, db/migrate_add_audit_hash_chain.php): HMAC seal of this
+    -- entry and of the entry before it, so a changed or removed entry breaks the chain.
+    prev_hash       CHAR(64),
+    row_hash        CHAR(64)
 );
 
 CREATE TABLE security_rbac (
