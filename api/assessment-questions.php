@@ -78,7 +78,9 @@ if ($method === 'PUT') {
     $isActive = array_key_exists('isActive', $body) ? (bool) $body['isActive'] : $question['is_active'];
 
     $update = $pdo->prepare('UPDATE assessment_questions SET question_text_enc = ?, is_active = ?, updated_at = NOW() WHERE id = ?');
-    $update->execute([Crypto::enc($text), $isActive, $id]);
+    // Bind an int, not a PHP bool: execute() sends false as '', which Postgres's boolean type rejects,
+    // so hiding a question (isActive false) used to fail.
+    $update->execute([Crypto::enc($text), (int) $isActive, $id]);
 
     $user = Auth::currentUser();
     AuditLogger::log($user['id'], $user['role'], 'update_question', 'assessment_question', (string) $id, "Dimension {$question['dimension']}#{$question['order_index']}");
@@ -141,7 +143,7 @@ if ($method === 'POST') {
     $next->execute([$dimension]);
     try {
         $insert = $pdo->prepare('INSERT INTO assessment_questions (dimension, question_text_enc, order_index, is_active, created_by) VALUES (?, ?, ?, ?, ?) RETURNING id');
-        $insert->execute([$dimension, Crypto::enc($text), (int) $next->fetchColumn(), $isActive, $user['id']]);
+        $insert->execute([$dimension, Crypto::enc($text), (int) $next->fetchColumn(), (int) $isActive, $user['id']]);
     } catch (PDOException $e) {
         jsonResponse(['success' => false, 'error' => 'Could not add the question. The database may need the latest update first.'], 500);
     }
