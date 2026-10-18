@@ -362,10 +362,11 @@
     })();
 
     // The RIASEC button is only on while the assessment is activated for this student's group,
-    // i.e. while one of the group's Assessment Schedule sessions is open.
+    // i.e. while one of the group's Assessment Schedule sessions is open, or while a student who
+    // already entered the code can still finish (the few minutes of grace after the session ends).
     if (!assessment) {
       const w = assessmentStatusData.window || { state: 'none' };
-      if (w.state !== 'open') {
+      if (w.state !== 'open' && !assessmentStatusData.unlocked) {
         const btn = document.getElementById('riasecActionBtn');
         btn.removeAttribute('href');
         btn.setAttribute('aria-disabled', 'true');

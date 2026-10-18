@@ -136,7 +136,12 @@
           <div id="overallProgressBar" class="h-full rounded-full bg-[#ed1c24] transition-all duration-300" style="width:0%"></div>
         </div>
         <span class="text-sm font-semibold text-[#5e3f3c] shrink-0" id="overallProgressText">&nbsp;</span>
+        <!-- Countdown to the end of the exam session (filled by the script; none for a retake). -->
+        <span id="timeLeft" class="hidden text-sm font-semibold text-[#5e3f3c] shrink-0"></span>
       </div>
+      <p id="saveStatus" class="text-xs text-gray-400 text-right mb-3" style="margin-top:-0.5rem;min-height:1rem" aria-live="polite"></p>
+      <!-- Read out once by screen readers (5 minutes left, time up); the ticking countdown is not. -->
+      <span id="timeNotice" aria-live="assertive" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap"></span>
 
       <!-- Question Card -->
       <div id="questionCard" class="content-swap bg-white border border-[#e0e3e5] rounded-lg p-6 md:p-8 min-h-[420px] flex flex-col">
@@ -237,6 +242,8 @@
     setTimeout(function() { logoutModal.classList.add('hidden'); }, 260);
   }
   function performLogout() {
+    // The tab's copy of the answers goes too (the server keeps the saved ones).
+    try { sessionStorage.removeItem('assessmentProgress_' + currentUser.schoolId); } catch (e) {}
     fetch('api/logout.php', { method: 'POST' }).finally(function() {
       window.location.href = 'student-login';
     });
@@ -310,22 +317,146 @@
   }
   const QUESTION_SET = QUESTIONS.map(function(q) { return q.id; }).join(',');
 
+  // Answers are saved on the server as the student goes (api/assessment-progress.php), so signing
+  // out, a crash or another PC loses nothing, and each save keeps the student signed in. A copy stays
+  // in this tab only (sessionStorage), so nothing is left on a shared lab PC once the browser closes.
   const PROGRESS_KEY = 'assessmentProgress_' + currentUser.schoolId;
+  let progressInfo = { available: false };
+  try {
+    const progressRes = await fetch('api/assessment-progress.php');
+    progressInfo = await progressRes.json();
+    if (progressRes.status === 403 && progressInfo.unlocked === false) {
+      window.location.replace('assessment-instructions');   // the access code was not entered
+      return;
+    }
+  } catch (e) {}
 
-  function loadProgress() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(PROGRESS_KEY));
-      // Saved answers only count if the questions are still the same ones (staff may have changed the bank since).
-      if (saved && saved.set === QUESTION_SET && Array.isArray(saved.answers) && saved.answers.length === TOTAL) return saved;
-    } catch (e) {}
-    return { set: QUESTION_SET, answers: new Array(TOTAL).fill(null) };
+  // Saved answers only count if the questions are still the same ones (staff may have changed the bank since).
+  function validSaved(saved) {
+    return saved && saved.set === QUESTION_SET && Array.isArray(saved.answers) && saved.answers.length === TOTAL ? saved : null;
   }
+  function answeredCount(saved) {
+    return saved ? saved.answers.filter(function(a) { return a !== null; }).length : -1;
+  }
+  function readStored(storage) {
+    try { return validSaved(JSON.parse(storage.getItem(PROGRESS_KEY))); } catch (e) { return null; }
+  }
+  function loadProgress() {
+    // The most complete copy wins: the server's, this tab's, or one an older version of this page left in localStorage.
+    const copies = [
+      validSaved(progressInfo.set ? { set: progressInfo.set, answers: progressInfo.answers } : null),
+      readStored(sessionStorage),
+      readStored(localStorage),
+    ];
+    try { localStorage.removeItem(PROGRESS_KEY); } catch (e) {}
+    let best = null;
+    copies.forEach(function(c) { if (c && answeredCount(c) > answeredCount(best)) best = c; });
+    return { set: QUESTION_SET, answers: best ? best.answers.slice() : new Array(TOTAL).fill(null) };
+  }
+
+  const saveStatus = document.getElementById('saveStatus');
+  function showSaveStatus(text, problem) {
+    saveStatus.textContent = text;
+    saveStatus.classList.toggle('text-[#ed1c24]', problem);
+    saveStatus.classList.toggle('text-gray-400', !problem);
+  }
+  let saveTimer = null;
   function saveProgress(state) {
     state.set = QUESTION_SET;
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify(state));
+    try { sessionStorage.setItem(PROGRESS_KEY, JSON.stringify(state)); } catch (e) {}
+    if (!progressInfo.available) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(sendProgress, 1500);
+  }
+  async function sendProgress() {
+    try {
+      const res = await fetch('api/assessment-progress.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ set: QUESTION_SET, answers: state.answers })
+      });
+      const data = await res.json().catch(function() { return {}; });
+      if (data.success) {
+        // stored false: unlocked before this update, so the answers stay on this page only.
+        showSaveStatus(data.stored === false ? '' : 'All answers saved', false);
+      } else {
+        showSaveStatus(data.error || 'Could not save your answers. Keep going: they stay on this page.', true);
+      }
+    } catch (e) {
+      showSaveStatus('No connection: your answers stay on this page and are saved when it is back.', true);
+    }
   }
 
   const state = loadProgress();
+  // Answers found in this tab or left by the older page are copied to the server right away.
+  if (progressInfo.available && answeredCount(state) > answeredCount(validSaved(progressInfo.set ? { set: progressInfo.set, answers: progressInfo.answers } : null))) {
+    saveProgress(state);
+  }
+
+  // Countdown to the end of the exam session (none for a retake). After the end there are a few
+  // minutes left to submit (AssessmentProgress::GRACE_MINUTES); the server refuses after that. Times
+  // come from the server, so a wrong clock on the lab PC does not change them.
+  if (progressInfo.endsAt) {
+    const timeLeftEl = document.getElementById('timeLeft');
+    const timeNotice = document.getElementById('timeNotice');
+    const offset = Date.parse(progressInfo.serverNow) - Date.now();
+    const endsAt = Date.parse(progressInfo.endsAt);
+    const submitUntil = Date.parse(progressInfo.submitUntil);
+    let warned = false;
+    let timeUpSaid = false;
+    let clock = null;
+    function formatLeft(ms) {
+      const s = Math.max(0, Math.ceil(ms / 1000));
+      return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+    }
+    function tick() {
+      const now = Date.now() + offset;
+      timeLeftEl.classList.remove('hidden');
+      if (now < endsAt) {
+        const left = endsAt - now;
+        timeLeftEl.textContent = 'Time left ' + formatLeft(left);
+        timeLeftEl.classList.toggle('text-[#ed1c24]', left <= 5 * 60 * 1000);
+        if (left <= 5 * 60 * 1000 && !warned) {
+          warned = true;
+          timeNotice.textContent = '5 minutes left in this session.';
+        }
+      } else if (now < submitUntil) {
+        timeLeftEl.textContent = 'Time is up: finish and submit within ' + formatLeft(submitUntil - now);
+        timeLeftEl.classList.add('text-[#ed1c24]');
+        if (!timeUpSaid) {
+          timeUpSaid = true;
+          timeNotice.textContent = 'Time is up. Finish and submit your answers now.';
+        }
+      } else {
+        timeLeftEl.textContent = 'This session has ended';
+        timeLeftEl.classList.add('text-[#ed1c24]');
+        clearInterval(clock);
+      }
+    }
+    tick();
+    clock = setInterval(tick, 1000);
+  }
+  // A student can think about one question for a while: every 4 minutes, if they clicked or typed
+  // since the last time, save anyway so the sign-in stays alive. A forgotten tab on a lab PC sends
+  // nothing (no clicks), so the normal idle timeout still signs it out; it also stops once the
+  // session and its grace period are over.
+  if (progressInfo.available && progressInfo.unlocked) {
+    let activeSinceLastSave = false;
+    ['click', 'keydown'].forEach(function(type) {
+      document.addEventListener(type, function() { activeSinceLastSave = true; }, true);
+    });
+    const keepAliveUntil = progressInfo.submitUntil ? Date.parse(progressInfo.submitUntil) : null;
+    const offsetForKeepAlive = progressInfo.serverNow ? Date.parse(progressInfo.serverNow) - Date.now() : 0;
+    const keepAlive = setInterval(function() {
+      if (keepAliveUntil !== null && Date.now() + offsetForKeepAlive >= keepAliveUntil) {
+        clearInterval(keepAlive);
+        return;
+      }
+      if (!activeSinceLastSave) return;
+      activeSinceLastSave = false;
+      sendProgress();
+    }, 4 * 60 * 1000);
+  }
   let currentIndex = state.answers.findIndex(function(a) { return a === null; });
   if (currentIndex === -1) currentIndex = TOTAL - 1;
 
@@ -492,7 +623,8 @@
           nextBtn.disabled = false;
           return;
         }
-        localStorage.removeItem(PROGRESS_KEY);
+        clearTimeout(saveTimer);
+        try { sessionStorage.removeItem(PROGRESS_KEY); localStorage.removeItem(PROGRESS_KEY); } catch (e) {}
         window.location.href = 'results';
       } catch (err) {
         showSubmitError('Unable to reach the server. Please try again.');

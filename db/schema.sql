@@ -339,6 +339,18 @@ CREATE TABLE exam_schedules (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- A student's RIASEC answers in progress, saved as they go (lib/AssessmentProgress.php), and the
+-- exam session that unlocked the assessment (NULL with is_retake for an approved retake). Lets a
+-- student who was signed out continue, on any PC, without the code while the session is open.
+-- answers_enc: JSON {set, answers}, encrypted (assessment data). Deleted on submit.
+CREATE TABLE assessment_progress (
+    student_id      INT PRIMARY KEY REFERENCES students(user_id) ON DELETE CASCADE,
+    schedule_id     INT REFERENCES exam_schedules(id) ON DELETE SET NULL,
+    is_retake       BOOLEAN NOT NULL DEFAULT FALSE,
+    answers_enc     TEXT,
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Staff-initiated retake authorization (RIASEC has no pass/fail score, so
 -- there's no automatic trigger here — see db/migrate_add_examinations.php
 -- comment). A 'granted' row with completed_attempt_number IS NULL is what
