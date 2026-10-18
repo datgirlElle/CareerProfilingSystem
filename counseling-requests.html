@@ -117,7 +117,6 @@
         <p class="text-sm text-slate-400 text-center py-8">Loading…</p>
       </div>
 
-      <p class="text-xs text-gray-500 mt-8">Looking for answers to common questions? See the <a href="staff-help-center" class="text-[#ed1c24] hover:underline">Help Center</a>.</p>
 
     </main>
 
@@ -240,10 +239,10 @@
       ? '<span class="bg-red-50 border border-red-100 text-[#ed1c24] text-xs font-semibold px-2.5 py-1 rounded-full">Open &mdash; #' + r.queueNumber + ' in queue</span>'
       : '<span class="bg-green-50 border border-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full">Resolved</span>';
     const resolveBtn = r.status === 'open'
-      ? '<button type="button" class="resolve-btn shrink-0 bg-[#ed1c24] text-white text-xs font-semibold uppercase tracking-wide rounded-md px-4 py-2 hover:opacity-90" data-id="' + r.id + '">Mark Resolved</button>'
+      ? '<button type="button" class="resolve-btn shrink-0 bg-[#ed1c24] text-white text-sm font-semibold rounded-md px-4 py-2 hover:opacity-90" data-id="' + r.id + '">Mark Resolved</button>'
       : '';
     const inviteBtn = canInvite && r.studentId
-      ? '<button type="button" class="invite-btn shrink-0 border border-[#0f2a6b] text-[#0f2a6b] text-xs font-semibold uppercase tracking-wide rounded-md px-4 py-2 hover:bg-slate-50" data-student-id="' + r.studentId + '" data-name="' + escapeHtml(r.name) + '">Invite to Counseling</button>'
+      ? '<button type="button" class="invite-btn shrink-0 border border-[#0f2a6b] text-[#0f2a6b] text-sm font-semibold rounded-md px-4 py-2 hover:bg-slate-50" data-student-id="' + r.studentId + '" data-name="' + escapeHtml(r.name) + '">Invite to Counseling</button>'
       : '';
     return '<div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex flex-col gap-3">' +
       '<div class="flex items-start justify-between gap-4 flex-wrap">' +
@@ -297,8 +296,8 @@
       ? '<div class="flex flex-col gap-2">' +
           '<input type="text" maxlength="300" placeholder="Note to the student (optional)" class="retake-note w-full border border-slate-300 rounded-md px-3 py-2 text-sm" data-id="' + r.id + '">' +
           '<div class="flex justify-end gap-2">' +
-            '<button type="button" class="retake-decide border border-slate-300 text-slate-600 text-xs font-semibold uppercase tracking-wide rounded-md px-4 py-2 hover:bg-slate-50" data-decision="decline" data-id="' + r.id + '">Decline</button>' +
-            '<button type="button" class="retake-decide bg-[#ed1c24] text-white text-xs font-semibold uppercase tracking-wide rounded-md px-4 py-2 hover:opacity-90" data-decision="approve" data-id="' + r.id + '">Approve Retake</button>' +
+            '<button type="button" class="retake-decide border border-slate-300 text-slate-600 text-sm font-semibold rounded-md px-4 py-2 hover:bg-slate-50" data-decision="decline" data-id="' + r.id + '">Decline</button>' +
+            '<button type="button" class="retake-decide bg-[#ed1c24] text-white text-sm font-semibold rounded-md px-4 py-2 hover:opacity-90" data-decision="approve" data-id="' + r.id + '">Approve Retake</button>' +
           '</div></div>'
       : '';
     return '<div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex flex-col gap-3">' +

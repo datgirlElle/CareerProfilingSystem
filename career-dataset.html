@@ -104,7 +104,7 @@
       <div class="flex items-start justify-between flex-wrap gap-4 mb-8">
         <div>
           <h1 class="text-2xl font-bold text-slate-900">Career Dataset</h1>
-          <p class="text-sm text-slate-500 mt-1">Manage the MMCL program dataset and the RIASEC codes used by the content-based filtering (CBF).</p>
+          <p class="text-sm text-slate-500 mt-1">MMCL programs and their RIASEC codes.</p>
         </div>
         <div class="flex items-center gap-3">
           <div class="relative">
@@ -259,22 +259,20 @@
         </div>
       </div>
       <div class="flex flex-col gap-1.5">
-        <label class="text-xs font-medium text-slate-600">Holland Code (exactly 3 distinct letters, in priority order)</label>
+        <label class="text-xs font-medium text-slate-600">Holland Code (3 letters)</label>
         <input type="text" id="editHollandCode" required maxlength="3" placeholder="e.g. RIC" class="border border-slate-300 rounded-md px-3 py-2 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
-        <p class="text-xs text-slate-500">The guidance mapping (CBF) uses which three letters appear in the code (binary: present = 1, absent = 0); keep them in priority order for reference.</p>
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="text-xs font-medium text-slate-600">Related SHS Strands <span class="text-slate-400">(optional; only used if the strand weight is above 0)</span></label>
         <div id="editStrands" class="flex flex-wrap gap-x-4 gap-y-2"></div>
       </div>
       <div class="flex flex-col gap-1">
-        <label class="text-xs font-medium text-slate-600">Description <span class="text-slate-400">(optional, shown to students on their Career Results page)</span></label>
+        <label class="text-xs font-medium text-slate-600">Description <span class="text-slate-400">(optional)</span></label>
         <textarea id="editDescription" rows="3" maxlength="1000" placeholder="A short description of what this program covers and where it leads." class="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></textarea>
       </div>
       <div class="flex flex-col gap-1">
-        <label class="text-xs font-medium text-slate-600">Careers <span class="text-slate-400">(one per line, up to 8 &mdash; offered on the Career Worksheet and shown on Career Results)</span></label>
+        <label class="text-xs font-medium text-slate-600">Careers <span class="text-slate-400">(optional, one per line, up to 8)</span></label>
         <textarea id="editCareers" rows="4" placeholder="Software Engineer&#10;Data Analyst&#10;Systems Analyst" class="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></textarea>
-        <p class="text-xs text-slate-500">If left empty, the program title is used as the career.</p>
       </div>
       <div class="flex items-center justify-end gap-3 pt-2">
         <button type="button" class="edit-career-close-btn px-4 py-2 text-sm font-medium text-slate-600 rounded-md border border-slate-300 hover:bg-slate-50">Cancel</button>
