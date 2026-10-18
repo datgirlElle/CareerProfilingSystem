@@ -334,8 +334,10 @@
       '</div>' +
       '<div class="flex items-center gap-3 shrink-0">' +
         (q.isActive ? '' : '<span class="bg-slate-100 text-slate-500 text-xs font-medium px-2.5 py-1 rounded-full">Hidden</span>') +
-        '<button type="button" class="edit-question-btn" data-id="' + q.id + '" aria-label="Edit question"><img src="images/admin/icon-row-edit.svg" alt="" class="w-3.5 h-3.5"></button>' +
-        '<button type="button" class="btn-danger delete-question-btn" data-id="' + q.id + '" aria-label="Remove question"><img src="images/admin/icon-row-delete.svg" alt="" class="w-3.5 h-3.5"></button>' +
+        '<button type="button" class="edit-question-btn rounded-md hover:bg-slate-100 flex items-center justify-center" style="width:30px;height:30px" data-id="' + q.id + '" aria-label="Edit question" title="Edit"><img src="images/admin/icon-row-edit.svg" alt="" class="w-3.5 h-3.5"></button>' +
+        '<button type="button" class="btn-danger delete-question-btn text-[#ed1c24] rounded-md hover:bg-red-50 flex items-center justify-center" style="width:30px;height:30px" data-id="' + q.id + '" aria-label="Remove question" title="Remove">' +
+          '<svg class="w-4 h-4" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>' +
+        '</button>' +
       '</div>' +
     '</div>';
   }
