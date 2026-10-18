@@ -8,7 +8,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     jsonResponse(['error' => 'Method not allowed'], 405);
 }
 
-$user = Rbac::requireAccess('monitoring', 'full');
+// View Only (limited) can look; acting on a flag needs Full (api/monitoring-action.php).
+$user = Rbac::requireAccess('monitoring', 'limited');
 $pdo = Database::get();
 
 $tab = $_GET['tab'] ?? 'needs-review';
@@ -100,7 +101,7 @@ function applySearchAndLimit(array $rows, ?string $search, ?int $limit): array
 
 function buildFlagRows(PDO $pdo, string $status, float $threshold): array
 {
-    $sql = "SELECT mf.id AS flag_id, mf.reason, mf.status, mf.created_at, mf.note,
+    $sql = "SELECT mf.id AS flag_id, mf.reason, mf.status, mf.created_at,
                    s.user_id, s.school_id, s.strand, s.section, s.first_name_enc, s.last_name_enc,
                    r.top_program_id, r.top_score, r.cbf_program_ids, r.match_status
             FROM monitoring_flags mf
@@ -129,7 +130,7 @@ function buildFlagRows(PDO $pdo, string $status, float $threshold): array
             'match' => statusLabel($r['match_status']),
             'reason' => $reasonLabels[$r['reason']] ?? $r['reason'],
             'priority' => priorityFor($r['reason'], $topScore, $threshold),
-            'note' => $r['note'],
+            'topScore' => $topScore,
             'createdAt' => $r['created_at'],
         ];
     }, $rows);
@@ -182,10 +183,10 @@ $allCompleted = buildCompletedRows($pdo);
 $allPending = buildPendingRows($pdo);
 
 // A staff member sees only the sections assigned to them (everyone if none are; lib/StaffScope.php).
+// Flags are the exception: guidance staff review them as a team, so every flag shows to everyone
+// with Monitoring access.
 $scope = StaffScope::forUser($pdo, $user);
 $inScope = fn(array $rows) => array_values(array_filter($rows, fn($r) => StaffScope::allows($scope, $r['strand'] ?? null, $r['section'] ?? null)));
-$allNeedsReview = $inScope($allNeedsReview);
-$allCounseling = $inScope($allCounseling);
 $allCompleted = $inScope($allCompleted);
 $allPending = $inScope($allPending);
 

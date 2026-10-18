@@ -150,10 +150,18 @@ class CBFData
         $threshold = $threshold !== false ? (float) $threshold : 0.50;
         if ($topScore < $threshold) {
             $pendingCheck = $pdo->prepare(
-                "SELECT id FROM monitoring_flags WHERE student_id = ? AND reason = 'low_confidence' AND status = 'pending'"
+                "SELECT id, status FROM monitoring_flags WHERE student_id = ? AND reason = 'low_confidence' AND status IN ('pending', 'escalated')"
             );
             $pendingCheck->execute([$studentId]);
-            if (!$pendingCheck->fetch()) {
+            $openFlags = $pendingCheck->fetchAll();
+            // A flag already with the counselors stays one flag, but now shows the newest result (a retake that is
+            // still low), so nobody approves a result the student has replaced.
+            foreach ($openFlags as $open) {
+                if ($open['status'] === 'escalated') {
+                    $pdo->prepare('UPDATE monitoring_flags SET recommendation_id = ? WHERE id = ?')->execute([$recommendationId, $open['id']]);
+                }
+            }
+            if (!$openFlags) {
                 $pdo->prepare(
                     "INSERT INTO monitoring_flags (student_id, recommendation_id, reason, status) VALUES (?, ?, 'low_confidence', 'pending')"
                 )->execute([$studentId, $recommendationId]);
