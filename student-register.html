@@ -93,22 +93,7 @@
             <p id="emailHint" class="hidden text-xs text-[#ed1c24] mt-1.5" aria-live="polite">Please enter a valid email address.</p>
           </div>
 
-          <div class="relative">
-            <span class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-4">
-              <img src="images/login/icon-lock.svg" alt="" class="w-full h-full">
-            </span>
-            <input
-              id="password"
-              type="password"
-              name="password"
-              placeholder="Password"
-              aria-label="Password"
-              required
-              class="w-full pl-10 pr-10 py-3.5 border border-gray-300 rounded-md text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
-            <button type="button" id="togglePassword" class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-4">
-              <img id="togglePasswordIcon" src="images/login/icon-eye.svg" alt="Show password" class="w-full h-full">
-            </button>
-          </div>
+          <p class="text-xs text-gray-500">You will choose your password after you open the verification link we email to you.</p>
 
           <label class="flex items-start gap-2.5 text-xs text-gray-500 leading-relaxed cursor-pointer">
             <input type="checkbox" id="policyAgreeCheckbox" name="policy_agree" required class="mt-0.5 w-4 h-4 shrink-0 rounded border-gray-300 text-[#ed1c24] focus:ring-[#ed1c24] focus:ring-offset-0">
@@ -167,15 +152,6 @@
 </div>
 
 <script>
-  document.getElementById('togglePassword').addEventListener('click', function () {
-    const input = document.getElementById('password');
-    const icon = document.getElementById('togglePasswordIcon');
-    const willShow = input.type === 'password';
-    input.type = willShow ? 'text' : 'password';
-    icon.src = willShow ? 'images/login/icon-eye-open.svg' : 'images/login/icon-eye.svg';
-    icon.alt = willShow ? 'Hide password' : 'Show password';
-  });
-
   // Live feedback on blur, rather than only after a full form submit attempt.
   (function() {
     const emailInput = document.getElementById('emailInput');
@@ -214,7 +190,7 @@
     function openSuccessModal(email, verifyLink, who) {
       document.getElementById('successMessage').textContent =
         (who && who.name ? 'Welcome, ' + who.name + ' (' + who.strand + ' ' + who.section + '). ' : '') +
-        'We\'ve sent a verification link to ' + email + '. Click it before you can sign in.';
+        'We\'ve sent a verification link to ' + email + '. Open it to choose your password; you cannot sign in before that.';
       const linkBox = document.getElementById('successVerifyLinkBox');
       if (verifyLink) {
         const anchor = document.getElementById('successVerifyLinkAnchor');
@@ -240,10 +216,9 @@
       const form = e.target;
       const schoolId = form.school_id.value.trim();
       const email = form.email.value.trim();
-      const password = form.password.value;
       const privacyConsent = document.getElementById('policyAgreeCheckbox').checked;
 
-      if (!schoolId || !email || !password) {
+      if (!schoolId || !email) {
         showMessage('Please fill out all fields.', true);
         return;
       }
@@ -272,7 +247,7 @@
         const res = await fetch('api/register.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ schoolId, email, password, privacyConsent })
+          body: JSON.stringify({ schoolId, email, privacyConsent })
         });
         const data = await res.json();
 

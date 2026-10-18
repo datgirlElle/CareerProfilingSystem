@@ -1,8 +1,18 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/StaffScope.php';
 
 $pdo = Database::get();
+
+/** True when the staff member handles this student's section (lib/StaffScope.php); notes of other sections are off limits. */
+function studentInScope(PDO $pdo, array $user, int $studentId): bool
+{
+    $stmt = $pdo->prepare('SELECT strand, section FROM students WHERE user_id = ?');
+    $stmt->execute([$studentId]);
+    $row = $stmt->fetch();
+    return $row && StaffScope::allows(StaffScope::forUser($pdo, $user), $row['strand'], $row['section']);
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $user = Rbac::requireAccess('counselingNotes', 'limited');
@@ -10,6 +20,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $studentId = (int) ($_GET['studentId'] ?? 0);
     if ($studentId <= 0) {
         jsonResponse(['error' => 'Missing studentId.'], 400);
+    }
+    if (!studentInScope($pdo, $user, $studentId)) {
+        jsonResponse(['error' => 'Student not found.'], 404);
     }
 
     $stmt = $pdo->prepare(
@@ -48,9 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         jsonResponse(['success' => false, 'error' => 'Note must be 2000 characters or fewer.'], 400);
     }
 
-    $exists = $pdo->prepare('SELECT 1 FROM students WHERE user_id = ?');
-    $exists->execute([$studentId]);
-    if (!$exists->fetch()) {
+    if (!studentInScope($pdo, $user, $studentId)) {
         jsonResponse(['success' => false, 'error' => 'Student not found.'], 404);
     }
 
