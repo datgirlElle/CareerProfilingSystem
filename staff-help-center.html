@@ -102,7 +102,7 @@
       <div class="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
           <h1 class="text-2xl font-bold text-gray-900">Help Center</h1>
-          <p class="text-sm text-gray-500 mt-1">Answers to common questions. The Head of Guidance and Guidance Counselors keep both lists up to date.</p>
+          <p class="text-sm text-gray-500 mt-1">Answers to common questions.</p>
         </div>
       </div>
 
@@ -113,7 +113,6 @@
         </div>
         <div class="p-5" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;align-items:start">              <div class="border border-slate-200 rounded-lg p-[17px] flex flex-col gap-3">
                 <p class="text-sm font-semibold text-slate-800">Guidance Office Hours</p>
-                <p class="text-xs text-slate-500">Shown on the student Help Center page's "Contact the Guidance Office" card.</p>
                 <div id="officeHoursGrid" class="flex flex-col gap-1.5"></div>
                 <p class="text-xs text-slate-500">Students will see: <span id="officeHoursPreview" class="font-medium text-slate-700">—</span></p>
                 <p id="officeHoursError" class="hidden text-xs text-[#ed1c24]" aria-live="polite"></p>
@@ -125,7 +124,6 @@
 
               <div class="border border-slate-200 rounded-lg p-[17px] flex flex-col gap-3">
                 <p class="text-sm font-semibold text-slate-800">Counseling Booking Link</p>
-                <p class="text-xs text-slate-500">The CGC's booking page. When saved, students who press "Schedule Advising Session" on their results go there. Leave it empty to send a counseling request instead.</p>
                 <div class="flex flex-col gap-2">
                   <input type="url" id="bookingUrlInput" maxlength="300" class="border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#ed1c24]" placeholder="https://" aria-label="Counseling booking link">
                   <button type="button" id="bookingLinkSave" class="self-start px-4 py-2 text-xs font-semibold text-white bg-[#0f2a6b] rounded-md hover:opacity-90">Save</button>
@@ -426,8 +424,8 @@
   const TAB_ON = ['bg-[#0f2a6b]', 'text-white', 'border-[#0f2a6b]'];
   const TAB_OFF = ['bg-white', 'text-slate-700'];
   const AUDIENCE_TEXT = {
-    staff: { heading: 'Staff FAQs', sub: 'Shown here to Guidance Counselors, Facilitators and the Head of Guidance.' },
-    student: { heading: 'Student FAQs', sub: 'Shown to students on their Help Center page. Write them the way you would explain them to a student.' }
+    staff: { heading: 'Staff FAQs', sub: '' },
+    student: { heading: 'Student FAQs', sub: '' }
   };
   let audience = 'staff';
   let faqs = [];
@@ -445,6 +443,7 @@
   function renderFaqs() {
     document.getElementById('faqHeading').textContent = AUDIENCE_TEXT[audience].heading;
     document.getElementById('faqSub').textContent = AUDIENCE_TEXT[audience].sub;
+    document.getElementById('faqSub').classList.toggle('hidden', !AUDIENCE_TEXT[audience].sub);
     document.querySelectorAll('.faq-tab').forEach(function(tab) {
       const on = tab.dataset.audience === audience;
       TAB_ON.forEach(function(c) { tab.classList.toggle(c, on); });
