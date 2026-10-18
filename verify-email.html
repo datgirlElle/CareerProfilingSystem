@@ -51,7 +51,7 @@
         <div class="w-full bg-white border border-gray-100 rounded-xl shadow-2xl p-10 flex flex-col items-center gap-4 text-center">
 
           <!-- State: choose a password (students set it here, after proving they own the inbox) -->
-          <form id="stateForm" class="flex flex-col items-center gap-4 w-full" novalidate>
+          <form id="stateForm" class="hidden flex-col items-center gap-4 w-full" novalidate>
             <h1 class="text-xl font-semibold text-[#191c1e]">Choose your password</h1>
             <p class="text-sm text-[#5c5a5a] max-w-[340px]">Your email is confirmed when you save a password. You will use it, with your Student Number, to sign in.</p>
             <div class="w-full text-left">
@@ -90,10 +90,10 @@
             <span class="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center">
               <svg viewBox="0 0 24 24" fill="none" stroke="#ed1c24" stroke-width="2" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.007M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             </span>
-            <h1 class="text-xl font-semibold text-[#191c1e]">Verification Failed</h1>
+            <h1 id="errorTitle" class="text-xl font-semibold text-[#191c1e]">Verification Failed</h1>
             <p id="errorMessage" class="text-sm text-[#5c5a5a] max-w-[320px]">This verification link is invalid or has expired.</p>
             <a href="student-login" class="mt-2 inline-block bg-[#0f2a6b] text-white text-sm font-semibold rounded-md px-6 py-3 hover:opacity-90">Go to Login</a>
-            <p class="text-xs text-gray-500 mt-1">You can request a new verification link from the login page.</p>
+            <p id="errorHint" class="text-xs text-gray-500 mt-1">You can request a new verification link from the login page.</p>
           </div>
 
         </div>
@@ -110,11 +110,21 @@
   const stateSuccess = document.getElementById('stateSuccess');
   const stateError = document.getElementById('stateError');
 
-  function showError(message) {
+  function showError(message, title, hideHint) {
     stateVerifying.classList.add('hidden');
+    stateForm.classList.add('hidden');
     document.getElementById('errorMessage').textContent = message;
+    document.getElementById('errorTitle').textContent = title || 'Verification Failed';
+    document.getElementById('errorHint').classList.toggle('hidden', !!hideHint);
     stateError.classList.remove('hidden');
     stateError.classList.add('flex');
+  }
+
+  function showForm() {
+    stateVerifying.classList.add('hidden');
+    stateVerifying.classList.remove('flex');
+    stateForm.classList.remove('hidden');
+    stateForm.classList.add('flex');
   }
 
   const stateForm = document.getElementById('stateForm');
@@ -159,6 +169,27 @@
     stateForm.classList.add('hidden');
     showError('This verification link is missing its token. Please use the link from your verification email.');
   } else {
+    // Check the link before offering the password form: a link that was already used (or has expired) gets a message instead.
+    showVerifying();
+    fetch('api/verify-email.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, check: true })
+    })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.state === 'valid') {
+          showForm();
+        } else if (data.state === 'used') {
+          showError('This link has already been used. Sign in with your Student Number and the password you chose.', 'Link already used', true);
+        } else {
+          showError('This verification link is invalid or has expired.');
+        }
+      })
+      .catch(function() {
+        showError('Unable to reach the server. Please try again, or request a new link from the login page.');
+      });
+
     stateForm.addEventListener('submit', function(e) {
       e.preventDefault();
       formMessage.classList.add('hidden');
@@ -177,9 +208,7 @@
             finish(data);
           } else if (data.needsPassword) {
             // The link is still good: let them fix the password.
-            stateVerifying.classList.add('hidden');
-            stateVerifying.classList.remove('flex');
-            stateForm.classList.remove('hidden');
+            showForm();
             showFormMessage(data.error || 'Choose a stronger password.');
           } else {
             showError(data.error || 'This verification link is invalid or has expired.');
@@ -194,5 +223,6 @@
 </script>
 
 <script src="js/motion.js" defer></script>
+<script src="js/password-toggle.js" defer></script>
 </body>
 </html>

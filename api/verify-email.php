@@ -24,6 +24,16 @@ if ($token === '') {
 $pdo = Database::get();
 $tokenHash = hash('sha256', $token);
 
+// The page asks first whether the link can still be used, so a link that was already used (or has expired)
+// shows a message instead of a password form. This only reads the token; it never uses it up.
+if (!empty($body['check'])) {
+    $check = $pdo->prepare('SELECT used_at, expires_at > NOW() AS fresh FROM email_verification_tokens WHERE token_hash = ?');
+    $check->execute([$tokenHash]);
+    $t = $check->fetch();
+    $state = !$t ? 'invalid' : ($t['used_at'] !== null ? 'used' : (!$t['fresh'] ? 'expired' : 'valid'));
+    jsonResponse(['success' => true, 'state' => $state]);
+}
+
 $stmt = $pdo->prepare(
     'SELECT t.id, t.user_id, u.role, u.approval_status FROM email_verification_tokens t
      JOIN users u ON u.id = t.user_id

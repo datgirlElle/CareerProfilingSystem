@@ -13,6 +13,12 @@
 
     var wrap = document.createElement('div');
     wrap.style.position = 'relative';
+    // A gap above the field (e.g. a top margin under its label) moves to the wrapper, so the button stays centred on the field.
+    var marginTop = window.getComputedStyle(input).marginTop;
+    if (marginTop && marginTop !== '0px') {
+      wrap.style.marginTop = marginTop;
+      input.style.marginTop = '0';
+    }
     input.parentNode.insertBefore(wrap, input);
     wrap.appendChild(input);
     input.style.paddingRight = '44px'; // keep typed text clear of the button
