@@ -11,6 +11,23 @@ require_once __DIR__ . '/../lib/SecurityHeaders.php';
 
 SecurityHeaders::send();
 header('Content-Type: application/json');
+
+// Any uncaught error in an API call is written to the server log (Render's Logs) and answered as JSON,
+// so the page shows a message instead of breaking. The administrator sees the actual error, to diagnose
+// problems on the live site; everyone else gets a generic message.
+set_exception_handler(function (Throwable $e): void {
+    error_log('[api] ' . ($_SERVER['REQUEST_URI'] ?? '') . ' ' . get_class($e) . ': ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    $user = $_SESSION['user'] ?? null;
+    $isAdmin = is_array($user) && ($user['role'] ?? '') === 'admin';
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: application/json');
+    }
+    echo json_encode(['error' => $isAdmin
+        ? 'Server error: ' . $e->getMessage()
+        : 'Something went wrong on the server. Please try again.']);
+});
+
 Auth::start();
 
 // CSRF check applies to every state-changing request. GET/HEAD/OPTIONS are
