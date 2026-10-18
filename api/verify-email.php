@@ -15,6 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $body = readJsonBody();
 $token = (string) ($body['token'] ?? '');
+$password = (string) ($body['password'] ?? '');
 
 if ($token === '') {
     jsonResponse(['success' => false, 'error' => 'Missing verification token.'], 400);
@@ -35,8 +36,26 @@ if (!$row) {
     jsonResponse(['success' => false, 'error' => 'This verification link is invalid or has expired. Request a new one from the login page.'], 400);
 }
 
+// A student account is created without a usable password (api/register.php): whoever opens the emailed link chooses it here,
+// so only the owner of the inbox can ever set the password.
+$setPassword = $row['role'] === 'student';
+if ($setPassword) {
+    require_once __DIR__ . '/../lib/PasswordPolicy.php';
+    if ($password === '') {
+        jsonResponse(['success' => false, 'needsPassword' => true, 'error' => 'Choose a password to finish activating your account.'], 400);
+    }
+    $problems = PasswordPolicy::errors($pdo, $password);
+    if ($problems) {
+        jsonResponse(['success' => false, 'needsPassword' => true, 'error' => implode(' ', $problems)], 400);
+    }
+}
+
 $pdo->beginTransaction();
 try {
+    if ($setPassword) {
+        $pdo->prepare('UPDATE users SET password_hash = ?, failed_login_attempts = 0, locked_until = NULL WHERE id = ?')
+            ->execute([password_hash($password, PASSWORD_BCRYPT), $row['user_id']]);
+    }
     $pdo->prepare('UPDATE users SET email_verified_at = NOW() WHERE id = ?')->execute([$row['user_id']]);
     $pdo->prepare('UPDATE email_verification_tokens SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL')
         ->execute([$row['user_id']]);

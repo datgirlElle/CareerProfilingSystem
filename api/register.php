@@ -33,10 +33,9 @@ $pdo = Database::get();
 $body = readJsonBody();
 $schoolId = trim((string) ($body['schoolId'] ?? ''));
 $email = strtolower(trim((string) ($body['email'] ?? '')));
-$password = (string) ($body['password'] ?? '');
 $privacyConsent = $body['privacyConsent'] ?? false;
 
-if ($schoolId === '' || $email === '' || $password === '') {
+if ($schoolId === '' || $email === '') {
     jsonResponse(['success' => false, 'error' => 'All fields are required.'], 400);
 }
 // Never trust the client-side checkbox's "required" attribute alone —
@@ -52,11 +51,6 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 }
 if (!str_ends_with($email, '@' . StudentNumber::EMAIL_DOMAIN)) {
     jsonResponse(['success' => false, 'error' => 'Please register using your official @' . StudentNumber::EMAIL_DOMAIN . ' student email address.'], 400);
-}
-
-$errors = PasswordPolicy::errors($pdo, $password);
-if ($errors) {
-    jsonResponse(['success' => false, 'error' => implode(' ', $errors)], 400);
 }
 
 // Must be on this academic year's class roster.
@@ -100,7 +94,10 @@ if ($existing->fetch()) {
 
 $pdo->beginTransaction();
 try {
-    $hash = password_hash($password, PASSWORD_BCRYPT);
+    // The password is NOT taken here. Anyone who knows a Student Number and its roster email could otherwise register first
+    // with their own password, and the real student's later click on the verification link would activate it. The account
+    // gets an unusable password; the person who opens the emailed link chooses the real one (api/verify-email.php).
+    $hash = password_hash(bin2hex(random_bytes(24)), PASSWORD_BCRYPT);
     $userStmt = $pdo->prepare('INSERT INTO users (role, username, password_hash, email, is_active) VALUES (?, ?, ?, ?, TRUE) RETURNING id');
     $userStmt->execute(['student', $schoolId, $hash, $email]);
     $userId = (int) $userStmt->fetchColumn();
@@ -139,7 +136,9 @@ $bodyText = "Hi $firstName,\n\nThanks for creating a ProfilePath account. Confir
 $sent = Mailer::send($email, $firstName, 'Verify your ProfilePath email', $bodyHtml, $bodyText);
 
 $response = ['success' => true, 'emailSent' => $sent, 'name' => "$firstName $lastName", 'strand' => $strand, 'section' => $section];
-if (!$sent) {
+// Local development only (no email service there). In production the link is never put in the response:
+// anyone who knew a Student Number and its roster email could otherwise activate that account without the inbox.
+if (!$sent && envValue('APP_ENV') === 'local') {
     // The student just proved they control this form submission (not the
     // inbox) — if delivery fails there's no other way for them to get
     // moving, so hand over the link directly (api/staff-register.php does
