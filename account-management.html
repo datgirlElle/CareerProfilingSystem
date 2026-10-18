@@ -388,7 +388,14 @@
           '<button type="button" class="' + btn + 'text-[#ed1c24] border-[#ed1c24] hover:bg-red-50" data-action="toggleActive"' + data + ' data-active="1">Deactivate</button>' +
         '</div>';
       }
-      return '<button type="button" class="' + btn + (a.isActive ? 'text-[#ed1c24] border-[#ed1c24] hover:bg-red-50' : 'text-[#19427b] border-[#19427b] hover:bg-slate-50') + '" data-action="toggleActive"' + data + ' data-active="' + (a.isActive ? '1' : '0') + '">' + (a.isActive ? 'Deactivate' : 'Activate') + '</button>';
+      const toggle = '<button type="button" class="' + btn + (a.isActive ? 'text-[#ed1c24] border-[#ed1c24] hover:bg-red-50' : 'text-[#19427b] border-[#19427b] hover:bg-slate-50') + '" data-action="toggleActive"' + data + ' data-active="' + (a.isActive ? '1' : '0') + '">' + (a.isActive ? 'Deactivate' : 'Activate') + '</button>';
+      // Locked by wrong passwords: only an administrator can unlock a staff account.
+      if (a.locked && isAdmin) {
+        return '<div class="flex items-center justify-center gap-2">' +
+          '<button type="button" class="' + btn + 'text-[#19427b] border-[#19427b] hover:bg-slate-50" data-action="unlock"' + data + '>Unlock</button>' +
+          toggle + '</div>';
+      }
+      return toggle;
     }
 
     // Which sections each staff member handles (none ticked = sees every section).
@@ -438,7 +445,8 @@
         approve: 'Approve "' + name + '"? They will be emailed a temporary access code to create their own password. You will not see the password.',
         resendCode: 'Email "' + name + '" a new temporary access code? Any earlier code stops working.',
         reject: 'Reject the sign-up of "' + name + '"? They will be emailed and will not be able to sign in.',
-        toggleActive: (btn.dataset.active === '1' ? 'Deactivate' : 'Activate') + ' "' + name + '"?'
+        toggleActive: (btn.dataset.active === '1' ? 'Deactivate' : 'Activate') + ' "' + name + '"?',
+        unlock: 'Unlock "' + name + '"? The account was locked after too many wrong passwords. They can sign in again right away.'
       };
       if (!(await showConfirm(prompts[action]))) return;
       btn.disabled = true;
@@ -448,7 +456,7 @@
       });
       const data = await res.json();
       if (!data.success) { showToast(data.error || 'Could not update this account.', true); btn.disabled = false; return; }
-      showToast(action === 'approve' ? (data.emailSent === false ? 'Approved, but the email could not be sent. Use Resend code.' : 'Approved. A temporary access code was emailed.') : action === 'resendCode' ? (data.emailSent === false ? 'The email could not be sent. Try again.' : 'A new access code was emailed.') : action === 'reject' ? 'Sign-up rejected.' : 'Account updated.', false);
+      showToast(action === 'approve' ? (data.emailSent === false ? 'Approved, but the email could not be sent. Use Resend code.' : 'Approved. A temporary access code was emailed.') : action === 'resendCode' ? (data.emailSent === false ? 'The email could not be sent. Try again.' : 'A new access code was emailed.') : action === 'reject' ? 'Sign-up rejected.' : action === 'unlock' ? 'Account unlocked.' : 'Account updated.', false);
       await loadStaff();
     });
 

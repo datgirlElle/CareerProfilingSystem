@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/RateLimiter.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -20,6 +21,12 @@ $userRow = $userStmt->fetch();
 
 if (!$userRow || empty($userRow['email'])) {
     jsonResponse(['success' => false, 'error' => 'Unable to resend a code for this account.'], 400);
+}
+
+// Each resend makes a new code (with fresh tries) and an email, so it is limited: otherwise the
+// 5-tries-per-code limit could be reset over and over, and the inbox flooded.
+if (RateLimiter::tooMany('pw-code-resend:' . (int) $user['id'], 3, 15)) {
+    jsonResponse(['success' => false, 'error' => 'Too many codes sent. Please wait 15 minutes and try again.'], 429);
 }
 
 $sent = TwoFactor::issue($pdo, (int) $user['id'], $userRow['email'], $userRow['username'], $plainCode);

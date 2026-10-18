@@ -160,6 +160,8 @@
             </div>
             </div>
             <div class="sp-actions">
+              <!-- Shown only while the account is locked by wrong passwords (filled in from the student record). -->
+              <button type="button" id="unlockAccountBtn" class="hidden shrink-0 border border-[#19427b] text-[#19427b] rounded-md px-4 py-2 text-sm font-medium hover:bg-slate-50">Unlock Account</button>
               <button type="button" id="resetAssessmentBtn" class="hidden shrink-0 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50">Reset Assessment</button>
               <button type="button" id="toggleActiveBtn" class="hidden shrink-0 border rounded-md px-4 py-2 text-sm font-medium"></button>
             </div>
@@ -436,6 +438,29 @@
     closeToggleActiveModal();
   });
 
+  // Locked by too many wrong passwords (for example a classmate typing this Student Number): staff
+  // who can see the student unlock it, so they can sign in right away instead of waiting.
+  document.getElementById('unlockAccountBtn').addEventListener('click', async function() {
+    if (!(await PP.confirm('Unlock this student\'s account?\n\nIt was locked after too many wrong passwords. The student can sign in again right away.', { okLabel: 'Unlock' }))) return;
+    const btn = this;
+    btn.disabled = true;
+    try {
+      const res = await fetch('api/students.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'unlock', userId: toggleActiveUserId })
+      });
+      const data = await res.json();
+      if (!data.success) { PP.toast(data.error || 'Could not unlock the account.', true); btn.disabled = false; return; }
+      btn.classList.add('hidden');
+      btn.disabled = false;
+      PP.toast('Account unlocked. The student can sign in now.', false);
+    } catch (e) {
+      PP.toast('Unable to reach the server. Please try again.', true);
+      btn.disabled = false;
+    }
+  });
+
   // Admin only: delete a student's answers so they can retake the assessment (rare, and only when
   // the Guidance Office allows it). Shown only for a student who has finished it.
   document.getElementById('resetAssessmentBtn').addEventListener('click', async function() {
@@ -586,6 +611,7 @@
       const s = data.student;
       toggleActiveUserId = s.userId;
       renderToggleActiveButton(s.isActive);
+      if (s.lockedUntil) document.getElementById('unlockAccountBtn').classList.remove('hidden');
       if (currentUser.role === 'admin' && s.status === 'Completed') document.getElementById('resetAssessmentBtn').classList.remove('hidden');
       document.getElementById('studentName').textContent = s.name;
       document.getElementById('studentId').textContent = 'Grade ' + s.gradeLevel + ' · ' + s.strand + ' ' + s.section;

@@ -36,6 +36,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     // Admin only: delete a student's answers (assessment, worksheet and the recommendation built from
     // them) so they can take the assessment again, for the rare case guidance allows a retake.
+    // Unlock a student locked out by wrong passwords (for example a classmate typing their Student
+    // Number on exam day), so they can sign in right away. Same staff and sections as Activate/Deactivate.
+    if (($body['type'] ?? '') === 'unlock') {
+        $targetId = (int) ($body['userId'] ?? 0);
+        $stmt = $pdo->prepare("SELECT u.id, s.strand, s.section FROM users u LEFT JOIN students s ON s.user_id = u.id WHERE u.id = ? AND u.role = 'student'");
+        $stmt->execute([$targetId]);
+        $row = $stmt->fetch();
+        if (!$row || !StaffScope::allows($scope, $row['strand'], $row['section'])) {
+            jsonResponse(['success' => false, 'error' => 'Student account not found.'], 404);
+        }
+        $pdo->prepare('UPDATE users SET failed_login_attempts = 0, locked_until = NULL, updated_at = NOW() WHERE id = ?')->execute([$targetId]);
+        AuditLogger::log($user['id'], $user['role'], 'unlock_account', 'user', (string) $targetId, 'Unlocked after failed sign-in attempts');
+        jsonResponse(['success' => true]);
+    }
+
     if (($body['type'] ?? '') === 'resetAssessment') {
         if ($user['role'] !== 'admin') {
             jsonResponse(['success' => false, 'error' => 'Only an administrator can reset a student\'s assessment.'], 403);
@@ -98,7 +113,7 @@ $idLookup = (int) ($_GET['id'] ?? 0);
 if ($idLookup > 0) {
     $stmt = $pdo->prepare(
         'SELECT s.user_id, s.first_name_enc, s.last_name_enc, s.strand, s.grade_level, s.section,
-                s.academic_year, s.registered_at, u.is_active, a.top_types, a.completed_at, a.score_r, a.score_i, a.score_a,
+                s.academic_year, s.registered_at, u.is_active, u.locked_until, a.top_types, a.completed_at, a.score_r, a.score_i, a.score_a,
                 a.score_s, a.score_e, a.score_c
          FROM students s
          JOIN users u ON u.id = s.user_id
@@ -166,6 +181,8 @@ if ($idLookup > 0) {
         })(),
         'academicYear' => $row['academic_year'],
         'isActive' => (bool) $row['is_active'],
+        // Set while the account is locked by wrong passwords (the profile then offers Unlock).
+        'lockedUntil' => $row['locked_until'] !== null && strtotime($row['locked_until']) > time() ? $row['locked_until'] : null,
         'status' => $hasAssessment ? 'Completed' : 'Pending',
         'riasec' => $hasAssessment ? implode(', ', json_decode($row['top_types'], true)) : '',
         'scores' => $hasAssessment ? [
