@@ -182,7 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             jsonResponse(['success' => false, 'error' => 'Invalid changes payload.'], 400);
         }
         $moduleLabels = [
-            'career' => 'Career Profile Input', 'rac' => 'RAC Assessment', 'recommendations' => 'Recommendations', 'counselor' => 'Guidance Counselor accounts',
+            'career' => 'Career Profile Input', 'rac' => 'RIASEC Assessment', 'recommendations' => 'Recommendations', 'counselor' => 'Guidance Counselor accounts',
             'monitoring' => 'Student Monitoring', 'announcements' => 'Announcements', 'examinations' => 'Assessment Scheduling',
             'counselingNotes' => 'Counseling Notes', 'staffAccounts' => 'Staff Accounts', 'sections' => 'Section Management',
         ];

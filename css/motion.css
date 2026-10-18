@@ -420,3 +420,96 @@ button.text-\[\#ed1c24\]:not(.btn-danger) { color: #0f2a6b; }
 .pp-chart-cover { position: absolute; inset: 0; z-index: 5; background: #fff; display: flex; align-items: center; justify-content: center; }
 .pp-chart-cover .sk-bars { height: 100%; max-height: 100%; }
 .pp-chart-cover .pp-error { padding: 12px; }
+
+/* ==========================================================================
+   Design system: shared colour tokens and site-wide fixes (staff and student pages)
+   ========================================================================== */
+:root {
+  --pp-navy-900: #001c43;   /* headings, sidebar */
+  --pp-navy-800: #0f2a6b;   /* primary buttons */
+  --pp-navy-600: #19427b;   /* links, focus ring */
+  --pp-slate-500: #495e88;
+  --pp-red: #ed1c24;        /* brand accent; delete actions only for buttons */
+  --pp-red-dark: #bb0013;
+  --pp-bg: #f8f9fb;
+  --pp-surface: #ffffff;
+  --pp-border: #e5e7eb;
+  --pp-text: #111827;
+  --pp-text-2: #374151;
+  --pp-muted: #6b7280;
+  --pp-success: #15803d;  --pp-success-bg: #f0fdf4;
+  --pp-warning: #b45309;  --pp-warning-bg: #fffbeb;
+  --pp-danger: #b91c1c;   --pp-danger-bg: #fef2f2;
+  --pp-info: #1d4ed8;     --pp-info-bg: #eff6ff;
+}
+
+/* Sidebar: the page you are on reads clearly (white, bold, red marker) instead of red on blue. */
+#sidebar a[aria-current="page"],
+#sidebar a.text-\[\#ed1c24\].border-\[\#ed1c24\] {
+  background-color: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  font-weight: 600;
+  border-left-color: var(--pp-red);
+}
+
+/* Keyboard focus is always visible. */
+:where(a, button, [role="button"], input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--pp-navy-600);
+  outline-offset: 2px;
+}
+#sidebar :where(a, button):focus-visible { outline-color: #ffffff; outline-offset: -3px; }
+
+/* Long emails, codes and names wrap inside table cells and cards instead of pushing the layout wider. */
+td, th, .break-words { overflow-wrap: break-word; }
+
+/* Tailwind utilities the pages use that are not in the precompiled css/tailwind.css (there is no build step). */
+.-mx-2 { margin-left: -0.5rem; margin-right: -0.5rem; }
+.m-6 { margin: 1.5rem; }
+.gap-x-4 { column-gap: 1rem; }
+.gap-y-2 { row-gap: 0.5rem; }
+.max-w-\[480px\] { max-width: 480px; }
+.max-w-\[1100px\] { max-width: 1100px; }
+.leading-snug { line-height: 1.375; }
+.tracking-normal { letter-spacing: 0; }
+.tracking-widest { letter-spacing: 0.1em; }
+.list-decimal { list-style-type: decimal; }
+.text-\[22px\] { font-size: 22px; }
+.placeholder\:tracking-normal::placeholder { letter-spacing: normal; }
+.bg-sky-50 { background-color: #f0f9ff; }
+.border-sky-200 { border-color: #bae6fd; }
+.text-sky-700 { color: #0369a1; }
+.border-\[\#0f2a6b\] { border-color: #0f2a6b; }
+.border-\[\#d5dcf3\] { border-color: #d5dcf3; }
+.text-\[\#15803d\] { color: #15803d; }
+.text-\[\#1d4ed8\] { color: #1d4ed8; }
+.text-\[\#7e22ce\] { color: #7e22ce; }
+.text-blue-700 { color: #1d4ed8; }
+.text-emerald-700 { color: #047857; }
+.text-slate-300 { color: #cbd5e1; }
+@media (min-width: 40rem) {
+  .sm\:items-start { align-items: flex-start; }
+  .sm\:p-10 { padding: 2.5rem; }
+}
+@media (min-width: 48rem) {
+  .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Sidebar menu rows never shrink below a comfortable size on short screens; the menu scrolls instead.
+   Phones get 44px rows (finger-sized tap targets). */
+#sidebar nav a { flex-shrink: 0; min-height: 36px; }
+@media (max-width: 47.99rem) { #sidebar nav a { height: 44px; } }
+.pl-16 { padding-left: 4rem; }
+.text-purple-700 { color: #7e22ce; }
+/* Page titles: one size and colour on every staff and student page. */
+#main-content h1.text-2xl, #main-content h1.text-\[30px\] { font-size: 1.5rem; line-height: 2rem; color: var(--pp-navy-900); }
+/* Table headers: one style everywhere (small, uppercase, grey). */
+#main-content thead th { font-size: 0.75rem; line-height: 1rem; font-weight: 600; letter-spacing: 0.025em; text-transform: uppercase; color: #4b5563; }
+/* Student portal: page titles and the line under them match the staff pages; section titles a step smaller. */
+#main-content h1.text-\[32px\], #main-content h1.text-\[28px\] { font-size: 1.5rem; line-height: 2rem; color: var(--pp-navy-900); letter-spacing: -0.01em; }
+#main-content h2.text-\[32px\] { font-size: 1.25rem; line-height: 1.75rem; color: var(--pp-navy-900); letter-spacing: -0.01em; }
+#main-content :is(h1, h2) + p.text-base { font-size: 0.875rem; line-height: 1.25rem; margin-top: 0.25rem; }
+/* Student pages use wide side padding; on phones it shrinks so content gets the width. */
+@media (max-width: 39.99rem) {
+  #main-content.px-9 { padding-left: 1rem; padding-right: 1rem; }
+  #main-content.py-10 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
+}
