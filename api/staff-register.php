@@ -7,6 +7,7 @@ require_once __DIR__ . '/../lib/RateLimiter.php';
 require_once __DIR__ . '/../lib/StaffPosition.php';
 require_once __DIR__ . '/../lib/StaffName.php';
 require_once __DIR__ . '/../lib/StaffEmail.php';
+require_once __DIR__ . '/../lib/Consent.php';
 
 // Public staff (Guidance Counselor / Guidance Facilitator) sign-up. No password is chosen here:
 // the account starts 'pending' with an unusable password, the Head of Guidance (admin) approves it
@@ -75,6 +76,8 @@ if ($clash) {
 // Nobody can sign in with this: the real password is created after approval, with the emailed code.
 $unusable = password_hash(bin2hex(random_bytes(24)), PASSWORD_BCRYPT);
 
+// One transaction: the account and the receipt of its privacy consent (lib/Consent.php) are saved together.
+$pdo->beginTransaction();
 try {
     $userStmt = $pdo->prepare(
         // Counselors and facilitators share the 'counselor' system role; staff_position
@@ -84,7 +87,11 @@ try {
     );
     $userStmt->execute([$username, $unusable, $email, $fullName, $position]);
     $userId = (int) $userStmt->fetchColumn();
+    Consent::record($pdo, $userId, 'staff_signup');
+    $pdo->commit();
 } catch (Throwable $e) {
+    $pdo->rollBack();
+    error_log('[staff-register] ' . $e->getMessage());
     jsonResponse(['success' => false, 'error' => 'Sign-up failed. Please try again.'], 500);
 }
 
