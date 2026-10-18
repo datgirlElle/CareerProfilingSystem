@@ -627,9 +627,16 @@
     const isRosterOnly = s.userId === null;
     const statusCell = badge(s.status, STATUS_STYLE[s.status]);
     // A student with no account has no sign-in to show.
+    // Locked by wrong passwords (for example on exam day): shown right here with Unlock, so staff in the
+    // room see it without opening each profile.
     const accountCell = isRosterOnly
       ? '<span class="text-gray-400 text-xs">&mdash;</span>'
-      : (s.isActive
+      : (s.isActive && s.locked
+          ? '<span class="inline-flex items-center gap-2 whitespace-nowrap">' +
+              '<span class="inline-flex items-center bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium px-3 py-1 rounded-full">Locked</span>' +
+              '<button type="button" class="unlock-btn text-xs font-semibold text-[#0f2a6b] underline" data-id="' + s.userId + '" data-name="' + escapeHtml(s.name) + '">Unlock</button>' +
+            '</span>'
+          : s.isActive
           ? '<span class="inline-flex items-center bg-[#f0fdf4] border border-[#bbf7d0] text-emerald-600 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">Active</span>'
           : '<span class="inline-flex items-center bg-gray-100 border border-gray-200 text-gray-500 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">Deactivated</span>');
     const counselingCell = s.counseling
@@ -821,6 +828,22 @@
   // ---- Account actions on a registered student's row: invite to counseling (the CGC booking link), activate / deactivate.
   tbody.addEventListener('click', async function(e) {
     const summary = document.getElementById('paginationSummary');
+    const unlockBtn = e.target.closest('.unlock-btn');
+    if (unlockBtn) {
+      if (!(await PP.confirm('Unlock "' + unlockBtn.dataset.name + '"? The account was locked after too many wrong passwords. They can sign in again right away.', { okLabel: 'Unlock' }))) return;
+      unlockBtn.disabled = true;
+      try {
+        const res = await fetch('api/students.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'unlock', userId: Number(unlockBtn.dataset.id) }) });
+        const data = await res.json();
+        if (!data.success) { PP.toast(data.error || 'Could not unlock the account.', true); unlockBtn.disabled = false; return; }
+        PP.toast('Account unlocked. The student can sign in now.', false);
+        await load();
+      } catch (err) {
+        PP.toast('Unable to reach the server. Please try again.', true);
+        unlockBtn.disabled = false;
+      }
+      return;
+    }
     const inviteBtn = e.target.closest('.counsel-invite-btn');
     if (inviteBtn) {
       if (!(await PP.confirm('Invite "' + inviteBtn.dataset.name + '" to a counseling session? They will be sent the CGC booking link by email and in their notifications.'))) return;

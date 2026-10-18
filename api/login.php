@@ -3,7 +3,7 @@
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/StaffPosition.php';
 require_once __DIR__ . '/../lib/LoginDevice.php';
-require_once __DIR__ . '/../lib/RateLimiter.php';
+require_once __DIR__ . '/../lib/LoginLock.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -27,7 +27,7 @@ $pdo = Database::get();
 // A bcrypt hash of a random throwaway text. Unknown usernames are checked against it, so they take
 // as long to answer as real accounts and the timing does not tell which accounts exist.
 const TIMING_DUMMY_HASH = '$2y$12$fm2fIi2HLx99eEzo4LSkLOGfj2W2JdC2COBwb3NQ7UBJ8H.aJlISy';
-const LOCKED_MESSAGE = 'Account temporarily locked due to repeated failed attempts. Try again later, or ask the Guidance Office to unlock it.';
+const LOCKED_MESSAGE = 'Account temporarily locked due to repeated failed attempts. ';
 
 function lockoutPolicy(PDO $pdo): array
 {
@@ -59,35 +59,48 @@ $policy = lockoutPolicy($pdo);
 
 if (!$user || !$user['is_active']) {
     password_verify($password, TIMING_DUMMY_HASH);
-    // Unknown names get the same lock as real accounts after the same number of tries, so the
-    // "locked" answer does not prove an account exists. The key is a hash of the typed name, so a
-    // password typed into the username box by mistake is never stored as text.
-    if ($policy['enabled'] && RateLimiter::tooMany('login-unknown:' . hash('sha256', mb_strtolower($typed)), $policy['maxAttempts'], $policy['lockoutMinutes'])) {
-        AuditLogger::log(null, null, 'login_failed', 'user', $typed, 'Unknown or inactive username (locked)');
-        jsonResponse(['success' => false, 'error' => LOCKED_MESSAGE], 423);
+    // Unknown names get the same soft lock as real accounts (lib/LoginLock.php), so the "locked"
+    // answer does not prove an account exists.
+    if ($policy['enabled']) {
+        $nameLock = LoginLock::forName($typed);
+        LoginLock::oneAtATime($pdo, $nameLock);
+        $until = LoginLock::lockedUntil($pdo, $nameLock, $policy['lockoutMinutes']);
+        if ($until !== null) {
+            AuditLogger::log(null, null, 'login_failed', 'user', $typed, 'Unknown or inactive username (locked)');
+            jsonResponse(['success' => false, 'error' => LOCKED_MESSAGE . LoginLock::waitText($until)], 423);
+        }
+        LoginLock::recordFailure($pdo, $nameLock, $policy['maxAttempts'], $policy['lockoutMinutes']);
     }
     AuditLogger::log(null, null, 'login_failed', 'user', $typed, 'Unknown or inactive username');
     jsonResponse($genericError, 401);
 }
 
+if ($policy['enabled']) {
+    // Attempts on one account wait in line, then read the lock fresh: a burst of parallel wrong
+    // passwords cannot all slip past it (lib/LoginLock.php).
+    LoginLock::oneAtATime($pdo, LoginLock::forAccount((int) $user['id']));
+    $fresh = $pdo->prepare('SELECT locked_until FROM users WHERE id = ?');
+    $fresh->execute([$user['id']]);
+    $user['locked_until'] = $fresh->fetchColumn() ?: null;
+}
 if ($policy['enabled'] && $user['locked_until'] !== null && strtotime($user['locked_until']) > time()) {
     password_verify($password, TIMING_DUMMY_HASH);   // same time as a locked unknown name
     AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $typed, 'Account locked');
-    jsonResponse(['success' => false, 'error' => LOCKED_MESSAGE], 423);
+    jsonResponse(['success' => false, 'error' => LOCKED_MESSAGE . LoginLock::waitText((int) strtotime($user['locked_until']))], 423);
 }
 
 if (!password_verify($password, $user['password_hash'])) {
-    $attempts = (int) $user['failed_login_attempts'] + 1;
-    $lockedUntil = null;
-    if ($policy['enabled'] && $attempts >= $policy['maxAttempts']) {
-        $lockedUntil = date('c', time() + $policy['lockoutMinutes'] * 60);
-        $attempts = 0; // reset counter once locked, so the next window starts fresh
-    }
-    $update = $pdo->prepare('UPDATE users SET failed_login_attempts = ?, locked_until = ? WHERE id = ?');
-    $update->execute([$attempts, $lockedUntil, $user['id']]);
-    if ($lockedUntil !== null) {
+    // Soft, growing lock (lib/LoginLock.php): wrong tries count for 15 minutes; the lock is 1, then 5,
+    // then the admin's lockout length. (failed_login_attempts is no longer counted up.)
+    $lockMinutes = $policy['enabled']
+        ? LoginLock::recordFailure($pdo, LoginLock::forAccount((int) $user['id']), $policy['maxAttempts'], $policy['lockoutMinutes'])
+        : null;
+    if ($lockMinutes !== null) {
+        $pdo->prepare('UPDATE users SET failed_login_attempts = 0, locked_until = NOW() + make_interval(mins => ?) WHERE id = ?')
+            ->execute([$lockMinutes, $user['id']]);
         // One entry per lockout (not per wrong password): what the Security Overview's Account Lockouts counts.
-        AuditLogger::log((int) $user['id'], $user['role'], 'login_lockout', 'user', $typed, "Locked for {$policy['lockoutMinutes']} minutes after {$policy['maxAttempts']} failed attempts");
+        AuditLogger::log((int) $user['id'], $user['role'], 'login_lockout', 'user', $typed,
+            "Locked for $lockMinutes minute" . ($lockMinutes === 1 ? '' : 's') . " after {$policy['maxAttempts']} failed attempts");
     }
 
     AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $typed, 'Incorrect password');
@@ -138,6 +151,7 @@ if ($user['role'] === 'student' && $user['email_verified_at'] === null) {
 // Success — reset lockout state.
 $reset = $pdo->prepare('UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?');
 $reset->execute([$user['id']]);
+LoginLock::clear($pdo, LoginLock::forAccount((int) $user['id']));
 
 $sessionData = [
     'id' => (int) $user['id'],
