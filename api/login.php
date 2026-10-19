@@ -3,6 +3,7 @@
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/StaffPosition.php';
 require_once __DIR__ . '/../lib/LoginDevice.php';
+require_once __DIR__ . '/../lib/RateLimiter.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -17,8 +18,16 @@ $portal = (string) ($body['portal'] ?? '');
 if ($username === '' || $password === '') {
     jsonResponse(['success' => false, 'error' => 'Username and password are required.'], 400);
 }
+// What the audit log keeps of the typed name: target_id holds 50 characters, and a longer value
+// would make the log insert fail (a server error instead of "Invalid username or password").
+$typed = mb_substr($username, 0, 50);
 
 $pdo = Database::get();
+
+// A bcrypt hash of a random throwaway text. Unknown usernames are checked against it, so they take
+// as long to answer as real accounts and the timing does not tell which accounts exist.
+const TIMING_DUMMY_HASH = '$2y$12$fm2fIi2HLx99eEzo4LSkLOGfj2W2JdC2COBwb3NQ7UBJ8H.aJlISy';
+const LOCKED_MESSAGE = 'Account temporarily locked due to repeated failed attempts. Try again later, or ask the Guidance Office to unlock it.';
 
 function lockoutPolicy(PDO $pdo): array
 {
@@ -30,11 +39,15 @@ function lockoutPolicy(PDO $pdo): array
     ];
 }
 
-$stmt = $pdo->prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?)');
-$stmt->execute([$username]);
-$user = $stmt->fetch();
+// No real username or email is this long; it is treated like an unknown one.
+$user = false;
+if (mb_strlen($username) <= 150) {
+    $stmt = $pdo->prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?)');
+    $stmt->execute([$username]);
+    $user = $stmt->fetch();
+}
 // Staff sign in with their email (they have no username to remember); students keep using their Student Number.
-if (!$user && strpos($username, '@') !== false) {
+if (!$user && mb_strlen($username) <= 150 && strpos($username, '@') !== false) {
     $byEmail = $pdo->prepare("SELECT * FROM users WHERE LOWER(email) = LOWER(?) AND role IN ('admin', 'counselor') ORDER BY id LIMIT 1");
     $byEmail->execute([$username]);
     $user = $byEmail->fetch();
@@ -42,15 +55,25 @@ if (!$user && strpos($username, '@') !== false) {
 
 $genericError = ['success' => false, 'error' => 'Invalid username or password.'];
 
+$policy = lockoutPolicy($pdo);
+
 if (!$user || !$user['is_active']) {
-    AuditLogger::log(null, null, 'login_failed', 'user', $username, 'Unknown or inactive username');
+    password_verify($password, TIMING_DUMMY_HASH);
+    // Unknown names get the same lock as real accounts after the same number of tries, so the
+    // "locked" answer does not prove an account exists. The key is a hash of the typed name, so a
+    // password typed into the username box by mistake is never stored as text.
+    if ($policy['enabled'] && RateLimiter::tooMany('login-unknown:' . hash('sha256', mb_strtolower($typed)), $policy['maxAttempts'], $policy['lockoutMinutes'])) {
+        AuditLogger::log(null, null, 'login_failed', 'user', $typed, 'Unknown or inactive username (locked)');
+        jsonResponse(['success' => false, 'error' => LOCKED_MESSAGE], 423);
+    }
+    AuditLogger::log(null, null, 'login_failed', 'user', $typed, 'Unknown or inactive username');
     jsonResponse($genericError, 401);
 }
 
-$policy = lockoutPolicy($pdo);
 if ($policy['enabled'] && $user['locked_until'] !== null && strtotime($user['locked_until']) > time()) {
-    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Account locked');
-    jsonResponse(['success' => false, 'error' => 'Account temporarily locked due to repeated failed attempts. Try again later.'], 423);
+    password_verify($password, TIMING_DUMMY_HASH);   // same time as a locked unknown name
+    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $typed, 'Account locked');
+    jsonResponse(['success' => false, 'error' => LOCKED_MESSAGE], 423);
 }
 
 // A student account has no usable password until its email link is opened (api/verify-email.php), so a wrong-password
@@ -75,20 +98,20 @@ if (!password_verify($password, $user['password_hash'])) {
     $update->execute([$attempts, $lockedUntil, $user['id']]);
     if ($lockedUntil !== null) {
         // One entry per lockout (not per wrong password): what the Security Overview's Account Lockouts counts.
-        AuditLogger::log((int) $user['id'], $user['role'], 'login_lockout', 'user', $username, "Locked for {$policy['lockoutMinutes']} minutes after {$policy['maxAttempts']} failed attempts");
+        AuditLogger::log((int) $user['id'], $user['role'], 'login_lockout', 'user', $typed, "Locked for {$policy['lockoutMinutes']} minutes after {$policy['maxAttempts']} failed attempts");
     }
 
-    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Incorrect password');
+    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $typed, 'Incorrect password');
     jsonResponse($genericError, 401);
 }
 
 // Checked after the password, so the wrong page reveals nothing to someone who doesn't know it.
 if ($portal === 'staff' && $user['role'] === 'student') {
-    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Student tried the staff sign in');
+    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $typed, 'Student tried the staff sign in');
     jsonResponse(['success' => false, 'error' => 'This is the staff sign in. Students, please use the student sign in page.'], 403);
 }
 if ($portal === 'student' && $user['role'] !== 'student') {
-    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Staff tried the student sign in');
+    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $typed, 'Staff tried the student sign in');
     jsonResponse(['success' => false, 'error' => 'This sign in is for students only.'], 403);
 }
 
@@ -97,25 +120,25 @@ if ($portal === 'student' && $user['role'] !== 'student') {
 // only after the password is right, so the status never leaks to a stranger.)
 if ($user['role'] === 'counselor' && $user['approval_status'] === 'pending') {
     if ($user['email_verified_at'] === null) {
-        AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Staff email not verified');
+        AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $typed, 'Staff email not verified');
         jsonResponse([
             'success' => false,
             'error' => 'Please verify your email first — check your inbox for the verification link. An administrator then needs to approve your account.',
             'needsVerification' => true,
         ], 403);
     }
-    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Staff account awaiting approval');
+    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $typed, 'Staff account awaiting approval');
     jsonResponse(['success' => false, 'error' => 'Your account is waiting for an administrator to approve it. You will be able to sign in once it is approved.'], 403);
 }
 if ($user['role'] === 'counselor' && $user['approval_status'] === 'rejected') {
-    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Staff sign-up was rejected');
+    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $typed, 'Staff sign-up was rejected');
     jsonResponse(['success' => false, 'error' => 'Your sign-up was not approved. Please contact your system administrator.'], 403);
 }
 
 // Students self-register through the public page and must verify their email
 // before signing in.
 if ($user['role'] === 'student' && $user['email_verified_at'] === null) {
-    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Email not verified');
+    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $typed, 'Email not verified');
     jsonResponse([
         'success' => false,
         'error' => 'Please verify your email before signing in — check your inbox for the verification link.',

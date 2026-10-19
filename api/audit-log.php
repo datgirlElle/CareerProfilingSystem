@@ -86,6 +86,7 @@ $actionLabels = [
     'deactivate_student_account' => 'Deactivated student account',
     'update_student_section' => 'Changed student section',
     'reset_student_assessment' => 'Reset student assessment',
+    'unlock_account' => 'Unlocked account',
     'export_student_list' => 'Exported student list',
     'export_student_roster' => 'Exported student roster',
     'upload_roster' => 'Uploaded class roster',
