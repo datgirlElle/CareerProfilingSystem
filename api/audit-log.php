@@ -45,7 +45,8 @@ const HIDDEN_DETAIL_ACTIONS = [
 ];
 // Staff actions on a student's account, logged with target_type 'user' and the student's user id
 // (api/students.php). Like target_type 'student', only admins see which student and the detail.
-const STUDENT_ACCOUNT_ACTIONS = ['activate_student_account', 'deactivate_student_account', 'reset_student_assessment', 'update_student_section'];
+// register_failed (api/register.php) is here too: its detail holds the Student Number that was typed.
+const STUDENT_ACCOUNT_ACTIONS = ['activate_student_account', 'deactivate_student_account', 'reset_student_assessment', 'update_student_section', 'register_failed'];
 
 // A written name for every action the app logs (past tense, plain words). An action missing here is
 // shown by its code with the underscores turned into spaces.
@@ -58,6 +59,7 @@ $actionLabels = [
     'signed_out_other_device' => 'Signed out on another device',
     'logout' => 'Signed out',
     'register' => 'Registered new account',
+    'register_failed' => 'Registration not completed',
     'verify_email' => 'Verified email',
     'request_password_reset' => 'Requested password reset',
     'reset_password' => 'Reset password',

@@ -44,6 +44,8 @@ if (!$user && strpos($username, '@') !== false) {
 $genericError = ['success' => false, 'error' => 'Invalid username or password.'];
 
 if (!$user || !$user['is_active']) {
+    // Checked against a made-up hash (random text nobody knows) so an unknown username takes as long as a real one.
+    password_verify($password, '$2y$12$ksj2fCPsVV7HKTAmTA8JsuhvDGkNNnan8bPmCFjenbKU.dDqwJteC');
     AuditLogger::log(null, null, 'login_failed', 'user', $username, 'Unknown or inactive username');
     jsonResponse($genericError, 401);
 }
@@ -54,15 +56,14 @@ if ($policy['enabled'] && $user['locked_until'] !== null && strtotime($user['loc
     jsonResponse(['success' => false, 'error' => 'Account temporarily locked due to repeated failed attempts. Try again later.'], 423);
 }
 
-// A student account has no usable password until its email link is opened (api/verify-email.php), so a wrong-password
-// answer would leave the student with no way to find the resend button. Say it needs verifying, whatever was typed.
+// A student account has no usable password until its email link is opened (api/verify-email.php). It gets the same
+// answer as a wrong password, so a Student Number alone does not tell a stranger that it was registered; the student
+// sign-in page always shows "Didn't get the verification email? Resend it". The password is still checked (and the
+// result ignored) so this answer takes as long as a real one, and it does not count toward a lockout.
 if ($user['role'] === 'student' && $user['email_verified_at'] === null) {
+    password_verify($password, $user['password_hash']);
     AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Email not verified');
-    jsonResponse([
-        'success' => false,
-        'error' => 'Please verify your email before signing in — check your inbox for the verification link, where you also choose your password.',
-        'needsVerification' => true,
-    ], 403);
+    jsonResponse($genericError, 401);
 }
 
 if (!password_verify($password, $user['password_hash'])) {
@@ -111,17 +112,6 @@ if ($user['role'] === 'counselor' && $user['approval_status'] === 'pending') {
 if ($user['role'] === 'counselor' && $user['approval_status'] === 'rejected') {
     AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Staff sign-up was rejected');
     jsonResponse(['success' => false, 'error' => 'Your sign-up was not approved. Please contact your system administrator.'], 403);
-}
-
-// Students self-register through the public page and must verify their email
-// before signing in.
-if ($user['role'] === 'student' && $user['email_verified_at'] === null) {
-    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Email not verified');
-    jsonResponse([
-        'success' => false,
-        'error' => 'Please verify your email before signing in — check your inbox for the verification link.',
-        'needsVerification' => true,
-    ], 403);
 }
 
 // Success — reset lockout state.

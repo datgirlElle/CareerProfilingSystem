@@ -134,11 +134,15 @@
   <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4 text-center items-center">
     <div class="w-14 h-14 rounded-full bg-green-50 flex items-center justify-center">
       <svg viewBox="0 0 24 24" fill="none" class="w-7 h-7 text-green-600">
-        <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
+        <path d="M3 7l9 6 9-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </div>
-    <h3 class="text-lg font-semibold text-[#001c43]">Account Created!</h3>
-    <p id="successMessage" class="text-sm text-gray-500 leading-relaxed"></p>
+    <!-- The same words for every registration answer (api/register.php answers alike whether or not the details
+         match the class list), so nothing here says whether an account was made. -->
+    <h3 class="text-lg font-semibold text-[#001c43]">Almost there! Check your school email.</h3>
+    <p class="text-sm text-gray-500 leading-relaxed">If your Student Number and email match the class list, we've sent you a link to create your password.</p>
+    <p class="text-xs text-gray-500 leading-relaxed">Nothing after a few minutes? Double-check both, or visit the Guidance Office.</p>
     <div id="successVerifyLinkBox" class="hidden w-full bg-amber-50 border border-amber-100 rounded-md px-3.5 py-2.5 text-left break-all">
       <p class="text-xs text-amber-800">The verification email couldn't be delivered. Use this link directly: <a id="successVerifyLinkAnchor" href="#" class="font-semibold underline"></a></p>
     </div>
@@ -146,7 +150,7 @@
       Go to Sign In
     </a>
     <button type="button" id="successModalClose" class="text-xs text-gray-400 hover:text-gray-600 hover:underline">
-      Register another account
+      Close
     </button>
   </div>
 </div>
@@ -187,10 +191,7 @@
     // people to click "Create Account" again and hit a "already exists"
     // error, confused about whether the first attempt had worked.
     const successModal = document.getElementById('successModal');
-    function openSuccessModal(email, verifyLink, who) {
-      document.getElementById('successMessage').textContent =
-        (who && who.name ? 'Welcome, ' + who.name + ' (' + who.strand + ' ' + who.section + '). ' : '') +
-        'We\'ve sent a verification link to ' + email + '. Open it to choose your password; you cannot sign in before that.';
+    function openSuccessModal(verifyLink) {
       const linkBox = document.getElementById('successVerifyLinkBox');
       if (verifyLink) {
         const anchor = document.getElementById('successVerifyLinkAnchor');
@@ -256,7 +257,7 @@
           return;
         }
 
-        openSuccessModal(email, data.verifyLink || null, data);
+        openSuccessModal(data.verifyLink || null);
         form.reset();
       } catch (err) {
         showMessage('Unable to reach the server. Please try again.', true);
