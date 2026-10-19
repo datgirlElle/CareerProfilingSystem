@@ -398,7 +398,7 @@ separate; none is given a numeric weight, and the worksheet never enters the cos
   and shown as incomplete (`pendingSources = prediction`, `final_program_ids` NULL).
 - **Stored per result** (`recommendations`): every course's dot product, magnitudes and cosine
   (`scores`) and the Best RIASEC Match (`cbf_program_ids`).
-- **Auditing:** the staff page `cbf-debug` (and `php db/cbf_debug.php <school_id>`) shows the
+- **Auditing:** `php db/cbf_debug.php <school_id>` (command line) shows the
   student vector and, for every course, the course vector, dot product, magnitudes and cosine.
 - **Cosine similarity is not accuracy.** It is shown as "Cosine Similarity: 0.xxx", never as a
   percentage. Accuracy belongs to the future prediction-model evaluation.

@@ -152,9 +152,6 @@ php db/cbf_debug.php <school_id> --csv    # all courses (e.g. for Chapter 4)
 php db/cbf_debug.php <school_id> --json   # everything as JSON
 ```
 
-or, logged in as an admin/counselor, open `/cbf-debug?schoolId=<school_id>` (also linked from a
-student's profile).
-
 ## Deployment
 
 `render.yaml` provisions a free Postgres instance and a Docker web service on Render. Push to

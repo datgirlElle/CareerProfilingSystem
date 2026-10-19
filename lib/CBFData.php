@@ -6,7 +6,7 @@ require_once __DIR__ . '/RecommendationPipeline.php';
 
 /**
  * Loads the inputs of the CBF engine from the existing tables, so that
- * api/worksheet-submit.php, api/cbf-debug.php and db/cbf_debug.php all build
+ * api/worksheet-submit.php and db/cbf_debug.php both build
  * the student profile and the program dataset the same way.
  *
  *   Student profile  <- assessments (latest attempt: score_r .. score_c) -> used by the CBF
