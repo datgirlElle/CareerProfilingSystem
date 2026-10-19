@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/QuestionBank.php';
+require_once __DIR__ . '/../lib/AuditChange.php';
 
 $pdo = Database::get();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -87,10 +88,19 @@ if ($method === 'PUT') {
     $update->execute([Crypto::enc($text), $isActive, $id]);
 
     $user = Auth::currentUser();
-    $wasActive = (bool) $question['is_active'];
-    AuditLogger::log($user['id'], $user['role'], 'update_question', 'assessment_question', (string) $id,
-        questionForLog($question['dimension'], $text)
-            . ((bool) $isActive !== $wasActive ? ($isActive ? "\nShown in the assessment" : "\nHidden from the assessment") : ''));
+    // Before -> after for the audit log (only what changed is kept).
+    try {
+        $oldText = Crypto::dec($question['question_text_enc']);
+    } catch (Throwable $e) {
+        $oldText = '(text could not be read)';
+    }
+    AuditLogger::log($user['id'], $user['role'], 'update_question', 'assessment_question', (string) $id, AuditChange::detail(
+        (QuestionBank::NAMES[$question['dimension']] ?? $question['dimension']) . ' question',
+        ['text' => $oldText, 'active' => (bool) $question['is_active']],
+        ['text' => $text, 'active' => (bool) $isActive],
+        ['text' => 'Question', 'active' => 'Shown in the assessment'],
+        ['active']
+    ));
 
     jsonResponse(['success' => true, 'balance' => QuestionBank::balance(activeCounts($pdo))]);
 }
