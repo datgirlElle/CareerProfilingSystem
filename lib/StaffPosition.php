@@ -1,9 +1,11 @@
 <?php
 
 /**
- * The two guidance staff positions a person can sign up as. They are the same
- * system role ('counselor') with identical access — the position is only the
- * title shown next to their name, so nothing about permissions branches on it.
+ * The two guidance staff positions a person can sign up as. Both are the system
+ * role ('counselor'), but access can differ: a Guidance Facilitator has its own
+ * column in the permission table (Rbac::roleKey() returns 'facilitator', and
+ * Rbac::FACILITATOR_DEFAULT_LIMITS caps it until that column is set). The
+ * position is also the title shown next to their name.
  */
 class StaffPosition
 {
