@@ -75,6 +75,7 @@ $steps = [
     'migrate_add_retake_requests.php',
     'migrate_add_assessment_progress.php',
     'migrate_add_consent_records.php',
+    'migrate_add_session_user.php',
     // Reference data.
     'seed_colleges.php',
     'seed_programs.php',
