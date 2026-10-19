@@ -205,10 +205,13 @@
             </div>
             <div class="p-5 flex flex-col gap-6">
                             <!-- Login & Access Policies -->
-              <div class="border border-slate-200 rounded-lg p-[17px]">
-                <h3 class="text-sm font-semibold text-slate-800">Login &amp; Access Policies</h3>
-                <p class="text-xs text-slate-500 mt-0.5">Enforce strong access policies to protect user accounts.</p>
-                <div class="mt-2 -mx-2" id="policyListContainer"></div>
+              <!-- A title bar (gray strip and a line) so the heading reads as a label; only the rows below open a policy. -->
+              <div class="border border-slate-200 rounded-lg overflow-hidden">
+                <div class="bg-slate-50 border-b border-slate-200 px-[17px] py-3">
+                  <h3 class="text-sm font-semibold text-slate-800">Login &amp; Access Policies</h3>
+                  <p class="text-xs text-slate-500 mt-0.5">Enforce strong access policies to protect user accounts.</p>
+                </div>
+                <div id="policyListContainer"></div>
               </div>
 
 
@@ -297,11 +300,18 @@
       <button type="button" id="policyModalClose" class="text-slate-500 hover:text-slate-600 text-xl leading-none" aria-label="Close">&times;</button>
     </div>
     <div class="px-6 py-5 flex flex-col gap-4">
-      <div class="flex items-center justify-between">
+      <div id="policyStatusRow" class="flex items-center justify-between">
         <p class="text-sm font-medium text-slate-800">Status</p>
         <button type="button" id="policyEnabledToggle" class="w-11 h-6 rounded-full relative shrink-0" aria-label="Policy enabled">
           <span class="absolute top-0.5 w-[18px] h-[18px] rounded-full bg-white transition-all"></span>
         </button>
+      </div>
+      <!-- A rule that always applies has no Status (no on/off state to show), only this note, in a neutral color. -->
+      <div id="policyAlwaysOnNote" class="hidden">
+        <p class="flex items-start gap-2 text-xs text-slate-700 bg-slate-100 border border-slate-200 rounded-md px-3 py-2">
+          <svg viewBox="0 0 24 24" fill="none" class="w-3 h-3 shrink-0 mt-0.5" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="2.5"/></svg>
+          <span><span class="font-semibold">Always enforced.</span> Password rules can't be turned off.</span>
+        </p>
       </div>
       <div id="policyFields" class="flex flex-col gap-4"></div>
       <p id="policyModalError" class="hidden text-xs text-red-600" role="alert"></p>
@@ -636,9 +646,14 @@
     });
     const POLICY_META = {
       password: { title: 'Password Policy' },
-      lockout: { title: 'Account Lockout' },
-      monitoring: { title: 'Login Activity Monitoring' }
+      lockout: { title: 'Account Lockout' }
     };
+    // The password policy is always on (no switch); sign-in logging is always on too, so it has no card.
+    const ALWAYS_ON = ['password'];
+    // "Enforced" with a lock, in a neutral color: a rule that always applies, not a switch that happens to be on
+    // (green is kept for real switches, like Account Lockout's "Enabled").
+    const ENFORCED_BADGE = '<span class="inline-flex items-center gap-1 bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap">' +
+      '<svg viewBox="0 0 24 24" fill="none" class="w-3 h-3 shrink-0" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="2.5"/></svg>Enforced</span>';
 
     function policyDesc(key) {
       const p = state.policies[key];
@@ -650,22 +665,21 @@
         if (p.requireSymbol) reqs.push('symbol');
         return 'Minimum ' + p.minLength + ' characters' + (reqs.length ? ' with ' + reqs.join(', ') + '.' : '.');
       }
-      if (key === 'lockout') {
-        return 'Lock account after ' + p.maxAttempts + ' failed login attempts (' + p.lockoutMinutes + ' min lockout).';
-      }
-      return 'Track and log user login activities and device information. Retained for ' + p.retentionDays + ' days.';
+      return 'Lock account after ' + p.maxAttempts + ' failed login attempts (' + p.lockoutMinutes + ' min lockout).';
     }
 
     function renderPolicyList() {
       const container = document.getElementById('policyListContainer');
-      const keys = ['password', 'lockout', 'monitoring'];
+      const keys = ['password', 'lockout'];
       container.innerHTML = keys.map(function(key, idx) {
         const p = state.policies[key];
-        const badge = p.enabled
+        const badge = ALWAYS_ON.includes(key)
+          ? ENFORCED_BADGE
+          : p.enabled
           ? '<span class="bg-green-50 border border-green-200 text-green-700 text-xs font-medium px-2 py-1 rounded-md">Enabled</span>'
           : '<span class="bg-slate-100 text-slate-600 text-xs font-medium px-2 py-1 rounded-md">Disabled</span>';
         const tag = isAdmin ? 'button' : 'div';
-        return '<' + tag + ' type="button" class="policy-row w-full flex items-center justify-between p-4 rounded-lg text-left' + (isAdmin ? ' hover:bg-slate-50' : '') + (idx > 0 ? ' border-t border-slate-100' : '') + '" data-policy="' + key + '">' +
+        return '<' + tag + ' type="button" class="policy-row w-full flex items-center justify-between px-[17px] py-4 text-left' + (isAdmin ? ' hover:bg-slate-50' : '') + (idx > 0 ? ' border-t border-slate-100' : '') + '" data-policy="' + key + '">' +
           '<div><p class="text-sm font-medium text-slate-800">' + POLICY_META[key].title + '</p><p class="text-xs text-slate-500 policy-desc">' + policyDesc(key) + '</p></div>' +
           '<div class="flex items-center gap-2">' + badge + (isAdmin ? '<img src="images/security/icon-chevron-right.svg" alt="" class="w-1.5 h-2.5">' : '') + '</div>' +
           '</' + tag + '>';
@@ -692,20 +706,18 @@
       const p = state.policies[key];
       if (key === 'password') {
         return '<div class="flex items-center justify-between"><label for="fldMinLength" class="text-xs text-slate-600">Minimum Length</label>' +
-          '<input type="number" id="fldMinLength" min="6" max="32" value="' + p.minLength + '" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>' +
+          '<input type="number" id="fldMinLength" min="8" max="32" value="' + p.minLength + '" aria-describedby="fldMinLengthHint" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>' +
+          // The server never stores less than 8 (lib/PasswordPolicy.php), so say so before they save.
+          '<p id="fldMinLengthHint" class="text-xs text-slate-500 -mt-3" aria-live="polite">Must be 8 or more. 8 is the lowest allowed.</p>' +
           '<label class="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" id="fldReqUpper" ' + (p.requireUpper ? 'checked' : '') + '> Require uppercase letter</label>' +
           '<label class="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" id="fldReqLower" ' + (p.requireLower ? 'checked' : '') + '> Require lowercase letter</label>' +
           '<label class="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" id="fldReqNumber" ' + (p.requireNumber ? 'checked' : '') + '> Require number</label>' +
           '<label class="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" id="fldReqSymbol" ' + (p.requireSymbol ? 'checked' : '') + '> Require symbol</label>';
       }
-      if (key === 'lockout') {
-        return '<div class="flex items-center justify-between"><label for="fldMaxAttempts" class="text-xs text-slate-600">Failed Attempts Before Lockout</label>' +
-          '<input type="number" id="fldMaxAttempts" min="1" max="20" value="' + p.maxAttempts + '" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>' +
-          '<div class="flex items-center justify-between"><label for="fldLockoutMinutes" class="text-xs text-slate-600">Lockout Duration (minutes)</label>' +
-          '<input type="number" id="fldLockoutMinutes" min="1" max="1440" value="' + p.lockoutMinutes + '" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>';
-      }
-      return '<div class="flex items-center justify-between"><label for="fldRetentionDays" class="text-xs text-slate-600">Log Retention (days)</label>' +
-        '<input type="number" id="fldRetentionDays" min="7" max="365" value="' + p.retentionDays + '" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>';
+      return '<div class="flex items-center justify-between"><label for="fldMaxAttempts" class="text-xs text-slate-600">Failed Attempts Before Lockout</label>' +
+        '<input type="number" id="fldMaxAttempts" min="1" max="20" value="' + p.maxAttempts + '" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>' +
+        '<div class="flex items-center justify-between"><label for="fldLockoutMinutes" class="text-xs text-slate-600">Lockout Duration (minutes)</label>' +
+        '<input type="number" id="fldLockoutMinutes" min="1" max="1440" value="' + p.lockoutMinutes + '" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>';
     }
 
     function openPolicyModal(key) {
@@ -714,6 +726,18 @@
       document.getElementById('policyModalTitle').textContent = POLICY_META[key].title;
       document.getElementById('policyFields').innerHTML = policyFieldsHtml(key);
       setToggleVisual(document.getElementById('policyEnabledToggle'), draftPolicyEnabled);
+      const alwaysOn = ALWAYS_ON.includes(key);
+      const minLen = document.getElementById('fldMinLength');
+      if (minLen) {
+        minLen.addEventListener('input', function() {
+          const low = minLen.value !== '' && parseInt(minLen.value, 10) < 8;
+          const hint = document.getElementById('fldMinLengthHint');
+          hint.textContent = low ? 'The lowest allowed is 8. If you save a smaller number, 8 is used.' : 'Must be 8 or more. 8 is the lowest allowed.';
+          hint.className = 'text-xs -mt-3 ' + (low ? 'text-amber-700 font-medium' : 'text-slate-500');
+        });
+      }
+      document.getElementById('policyStatusRow').classList.toggle('hidden', alwaysOn);
+      document.getElementById('policyAlwaysOnNote').classList.toggle('hidden', !alwaysOn);
       document.getElementById('policyModalError').classList.add('hidden');
       openDialog(policyModal);
     }
@@ -733,18 +757,17 @@
     });
     document.getElementById('policyModalSave').addEventListener('click', async function() {
       if (!currentPolicyKey) return;
-      const body = { type: 'policy', key: currentPolicyKey, enabled: draftPolicyEnabled };
+      const body = { type: 'policy', key: currentPolicyKey };
       if (currentPolicyKey === 'password') {
-        body.minLength = parseInt(document.getElementById('fldMinLength').value, 10) || 8;
+        body.minLength = Math.max(8, parseInt(document.getElementById('fldMinLength').value, 10) || 8);
         body.requireUpper = document.getElementById('fldReqUpper').checked;
         body.requireLower = document.getElementById('fldReqLower').checked;
         body.requireNumber = document.getElementById('fldReqNumber').checked;
         body.requireSymbol = document.getElementById('fldReqSymbol').checked;
-      } else if (currentPolicyKey === 'lockout') {
+      } else {
+        body.enabled = draftPolicyEnabled;
         body.maxAttempts = parseInt(document.getElementById('fldMaxAttempts').value, 10) || 5;
         body.lockoutMinutes = parseInt(document.getElementById('fldLockoutMinutes').value, 10) || 15;
-      } else {
-        body.retentionDays = parseInt(document.getElementById('fldRetentionDays').value, 10) || 90;
       }
 
       // A failed save keeps the window open and says so (read aloud: role="alert"), instead of closing as if it worked.

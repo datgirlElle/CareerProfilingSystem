@@ -6,6 +6,9 @@
  */
 class PasswordPolicy
 {
+    /** The policy is always on and never asks for fewer than 8 characters, whatever is stored. */
+    public const MIN_LENGTH_FLOOR = 8;
+
     /**
      * The rules in force (Security Configuration), so a page can show the same checklist the server will enforce.
      *
@@ -15,7 +18,7 @@ class PasswordPolicy
     {
         $rows = $pdo->query("SELECT key, value FROM security_policies WHERE key LIKE 'password.%'")->fetchAll(PDO::FETCH_KEY_PAIR);
         return [
-            'minLength' => (int) ($rows['password.minLength'] ?? 8),
+            'minLength' => max(self::MIN_LENGTH_FLOOR, (int) ($rows['password.minLength'] ?? 8)),
             'requireUpper' => ($rows['password.requireUpper'] ?? 'true') === 'true',
             'requireLower' => ($rows['password.requireLower'] ?? 'true') === 'true',
             'requireNumber' => ($rows['password.requireNumber'] ?? 'true') === 'true',
@@ -27,7 +30,7 @@ class PasswordPolicy
     public static function errors(PDO $pdo, string $password): array
     {
         $rows = $pdo->query("SELECT key, value FROM security_policies WHERE key LIKE 'password.%'")->fetchAll(PDO::FETCH_KEY_PAIR);
-        $minLength = (int) ($rows['password.minLength'] ?? 8);
+        $minLength = max(self::MIN_LENGTH_FLOOR, (int) ($rows['password.minLength'] ?? 8));
         $requireUpper = ($rows['password.requireUpper'] ?? 'true') === 'true';
         $requireLower = ($rows['password.requireLower'] ?? 'true') === 'true';
         $requireNumber = ($rows['password.requireNumber'] ?? 'true') === 'true';
