@@ -4,6 +4,7 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/AcademicYear.php';
 require_once __DIR__ . '/../lib/OfficeHours.php';
 require_once __DIR__ . '/../lib/BookingLink.php';
+require_once __DIR__ . '/../lib/PasswordPolicy.php';
 require_once __DIR__ . '/../lib/AuditChange.php';
 require_once __DIR__ . '/../lib/AuditRetention.php';
 
@@ -70,17 +71,16 @@ function loadPolicies(PDO $pdo): array
     $s = fn($k, $d) => $rows[$k] ?? $d;
     return [
         'policies' => [
+            // Always on (no switch): password rules and sign-in logging cannot be turned off. The old
+            // password.enabled and monitoring.enabled switches never changed anything, so they are gone.
             'password' => [
-                'enabled' => $b('password.enabled', true), 'minLength' => $i('password.minLength', 8),
+                'enabled' => true, 'minLength' => max(PasswordPolicy::MIN_LENGTH_FLOOR, $i('password.minLength', 8)),
                 'requireUpper' => $b('password.requireUpper', true), 'requireLower' => $b('password.requireLower', true),
                 'requireNumber' => $b('password.requireNumber', true), 'requireSymbol' => $b('password.requireSymbol', true),
             ],
             'lockout' => [
                 'enabled' => $b('lockout.enabled', true), 'maxAttempts' => $i('lockout.maxAttempts', 5),
                 'lockoutMinutes' => $i('lockout.lockoutMinutes', 15),
-            ],
-            'monitoring' => [
-                'enabled' => $b('monitoring.enabled', true),
             ],
             // Its switch is "Delete older logs automatically" (lib/AuditRetention.php), off unless turned on.
             'retention' => [
@@ -260,7 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($type === 'policy') {
         $key = $body['key'] ?? '';
-        if (!in_array($key, ['password', 'lockout', 'monitoring', 'retention'], true)) {
+        if (!in_array($key, ['password', 'lockout', 'retention'], true)) {
             jsonResponse(['success' => false, 'error' => 'Unknown policy.'], 400);
         }
 
@@ -274,19 +274,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // The values as they were (defaults included), for the audit log's before -> after.
         $before = loadPolicies($pdo)['policies'][$key];
 
-        $enabled = !empty($body['enabled']) ? 'true' : 'false';
-        $set("$key.enabled", $enabled);
-
         if ($key === 'password') {
-            $set('password.minLength', (string) max(6, min(32, (int) ($body['minLength'] ?? 8))));
+            // No on/off for the password policy: only its rules change.
+            $set('password.minLength', (string) max(PasswordPolicy::MIN_LENGTH_FLOOR, min(32, (int) ($body['minLength'] ?? 8))));
             $set('password.requireUpper', !empty($body['requireUpper']) ? 'true' : 'false');
             $set('password.requireLower', !empty($body['requireLower']) ? 'true' : 'false');
             $set('password.requireNumber', !empty($body['requireNumber']) ? 'true' : 'false');
             $set('password.requireSymbol', !empty($body['requireSymbol']) ? 'true' : 'false');
         } elseif ($key === 'lockout') {
+            $set('lockout.enabled', !empty($body['enabled']) ? 'true' : 'false');
             $set('lockout.maxAttempts', (string) max(1, min(20, (int) ($body['maxAttempts'] ?? 5))));
             $set('lockout.lockoutMinutes', (string) max(1, min(1440, (int) ($body['lockoutMinutes'] ?? 15))));
-        } elseif ($key === 'retention') {
+        } else {
+            $enabled = !empty($body['enabled']) ? 'true' : 'false';
+            $set(AuditRetention::ON_KEY, $enabled);
             $set(AuditRetention::DAYS_KEY, (string) AuditRetention::days($body['retentionDays'] ?? null));
             // Just turned on: nothing is deleted today, which leaves a day to export the log first.
             if (!$before['enabled'] && $enabled === 'true') {

@@ -190,7 +190,7 @@
                   <label for="principalEmailInput" class="text-xs font-medium text-slate-600">Email</label><input type="email" id="principalEmailInput" maxlength="150" class="border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#ed1c24]" placeholder="principal@example.edu.ph">
                   <button type="button" id="principalContactSave" class="self-start px-4 py-2 text-xs font-semibold text-white bg-[#0f2a6b] rounded-md hover:opacity-90">Save</button>
                 </div>
-                <p id="principalLastSent" class="text-xs text-slate-400"></p>
+                <p id="principalLastSent" class="text-xs text-slate-500"></p>
                 <p id="principalContactStatus" class="hidden text-xs" aria-live="polite"></p>
               </div>
             </div>
@@ -211,10 +211,13 @@
             </div>
             <div class="p-5 flex flex-col gap-6">
                             <!-- Login & Access Policies -->
-              <div class="border border-slate-200 rounded-lg p-[17px]">
-                <h3 class="text-sm font-semibold text-slate-800">Login &amp; Access Policies</h3>
-                <p class="text-xs text-slate-500 mt-0.5">Enforce strong access policies to protect user accounts.</p>
-                <div class="mt-2 -mx-2" id="policyListContainer"></div>
+              <!-- A title bar (gray strip and a line) so the heading reads as a label; only the rows below open a policy. -->
+              <div class="border border-slate-200 rounded-lg overflow-hidden">
+                <div class="bg-slate-50 border-b border-slate-200 px-[17px] py-3">
+                  <h3 class="text-sm font-semibold text-slate-800">Login &amp; Access Policies</h3>
+                  <p class="text-xs text-slate-500 mt-0.5">Enforce strong access policies to protect user accounts.</p>
+                </div>
+                <div id="policyListContainer"></div>
               </div>
 
 
@@ -302,7 +305,7 @@
 
     </main>
 
-      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-500">
         <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
         <span>&middot;</span>
         <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
@@ -313,9 +316,9 @@
 </div>
 
 <!-- Confirm permission changes (shown before saving changes to account modules or to the Guidance Counselor column) -->
-<div id="rbacConfirmModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+<div id="rbacConfirmModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="rbacConfirmTitle">
   <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6 flex flex-col gap-4">
-    <h3 class="text-lg font-semibold text-black">Confirm permission changes</h3>
+    <h3 id="rbacConfirmTitle" class="text-lg font-semibold text-black">Confirm permission changes</h3>
     <ul id="rbacConfirmList" class="flex flex-col gap-2 overflow-y-auto" style="max-height:50vh"></ul>
     <div class="flex justify-end gap-2 pt-1">
       <button type="button" id="rbacConfirmCancel" class="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-300 rounded-md hover:bg-slate-50">Go back</button>
@@ -324,18 +327,25 @@
   </div>
 </div>
 <!-- Policy Edit Modal -->
-<div id="policyModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+<div id="policyModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="policyModalTitle">
   <div class="bg-white rounded-xl shadow-lg w-full max-w-md">
     <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
       <h3 id="policyModalTitle" class="text-lg font-bold text-slate-900"></h3>
-      <button type="button" id="policyModalClose" class="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+      <button type="button" id="policyModalClose" class="text-slate-500 hover:text-slate-600 text-xl leading-none" aria-label="Close">&times;</button>
     </div>
     <div class="px-6 py-5 flex flex-col gap-4">
-      <div class="flex items-center justify-between">
+      <div id="policyStatusRow" class="flex items-center justify-between">
         <p id="policyToggleLabel" class="text-sm font-medium text-slate-800">Status</p>
         <button type="button" id="policyEnabledToggle" aria-labelledby="policyToggleLabel" class="w-11 h-6 rounded-full relative shrink-0">
           <span class="absolute top-0.5 w-[18px] h-[18px] rounded-full bg-white transition-all"></span>
         </button>
+      </div>
+      <!-- A rule that always applies has no Status (no on/off state to show), only this note, in a neutral color. -->
+      <div id="policyAlwaysOnNote" class="hidden">
+        <p class="flex items-start gap-2 text-xs text-slate-700 bg-slate-100 border border-slate-200 rounded-md px-3 py-2">
+          <svg viewBox="0 0 24 24" fill="none" class="w-3 h-3 shrink-0 mt-0.5" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="2.5"/></svg>
+          <span><span class="font-semibold">Always enforced.</span> Password rules can't be turned off.</span>
+        </p>
       </div>
       <div id="policyFields" class="flex flex-col gap-4"></div>
       <!-- Shown when saving fails, so the window does not close as if it worked. -->
@@ -636,7 +646,41 @@
         saveBtn.disabled = false;
       }
     }
+    // Pop-up windows (permission confirm, policy edit) work from the keyboard: focus moves into the window,
+    // Tab stays inside it, Escape closes it, and focus goes back to what opened it.
     const confirmModal = document.getElementById('rbacConfirmModal');
+    const policyModal = document.getElementById('policyModal');
+    const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href]';
+    function openDialog(modal) {
+      modal.returnFocus = document.activeElement;
+      modal.classList.remove('hidden');
+      const first = modal.querySelector(FOCUSABLE);
+      if (first) first.focus();
+    }
+    function closeDialog(modal, fallback) {
+      modal.classList.add('hidden');
+      // The opener may have been redrawn while the window was open (the policy list is after a save).
+      const back = modal.returnFocus && document.body.contains(modal.returnFocus) ? modal.returnFocus : fallback;
+      if (back) back.focus();
+    }
+    document.addEventListener('keydown', function(e) {
+      const open = [confirmModal, policyModal].find(m => !m.classList.contains('hidden'));
+      if (!open) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (open === policyModal) closePolicyModal(); else closeDialog(confirmModal);
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const items = Array.from(open.querySelectorAll(FOCUSABLE)).filter(el => el.offsetParent !== null);
+      if (!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && (document.activeElement === first || !open.contains(document.activeElement))) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && (document.activeElement === last || !open.contains(document.activeElement))) {
+        e.preventDefault(); first.focus();
+      }
+    });
     function openRbacConfirm() {
       document.getElementById('rbacConfirmList').innerHTML = pendingChanges().map(c =>
         '<li class="border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-700">' +
@@ -645,7 +689,7 @@
           (isSensitive(c.module, c.role) ? ' <span class="ml-1 bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-semibold uppercase px-2 py-0.5 rounded">Sensitive</span>' : '') +
         '</li>'
       ).join('');
-      confirmModal.classList.remove('hidden');
+      openDialog(confirmModal);
     }
     document.getElementById('rbacSaveBtn').addEventListener('click', function() {
       const changes = pendingChanges();
@@ -653,19 +697,24 @@
       // Changes to account modules or to the Guidance Counselor column are confirmed before they are saved.
       if (changes.some(c => isSensitive(c.module, c.role))) openRbacConfirm(); else saveRbac(false);
     });
-    document.getElementById('rbacConfirmCancel').addEventListener('click', () => confirmModal.classList.add('hidden'));
-    confirmModal.addEventListener('click', e => { if (e.target.id === 'rbacConfirmModal') confirmModal.classList.add('hidden'); });
+    document.getElementById('rbacConfirmCancel').addEventListener('click', () => closeDialog(confirmModal));
+    confirmModal.addEventListener('click', e => { if (e.target.id === 'rbacConfirmModal') closeDialog(confirmModal); });
     document.getElementById('rbacConfirmSave').addEventListener('click', async function() {
-      confirmModal.classList.add('hidden');
+      closeDialog(confirmModal);
       await saveRbac(true);
     });
     const POLICY_META = {
       password: { title: 'Password Policy' },
       lockout: { title: 'Account Lockout' },
-      monitoring: { title: 'Login Activity Monitoring' },
       // Its switch deletes old audit log entries (lib/AuditRetention.php), so it is named for that.
       retention: { title: 'Audit Log Retention', toggleLabel: 'Delete older logs automatically' }
     };
+    // The password policy is always on (no switch); sign-in logging is always on too, so it has no card.
+    const ALWAYS_ON = ['password'];
+    // "Enforced" with a lock, in a neutral color: a rule that always applies, not a switch that happens to be on
+    // (green is kept for real switches, like Account Lockout's "Enabled").
+    const ENFORCED_BADGE = '<span class="inline-flex items-center gap-1 bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap">' +
+      '<svg viewBox="0 0 24 24" fill="none" class="w-3 h-3 shrink-0" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="2.5"/></svg>Enforced</span>';
 
     function policyDesc(key) {
       const p = state.policies[key];
@@ -677,30 +726,29 @@
         if (p.requireSymbol) reqs.push('symbol');
         return 'Minimum ' + p.minLength + ' characters' + (reqs.length ? ' with ' + reqs.join(', ') + '.' : '.');
       }
-      if (key === 'lockout') {
-        return 'Lock account after ' + p.maxAttempts + ' failed login attempts (' + p.lockoutMinutes + ' min lockout).';
-      }
       if (key === 'retention') {
         return p.enabled
           ? 'Deletes audit log entries older than ' + p.retentionDays + ' days, once a day when the Audit Log is opened.'
           : 'Keeps all audit log entries. When turned on, deletes entries older than ' + p.retentionDays + ' days.';
       }
-      return 'Track and log user login activities and device information.';
+      return 'Lock account after ' + p.maxAttempts + ' failed login attempts (' + p.lockoutMinutes + ' min lockout).';
     }
 
     function renderPolicyList() {
       const container = document.getElementById('policyListContainer');
-      const keys = ['password', 'lockout', 'monitoring', 'retention'];
+      const keys = ['password', 'lockout', 'retention'];
       container.innerHTML = keys.map(function(key, idx) {
         const p = state.policies[key];
         // "Disabled" on retention could read as "logs not kept", so its badge says what the switch does.
         const onText = key === 'retention' ? 'Auto-delete on' : 'Enabled';
         const offText = key === 'retention' ? 'Auto-delete off' : 'Disabled';
-        const badge = p.enabled
-          ? '<span class="bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap">' + onText + '</span>'
-          : '<span class="bg-slate-100 text-slate-500 text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap">' + offText + '</span>';
+        const badge = ALWAYS_ON.includes(key)
+          ? ENFORCED_BADGE
+          : p.enabled
+          ? '<span class="bg-green-50 border border-green-200 text-green-700 text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap">' + onText + '</span>'
+          : '<span class="bg-slate-100 text-slate-600 text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap">' + offText + '</span>';
         const tag = isAdmin ? 'button' : 'div';
-        return '<' + tag + ' type="button" class="policy-row w-full flex items-center justify-between p-4 rounded-lg text-left' + (isAdmin ? ' hover:bg-slate-50' : '') + (idx > 0 ? ' border-t border-slate-100' : '') + '" data-policy="' + key + '">' +
+        return '<' + tag + ' type="button" class="policy-row w-full flex items-center justify-between px-[17px] py-4 text-left' + (isAdmin ? ' hover:bg-slate-50' : '') + (idx > 0 ? ' border-t border-slate-100' : '') + '" data-policy="' + key + '">' +
           '<div><p class="text-sm font-medium text-slate-800">' + POLICY_META[key].title + '</p><p class="text-xs text-slate-500 policy-desc">' + policyDesc(key) + '</p></div>' +
           '<div class="flex items-center gap-2">' + badge + (isAdmin ? '<img src="images/security/icon-chevron-right.svg" alt="" class="w-1.5 h-2.5">' : '') + '</div>' +
           '</' + tag + '>';
@@ -726,21 +774,23 @@
     function policyFieldsHtml(key) {
       const p = state.policies[key];
       if (key === 'password') {
-        return '<div class="flex items-center justify-between"><label class="text-xs text-slate-600">Minimum Length</label>' +
-          '<input type="number" id="fldMinLength" min="6" max="32" value="' + p.minLength + '" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>' +
+        return '<div class="flex items-center justify-between"><label for="fldMinLength" class="text-xs text-slate-600">Minimum Length</label>' +
+          '<input type="number" id="fldMinLength" min="8" max="32" value="' + p.minLength + '" aria-describedby="fldMinLengthHint" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>' +
+          // The server never stores less than 8 (lib/PasswordPolicy.php), so say so before they save.
+          '<p id="fldMinLengthHint" class="text-xs text-slate-500 -mt-3" aria-live="polite">Must be 8 or more. 8 is the lowest allowed.</p>' +
           '<label class="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" id="fldReqUpper" ' + (p.requireUpper ? 'checked' : '') + '> Require uppercase letter</label>' +
           '<label class="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" id="fldReqLower" ' + (p.requireLower ? 'checked' : '') + '> Require lowercase letter</label>' +
           '<label class="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" id="fldReqNumber" ' + (p.requireNumber ? 'checked' : '') + '> Require number</label>' +
           '<label class="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" id="fldReqSymbol" ' + (p.requireSymbol ? 'checked' : '') + '> Require symbol</label>';
       }
       if (key === 'lockout') {
-        return '<div class="flex items-center justify-between"><label class="text-xs text-slate-600">Failed Attempts Before Lockout</label>' +
+        return '<div class="flex items-center justify-between"><label for="fldMaxAttempts" class="text-xs text-slate-600">Failed Attempts Before Lockout</label>' +
           '<input type="number" id="fldMaxAttempts" min="1" max="20" value="' + p.maxAttempts + '" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>' +
-          '<div class="flex items-center justify-between"><label class="text-xs text-slate-600">Lockout Duration (minutes)</label>' +
+          '<div class="flex items-center justify-between"><label for="fldLockoutMinutes" class="text-xs text-slate-600">Lockout Duration (minutes)</label>' +
           '<input type="number" id="fldLockoutMinutes" min="1" max="1440" value="' + p.lockoutMinutes + '" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>';
       }
       if (key === 'retention') {
-        return '<div class="flex items-center justify-between"><label for="fldRetentionDays" class="text-xs text-slate-600">Keep entries for (days)<br><span class="text-slate-400">90 to 365 days</span></label>' +
+        return '<div class="flex items-center justify-between"><label for="fldRetentionDays" class="text-xs text-slate-600">Keep entries for (days)<br><span class="text-slate-500">90 to 365 days</span></label>' +
           '<input type="number" id="fldRetentionDays" min="90" max="365" value="' + p.retentionDays + '" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>' +
           '<p id="fldRetentionWarning" class="hidden text-xs text-red-600" role="alert"></p>';
       }
@@ -765,13 +815,26 @@
       document.getElementById('policyToggleLabel').textContent = POLICY_META[key].toggleLabel || 'Status';
       document.getElementById('policyFields').innerHTML = policyFieldsHtml(key);
       setToggleVisual(document.getElementById('policyEnabledToggle'), draftPolicyEnabled);
+      const alwaysOn = ALWAYS_ON.includes(key);
+      const minLen = document.getElementById('fldMinLength');
+      if (minLen) {
+        minLen.addEventListener('input', function() {
+          const low = minLen.value !== '' && parseInt(minLen.value, 10) < 8;
+          const hint = document.getElementById('fldMinLengthHint');
+          hint.textContent = low ? 'The lowest allowed is 8. If you save a smaller number, 8 is used.' : 'Must be 8 or more. 8 is the lowest allowed.';
+          hint.className = 'text-xs -mt-3 ' + (low ? 'text-amber-700 font-medium' : 'text-slate-500');
+        });
+      }
+      document.getElementById('policyStatusRow').classList.toggle('hidden', alwaysOn);
+      document.getElementById('policyAlwaysOnNote').classList.toggle('hidden', !alwaysOn);
+      document.getElementById('policyModalError').classList.add('hidden');
       updateRetentionWarning();
-      document.getElementById('policyModal').classList.remove('hidden');
+      openDialog(policyModal);
     }
     function closePolicyModal() {
-      document.getElementById('policyModal').classList.add('hidden');
-      document.getElementById('policyModalError').classList.add('hidden');
+      const key = currentPolicyKey;
       currentPolicyKey = null;
+      closeDialog(policyModal, key ? document.querySelector('.policy-row[data-policy="' + key + '"]') : null);
     }
     document.getElementById('policyModalClose').addEventListener('click', closePolicyModal);
     document.getElementById('policyModalCancel').addEventListener('click', closePolicyModal);
@@ -785,23 +848,25 @@
     });
     document.getElementById('policyModalSave').addEventListener('click', async function() {
       if (!currentPolicyKey) return;
-      const body = { type: 'policy', key: currentPolicyKey, enabled: draftPolicyEnabled };
+      const body = { type: 'policy', key: currentPolicyKey };
       if (currentPolicyKey === 'password') {
-        body.minLength = parseInt(document.getElementById('fldMinLength').value, 10) || 8;
+        body.minLength = Math.max(8, parseInt(document.getElementById('fldMinLength').value, 10) || 8);
         body.requireUpper = document.getElementById('fldReqUpper').checked;
         body.requireLower = document.getElementById('fldReqLower').checked;
         body.requireNumber = document.getElementById('fldReqNumber').checked;
         body.requireSymbol = document.getElementById('fldReqSymbol').checked;
       } else if (currentPolicyKey === 'lockout') {
+        body.enabled = draftPolicyEnabled;
         body.maxAttempts = parseInt(document.getElementById('fldMaxAttempts').value, 10) || 5;
         body.lockoutMinutes = parseInt(document.getElementById('fldLockoutMinutes').value, 10) || 15;
       } else if (currentPolicyKey === 'retention') {
+        body.enabled = draftPolicyEnabled;
         body.retentionDays = parseInt(document.getElementById('fldRetentionDays').value, 10) || 365;
       }
 
-      // The window closes only when the server saved the change; otherwise it stays open and says why.
-      const saveBtn = this;
+      // A failed save keeps the window open and says so (read aloud: role="alert"), instead of closing as if it worked.
       const errorEl = document.getElementById('policyModalError');
+      const saveBtn = this;
       errorEl.classList.add('hidden');
       saveBtn.disabled = true;
       try {
