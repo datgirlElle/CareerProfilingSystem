@@ -84,6 +84,7 @@
         <form id="loginForm" class="flex flex-col gap-5">
 
           <p id="verifiedBanner" class="hidden text-sm text-green-700 bg-green-50 border border-green-100 rounded-md px-3.5 py-2.5"></p>
+          <p id="endedBanner" class="hidden text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3.5 py-2.5" role="status"></p>
           <p id="loginError" class="hidden text-sm text-[#ed1c24] bg-red-50 border border-red-100 rounded-md px-3.5 py-2.5">
             <span id="loginErrorText"></span>
           </p>
@@ -253,6 +254,16 @@
     function hideError() {
       document.getElementById('loginError').classList.add('hidden');
     }
+
+    // Signed out on this device by the server (account turned off, password changed): api/session.php says why
+    // until the next sign-in on this device (lib/SessionEnd.php).
+    fetch('api/session.php').then(function(r) { return r.json(); }).then(function(d) {
+      if (d && d.endedMessage) {
+        const banner = document.getElementById('endedBanner');
+        banner.textContent = d.endedMessage;
+        banner.classList.remove('hidden');
+      }
+    }).catch(function() {});
 
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
       e.preventDefault();

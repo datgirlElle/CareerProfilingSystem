@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/SessionEnd.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -98,6 +99,8 @@ if ($isStaff && TwoFactor::isEnabled($pdo)) {
 }
 
 $pdo->prepare('UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?')->execute([$hash, $user['id']]);
+// Other devices signed in with the old password are signed out; this one stays signed in.
+SessionEnd::endFor($pdo, (int) $user['id'], 'password_changed', session_id());
 
 AuditLogger::log($user['id'], $user['role'], 'change_password', 'user', (string) $user['id']);
 

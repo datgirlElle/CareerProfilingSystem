@@ -3,6 +3,7 @@
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/StaffPosition.php';
 require_once __DIR__ . '/../lib/LoginDevice.php';
+require_once __DIR__ . '/../lib/SessionEnd.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -161,6 +162,17 @@ if ($user['role'] === 'student') {
 }
 
 Auth::login($sessionData);
+// One device at a time for students: the newest sign-in wins, and the older device is told why on its sign-in page.
+if ($user['role'] === 'student') {
+    try {
+        $endedOthers = SessionEnd::endFor($pdo, (int) $user['id'], 'other_device', session_id());
+        if ($endedOthers > 0) {
+            AuditLogger::log((int) $user['id'], 'student', 'signed_out_other_device', 'user', $user['username'], "Signed out on $endedOthers other device(s) (one device at a time)");
+        }
+    } catch (Throwable $e) {
+        error_log('[login] could not sign out other devices: ' . $e->getMessage()); // the sign-in itself still works
+    }
+}
 // Where this login came from. If a student signs in from another IP or device while an earlier login
 // is still recent, it is flagged as a possible shared account (nobody is blocked).
 $loginIp = $_SERVER['REMOTE_ADDR'] ?? null;

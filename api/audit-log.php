@@ -34,7 +34,7 @@ const ROLE_BUCKETS = [
 // the username or email box (sometimes a password typed in the wrong box), and a student's username is
 // their Student Number, so the panel only shows the first 2 characters, or nothing when no account
 // matched (then the text is most likely a mistyped password).
-const SIGN_IN_ACTIONS = ['login', 'login_failed', 'login_lockout', 'login_shared_suspected', 'logout', 'staff_activation_failed'];
+const SIGN_IN_ACTIONS = ['login', 'login_failed', 'login_lockout', 'login_shared_suspected', 'signed_out_other_device', 'logout', 'staff_activation_failed'];
 // Details panel: these details are sensitive student data (a help request's subject, RIASEC results,
 // a school id, a worksheet score, a counselor's retake decision note, staff notes on a monitoring
 // flag). The other pages show them only with the right module access and inside StaffScope, so here
@@ -55,6 +55,7 @@ $actionLabels = [
     'login_failed' => 'Failed sign-in',
     'login_lockout' => 'Account locked',
     'login_shared_suspected' => 'Possible shared account',
+    'signed_out_other_device' => 'Signed out on another device',
     'logout' => 'Signed out',
     'register' => 'Registered new account',
     'verify_email' => 'Verified email',
