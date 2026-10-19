@@ -163,7 +163,8 @@ if ($user['role'] === 'student') {
 Auth::login($sessionData);
 // Where this login came from. If a student signs in from another IP or device while an earlier login
 // is still recent, it is flagged as a possible shared account (nobody is blocked).
-$loginIp = $_SERVER['REMOTE_ADDR'] ?? null;
+// Same address the audit log stores (the visitor's, not Render's proxy), so the two can be compared.
+$loginIp = AuditLogger::clientIpFrom($_SERVER);
 $loginDevice = LoginDevice::describe((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''));
 if ($user['role'] === 'student') {
     try {

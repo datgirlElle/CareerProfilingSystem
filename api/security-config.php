@@ -111,14 +111,14 @@ function loadPolicies(PDO $pdo): array
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    // The daily cleanup's own marker is not a settings change, so it does not count as an update.
+    // The daily cleanup's own markers are not settings changes, so they do not count as updates.
     $lastUpdatedStmt = $pdo->prepare(
         'SELECT GREATEST(
             (SELECT MAX(updated_at) FROM security_rbac),
-            (SELECT MAX(updated_at) FROM security_policies WHERE key <> ?)
+            (SELECT MAX(updated_at) FROM security_policies WHERE key NOT IN (?, ?))
          )'
     );
-    $lastUpdatedStmt->execute([AuditRetention::LAST_RUN_KEY]);
+    $lastUpdatedStmt->execute([AuditRetention::LAST_RUN_KEY, AuditChain::ANCHOR_KEY]);
     $lastUpdated = $lastUpdatedStmt->fetchColumn();
 
     // A lockout is logged (api/login.php) the moment an account reaches the maximum failed attempts,

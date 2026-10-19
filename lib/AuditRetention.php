@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/AuditLogger.php';
+require_once __DIR__ . '/AuditChain.php';
 
 /**
  * How long audit log entries are kept (Security Configuration > Audit Log Retention). With "Delete older
@@ -99,9 +100,16 @@ class AuditRetention
             );
             $cutoff->execute([$setting['days'], $setting['days']]);
             $before = $cutoff->fetch();
-            $delete = $pdo->prepare('DELETE FROM audit_log WHERE created_at < CAST(? AS timestamptz)');
-            $delete->execute([$before['at']]);
-            $deleted = $delete->rowCount();
+            // Only an unbroken run from the oldest entry goes: old entries up to the first one that stays.
+            // The tamper-evident chain (lib/AuditChain.php) then still runs in one line from its new start.
+            $last = $pdo->prepare(
+                'SELECT MAX(id) FROM audit_log
+                 WHERE created_at < CAST(? AS timestamptz)
+                   AND id < COALESCE((SELECT MIN(id) FROM audit_log WHERE created_at >= CAST(? AS timestamptz)), 9223372036854775807)'
+            );
+            $last->execute([$before['at'], $before['at']]);
+            $lastId = $last->fetchColumn();
+            $deleted = is_numeric($lastId) ? AuditChain::removeUpTo($pdo, (int) $lastId) : 0;
             // Nothing old enough means nothing to report: a row every day would only add noise.
             if ($deleted > 0) {
                 AuditLogger::log(null, null, 'delete_old_audit_logs', 'audit_log', null,

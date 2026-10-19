@@ -128,6 +128,9 @@ $pdoStu->rollBack();
 echo "\n=== AuditLogger round-trip ===\n";
 
 $pdo = Database::get();
+// Inside a transaction that is rolled back, so the real audit trail (and its tamper-evident chain,
+// lib/AuditChain.php) is left exactly as it was. Deleting the test row instead would leave a gap.
+$pdo->beginTransaction();
 $marker = 'test-marker-' . bin2hex(random_bytes(4));
 AuditLogger::log(1, 'admin', 'test_action', 'test_target', 'target-123', $marker);
 
@@ -142,9 +145,8 @@ if ($row) {
     check('target_type stored correctly', $row['target_type'] === 'test_target');
     check('detail_enc decrypts to the original marker', Crypto::dec($row['detail_enc']) === $marker);
     check('detail_enc is not the plaintext marker (actually encrypted)', $row['detail_enc'] !== $marker);
-    // clean up the test row so it doesn't pollute the real audit trail
-    $pdo->prepare('DELETE FROM audit_log WHERE id = ?')->execute([$row['id']]);
 }
+$pdo->rollBack();
 
 echo "\n=== Summary: $passed passed, $failures failed ===\n";
 exit($failures > 0 ? 1 : 0);
