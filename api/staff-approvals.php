@@ -6,6 +6,7 @@ require_once __DIR__ . '/../lib/Mailer.php';
 require_once __DIR__ . '/../lib/EmailTemplate.php';
 require_once __DIR__ . '/../lib/StaffPosition.php';
 require_once __DIR__ . '/../lib/StaffSetupCode.php';
+require_once __DIR__ . '/../lib/SessionEnd.php';
 
 // Account Management's staff section: guidance counselors sign up on their own
 // (api/staff-register.php) and an administrator approves, rejects or
@@ -135,6 +136,9 @@ if ($type === 'toggleActive') {
     // Bind an int, not a PHP bool: execute() stringifies false to '', which
     // Postgres's boolean type rejects.
     $pdo->prepare('UPDATE users SET is_active = ?, updated_at = NOW() WHERE id = ?')->execute([(int) $newState, $id]);
+    if (!$newState) {
+        SessionEnd::endFor($pdo, $id, 'deactivated'); // signed out right away, not only at the next sign-in
+    }
     // Who it was, as it stood at the time (the audit log shows this in the row details).
     $who = trim((string) ($target['full_name'] ?? '')) !== '' ? $target['full_name'] : $target['username'];
     AuditLogger::log($user['id'], $user['role'], $newState ? 'activate_staff_account' : 'deactivate_staff_account', 'user', (string) $id,

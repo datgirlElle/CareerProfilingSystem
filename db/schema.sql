@@ -61,8 +61,13 @@ CREATE INDEX idx_consent_records_user ON consent_records (user_id);
 CREATE TABLE sessions (
     id              VARCHAR(128) PRIMARY KEY,
     data            TEXT NOT NULL DEFAULT '',
-    last_activity   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    last_activity   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- whose sign-in this is (NULL before sign-in); lib/SessionEnd.php uses it to sign one person out
+    user_id         INT,
+    -- set when the session was ended for a reason (other_device, deactivated, password_changed)
+    ended_reason    VARCHAR(30)
 );
+CREATE INDEX idx_sessions_user ON sessions (user_id);
 
 CREATE TABLE colleges (
     id      SERIAL PRIMARY KEY,

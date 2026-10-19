@@ -93,8 +93,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     ], $rows);
     $pendingCount = count(array_filter($requests, fn($r) => $r['status'] === 'pending'));
     if ($status !== 'pending') {
-        $count = $pdo->query("SELECT COUNT(*) FROM retake_requests WHERE status = 'pending'")->fetchColumn();
-        $pendingCount = (int) $count;
+        // Waiting requests in this person's sections only, like the list itself.
+        $waiting = $pdo->query(
+            "SELECT s.strand, s.section FROM retake_requests rr JOIN students s ON s.user_id = rr.student_id WHERE rr.status = 'pending'"
+        )->fetchAll();
+        $pendingCount = count(array_filter($waiting, fn($r) => StaffScope::allows($scope, $r['strand'], $r['section'])));
     }
     jsonResponse(['requests' => $requests, 'pendingCount' => $pendingCount]);
 }

@@ -36,7 +36,7 @@ const ROLE_BUCKETS = [
 // the username or email box (sometimes a password typed in the wrong box), and a student's username is
 // their Student Number, so the panel only shows the first 2 characters, or nothing when no account
 // matched (then the text is most likely a mistyped password).
-const SIGN_IN_ACTIONS = ['login', 'login_failed', 'login_lockout', 'login_shared_suspected', 'logout', 'staff_activation_failed'];
+const SIGN_IN_ACTIONS = ['login', 'login_failed', 'login_lockout', 'login_shared_suspected', 'signed_out_other_device', 'logout', 'staff_activation_failed'];
 // Details panel: these details are sensitive student data (a help request's subject, RIASEC results,
 // a school id, a worksheet score, a counselor's retake decision note, staff notes on a monitoring
 // flag). The other pages show them only with the right module access and inside StaffScope, so here
@@ -47,7 +47,8 @@ const HIDDEN_DETAIL_ACTIONS = [
 ];
 // Staff actions on a student's account, logged with target_type 'user' and the student's user id
 // (api/students.php). Like target_type 'student', only admins see which student and the detail.
-const STUDENT_ACCOUNT_ACTIONS = ['activate_student_account', 'deactivate_student_account', 'reset_student_assessment', 'update_student_section'];
+// register_failed (api/register.php) is here too: its detail holds the Student Number that was typed.
+const STUDENT_ACCOUNT_ACTIONS = ['activate_student_account', 'deactivate_student_account', 'reset_student_assessment', 'update_student_section', 'register_failed'];
 
 // A written name for every action the app logs (past tense, plain words). An action missing here is
 // shown by its code with the underscores turned into spaces.
@@ -57,8 +58,10 @@ $actionLabels = [
     'login_failed' => 'Failed sign-in',
     'login_lockout' => 'Account locked',
     'login_shared_suspected' => 'Possible shared account',
+    'signed_out_other_device' => 'Signed out on another device',
     'logout' => 'Signed out',
     'register' => 'Registered new account',
+    'register_failed' => 'Registration not completed',
     'verify_email' => 'Verified email',
     'request_password_reset' => 'Requested password reset',
     'reset_password' => 'Reset password',
@@ -190,13 +193,17 @@ function statusOf(string $action): string
 function actorLabel(array $r): string
 {
     if (($r['actor_role'] ?? null) === 'student') {
+        // A student whose account was later removed has no name to read: show "Student" instead of failing.
+        if (empty($r['last_name_enc']) && empty($r['first_name_enc'])) {
+            return 'Student';
+        }
         $name = trim(Crypto::dec($r['last_name_enc'] ?? '') . ', ' . Crypto::dec($r['first_name_enc'] ?? ''), ' ,');
         return $name !== '' ? $name : 'Student';
     }
     if (trim((string) ($r['full_name'] ?? '')) !== '') {
         return $r['full_name'];
     }
-    if (!isset($r['username']) && ($r['action'] ?? '') === 'login_failed') {
+    if (!isset($r['username']) && in_array($r['action'] ?? '', ['login_failed', 'register_failed'], true)) {
         return 'Unregistered user';
     }
     return $r['username'] ?? 'System';
@@ -489,10 +496,10 @@ function buildFilters(array $q, array $actionLabels, array $roleLabels, array $c
 
             // Rows with no user behind them.
             if ($has('Unregistered user')) {
-                $or[] = "(al.actor_user_id IS NULL AND al.action = 'login_failed')";
+                $or[] = "(al.actor_user_id IS NULL AND al.action IN ('login_failed', 'register_failed'))";
             }
             if ($has('System')) {
-                $or[] = "(al.actor_user_id IS NULL AND al.action <> 'login_failed')";
+                $or[] = "(al.actor_user_id IS NULL AND al.action NOT IN ('login_failed', 'register_failed'))";
             }
 
             // Status.

@@ -47,7 +47,7 @@ $giveCode = function (int $uid, string $code, string $portal = 'student', string
     $pdo->prepare("UPDATE password_reset_codes SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL")->execute([$uid]);
     $pdo->prepare("INSERT INTO password_reset_codes (user_id, portal, code_hash, expires_at) VALUES (?, ?, ?, $expires)")->execute([$uid, $portal, PasswordReset::hashCode($uid, $code)]);
 };
-$clearLimits = fn() => $pdo->exec("DELETE FROM rate_limit_hits WHERE rate_key LIKE 'pwreset%' OR rate_key LIKE 'resend-verification:%' OR rate_key LIKE 'register%'");
+$clearLimits = fn() => $pdo->exec("DELETE FROM rate_limit_hits WHERE rate_key LIKE 'pwreset%' OR rate_key LIKE 'resend-verification:%' OR rate_key LIKE 'register%' OR rate_key LIKE 'verify-mail:%'");
 $cleanup = function () use ($pdo) {
     foreach ($pdo->query("SELECT id FROM users WHERE username LIKE 'qaflow%' OR username LIKE '99991111%'")->fetchAll(PDO::FETCH_COLUMN) as $id) {
         foreach (['password_reset_codes', 'email_verification_tokens'] as $t) { $pdo->prepare("DELETE FROM $t WHERE user_id = ?")->execute([$id]); }
@@ -126,12 +126,16 @@ $pdo->prepare("INSERT INTO assessment_roster (academic_year, school_id, name_enc
 $reg = new Client($base);
 $good = ['schoolId' => $num, 'email' => 'qaflowreg@live.mcl.edu.ph', 'privacyConsent' => true];
 $attackerPw = 'Attacker-Pass-1!'; $ownerPw = 'Owner-Pass-5678!';
-$r = $reg->req('POST', '/api/register.php', ['schoolId' => '999911119999'] + $good); check('Student Number not on the roster refused (404)', $r['code'] === 404, $r['code'] . ' ' . substr($r['body'], 0, 90));
-$r = $reg->req('POST', '/api/register.php', ['email' => 'someoneelse@live.mcl.edu.ph'] + $good); check('email different from the roster email refused', $r['code'] === 400, $r['code'] . ' ' . substr($r['body'], 0, 90));
+// After the format checks every outcome gets the same answer (no roster or registration status, no email hint).
+$sameAnswer = fn(array $r) => $r['code'] === 200 && (json_decode($r['body'], true) ?? []) === ['success' => true];
+$r = $reg->req('POST', '/api/register.php', ['schoolId' => '999911119999'] + $good); check('Student Number not on the roster: same answer as a real registration (200)', $sameAnswer($r), $r['code'] . ' ' . substr($r['body'], 0, 90));
+$r = $reg->req('POST', '/api/register.php', ['email' => 'someoneelse@live.mcl.edu.ph'] + $good); check('email different from the roster email: same answer, no hint of the email on file', $sameAnswer($r) && strpos($r['body'], '@') === false, $r['code'] . ' ' . substr($r['body'], 0, 90));
+check('no account was made for the wrong email', (int) $pdo->query("SELECT COUNT(*) FROM users WHERE username = '$num'")->fetchColumn() === 0);
 $r = $reg->req('POST', '/api/register.php', ['privacyConsent' => false] + $good); check('missing privacy consent refused', $r['code'] === 400, (string) $r['code']);
 $r = $reg->req('POST', '/api/register.php', ['schoolId' => "1' OR '1'='1"] + $good); check('SQL text as Student Number refused cleanly', $r['code'] >= 400 && $r['code'] < 500 && stripos($r['body'], 'SQLSTATE') === false, (string) $r['code']);
 $r = $reg->req('POST', '/api/register.php', ['password' => $attackerPw] + $good); $j = $reg->json($r);
 check('valid registration succeeds (a password sent along is ignored)', $r['code'] === 200 && ($j['success'] ?? false) === true, $r['code'] . ' ' . substr($r['body'], 0, 120));
+check('the answer holds no name, strand or section from the roster', !isset($j['name']) && !isset($j['strand']) && !isset($j['section']), substr($r['body'], 0, 120));
 echo "  INFO: registration response " . (isset($j['verifyLink']) ? 'INCLUDES' : 'does not include') . " the verification link when the email could not be sent\n";
 check('the verification link is NOT handed out in the HTTP response when email is not delivered (production)', !isset($j['verifyLink']) || !$prodMode, 'verifyLink present');
 $regUser = $pdo->query("SELECT id, email_verified_at, password_hash FROM users WHERE username = '$num'")->fetch();
@@ -139,8 +143,8 @@ check('new student account starts unverified', $regUser && $regUser['email_verif
 check('the password typed at registration was NOT stored (nobody can sign in with it)', !password_verify($attackerPw, (string) $regUser['password_hash']));
 $fn = $pdo->query("SELECT first_name_enc FROM students WHERE school_id = '$num'")->fetchColumn();
 check('student name copied from the roster and stored encrypted', $fn && Crypto::dec($fn) === 'TESTER T');
-$r = $reg->req('POST', '/api/register.php', $good); check('registering the same Student Number again refused (409)', $r['code'] === 409, (string) $r['code']);
-$r = (new Client($base))->login($num, $attackerPw, 'student'); check('unverified student cannot sign in (403, needs verification)', $r['code'] === 403 && (json_decode($r['body'], true)['needsVerification'] ?? false) === true, $r['code'] . ' ' . substr($r['body'], 0, 90));
+$r = $reg->req('POST', '/api/register.php', $good); check('registering the same Student Number again: same answer, no second account', $sameAnswer($r) && (int) $pdo->query("SELECT COUNT(*) FROM users WHERE username = '$num'")->fetchColumn() === 1, $r['code'] . ' ' . substr($r['body'], 0, 90));
+$r = (new Client($base))->login($num, $attackerPw, 'student'); check('unverified student cannot sign in (401, same answer as a wrong password)', $r['code'] === 401 && (json_decode($r['body'], true) ?? []) === ['success' => false, 'error' => 'Invalid username or password.'], $r['code'] . ' ' . substr($r['body'], 0, 90));
 
 $mkToken = function (int $uid, string $raw, string $expires = "NOW() + INTERVAL '48 hours'") use ($pdo) {
     $pdo->prepare("INSERT INTO email_verification_tokens (user_id, token_hash, expires_at) VALUES (?, ?, $expires)")->execute([$uid, hash('sha256', $raw)]);

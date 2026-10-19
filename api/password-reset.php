@@ -7,6 +7,7 @@ require_once __DIR__ . '/../lib/EmailTemplate.php';
 require_once __DIR__ . '/../lib/PasswordPolicy.php';
 require_once __DIR__ . '/../lib/PasswordReset.php';
 require_once __DIR__ . '/../lib/RateLimiter.php';
+require_once __DIR__ . '/../lib/SessionEnd.php';
 
 // Forgot password, for students and for guidance staff, each from their own sign-in page:
 //   request  { portal, email }            emails a 6-digit code (valid 10 minutes). Also used for "Resend code".
@@ -251,8 +252,8 @@ if ($action === 'reset') {
             ->execute([password_hash($password, PASSWORD_BCRYPT), $userId]);
         LoginLock::clear($pdo, LoginLock::forAccount((int) $userId));
         $pdo->prepare('UPDATE password_reset_codes SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL')->execute([$userId]);
-        // Whoever was signed in with the old password is signed out.
-        $pdo->prepare('DELETE FROM sessions WHERE data LIKE ?')->execute(['%user|a:%{s:2:"id";i:' . $userId . ';%']);
+        // Whoever was signed in with the old password is signed out (lib/SessionEnd.php).
+        SessionEnd::endFor($pdo, $userId, 'password_changed');
         $pdo->commit();
     } catch (Throwable $e) {
         $pdo->rollBack();

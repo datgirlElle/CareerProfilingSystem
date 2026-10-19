@@ -7,6 +7,7 @@ require_once __DIR__ . '/../lib/Sections.php';
 require_once __DIR__ . '/../lib/AcademicYear.php';
 require_once __DIR__ . '/../lib/Mismatch.php';
 require_once __DIR__ . '/../lib/StaffScope.php';
+require_once __DIR__ . '/../lib/SessionEnd.php';
 require_once __DIR__ . '/../lib/AssessmentProgress.php';
 
 $user = Rbac::requireRole('admin', 'counselor');
@@ -30,6 +31,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // outright ("invalid input syntax for type boolean"). Bind an int
         // instead; Postgres accepts 0/1 for boolean.
         $pdo->prepare('UPDATE users SET is_active = ?, updated_at = NOW() WHERE id = ?')->execute([(int) $newState, $targetId]);
+        if (!$newState) {
+            SessionEnd::endFor($pdo, $targetId, 'deactivated'); // signed out right away, not only at the next sign-in
+        }
         // login.php already rejects any user (any role) with is_active =
         // false, so deactivating here immediately blocks sign-in -- no
         // separate enforcement needed.

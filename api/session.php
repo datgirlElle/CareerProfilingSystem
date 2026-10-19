@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/StaffPosition.php';
+require_once __DIR__ . '/../lib/SessionEnd.php';
 
 $user = Auth::currentUser();
 
@@ -45,5 +46,10 @@ if ($user !== null && $user['role'] !== 'student') {
 $response = ['user' => $user, 'csrfToken' => Csrf::token()];
 if ($user !== null) {
     $response['sessionTimeout'] = Auth::sessionTimeoutPolicy();
+}
+// This device was signed out by lib/SessionEnd.php (another device, account turned off, password changed): the sign-in
+// page says why. Read only (nothing changes here); signing in again on this device gives it a new session.
+if ($user === null && DbSessionHandler::$endedReason !== null) {
+    $response['endedMessage'] = SessionEnd::MESSAGES[DbSessionHandler::$endedReason] ?? null;
 }
 jsonResponse($response);

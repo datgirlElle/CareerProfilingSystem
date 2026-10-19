@@ -3,6 +3,7 @@
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/StaffPosition.php';
 require_once __DIR__ . '/../lib/LoginDevice.php';
+require_once __DIR__ . '/../lib/SessionEnd.php';
 require_once __DIR__ . '/../lib/LoginLock.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -89,15 +90,25 @@ if ($policy['enabled'] && $user['locked_until'] !== null && strtotime($user['loc
     jsonResponse(['success' => false, 'error' => LOCKED_MESSAGE . LoginLock::waitText((int) strtotime($user['locked_until']))], 423);
 }
 
-// A student account has no usable password until its email link is opened (api/verify-email.php), so a wrong-password
-// answer would leave the student with no way to find the resend button. Say it needs verifying, whatever was typed.
+// A student account has no usable password until its email link is opened (api/verify-email.php). It gets the same
+// answer as a wrong password, so a Student Number alone does not tell a stranger that it was registered; the student
+// sign-in page always shows "Didn't get the verification email? Resend it". The password is still checked (and the
+// result ignored) so this answer takes as long as a real one. It also gets the same soft lock as an unknown name
+// (lib/LoginLock.php), so after a few tries it says "locked" exactly when an unknown number would.
 if ($user['role'] === 'student' && $user['email_verified_at'] === null) {
-    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Email not verified');
-    jsonResponse([
-        'success' => false,
-        'error' => 'Please verify your email before signing in — check your inbox for the verification link, where you also choose your password.',
-        'needsVerification' => true,
-    ], 403);
+    password_verify($password, $user['password_hash']);
+    if ($policy['enabled']) {
+        $nameLock = LoginLock::forName($typed);
+        LoginLock::oneAtATime($pdo, $nameLock);
+        $until = LoginLock::lockedUntil($pdo, $nameLock, $policy['lockoutMinutes']);
+        if ($until !== null) {
+            AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $typed, 'Email not verified (locked)');
+            jsonResponse(['success' => false, 'error' => LOCKED_MESSAGE . LoginLock::waitText($until)], 423);
+        }
+        LoginLock::recordFailure($pdo, $nameLock, $policy['maxAttempts'], $policy['lockoutMinutes']);
+    }
+    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $typed, 'Email not verified');
+    jsonResponse($genericError, 401);
 }
 
 if (!password_verify($password, $user['password_hash'])) {
@@ -148,17 +159,6 @@ if ($user['role'] === 'counselor' && $user['approval_status'] === 'rejected') {
     jsonResponse(['success' => false, 'error' => 'Your sign-up was not approved. Please contact your system administrator.'], 403);
 }
 
-// Students self-register through the public page and must verify their email
-// before signing in.
-if ($user['role'] === 'student' && $user['email_verified_at'] === null) {
-    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $typed, 'Email not verified');
-    jsonResponse([
-        'success' => false,
-        'error' => 'Please verify your email before signing in — check your inbox for the verification link.',
-        'needsVerification' => true,
-    ], 403);
-}
-
 // Success — reset lockout state.
 $reset = $pdo->prepare('UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?');
 $reset->execute([$user['id']]);
@@ -198,6 +198,17 @@ if ($user['role'] === 'student') {
 }
 
 Auth::login($sessionData);
+// One device at a time for students: the newest sign-in wins, and the older device is told why on its sign-in page.
+if ($user['role'] === 'student') {
+    try {
+        $endedOthers = SessionEnd::endFor($pdo, (int) $user['id'], 'other_device', session_id());
+        if ($endedOthers > 0) {
+            AuditLogger::log((int) $user['id'], 'student', 'signed_out_other_device', 'user', $user['username'], "Signed out on $endedOthers other device(s) (one device at a time)");
+        }
+    } catch (Throwable $e) {
+        error_log('[login] could not sign out other devices: ' . $e->getMessage()); // the sign-in itself still works
+    }
+}
 // Where this login came from. If a student signs in from another IP or device while an earlier login
 // is still recent, it is flagged as a possible shared account (nobody is blocked).
 // Same address the audit log stores (the visitor's, not Render's proxy), so the two can be compared.

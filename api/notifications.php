@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/StaffScope.php';
 
 $user = Auth::requireLogin();
 $pdo = Database::get();
@@ -104,14 +105,21 @@ if ($isStaff) {
         }
     }
 
-    // Retake requests waiting for an answer
+    // Retake requests waiting for an answer: only for staff who handle them (the Counseling Notes permission,
+    // as in api/retake-requests.php) and only for students in their sections (lib/StaffScope.php).
     try {
-        $stmt = $pdo->query(
-            "SELECT rr.id, rr.requested_at, s.first_name_enc, s.last_name_enc FROM retake_requests rr
-             JOIN students s ON s.user_id = rr.student_id
-             WHERE rr.status = 'pending' ORDER BY rr.requested_at DESC LIMIT $each"
-        );
-        foreach ($stmt->fetchAll() as $row) {
+        $retakeRows = [];
+        if (Rbac::accessLevel('counselingNotes', Rbac::roleKey($user)) !== 'none') {
+            $stmt = $pdo->query(
+                "SELECT rr.id, rr.requested_at, s.first_name_enc, s.last_name_enc, s.strand, s.section FROM retake_requests rr
+                 JOIN students s ON s.user_id = rr.student_id
+                 WHERE rr.status = 'pending' ORDER BY rr.requested_at DESC"
+            );
+            $retakeScope = StaffScope::forUser($pdo, $user);
+            $retakeRows = array_slice(array_values(array_filter($stmt->fetchAll(),
+                fn($r) => StaffScope::allows($retakeScope, $r['strand'], $r['section']))), 0, $each);
+        }
+        foreach ($retakeRows as $row) {
             $name = Crypto::dec($row['first_name_enc']) . ' ' . Crypto::dec($row['last_name_enc']);
             $items[] = [
                 'type' => 'retake_request',
