@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/LoginLock.php';
 require_once __DIR__ . '/../lib/QuestionBank.php';
 require_once __DIR__ . '/../lib/Sections.php';
 require_once __DIR__ . '/../lib/AcademicYear.php';
@@ -48,6 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             jsonResponse(['success' => false, 'error' => 'Student account not found.'], 404);
         }
         $pdo->prepare('UPDATE users SET failed_login_attempts = 0, locked_until = NULL, updated_at = NOW() WHERE id = ?')->execute([$targetId]);
+        LoginLock::clear($pdo, LoginLock::forAccount($targetId));   // the next lock is short again
         AuditLogger::log($user['id'], $user['role'], 'unlock_account', 'user', (string) $targetId, 'Unlocked after failed sign-in attempts');
         jsonResponse(['success' => true]);
     }
@@ -214,7 +216,7 @@ $asCsv = ($_GET['format'] ?? '') === 'csv';
 
 $rows = $pdo->query(
     'SELECT s.user_id, s.school_id, s.first_name_enc, s.last_name_enc, s.strand, s.grade_level, s.section, s.registered_at, s.academic_year,
-            u.is_active, u.email, a.top_types, a.completed_at
+            u.is_active, u.email, (u.locked_until IS NOT NULL AND u.locked_until > NOW()) AS locked, a.top_types, a.completed_at
      FROM students s
      JOIN users u ON u.id = s.user_id
      LEFT JOIN assessments a ON a.student_id = s.user_id AND a.is_latest = TRUE
@@ -268,6 +270,7 @@ $students = array_map(function ($r) use ($counseledIds, $mismatchIds) {
         'gradeLevel' => $r['grade_level'],
         'section' => $r['section'],
         'isActive' => (bool) $r['is_active'],
+        'locked' => (bool) $r['locked'],   // locked by wrong passwords: the list shows Locked and Unlock
         'status' => $status,
         'riasec' => implode(', ', $topTypes),
         'counseling' => $counseling,

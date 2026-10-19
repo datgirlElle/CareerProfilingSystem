@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/LoginLock.php';
 require_once __DIR__ . '/../lib/PasswordPolicy.php';
 require_once __DIR__ . '/../lib/RateLimiter.php';
 require_once __DIR__ . '/../lib/StaffSetupCode.php';
@@ -54,6 +55,7 @@ $pdo->beginTransaction();
 try {
     $pdo->prepare('UPDATE users SET password_hash = ?, email_verified_at = NOW(), failed_login_attempts = 0, locked_until = NULL, updated_at = NOW() WHERE id = ?')
         ->execute([password_hash($password, PASSWORD_BCRYPT), $account['id']]);
+    LoginLock::clear($pdo, LoginLock::forAccount((int) $account['id']));
     StaffSetupCode::spend($pdo, (int) $account['id']);
     $pdo->commit();
 } catch (Throwable $e) {

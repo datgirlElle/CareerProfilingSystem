@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/LoginLock.php';
 require_once __DIR__ . '/../lib/Mailer.php';
 require_once __DIR__ . '/../lib/EmailTemplate.php';
 require_once __DIR__ . '/../lib/StaffPosition.php';
@@ -119,6 +120,7 @@ if ($type === 'unlock') {
         jsonResponse(['success' => false, 'error' => 'Only an administrator can unlock a staff account.'], 403);
     }
     $pdo->prepare('UPDATE users SET failed_login_attempts = 0, locked_until = NULL, updated_at = NOW() WHERE id = ?')->execute([$id]);
+    LoginLock::clear($pdo, LoginLock::forAccount($id));   // the next lock is short again
     $who = trim((string) ($target['full_name'] ?? '')) !== '' ? $target['full_name'] : $target['username'];
     AuditLogger::log($user['id'], $user['role'], 'unlock_account', 'user', (string) $id,
         'Unlocked ' . $who . ' (' . StaffPosition::label($target['staff_position'] ?? null) . ') after failed sign-in attempts');
