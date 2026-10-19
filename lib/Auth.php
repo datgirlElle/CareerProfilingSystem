@@ -31,6 +31,11 @@ class Auth
                 'samesite' => 'Lax',
                 'secure' => $isHttps,
             ]);
+            // PHP's default cleanup deletes sessions idle for 24 minutes, sooner than the app's own idle
+            // timeout (up to 240 minutes, enforced in currentUser()). Keep them that long, so students are
+            // not signed out at random in the middle of the assessment. (This applies to everyone; with the
+            // timeout turned off, idle sessions are now cleaned up after 4 hours instead of about 24 minutes.)
+            ini_set('session.gc_maxlifetime', '14400');
             session_start();
         }
         self::$started = true;

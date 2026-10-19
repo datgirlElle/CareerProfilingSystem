@@ -6,6 +6,7 @@ require_once __DIR__ . '/../lib/Sections.php';
 require_once __DIR__ . '/../lib/AcademicYear.php';
 require_once __DIR__ . '/../lib/Mismatch.php';
 require_once __DIR__ . '/../lib/StaffScope.php';
+require_once __DIR__ . '/../lib/AssessmentProgress.php';
 
 $user = Rbac::requireRole('admin', 'counselor');
 $pdo = Database::get();
@@ -51,6 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             foreach (['monitoring_flags', 'recommendations', 'worksheets', 'assessments'] as $table) {
                 $pdo->prepare("DELETE FROM $table WHERE student_id = ?")->execute([$targetId]);
             }
+            AssessmentProgress::clear($pdo, $targetId);   // answers saved from an unfinished attempt
             $pdo->commit();
         } catch (Throwable $e) {
             $pdo->rollBack();

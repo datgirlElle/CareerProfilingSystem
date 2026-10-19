@@ -4,6 +4,7 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/RateLimiter.php';
 require_once __DIR__ . '/../lib/ExamSchedule.php';
 require_once __DIR__ . '/../lib/RetakeRequest.php';
+require_once __DIR__ . '/../lib/AssessmentProgress.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -20,6 +21,7 @@ if (!empty((readJsonBody())['retake'])) {
         jsonResponse(['success' => false, 'error' => 'You do not have an approved retake. Please seek the assistance of the Guidance Office.'], 403);
     }
     $_SESSION['assessmentUnlocked'] = true;
+    AssessmentProgress::unlock(Database::get(), (int) $user['id'], null, true);
     AuditLogger::log($user['id'], 'student', 'retake_started', 'assessment', null, 'Started an approved retake');
     jsonResponse(['success' => true]);
 }
@@ -33,11 +35,12 @@ if ($alreadyDone->fetch()) {
     jsonResponse(['success' => false, 'alreadyTaken' => true, 'error' => 'You have already taken this assessment. Please seek the assistance of the Guidance Office.'], 403);
 }
 
-// 3 attempts per 5 minutes, keyed per-student — matches the scale of the
+// 3 wrong codes per 5 minutes, keyed per-student — matches the scale of the
 // login lockout policy. A genuine student mistyping a code a couple times
 // is unaffected; a script grinding through the ~16.7 million possible
-// 6-character codes is not.
-if (RateLimiter::tooMany('access-code:' . $user['id'], 3, 5)) {
+// 6-character codes is not. Only wrong codes count (hit() below), so a student
+// who enters the right code again after being signed out never waits.
+if (RateLimiter::isLimited('access-code:' . $user['id'], 3, 5)) {
     AuditLogger::log($user['id'], 'student', 'access_code_throttled', 'assessment', null, 'Too many attempts, temporarily blocked');
     jsonResponse(['success' => false, 'error' => 'Too many incorrect attempts. Please wait a few minutes and try again.'], 429);
 }
@@ -111,11 +114,14 @@ if ($matchedScheduleId === null) {
         AuditLogger::log($user['id'], 'student', 'access_code_failed', 'assessment', null, 'Expired assessment access code (exam already ended)');
         jsonResponse(['success' => false, 'error' => 'This access code has expired because the assessment has already ended. Please ask your guidance counselor for the current schedule and code.'], 403);
     }
+    RateLimiter::hit('access-code:' . $user['id']);
     AuditLogger::log($user['id'], 'student', 'access_code_failed', 'assessment', null, 'Incorrect assessment access code');
     jsonResponse(['success' => false, 'error' => 'Incorrect access code.'], 403);
 }
 
 $_SESSION['assessmentUnlocked'] = true;
+// Remembered in the database too, so signing in again (any PC) continues without the code while the session is open.
+AssessmentProgress::unlock($pdo, (int) $user['id'], $matchedScheduleId, false);
 AuditLogger::log(
     $user['id'],
     'student',

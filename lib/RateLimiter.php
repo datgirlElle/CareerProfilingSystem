@@ -23,24 +23,34 @@ class RateLimiter
      */
     public static function tooMany(string $key, int $maxAttempts, int $windowMinutes): bool
     {
-        $pdo = Database::get();
-        $cutoff = date('c', time() - $windowMinutes * 60);
-
-        $countStmt = $pdo->prepare('SELECT COUNT(*) FROM rate_limit_hits WHERE rate_key = ? AND created_at > ?');
-        $countStmt->execute([$key, $cutoff]);
-        $count = (int) $countStmt->fetchColumn();
-
-        if ($count >= $maxAttempts) {
+        if (self::isLimited($key, $maxAttempts, $windowMinutes)) {
             return true;
         }
+        self::hit($key);
+        return false;
+    }
 
+    /**
+     * Only checks, without counting this call. Pair it with hit() to count failures only
+     * (for example wrong access codes, so a correct one never uses up an attempt).
+     */
+    public static function isLimited(string $key, int $maxAttempts, int $windowMinutes): bool
+    {
+        $cutoff = date('c', time() - $windowMinutes * 60);
+        $countStmt = Database::get()->prepare('SELECT COUNT(*) FROM rate_limit_hits WHERE rate_key = ? AND created_at > ?');
+        $countStmt->execute([$key, $cutoff]);
+        return (int) $countStmt->fetchColumn() >= $maxAttempts;
+    }
+
+    /** Counts one attempt toward $key. */
+    public static function hit(string $key): void
+    {
+        $pdo = Database::get();
         $pdo->prepare('INSERT INTO rate_limit_hits (rate_key) VALUES (?)')->execute([$key]);
 
         // Opportunistic cleanup so this table doesn't grow forever — cheap
         // enough to run inline given this app's scale, no need for a
         // separate cron job.
         $pdo->exec("DELETE FROM rate_limit_hits WHERE created_at < NOW() - INTERVAL '1 day'");
-
-        return false;
     }
 }
