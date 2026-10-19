@@ -156,8 +156,9 @@ if ($account) {
     if (strtolower((string) $account['email']) !== $email) {
         registerQuietEnd($sameAnswer, $schoolId, 'already registered with a different email (check with the student)');
     }
-    // A few emails an hour at most, so this form cannot be used to flood a student's inbox.
-    if (RateLimiter::tooMany('register-mail:' . $account['id'], 3, 60)) {
+    // A few emails an hour at most, so this form cannot be used to flood a student's inbox. The limit is per account
+    // and shared with "Resend it" on the sign-in page (api/resend-verification.php).
+    if (RateLimiter::tooMany('verify-mail:' . $account['id'], 3, 60)) {
         registerQuietEnd($sameAnswer, $schoolId, 'already registered (no email: too many in the last hour)');
     }
     $accountName = $account['first_name_enc'] !== null ? (string) Crypto::dec($account['first_name_enc']) : $firstName;
@@ -223,6 +224,7 @@ AuditLogger::log($userId, 'student', 'register', 'user', (string) $userId, "New 
 
 $verifyLink = rtrim((string) envValue('APP_URL'), '/') . '/verify-email?token=' . $rawToken;
 [$bodyHtml, $bodyText] = registerVerificationEmail($firstName, $verifyLink, true);
+RateLimiter::tooMany('verify-mail:' . $userId, 3, 60); // the first email counts toward the shared limit too
 $sent = Mailer::send($email, $firstName, 'Verify your ProfilePath email', $bodyHtml, $bodyText);
 
 // No name, strand or section in the answer: it is the same answer a wrong Student Number gets.

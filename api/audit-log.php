@@ -186,13 +186,17 @@ function statusOf(string $action): string
 function actorLabel(array $r): string
 {
     if (($r['actor_role'] ?? null) === 'student') {
+        // A student whose account was later removed has no name to read: show "Student" instead of failing.
+        if (empty($r['last_name_enc']) && empty($r['first_name_enc'])) {
+            return 'Student';
+        }
         $name = trim(Crypto::dec($r['last_name_enc'] ?? '') . ', ' . Crypto::dec($r['first_name_enc'] ?? ''), ' ,');
         return $name !== '' ? $name : 'Student';
     }
     if (trim((string) ($r['full_name'] ?? '')) !== '') {
         return $r['full_name'];
     }
-    if (!isset($r['username']) && ($r['action'] ?? '') === 'login_failed') {
+    if (!isset($r['username']) && in_array($r['action'] ?? '', ['login_failed', 'register_failed'], true)) {
         return 'Unregistered user';
     }
     return $r['username'] ?? 'System';
@@ -488,10 +492,10 @@ function buildFilters(array $q, array $actionLabels, array $roleLabels, array $c
 
             // Rows with no user behind them.
             if ($has('Unregistered user')) {
-                $or[] = "(al.actor_user_id IS NULL AND al.action = 'login_failed')";
+                $or[] = "(al.actor_user_id IS NULL AND al.action IN ('login_failed', 'register_failed'))";
             }
             if ($has('System')) {
-                $or[] = "(al.actor_user_id IS NULL AND al.action <> 'login_failed')";
+                $or[] = "(al.actor_user_id IS NULL AND al.action NOT IN ('login_failed', 'register_failed'))";
             }
 
             // Status.

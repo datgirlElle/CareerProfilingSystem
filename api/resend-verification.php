@@ -41,6 +41,11 @@ $user = $stmt->fetch();
 if (!$user || !$user['email']) {
     jsonResponse($generic);
 }
+// One limit per account, shared with api/register.php: at most 3 verification emails an hour, however the
+// account is typed (Student Number or email) and from whichever page.
+if (RateLimiter::tooMany('verify-mail:' . $user['id'], 3, 60)) {
+    jsonResponse($generic);
+}
 
 $firstName = $user['role'] === 'student'
     ? Crypto::dec($user['first_name_enc'])

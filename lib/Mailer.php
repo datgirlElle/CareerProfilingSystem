@@ -10,9 +10,9 @@ require_once __DIR__ . '/../config/env.php';
  * to Brevo's API endpoint instead of opening an SMTP socket.
  *
  * When BREVO_API_KEY isn't set (local dev has no real Brevo account),
- * sending is skipped and the message is written to the PHP error log
- * instead, so the reset/notification flow stays testable without real
- * credentials.
+ * sending is skipped and, on a local machine (APP_ENV=local), the message is
+ * written to the PHP error log instead, so the reset/notification flow stays
+ * testable without real credentials.
  */
 class Mailer
 {
@@ -20,7 +20,13 @@ class Mailer
     {
         $apiKey = envValue('BREVO_API_KEY');
         if (!$apiKey) {
-            error_log("[Mailer] BREVO_API_KEY not configured — logging instead of sending.\nTo: $toName <$toEmail>\nSubject: $subject\n\n$bodyText");
+            // The whole message (name, address, links, codes) goes to the log only on a local machine. Anywhere else
+            // the log is not a safe place for personal data (RA 10173), so only the subject is noted.
+            if (envValue('APP_ENV') === 'local') {
+                error_log("[Mailer] BREVO_API_KEY not configured — logging instead of sending.\nTo: $toName <$toEmail>\nSubject: $subject\n\n$bodyText");
+            } else {
+                error_log("[Mailer] BREVO_API_KEY not configured — email not sent (subject: $subject).");
+            }
             return false;
         }
 

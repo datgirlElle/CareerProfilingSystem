@@ -47,7 +47,7 @@ $giveCode = function (int $uid, string $code, string $portal = 'student', string
     $pdo->prepare("UPDATE password_reset_codes SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL")->execute([$uid]);
     $pdo->prepare("INSERT INTO password_reset_codes (user_id, portal, code_hash, expires_at) VALUES (?, ?, ?, $expires)")->execute([$uid, $portal, PasswordReset::hashCode($uid, $code)]);
 };
-$clearLimits = fn() => $pdo->exec("DELETE FROM rate_limit_hits WHERE rate_key LIKE 'pwreset%' OR rate_key LIKE 'resend-verification:%' OR rate_key LIKE 'register%'");
+$clearLimits = fn() => $pdo->exec("DELETE FROM rate_limit_hits WHERE rate_key LIKE 'pwreset%' OR rate_key LIKE 'resend-verification:%' OR rate_key LIKE 'register%' OR rate_key LIKE 'verify-mail:%'");
 $cleanup = function () use ($pdo) {
     foreach ($pdo->query("SELECT id FROM users WHERE username LIKE 'qaflow%' OR username LIKE '99991111%'")->fetchAll(PDO::FETCH_COLUMN) as $id) {
         foreach (['password_reset_codes', 'email_verification_tokens'] as $t) { $pdo->prepare("DELETE FROM $t WHERE user_id = ?")->execute([$id]); }
