@@ -130,6 +130,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // column (the pages need it to know what they may do), never the other roles' permissions, and cannot change anything.
     $facilitator = Rbac::isFacilitator($user);
     $rbacShown = $facilitator ? array_map(fn($levels) => ['facilitator' => $levels['facilitator']], $rbacNow) : $rbacNow;
+    // The Principal's name and email belong to the administrator's Principal report; other staff do not need them.
+    $payloadPolicies = loadPolicies($pdo);
+    if ($user['role'] !== 'admin') {
+        $payloadPolicies['principal'] = ['name' => '', 'email' => '', 'lastSentAt' => ''];
+    }
     jsonResponse([
         'rbac' => $rbacShown,
         'rbacVisible' => !$facilitator,
@@ -146,7 +151,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             'activeUsersToday' => $activeUsersToday,
             'pendingFlags' => $pendingFlags,
         ],
-    ] + loadPolicies($pdo));
+    ] + $payloadPolicies);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

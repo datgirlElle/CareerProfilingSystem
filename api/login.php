@@ -53,6 +53,17 @@ if ($policy['enabled'] && $user['locked_until'] !== null && strtotime($user['loc
     jsonResponse(['success' => false, 'error' => 'Account temporarily locked due to repeated failed attempts. Try again later.'], 423);
 }
 
+// A student account has no usable password until its email link is opened (api/verify-email.php), so a wrong-password
+// answer would leave the student with no way to find the resend button. Say it needs verifying, whatever was typed.
+if ($user['role'] === 'student' && $user['email_verified_at'] === null) {
+    AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $username, 'Email not verified');
+    jsonResponse([
+        'success' => false,
+        'error' => 'Please verify your email before signing in — check your inbox for the verification link, where you also choose your password.',
+        'needsVerification' => true,
+    ], 403);
+}
+
 if (!password_verify($password, $user['password_hash'])) {
     $attempts = (int) $user['failed_login_attempts'] + 1;
     $lockedUntil = null;

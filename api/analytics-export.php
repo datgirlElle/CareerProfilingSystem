@@ -55,11 +55,14 @@ fputcsv($out, [
     'Assessment Status', 'Holland Code (Top 3, ranked)', 'R', 'I', 'A', 'S', 'E', 'C',
 ], escape: '\\');
 
+// Stop a name that starts with = + - @ from running as a formula when the file is opened in Excel.
+$csvSafe = fn($v) => is_string($v) && $v !== '' && strpos('=+-@', $v[0]) !== false ? "'" . $v : (string) $v;
+
 foreach ($stmt as $row) {
     $completed = $row['completed_at'] !== null;
     fputcsv($out, [
-        Crypto::dec($row['last_name_enc']),
-        Crypto::dec($row['first_name_enc']),
+        $csvSafe(Crypto::dec($row['last_name_enc'])),
+        $csvSafe(Crypto::dec($row['first_name_enc'])),
         $row['strand'],
         $row['grade_level'],
         $row['section'],

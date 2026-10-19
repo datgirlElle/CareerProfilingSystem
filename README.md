@@ -49,6 +49,13 @@ config/     .env loader
      (registration/verification/password-reset). Leave blank for local dev; in `APP_ENV=local`,
      unsent emails are logged instead of failing silently (see `api/forgot-password.php`).
 
+   **Shortcut for a new empty database (local or Render):** steps 2 to 4 in one command, which also
+   runs every migration in order and stops if the database already has accounts:
+
+   ```bash
+   php db/setup_new_database.php
+   ```
+
 2. **Create the database and apply the schema:**
 
    ```bash

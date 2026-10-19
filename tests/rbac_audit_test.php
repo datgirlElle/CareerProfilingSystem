@@ -28,11 +28,11 @@ $expected = [
     'recommendations' => ['admin' => 'full', 'counselor' => 'full',    'student' => 'full'],
     'counselor'       => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'monitoring'      => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
-    // Guidance Counselors post announcements, set schedules and manage sections (a Guidance Facilitator is view-only in code).
-    'announcements'   => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
+    // Seeded defaults (db/seed_security_defaults.php): only the Administrator posts announcements; counselors view them and sections.
+    'announcements'   => ['admin' => 'full', 'counselor' => 'limited', 'student' => 'none'],
     'examinations'    => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'counselingNotes' => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
-    'sections'        => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
+    'sections'        => ['admin' => 'full', 'counselor' => 'limited', 'student' => 'none'],
     'staffAccounts'   => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
 ];
 
@@ -47,7 +47,7 @@ $pdoCap = Database::get();
 $pdoCap->beginTransaction();
 $pdoCap->prepare("UPDATE security_rbac SET access_level = 'full' WHERE module = 'announcements' AND role = 'student'")->execute();
 check('even if the table is tampered to Full, a student has no access to announcements', Rbac::accessLevel('announcements', 'student') === 'none');
-check('the cap is only for students: the counselor row is untouched', Rbac::accessLevel('announcements', 'counselor') === 'full');
+check('the cap is only for students: the counselor row is untouched', Rbac::accessLevel('announcements', 'counselor') === 'limited');
 $pdoCap->rollBack();
 check('the real student row is No Access', Rbac::accessLevel('announcements', 'student') === 'none');
 check('a student is still not cut off from other modules (Recommendations stays Full)', Rbac::accessLevel('recommendations', 'student') === 'full');
@@ -56,7 +56,7 @@ echo "\n=== Guidance Facilitators have a column of their own ===\n";
 $facilitator = [
     'career' => 'limited', 'rac' => 'full', 'recommendations' => 'full', 'counselor' => 'full', 'monitoring' => 'full',
     // counselingNotes is left out: the administrator sets it in the table (Full by default for a new database).
-    'announcements' => 'full', 'examinations' => 'full', 'sections' => 'limited', 'staffAccounts' => 'none',
+    'announcements' => 'limited', 'examinations' => 'full', 'sections' => 'limited', 'staffAccounts' => 'none',
 ];
 foreach ($facilitator as $module => $level) {
     check("$module/facilitator == $level", Rbac::accessLevel($module, 'facilitator') === $level);
