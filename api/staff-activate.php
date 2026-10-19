@@ -26,7 +26,8 @@ if ($identifier === '' || $code === '' || $password === '') {
 $generic = ['success' => false, 'error' => 'That code is not valid. Check it and try again, or ask the Head of Guidance to send a new one.'];
 
 // Brute-force guard: per account and per IP, whatever the outcome.
-$ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+// The real visitor address (behind Render's proxy too; lib/AuditLogger.php), so one visitor cannot use up the limit for everyone.
+$ip = AuditLogger::clientIpFrom($_SERVER) ?? 'unknown';
 if (RateLimiter::tooMany('staff-activate:' . strtolower($identifier), StaffSetupCode::MAX_WRONG_TRIES * 2, 60)
     || RateLimiter::tooMany('staff-activate-ip:' . $ip, 30, 60)) {
     jsonResponse(['success' => false, 'error' => 'Too many attempts. Please wait a while and try again.'], 429);

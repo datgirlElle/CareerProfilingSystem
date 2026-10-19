@@ -36,7 +36,10 @@ $portal = (string) ($body['portal'] ?? '');
 if (!in_array($portal, PasswordReset::PORTALS, true)) {
     jsonResponse(['success' => false, 'error' => 'Something went wrong. Please go back to the sign-in page and try again.'], 400);
 }
-$ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+// The real visitor address (behind Render's proxy too; lib/AuditLogger.php), so one visitor cannot use up the limit for everyone.
+$ip = AuditLogger::clientIpFrom($_SERVER) ?? 'unknown';
+// The per-address limits are loose: a whole school on one Wi-Fi shares one address. The per-email limits below
+// are what protect each account.
 $loginUrl = rtrim((string) getenv('APP_URL'), '/') . ($portal === 'staff' ? '/staff-login' : '/student-login');
 
 /**
@@ -89,7 +92,7 @@ if ($action === 'request') {
     $email = readEmail($body);
 
     // These limits are keyed by what was typed, so they apply the same to an address with no account.
-    if (RateLimiter::tooMany("pwreset-ip:$ip", 15, 60)) {
+    if (RateLimiter::tooMany("pwreset-ip:$ip", 60, 60)) {
         fail('limit', 'Too many requests. Please try again in a few minutes.', 429, ['retryAfter' => 600]);
     }
     if (RateLimiter::tooMany("pwreset-cd:$portal:$email", 1, 1)) {
@@ -149,7 +152,7 @@ if ($action === 'verify') {
     if (!PasswordReset::isCode($code)) {
         fail('invalid', 'Enter all 6 digits.');
     }
-    if (RateLimiter::tooMany("pwreset-vip:$ip", 40, 60)) {
+    if (RateLimiter::tooMany("pwreset-vip:$ip", 150, 60)) {
         fail('limit', 'Too many attempts. Please try again in a few minutes.', 429, ['retryAfter' => 600]);
     }
 
@@ -220,7 +223,7 @@ if ($action === 'reset') {
     if (!preg_match('/^[0-9a-f]{64}$/', $token) || $password === '') {
         fail('expired', $sessionOver);
     }
-    if (RateLimiter::tooMany("pwreset-rip:$ip", 30, 60)) {
+    if (RateLimiter::tooMany("pwreset-rip:$ip", 100, 60)) {
         fail('limit', 'Too many attempts. Please try again in a few minutes.', 429, ['retryAfter' => 600]);
     }
 

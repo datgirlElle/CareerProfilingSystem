@@ -5,6 +5,7 @@ require_once __DIR__ . '/../lib/StaffPosition.php';
 require_once __DIR__ . '/../lib/LoginDevice.php';
 require_once __DIR__ . '/../lib/SessionEnd.php';
 require_once __DIR__ . '/../lib/LoginLock.php';
+require_once __DIR__ . '/../lib/RateLimiter.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -58,6 +59,19 @@ $genericError = ['success' => false, 'error' => 'Invalid username or password.']
 
 $policy = lockoutPolicy($pdo);
 
+// One address trying many accounts (the per-account lock cannot see that): at most 150 failed sign-ins per 15
+// minutes from one real visitor address (lib/AuditLogger.php). Loose on purpose: a whole school on one Wi-Fi shares
+// one address. Only failed sign-ins count (RateLimiter::hit on each failure below); a success never takes one back,
+// so a working account cannot be used to earn more guesses. The answer is the same for every username, so it says
+// nothing about which accounts exist. The block is written to the audit log once per 15 minutes per address.
+$loginIpKey = 'login-ip:' . (AuditLogger::clientIpFrom($_SERVER) ?? 'unknown');
+if (RateLimiter::isLimited($loginIpKey, 150, 15)) {
+    if (!RateLimiter::tooMany('logged-' . $loginIpKey, 1, 15)) {
+        AuditLogger::log(null, null, 'login_failed', 'user', $typed, 'Too many failed sign-ins from this address');
+    }
+    jsonResponse(['success' => false, 'error' => 'Too many sign-in attempts from this network. Please wait a few minutes and try again.'], 429);
+}
+
 if (!$user || !$user['is_active']) {
     password_verify($password, TIMING_DUMMY_HASH);
     // Unknown names get the same soft lock as real accounts (lib/LoginLock.php), so the "locked"
@@ -68,11 +82,13 @@ if (!$user || !$user['is_active']) {
         $until = LoginLock::lockedUntil($pdo, $nameLock, $policy['lockoutMinutes']);
         if ($until !== null) {
             AuditLogger::log(null, null, 'login_failed', 'user', $typed, 'Unknown or inactive username (locked)');
+            RateLimiter::hit($loginIpKey);
             jsonResponse(['success' => false, 'error' => LOCKED_MESSAGE . LoginLock::waitText($until)], 423);
         }
         LoginLock::recordFailure($pdo, $nameLock, $policy['maxAttempts'], $policy['lockoutMinutes']);
     }
     AuditLogger::log(null, null, 'login_failed', 'user', $typed, 'Unknown or inactive username');
+    RateLimiter::hit($loginIpKey);
     jsonResponse($genericError, 401);
 }
 
@@ -87,6 +103,7 @@ if ($policy['enabled']) {
 if ($policy['enabled'] && $user['locked_until'] !== null && strtotime($user['locked_until']) > time()) {
     password_verify($password, TIMING_DUMMY_HASH);   // same time as a locked unknown name
     AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $typed, 'Account locked');
+    RateLimiter::hit($loginIpKey);
     jsonResponse(['success' => false, 'error' => LOCKED_MESSAGE . LoginLock::waitText((int) strtotime($user['locked_until']))], 423);
 }
 
@@ -103,11 +120,13 @@ if ($user['role'] === 'student' && $user['email_verified_at'] === null) {
         $until = LoginLock::lockedUntil($pdo, $nameLock, $policy['lockoutMinutes']);
         if ($until !== null) {
             AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $typed, 'Email not verified (locked)');
+            RateLimiter::hit($loginIpKey);
             jsonResponse(['success' => false, 'error' => LOCKED_MESSAGE . LoginLock::waitText($until)], 423);
         }
         LoginLock::recordFailure($pdo, $nameLock, $policy['maxAttempts'], $policy['lockoutMinutes']);
     }
     AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $typed, 'Email not verified');
+    RateLimiter::hit($loginIpKey);
     jsonResponse($genericError, 401);
 }
 
@@ -126,6 +145,7 @@ if (!password_verify($password, $user['password_hash'])) {
     }
 
     AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $typed, 'Incorrect password');
+    RateLimiter::hit($loginIpKey);
     jsonResponse($genericError, 401);
 }
 

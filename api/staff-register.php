@@ -20,7 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // A public form: keep one IP from using it to flood the approval list.
-$ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+// The real visitor address (behind Render's proxy too; lib/AuditLogger.php), so one visitor cannot use up the limit for everyone.
+$ip = AuditLogger::clientIpFrom($_SERVER) ?? 'unknown';
 if (RateLimiter::tooMany('staff-register:' . $ip, 5, 60)) {
     jsonResponse(['success' => false, 'error' => 'Too many sign-up attempts. Please try again later.'], 429);
 }
