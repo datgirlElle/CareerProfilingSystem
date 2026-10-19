@@ -121,18 +121,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $lastUpdatedStmt->execute([AuditRetention::LAST_RUN_KEY, AuditChain::ANCHOR_KEY]);
     $lastUpdated = $lastUpdatedStmt->fetchColumn();
 
-    // A lockout is logged (api/login.php) the moment an account reaches the maximum failed attempts,
-    // so this counts accounts that were actually locked out, not every wrong password.
-    $lockouts7d = (int) $pdo->query(
-        "SELECT COUNT(*) FROM audit_log WHERE action = 'login_lockout' AND created_at >= NOW() - INTERVAL '7 days'"
-    )->fetchColumn();
-    $sharedLogins7d = (int) $pdo->query(
-        "SELECT COUNT(*) FROM audit_log WHERE action = 'login_shared_suspected' AND created_at >= NOW() - INTERVAL '7 days'"
-    )->fetchColumn();
-    $activeUsersToday = (int) $pdo->query(
-        "SELECT COUNT(DISTINCT actor_user_id) FROM audit_log WHERE created_at::date = CURRENT_DATE"
-    )->fetchColumn();
-    $pendingFlags = (int) $pdo->query("SELECT COUNT(*) FROM monitoring_flags WHERE status = 'pending'")->fetchColumn();
+    // Security Overview card: each number goes only to someone who can open the page it links to
+    // (null otherwise, and the page leaves that tile out). Sign-in numbers -> Audit Log (Full on 'rac',
+    // as in api/audit-log.php); flags waiting -> Monitoring (any access, everyone on the team sees all flags).
+    $roleKey = Rbac::roleKey($user);
+    $seesAuditLog = Rbac::accessLevel('rac', $roleKey) === 'full';
+    $seesMonitoring = Rbac::accessLevel('monitoring', $roleKey) !== 'none';
+    $lockouts7d = $sharedLogins7d = $pendingFlags = null;
+    if ($seesAuditLog) {
+        // A lockout is logged (api/login.php) the moment an account reaches the maximum failed attempts,
+        // so this counts accounts that were actually locked out, not every wrong password.
+        $lockouts7d = (int) $pdo->query(
+            "SELECT COUNT(*) FROM audit_log WHERE action = 'login_lockout' AND created_at >= NOW() - INTERVAL '7 days'"
+        )->fetchColumn();
+        $sharedLogins7d = (int) $pdo->query(
+            "SELECT COUNT(*) FROM audit_log WHERE action = 'login_shared_suspected' AND created_at >= NOW() - INTERVAL '7 days'"
+        )->fetchColumn();
+    }
+    if ($seesMonitoring) {
+        $pendingFlags = (int) $pdo->query("SELECT COUNT(*) FROM monitoring_flags WHERE status = 'pending'")->fetchColumn();
+    }
 
     $rbacNow = loadRbac($pdo);
     // The permission table is for the Head of Guidance and Guidance Counselors. A Guidance Facilitator is sent only their own
@@ -157,7 +165,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         'overview' => [
             'lockouts7d' => $lockouts7d,
             'sharedLogins7d' => $sharedLogins7d,
-            'activeUsersToday' => $activeUsersToday,
             'pendingFlags' => $pendingFlags,
         ],
     ] + $payloadPolicies);
