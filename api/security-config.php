@@ -5,6 +5,7 @@ require_once __DIR__ . '/../lib/AcademicYear.php';
 require_once __DIR__ . '/../lib/OfficeHours.php';
 require_once __DIR__ . '/../lib/BookingLink.php';
 require_once __DIR__ . '/../lib/AuditChange.php';
+require_once __DIR__ . '/../lib/AuditRetention.php';
 
 $user = Rbac::requireRole('admin', 'counselor');
 $pdo = Database::get();
@@ -79,7 +80,11 @@ function loadPolicies(PDO $pdo): array
                 'lockoutMinutes' => $i('lockout.lockoutMinutes', 15),
             ],
             'monitoring' => [
-                'enabled' => $b('monitoring.enabled', true), 'retentionDays' => $i('monitoring.retentionDays', 90),
+                'enabled' => $b('monitoring.enabled', true),
+            ],
+            // Its switch is "Delete older logs automatically" (lib/AuditRetention.php), off unless turned on.
+            'retention' => [
+                'enabled' => $b(AuditRetention::ON_KEY, false), 'retentionDays' => AuditRetention::days($rows[AuditRetention::DAYS_KEY] ?? null),
             ],
         ],
         'settings' => [
@@ -106,12 +111,15 @@ function loadPolicies(PDO $pdo): array
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $lastUpdated = $pdo->query(
+    // The daily cleanup's own marker is not a settings change, so it does not count as an update.
+    $lastUpdatedStmt = $pdo->prepare(
         'SELECT GREATEST(
             (SELECT MAX(updated_at) FROM security_rbac),
-            (SELECT MAX(updated_at) FROM security_policies)
+            (SELECT MAX(updated_at) FROM security_policies WHERE key <> ?)
          )'
-    )->fetchColumn();
+    );
+    $lastUpdatedStmt->execute([AuditRetention::LAST_RUN_KEY]);
+    $lastUpdated = $lastUpdatedStmt->fetchColumn();
 
     // A lockout is logged (api/login.php) the moment an account reaches the maximum failed attempts,
     // so this counts accounts that were actually locked out, not every wrong password.
@@ -246,7 +254,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($type === 'policy') {
         $key = $body['key'] ?? '';
-        if (!in_array($key, ['password', 'lockout', 'monitoring'], true)) {
+        if (!in_array($key, ['password', 'lockout', 'monitoring', 'retention'], true)) {
             jsonResponse(['success' => false, 'error' => 'Unknown policy.'], 400);
         }
 
@@ -272,18 +280,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($key === 'lockout') {
             $set('lockout.maxAttempts', (string) max(1, min(20, (int) ($body['maxAttempts'] ?? 5))));
             $set('lockout.lockoutMinutes', (string) max(1, min(1440, (int) ($body['lockoutMinutes'] ?? 15))));
-        } else {
-            $set('monitoring.retentionDays', (string) max(7, min(365, (int) ($body['retentionDays'] ?? 90))));
+        } elseif ($key === 'retention') {
+            $set(AuditRetention::DAYS_KEY, (string) AuditRetention::days($body['retentionDays'] ?? null));
+            // Just turned on: nothing is deleted today, which leaves a day to export the log first.
+            if (!$before['enabled'] && $enabled === 'true') {
+                AuditRetention::startTomorrow($pdo);
+            }
         }
 
-        $policyNames = ['password' => 'Password policy', 'lockout' => 'Account lockout', 'monitoring' => 'Login monitoring'];
+        $policyNames = ['password' => 'Password policy', 'lockout' => 'Account lockout', 'monitoring' => 'Login monitoring', 'retention' => 'Audit log retention'];
         $policyLabels = [
             'password' => [
                 'enabled' => 'Status', 'minLength' => 'Minimum password length', 'requireUpper' => 'Needs an uppercase letter',
                 'requireLower' => 'Needs a lowercase letter', 'requireNumber' => 'Needs a number', 'requireSymbol' => 'Needs a symbol',
             ],
             'lockout' => ['enabled' => 'Status', 'maxAttempts' => 'Failed attempts before lockout', 'lockoutMinutes' => 'Lockout length (minutes)'],
-            'monitoring' => ['enabled' => 'Status', 'retentionDays' => 'Log retention (days)'],
+            'monitoring' => ['enabled' => 'Status'],
+            'retention' => ['enabled' => 'Delete older logs automatically', 'retentionDays' => 'Keep entries for (days)'],
         ];
         $fresh = loadPolicies($pdo);
         AuditLogger::log($user['id'], $user['role'], 'update_policy', 'security_policies', $key, AuditChange::detail(

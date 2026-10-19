@@ -298,8 +298,8 @@
     </div>
     <div class="px-6 py-5 flex flex-col gap-4">
       <div class="flex items-center justify-between">
-        <p class="text-sm font-medium text-slate-800">Status</p>
-        <button type="button" id="policyEnabledToggle" class="w-11 h-6 rounded-full relative shrink-0" aria-label="Policy enabled">
+        <p id="policyToggleLabel" class="text-sm font-medium text-slate-800">Status</p>
+        <button type="button" id="policyEnabledToggle" aria-labelledby="policyToggleLabel" class="w-11 h-6 rounded-full relative shrink-0">
           <span class="absolute top-0.5 w-[18px] h-[18px] rounded-full bg-white transition-all"></span>
         </button>
       </div>
@@ -602,7 +602,9 @@
     const POLICY_META = {
       password: { title: 'Password Policy' },
       lockout: { title: 'Account Lockout' },
-      monitoring: { title: 'Login Activity Monitoring' }
+      monitoring: { title: 'Login Activity Monitoring' },
+      // Its switch deletes old audit log entries (lib/AuditRetention.php), so it is named for that.
+      retention: { title: 'Audit Log Retention', toggleLabel: 'Delete older logs automatically' }
     };
 
     function policyDesc(key) {
@@ -618,17 +620,25 @@
       if (key === 'lockout') {
         return 'Lock account after ' + p.maxAttempts + ' failed login attempts (' + p.lockoutMinutes + ' min lockout).';
       }
-      return 'Track and log user login activities and device information. Retained for ' + p.retentionDays + ' days.';
+      if (key === 'retention') {
+        return p.enabled
+          ? 'Deletes audit log entries older than ' + p.retentionDays + ' days, once a day when the Audit Log is opened.'
+          : 'Keeps all audit log entries. When turned on, deletes entries older than ' + p.retentionDays + ' days.';
+      }
+      return 'Track and log user login activities and device information.';
     }
 
     function renderPolicyList() {
       const container = document.getElementById('policyListContainer');
-      const keys = ['password', 'lockout', 'monitoring'];
+      const keys = ['password', 'lockout', 'monitoring', 'retention'];
       container.innerHTML = keys.map(function(key, idx) {
         const p = state.policies[key];
+        // "Disabled" on retention could read as "logs not kept", so its badge says what the switch does.
+        const onText = key === 'retention' ? 'Auto-delete on' : 'Enabled';
+        const offText = key === 'retention' ? 'Auto-delete off' : 'Disabled';
         const badge = p.enabled
-          ? '<span class="bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded-md">Enabled</span>'
-          : '<span class="bg-slate-100 text-slate-500 text-xs font-medium px-2 py-1 rounded-md">Disabled</span>';
+          ? '<span class="bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap">' + onText + '</span>'
+          : '<span class="bg-slate-100 text-slate-500 text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap">' + offText + '</span>';
         const tag = isAdmin ? 'button' : 'div';
         return '<' + tag + ' type="button" class="policy-row w-full flex items-center justify-between p-4 rounded-lg text-left' + (isAdmin ? ' hover:bg-slate-50' : '') + (idx > 0 ? ' border-t border-slate-100' : '') + '" data-policy="' + key + '">' +
           '<div><p class="text-sm font-medium text-slate-800">' + POLICY_META[key].title + '</p><p class="text-xs text-slate-500 policy-desc">' + policyDesc(key) + '</p></div>' +
@@ -669,16 +679,33 @@
           '<div class="flex items-center justify-between"><label class="text-xs text-slate-600">Lockout Duration (minutes)</label>' +
           '<input type="number" id="fldLockoutMinutes" min="1" max="1440" value="' + p.lockoutMinutes + '" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>';
       }
-      return '<div class="flex items-center justify-between"><label class="text-xs text-slate-600">Log Retention (days)</label>' +
-        '<input type="number" id="fldRetentionDays" min="7" max="365" value="' + p.retentionDays + '" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>';
+      if (key === 'retention') {
+        return '<div class="flex items-center justify-between"><label for="fldRetentionDays" class="text-xs text-slate-600">Keep entries for (days)<br><span class="text-slate-400">90 to 365 days</span></label>' +
+          '<input type="number" id="fldRetentionDays" min="90" max="365" value="' + p.retentionDays + '" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>' +
+          '<p id="fldRetentionWarning" class="hidden text-xs text-red-600" role="alert"></p>';
+      }
+      return '';
+    }
+    // The warning shows while "Delete older logs automatically" is on in the window. Turning it on starts
+    // the deleting tomorrow (api/security-config.php), which leaves a day to export the log first.
+    function updateRetentionWarning() {
+      const warning = document.getElementById('fldRetentionWarning');
+      if (!warning) return;
+      const rest = 'once a day when the Audit Log is opened. This cannot be undone.';
+      warning.textContent = state.policies.retention.enabled
+        ? 'Entries older than these days are permanently deleted, ' + rest
+        : 'Starting tomorrow, entries older than these days are permanently deleted, ' + rest;
+      warning.classList.toggle('hidden', !draftPolicyEnabled);
     }
 
     function openPolicyModal(key) {
       currentPolicyKey = key;
       draftPolicyEnabled = state.policies[key].enabled;
       document.getElementById('policyModalTitle').textContent = POLICY_META[key].title;
+      document.getElementById('policyToggleLabel').textContent = POLICY_META[key].toggleLabel || 'Status';
       document.getElementById('policyFields').innerHTML = policyFieldsHtml(key);
       setToggleVisual(document.getElementById('policyEnabledToggle'), draftPolicyEnabled);
+      updateRetentionWarning();
       document.getElementById('policyModal').classList.remove('hidden');
     }
     function closePolicyModal() {
@@ -693,6 +720,7 @@
     document.getElementById('policyEnabledToggle').addEventListener('click', function() {
       draftPolicyEnabled = !draftPolicyEnabled;
       setToggleVisual(this, draftPolicyEnabled);
+      updateRetentionWarning();
     });
     document.getElementById('policyModalSave').addEventListener('click', async function() {
       if (!currentPolicyKey) return;
@@ -706,8 +734,8 @@
       } else if (currentPolicyKey === 'lockout') {
         body.maxAttempts = parseInt(document.getElementById('fldMaxAttempts').value, 10) || 5;
         body.lockoutMinutes = parseInt(document.getElementById('fldLockoutMinutes').value, 10) || 15;
-      } else {
-        body.retentionDays = parseInt(document.getElementById('fldRetentionDays').value, 10) || 90;
+      } else if (currentPolicyKey === 'retention') {
+        body.retentionDays = parseInt(document.getElementById('fldRetentionDays').value, 10) || 365;
       }
 
       const res = await fetch('api/security-config.php', {
