@@ -73,6 +73,8 @@ $steps = [
     'migrate_add_facilitator_role.php',
     'migrate_add_staff_accounts_rbac.php',
     'migrate_add_retake_requests.php',
+    'migrate_add_assessment_progress.php',
+    'migrate_add_consent_records.php',
     // Reference data.
     'seed_colleges.php',
     'seed_programs.php',
@@ -89,6 +91,8 @@ $steps = [
     'migrate_add_staff_accounts_rbac.php',
     // Last: the default admin account.
     'seed_admin.php',
+    // The audit log's tamper seal over everything written so far.
+    'migrate_add_audit_hash_chain.php',
 ];
 
 foreach ($steps as $i => $step) {

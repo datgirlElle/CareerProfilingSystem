@@ -32,6 +32,7 @@
     help_request: { icon: 'help', bg: '#ffedd5', fg: '#c2410c' },
     help_resolved: { icon: 'help', bg: '#dcfce7', fg: '#15803d' },
     flag_resolved: { icon: 'flag', bg: '#dcfce7', fg: '#15803d' },
+    flag_escalated: { icon: 'flag', bg: '#ffedd5', fg: '#c2410c' },
     announcement: { icon: 'announce', bg: '#ede9fe', fg: '#6d28d9' },
     schedule_published: { icon: 'exam', bg: '#dbeafe', fg: '#1d4ed8' },
     retake_request: { icon: 'help', bg: '#ffedd5', fg: '#c2410c' },

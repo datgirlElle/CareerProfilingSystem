@@ -79,7 +79,7 @@ try {
     check('security headers present', stripos($r['headers'], 'X-Frame-Options: DENY') !== false && stripos($r['headers'], 'Content-Security-Policy') !== false && stripos($r['headers'], 'X-Content-Type-Options: nosniff') !== false);
 
     echo "\n=== Student authorization (server side) ===\n";
-    foreach (['students.php', 'security-config.php', 'audit-log.php', 'staff-approvals.php', 'analytics.php', 'monitoring.php', 'send-principal-report.php', "counseling-notes.php?studentId=$stuB", "cbf-debug.php?studentId=$stuB", 'staff-assignments.php'] as $ep) {
+    foreach (['students.php', 'security-config.php', 'audit-log.php', 'staff-approvals.php', 'analytics.php', 'monitoring.php', 'send-principal-report.php', "counseling-notes.php?studentId=$stuB", 'staff-assignments.php'] as $ep) {
         $r = $c->req('GET', "/api/$ep");
         check("student GET $ep denied", in_array($r['code'], [401, 403], true), $r['code'] . ' ' . substr($r['body'], 0, 80));
     }

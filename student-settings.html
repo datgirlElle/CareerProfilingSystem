@@ -182,6 +182,11 @@
             </div>
             <button type="button" id="editPasswordBtn" class="shrink-0 border border-gray-300 text-gray-700 text-sm font-medium rounded-md px-5 py-2.5 hover:bg-gray-50">Edit</button>
           </div>
+          <div class="px-6 py-5 border-t border-gray-200">
+            <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase mb-1">Privacy Consent</p>
+            <p id="consentText" class="text-sm text-gray-800">&mdash;</p>
+            <div class="mt-1"><a href="privacy" class="text-sm text-[#ed1c24] hover:underline">Read the Data Privacy Policy</a></div>
+          </div>
         </div>
       </div>
 
@@ -232,6 +237,25 @@
       }
     }
     renderAvatar(currentUser.avatarUrl);
+
+    // Privacy consent receipt (api/consent.php, lib/Consent.php): what this student agreed to, and when.
+    (async function() {
+      const el = document.getElementById('consentText');
+      try {
+        const c = (await PP.fetchJson('api/consent.php')).consent;
+        if (!c) {
+          el.textContent = 'No consent on record yet. Your account was made before consent records were kept.';
+          return;
+        }
+        // Postgres sends "2026-10-19 15:15:00.123456+08"; Date needs a "T", at most 3 decimals (older Safari)
+        // and a "+08:00" offset.
+        const when = new Date(c.consentedAt.replace(' ', 'T').replace(/\.(\d{3})\d+/, '.$1').replace(/([+-]\d{2})$/, '$1:00'))
+          .toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+        el.textContent = 'You agreed to the Terms of Use and the Data Privacy Policy (version: ' + c.label + ') on ' + when + ', when you registered.';
+      } catch (e) {
+        el.textContent = 'Could not load your consent record. Please refresh the page.';
+      }
+    })();
 
     const photoInput = document.getElementById('photoInput');
     const changePhotoBtn = document.getElementById('changePhotoBtn');

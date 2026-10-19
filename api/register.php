@@ -8,6 +8,7 @@ require_once __DIR__ . '/../lib/StudentNumber.php';
 require_once __DIR__ . '/../lib/AcademicYear.php';
 require_once __DIR__ . '/../lib/PasswordPolicy.php';
 require_once __DIR__ . '/../lib/RateLimiter.php';
+require_once __DIR__ . '/../lib/Consent.php';
 
 // A student registers with their Student Number, student email and a password. Who they are
 // (name, strand, section) is not typed in: it comes from the class roster the Guidance Office
@@ -107,6 +108,9 @@ try {
     );
     $studentStmt->execute([$userId, $schoolId, Crypto::enc($firstName), Crypto::enc($lastName), $strand, $gradeLevel, $section, $currentAy ?: null]);
 
+    // Receipt of the privacy consent checked above, saved with the account (lib/Consent.php).
+    Consent::record($pdo, $userId, 'registration');
+
     $rawToken = bin2hex(random_bytes(32));
     $tokenHash = hash('sha256', $rawToken);
     $pdo->prepare(
@@ -116,6 +120,7 @@ try {
     $pdo->commit();
 } catch (Throwable $e) {
     $pdo->rollBack();
+    error_log('[register] ' . $e->getMessage());
     jsonResponse(['success' => false, 'error' => 'Registration failed. Please try again.'], 500);
 }
 

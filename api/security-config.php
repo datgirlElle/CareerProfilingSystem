@@ -5,6 +5,8 @@ require_once __DIR__ . '/../lib/AcademicYear.php';
 require_once __DIR__ . '/../lib/OfficeHours.php';
 require_once __DIR__ . '/../lib/BookingLink.php';
 require_once __DIR__ . '/../lib/PasswordPolicy.php';
+require_once __DIR__ . '/../lib/AuditChange.php';
+require_once __DIR__ . '/../lib/AuditRetention.php';
 
 $user = Rbac::requireRole('admin', 'counselor');
 $pdo = Database::get();
@@ -70,7 +72,7 @@ function loadPolicies(PDO $pdo): array
     return [
         'policies' => [
             // Always on (no switch): password rules and sign-in logging cannot be turned off. The old
-            // password.enabled and monitoring.* switches never changed anything, so they are gone.
+            // password.enabled and monitoring.enabled switches never changed anything, so they are gone.
             'password' => [
                 'enabled' => true, 'minLength' => max(PasswordPolicy::MIN_LENGTH_FLOOR, $i('password.minLength', 8)),
                 'requireUpper' => $b('password.requireUpper', true), 'requireLower' => $b('password.requireLower', true),
@@ -79,6 +81,10 @@ function loadPolicies(PDO $pdo): array
             'lockout' => [
                 'enabled' => $b('lockout.enabled', true), 'maxAttempts' => $i('lockout.maxAttempts', 5),
                 'lockoutMinutes' => $i('lockout.lockoutMinutes', 15),
+            ],
+            // Its switch is "Delete older logs automatically" (lib/AuditRetention.php), off unless turned on.
+            'retention' => [
+                'enabled' => $b(AuditRetention::ON_KEY, false), 'retentionDays' => AuditRetention::days($rows[AuditRetention::DAYS_KEY] ?? null),
             ],
         ],
         'settings' => [
@@ -105,25 +111,36 @@ function loadPolicies(PDO $pdo): array
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $lastUpdated = $pdo->query(
+    // The daily cleanup's own markers are not settings changes, so they do not count as updates.
+    $lastUpdatedStmt = $pdo->prepare(
         'SELECT GREATEST(
             (SELECT MAX(updated_at) FROM security_rbac),
-            (SELECT MAX(updated_at) FROM security_policies)
+            (SELECT MAX(updated_at) FROM security_policies WHERE key NOT IN (?, ?))
          )'
-    )->fetchColumn();
+    );
+    $lastUpdatedStmt->execute([AuditRetention::LAST_RUN_KEY, AuditChain::ANCHOR_KEY]);
+    $lastUpdated = $lastUpdatedStmt->fetchColumn();
 
-    // A lockout is logged (api/login.php) the moment an account reaches the maximum failed attempts,
-    // so this counts accounts that were actually locked out, not every wrong password.
-    $lockouts7d = (int) $pdo->query(
-        "SELECT COUNT(*) FROM audit_log WHERE action = 'login_lockout' AND created_at >= NOW() - INTERVAL '7 days'"
-    )->fetchColumn();
-    $sharedLogins7d = (int) $pdo->query(
-        "SELECT COUNT(*) FROM audit_log WHERE action = 'login_shared_suspected' AND created_at >= NOW() - INTERVAL '7 days'"
-    )->fetchColumn();
-    $activeUsersToday = (int) $pdo->query(
-        "SELECT COUNT(DISTINCT actor_user_id) FROM audit_log WHERE created_at::date = CURRENT_DATE"
-    )->fetchColumn();
-    $pendingFlags = (int) $pdo->query("SELECT COUNT(*) FROM monitoring_flags WHERE status = 'pending'")->fetchColumn();
+    // Security Overview card: each number goes only to someone who can open the page it links to
+    // (null otherwise, and the page leaves that tile out). Sign-in numbers -> Audit Log (Full on 'rac',
+    // as in api/audit-log.php); flags waiting -> Monitoring (any access, everyone on the team sees all flags).
+    $roleKey = Rbac::roleKey($user);
+    $seesAuditLog = Rbac::accessLevel('rac', $roleKey) === 'full';
+    $seesMonitoring = Rbac::accessLevel('monitoring', $roleKey) !== 'none';
+    $lockouts7d = $sharedLogins7d = $pendingFlags = null;
+    if ($seesAuditLog) {
+        // A lockout is logged (api/login.php) the moment an account reaches the maximum failed attempts,
+        // so this counts accounts that were actually locked out, not every wrong password.
+        $lockouts7d = (int) $pdo->query(
+            "SELECT COUNT(*) FROM audit_log WHERE action = 'login_lockout' AND created_at >= NOW() - INTERVAL '7 days'"
+        )->fetchColumn();
+        $sharedLogins7d = (int) $pdo->query(
+            "SELECT COUNT(*) FROM audit_log WHERE action = 'login_shared_suspected' AND created_at >= NOW() - INTERVAL '7 days'"
+        )->fetchColumn();
+    }
+    if ($seesMonitoring) {
+        $pendingFlags = (int) $pdo->query("SELECT COUNT(*) FROM monitoring_flags WHERE status = 'pending'")->fetchColumn();
+    }
 
     $rbacNow = loadRbac($pdo);
     // The permission table is for the Head of Guidance and Guidance Counselors. A Guidance Facilitator is sent only their own
@@ -148,7 +165,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         'overview' => [
             'lockouts7d' => $lockouts7d,
             'sharedLogins7d' => $sharedLogins7d,
-            'activeUsersToday' => $activeUsersToday,
             'pendingFlags' => $pendingFlags,
         ],
     ] + $payloadPolicies);
@@ -158,15 +174,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $body = readJsonBody();
     $type = $body['type'] ?? '';
 
-    // The Guidance Office hours and the counseling booking link are the Guidance Counselors' to keep up to date (the Counseling
-    // Notes permission: the Head of Guidance and Guidance Counselors, not Facilitators). Everything else here is the administrator's.
+    // The Guidance Office hours and the counseling booking link are kept up to date by whoever holds Full on Counseling Notes
+    // (set in the permission table). Everything else here, the permission table included, is the administrator's.
     if (in_array($type, ['officeHours', 'bookingLink'], true)) {
         $user = Rbac::requireAccess('counselingNotes', 'full');
     } elseif ($type === 'rbac') {
-        // The permission table is changed by the Head of Guidance and by Guidance Counselors (what each may change is set by
-        // Rbac::editableLevels); a Facilitator or anyone else is refused.
-        if ($user['role'] !== 'admin' && !($user['role'] === 'counselor' && !Rbac::isFacilitator($user))) {
-            jsonResponse(['success' => false, 'error' => 'Only the Head of Guidance and Guidance Counselors can change permissions.'], 403);
+        // Only the Head of Guidance (administrator) changes permissions; Rbac::editableLevels says the same for each cell.
+        if ($user['role'] !== 'admin') {
+            jsonResponse(['success' => false, 'error' => 'Only the administrator can change permissions.'], 403);
         }
     } elseif ($user['role'] !== 'admin') {
         jsonResponse(['success' => false, 'error' => 'Only administrators can change security configuration.'], 403);
@@ -199,8 +214,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($level === $from) {
                 continue; // nothing to change
             }
-            // The server decides, not the page: an administrator or Student cell, an account module for a counselor, or a level
-            // above what a counselor holds is refused, and nothing in the request is saved.
+            // The server decides, not the page: anything other than the administrator changing the Guidance Counselor or Guidance
+            // Facilitator column is refused, and nothing in the request is saved.
             if (!in_array($level, Rbac::editableLevels($actorKey, $module, $role, $current), true)) {
                 jsonResponse(['success' => false, 'error' => 'You cannot set ' . $roleLabels[$role] . ' to ' . $levelLabels[$level] . ' for ' . $moduleLabels[$module] . '.'], 403);
             }
@@ -245,7 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($type === 'policy') {
         $key = $body['key'] ?? '';
-        if (!in_array($key, ['password', 'lockout'], true)) {
+        if (!in_array($key, ['password', 'lockout', 'retention'], true)) {
             jsonResponse(['success' => false, 'error' => 'Unknown policy.'], 400);
         }
 
@@ -256,6 +271,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
             $stmt->execute([$k, $v, $user['id']]);
         };
+        // The values as they were (defaults included), for the audit log's before -> after.
+        $before = loadPolicies($pdo)['policies'][$key];
 
         if ($key === 'password') {
             // No on/off for the password policy: only its rules change.
@@ -264,14 +281,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $set('password.requireLower', !empty($body['requireLower']) ? 'true' : 'false');
             $set('password.requireNumber', !empty($body['requireNumber']) ? 'true' : 'false');
             $set('password.requireSymbol', !empty($body['requireSymbol']) ? 'true' : 'false');
-        } else {
+        } elseif ($key === 'lockout') {
             $set('lockout.enabled', !empty($body['enabled']) ? 'true' : 'false');
             $set('lockout.maxAttempts', (string) max(1, min(20, (int) ($body['maxAttempts'] ?? 5))));
             $set('lockout.lockoutMinutes', (string) max(1, min(1440, (int) ($body['lockoutMinutes'] ?? 15))));
+        } else {
+            $enabled = !empty($body['enabled']) ? 'true' : 'false';
+            $set(AuditRetention::ON_KEY, $enabled);
+            $set(AuditRetention::DAYS_KEY, (string) AuditRetention::days($body['retentionDays'] ?? null));
+            // Just turned on: nothing is deleted today, which leaves a day to export the log first.
+            if (!$before['enabled'] && $enabled === 'true') {
+                AuditRetention::startTomorrow($pdo);
+            }
         }
 
-        AuditLogger::log($user['id'], $user['role'], 'update_policy', 'security_policies', $key, json_encode($body));
-        jsonResponse(['success' => true] + loadPolicies($pdo));
+        $policyNames = ['password' => 'Password policy', 'lockout' => 'Account lockout', 'monitoring' => 'Login monitoring', 'retention' => 'Audit log retention'];
+        $policyLabels = [
+            'password' => [
+                'enabled' => 'Status', 'minLength' => 'Minimum password length', 'requireUpper' => 'Needs an uppercase letter',
+                'requireLower' => 'Needs a lowercase letter', 'requireNumber' => 'Needs a number', 'requireSymbol' => 'Needs a symbol',
+            ],
+            'lockout' => ['enabled' => 'Status', 'maxAttempts' => 'Failed attempts before lockout', 'lockoutMinutes' => 'Lockout length (minutes)'],
+            'monitoring' => ['enabled' => 'Status'],
+            'retention' => ['enabled' => 'Delete older logs automatically', 'retentionDays' => 'Keep entries for (days)'],
+        ];
+        $fresh = loadPolicies($pdo);
+        AuditLogger::log($user['id'], $user['role'], 'update_policy', 'security_policies', $key, AuditChange::detail(
+            $policyNames[$key], $before, $fresh['policies'][$key], $policyLabels[$key],
+            ['requireUpper', 'requireLower', 'requireNumber', 'requireSymbol']
+        ));
+        jsonResponse(['success' => true] + $fresh);
     }
 
     if ($type === 'officeHours') {
@@ -281,6 +320,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             jsonResponse(['success' => false, 'error' => $checked['error']], 400);
         }
         $text = OfficeHours::text($checked['schedule']);
+        $beforeText = loadPolicies($pdo)['officeHours']['text'];
         $stmt = $pdo->prepare(
             'INSERT INTO security_policies (key, value, updated_by) VALUES (?, ?, ?)
              ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by'
@@ -288,7 +328,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute(['officeHours.schedule', json_encode($checked['schedule']), $user['id']]);
         $stmt->execute(['officeHours.text', $text, $user['id']]); // what api/public-settings.php sends to students
 
-        AuditLogger::log($user['id'], $user['role'], 'update_office_hours', 'security_policies', 'officeHours.text', "Set to: $text");
+        AuditLogger::log($user['id'], $user['role'], 'update_office_hours', 'security_policies', 'officeHours.text',
+            AuditChange::detail('Office hours', ['text' => $beforeText], ['text' => $text], ['text' => 'Office hours']));
         jsonResponse(['success' => true] + loadPolicies($pdo));
     }
 
@@ -297,12 +338,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($checked['error'] !== null) {
             jsonResponse(['success' => false, 'error' => $checked['error']], 400);
         }
+        $beforeUrl = loadPolicies($pdo)['booking']['url'];
         $stmt = $pdo->prepare(
             'INSERT INTO security_policies (key, value, updated_by) VALUES (?, ?, ?)
              ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by'
         );
         $stmt->execute([BookingLink::KEY, $checked['url'], $user['id']]);
-        AuditLogger::log($user['id'], $user['role'], 'update_booking_link', 'security_policies', BookingLink::KEY, $checked['url'] === '' ? 'Cleared' : 'Set to: ' . $checked['url']);
+        AuditLogger::log($user['id'], $user['role'], 'update_booking_link', 'security_policies', BookingLink::KEY,
+            AuditChange::detail('Booking link', ['url' => $beforeUrl], ['url' => $checked['url']], ['url' => 'Booking link']));
         jsonResponse(['success' => true] + loadPolicies($pdo));
     }
 
@@ -322,10 +365,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
             $stmt->execute([$k, $v, $user['id']]);
         };
+        $beforeContact = loadPolicies($pdo)['principal'];
         $set('principal.name', $name);
         $set('principal.email', $email);
 
-        AuditLogger::log($user['id'], $user['role'], 'update_principal_contact', 'security_policies', 'principal', "Set to: $name <$email>");
+        AuditLogger::log($user['id'], $user['role'], 'update_principal_contact', 'security_policies', 'principal',
+            AuditChange::detail('Principal contact', $beforeContact, ['name' => $name, 'email' => $email], ['name' => 'Name', 'email' => 'Email']));
         jsonResponse(['success' => true] + loadPolicies($pdo));
     }
 
@@ -337,12 +382,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
             $stmt->execute([$k, $v, $user['id']]);
         };
+        $beforeSettings = loadPolicies($pdo)['settings'];
         $set('twoFactor', !empty($body['twoFactor']) ? 'true' : 'false');
         $set('sessionTimeoutEnabled', !empty($body['sessionTimeoutEnabled']) ? 'true' : 'false');
         $set('timeoutMinutes', (string) max(5, min(240, (int) ($body['timeoutMinutes'] ?? 30))));
 
-        AuditLogger::log($user['id'], $user['role'], 'update_settings', 'security_policies', 'settings', json_encode($body));
-        jsonResponse(['success' => true] + loadPolicies($pdo));
+        $fresh = loadPolicies($pdo);
+        AuditLogger::log($user['id'], $user['role'], 'update_settings', 'security_policies', 'settings', AuditChange::detail(
+            'Sign-in and session settings', $beforeSettings, $fresh['settings'],
+            ['twoFactor' => 'Two-step sign-in', 'sessionTimeoutEnabled' => 'Session timeout', 'timeoutMinutes' => 'Timeout length (minutes)']
+        ));
+        jsonResponse(['success' => true] + $fresh);
     }
 
     jsonResponse(['success' => false, 'error' => 'Unknown type.'], 400);
