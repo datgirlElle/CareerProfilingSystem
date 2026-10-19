@@ -44,6 +44,17 @@ CREATE TABLE email_verification_tokens (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Consent receipts (RA 10173): who agreed to the Terms of Use and Data Privacy Policy, which version,
+-- how, and when (lib/Consent.php). No IP address or device is stored.
+CREATE TABLE consent_records (
+    id              BIGSERIAL PRIMARY KEY,
+    user_id         INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    policy_version  VARCHAR(20) NOT NULL,
+    method          VARCHAR(30) NOT NULL CHECK (method IN ('registration', 'staff_signup')),
+    consented_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_consent_records_user ON consent_records (user_id);
+
 -- Backs lib/DbSessionHandler.php — PHP sessions stored here instead of local
 -- disk, since Render's free web service tier wipes local disk on every
 -- restart after idling.
