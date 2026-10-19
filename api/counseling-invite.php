@@ -8,8 +8,8 @@ require_once __DIR__ . '/../lib/BookingLink.php';
 require_once __DIR__ . '/../lib/StaffScope.php';
 
 // "Invite" on Student Information: sends one student the CGC's counseling booking link by email, and shows the same invitation
-// in the student's notifications. Counseling belongs to the Guidance Counselors and the Head of Guidance (the Counseling
-// Notes permission), so a Guidance Facilitator cannot invite. The link is the one saved in Security Configuration.
+// in the student's notifications. Only staff with Full on Counseling Notes (set in the permission table) can invite.
+// The link is the one saved in Security Configuration.
 $user = Rbac::requireAccess('counselingNotes', 'full');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

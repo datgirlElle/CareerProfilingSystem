@@ -163,7 +163,7 @@
       <div>
         <p class="text-xs font-semibold text-slate-500 uppercase">Student</p>
         <p id="reviewStudentName" class="text-sm font-medium text-slate-900"></p>
-        <p id="reviewStudentId" class="text-xs text-slate-500"></p>
+        <p id="reviewFlaggedAt" class="text-xs text-slate-500"></p>
       </div>
       <div class="grid grid-cols-2 gap-4">
         <div>
@@ -183,9 +183,14 @@
         <p class="text-xs font-semibold text-slate-500 uppercase">Flag Reason</p>
         <p id="reviewReason" class="text-sm text-slate-800"></p>
       </div>
+      <div id="reviewNoteWrap">
+        <label for="reviewNote" class="text-xs font-semibold text-slate-500 uppercase">Note (optional)</label>
+        <textarea id="reviewNote" rows="2" maxlength="500" class="mt-1 w-full border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700" placeholder="Why this decision? Kept private in the audit log."></textarea>
+      </div>
+      <p id="reviewActionError" class="hidden text-sm text-[#ed1c24]" role="alert"></p>
     </div>
     <p id="reviewInviteMsg" class="hidden px-6 pb-3 text-sm"></p>
-    <div class="px-6 py-4 border-t border-slate-100" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    <div id="reviewActions" class="px-6 py-4 border-t border-slate-100" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <button type="button" id="reviewInviteBtn" class="hidden px-3.5 py-2.5 text-sm font-medium text-center text-[#0f2a6b] border border-[#0f2a6b] rounded-md hover:bg-slate-50" style="grid-column:1/-1">Invite to Counseling</button>
       <button type="button" data-action="dismiss" class="review-action-btn px-3.5 py-2.5 text-sm font-medium text-center text-slate-600 border border-slate-300 rounded-md hover:bg-slate-50">Dismiss Flag</button>
       <button type="button" data-action="escalate" class="review-action-btn px-3.5 py-2.5 text-sm font-medium text-center text-orange-600 border border-orange-200 bg-orange-50 rounded-md hover:bg-orange-100">Escalate to Counselor</button>
@@ -295,7 +300,7 @@
     }
 
     let activeTab = 'needs-review';
-    let currentFlagId = null;
+    let currentFlag = null;
     let rowsById = {};
     let debounceHandle = null;
 
@@ -403,9 +408,14 @@
 
     // Invite to counseling: sends the student the CGC booking link by email and as a notification. Counseling belongs to the
     // Guidance Counselors and the Head of Guidance (the Counseling Notes permission), so the button only shows for them.
+    // Approve / Escalate / Dismiss need Full on Monitoring; View Only sees the Review window without them
+    // (api/monitoring-action.php checks this again).
     let canInvite = currentUser.role === 'admin';
+    let canAct = currentUser.role === 'admin';
     fetch('api/security-config.php').then(function(r) { return r.json(); }).then(function(inviteCfg) {
-      canInvite = ((inviteCfg.rbac && inviteCfg.rbac.counselingNotes && inviteCfg.rbac.counselingNotes[currentUser.rbacRole || currentUser.role]) || 'none') === 'full';
+      const levelFor = (module) => ((inviteCfg.rbac && inviteCfg.rbac[module] && inviteCfg.rbac[module][currentUser.rbacRole || currentUser.role]) || 'none');
+      canInvite = levelFor('counselingNotes') === 'full';
+      canAct = levelFor('monitoring') === 'full';
     }).catch(function() {});
     async function sendCounselingInvite(studentId) {
       const res = await fetch('api/counseling-invite.php', {
@@ -419,13 +429,28 @@
         : { ok: false, text: 'Notification sent. The email could not be sent' + (data.hasEmail ? '.' : ' because this student has no verified email.') };
     }
     function openReviewModal(r) {
-      currentFlagId = r.flagId;
+      currentFlag = r;
+      currentFlag.escalated = activeTab === 'counseling';
       document.getElementById('reviewStudentName').textContent = r.name;
-      document.getElementById('reviewStudentId').textContent = '';
+      // Postgres sends "2026-10-18 14:35:00.12+08"; Date needs a "T" and a "+08:00" offset.
+      document.getElementById('reviewFlaggedAt').textContent = r.createdAt
+        ? 'Flagged ' + new Date(r.createdAt.replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00')).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+        : '';
       document.getElementById('reviewStrand').textContent = r.strand;
       document.getElementById('reviewMatch').textContent = r.match;
       document.getElementById('reviewCareer').textContent = r.career;
-      document.getElementById('reviewReason').textContent = r.reason;
+      document.getElementById('reviewReason').textContent = r.reason +
+        (r.topScore !== null && r.topScore !== undefined ? ' (Cosine Similarity: ' + Number(r.topScore).toFixed(3) + ')' : '');
+      document.getElementById('reviewNote').value = '';
+      document.getElementById('reviewNoteWrap').classList.toggle('hidden', !canAct);
+      document.getElementById('reviewActions').classList.toggle('hidden', !canAct && !canInvite);
+      // An escalated flag is already with the counselors: it can be approved or dismissed, not escalated again.
+      document.querySelectorAll('.review-action-btn').forEach(b => {
+        b.classList.toggle('hidden', !canAct || (currentFlag.escalated && b.dataset.action === 'escalate'));
+        if (b.dataset.action === 'dismiss') b.style.gridColumn = currentFlag.escalated ? '1/-1' : '';
+        b.disabled = false;
+      });
+      document.getElementById('reviewActionError').classList.add('hidden');
       const inviteBtn = document.getElementById('reviewInviteBtn');
       inviteBtn.classList.toggle('hidden', !canInvite);
       inviteBtn.dataset.studentId = r.userId;
@@ -434,7 +459,7 @@
     }
     function closeReviewModal() {
       document.getElementById('reviewModal').classList.add('hidden');
-      currentFlagId = null;
+      currentFlag = null;
     }
 
     document.getElementById('reviewInviteBtn').addEventListener('click', async function() {
@@ -456,14 +481,40 @@
     document.getElementById('reviewModal').addEventListener('click', function(e) {
       if (e.target.id === 'reviewModal') closeReviewModal();
     });
+    // Each decision asks first, then shows the server's message if it could not be saved
+    // (for example someone else handled the flag a moment earlier).
+    const actionConfirm = {
+      approve: { q: 'Approve this recommendation?', ok: 'Approve' },
+      escalate: { q: 'Escalate to a counselor?', ok: 'Escalate' },
+      dismiss: { q: 'Dismiss this flag?', ok: 'Dismiss' },
+    };
     document.querySelectorAll('.review-action-btn').forEach(function(btn) {
       btn.addEventListener('click', async function() {
-        if (!currentFlagId) return;
-        await fetch('api/monitoring-action.php', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ flagId: currentFlagId, action: btn.dataset.action })
-        });
+        if (!currentFlag) return;
+        const flag = currentFlag, action = btn.dataset.action, c = actionConfirm[action];
+        const after = action === 'escalate'
+          ? ' moves to the Counseling Queue, and staff with Monitoring access are notified.'
+          : (flag.escalated ? ' leaves the Counseling Queue.' : ' leaves the review list.');
+        if (!(await PP.confirm(c.q + '\n\n' + flag.name + after + ' The decision and your note are kept in the audit log.', { okLabel: c.ok }))) return;
+        const errorEl = document.getElementById('reviewActionError');
+        errorEl.classList.add('hidden');
+        document.querySelectorAll('.review-action-btn').forEach(b => { b.disabled = true; });
+        let data = null;
+        try {
+          const res = await fetch('api/monitoring-action.php', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ flagId: flag.flagId, action: action, note: document.getElementById('reviewNote').value })
+          });
+          data = await res.json();
+        } catch (e) {}
+        document.querySelectorAll('.review-action-btn').forEach(b => { b.disabled = false; });
+        if (!data || !data.success) {
+          errorEl.textContent = (data && data.error) || 'Could not save the decision. Please try again.';
+          errorEl.classList.remove('hidden');
+          return;
+        }
         closeReviewModal();
+        PP.toast(action === 'approve' ? 'Recommendation approved.' : action === 'escalate' ? 'Flag escalated to the Counseling Queue.' : 'Flag dismissed.');
         await render();
       });
     });

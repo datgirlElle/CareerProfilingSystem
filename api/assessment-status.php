@@ -3,6 +3,7 @@
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/ExamSchedule.php';
 require_once __DIR__ . '/../lib/RetakeRequest.php';
+require_once __DIR__ . '/../lib/AssessmentProgress.php';
 
 $user = Auth::requireLogin();
 if ($user['role'] !== 'student') {
@@ -19,7 +20,13 @@ $row = $stmt->fetch();
 
 if (!$row) {
     // Not taken yet: the RIASEC button is on only while one of the group's sessions is open.
-    jsonResponse(['completed' => false, 'window' => ExamSchedule::windowFor(ExamSchedule::sessionsForStudent($pdo, (int) $user['id']))]);
+    // unlocked: the code was already entered for a session that is still open (lib/AssessmentProgress.php),
+    // so the student continues without entering it again.
+    jsonResponse([
+        'completed' => false,
+        'window' => ExamSchedule::windowFor(ExamSchedule::sessionsForStudent($pdo, (int) $user['id'])),
+        'unlocked' => AssessmentProgress::access($pdo, (int) $user['id'])['unlocked'],
+    ]);
 }
 
 $retake = RetakeRequest::stateFor($pdo, (int) $user['id']);

@@ -206,8 +206,8 @@
   document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
   document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
 
-  // ---- Guidance Office: the office hours and the counseling booking link students see. The Head of Guidance and the
-  // Guidance Counselors can change them; a Facilitator does not see this card.
+  // ---- Guidance Office: the office hours and the counseling booking link students see. The Head of Guidance and whoever
+  // holds Full on Counseling Notes (set in the permission table) can change them; nobody else sees this card.
   (async function() {
     let state = null;
     try { state = await (await fetch('api/security-config.php')).json(); } catch (e) { return; }

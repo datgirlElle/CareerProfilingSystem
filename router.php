@@ -40,7 +40,6 @@ const PROTECTED_PAGES = [
     'monitoring' => ['admin', 'counselor'],
     'monitoring-details' => ['admin', 'counselor'],
     'staff-profile' => ['admin', 'counselor'],
-    'cbf-debug' => ['admin', 'counselor'],
     'question-bank' => ['admin', 'counselor'],
     'security-configuration' => ['admin', 'counselor'],
     'student-profile' => ['admin', 'counselor'],

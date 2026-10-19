@@ -16,6 +16,11 @@
   .perm-cell.changed { background:#fffbeb; border-color:#f59e0b; }
   body{ font-family:'Inter', sans-serif; }
   select{ appearance:none; -webkit-appearance:none; }
+  /* Security Overview tiles: gray icon, orange when the number is above 0 */
+  .overview-tile { color:#64748b; transition:border-color .15s; }
+  .overview-tile:hover { border-color:#001c43; }
+  .overview-tile:focus-visible { outline:2px solid #001c43; outline-offset:2px; }
+  .overview-tile.is-alert .overview-icon { color:#ea580c; }
 </style>
 <link rel="stylesheet" href="css/motion.css">
 </head>
@@ -132,6 +137,7 @@
             </div>
 
             <p id="rbacMessage" class="hidden px-5 pt-3 text-xs" aria-live="polite"></p>
+            <p id="rbacViewOnlyNote" class="hidden px-5 pt-3 text-xs text-slate-500">View only: only the administrator can change permissions.</p>
             <div class="overflow-x-auto">
               <table class="w-full text-left border-collapse min-w-[700px]">
                 <thead class="bg-slate-50/50 border-b border-slate-200">
@@ -259,6 +265,34 @@
 
             </div>
           </div>
+
+          <!-- Security Overview: each tile shows only to someone who can open the page it links to (api/security-config.php) -->
+          <div id="overviewCard" class="hidden bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="border-b border-slate-200 px-5 py-5">
+              <h2 class="text-base font-semibold text-slate-900">Security Overview</h2>
+              <p class="text-xs text-slate-500">Click a number to see the details.</p>
+            </div>
+            <div class="p-5 grid grid-cols-2 gap-4">
+              <a href="audit-log" id="overviewLockoutsTile" class="overview-tile hidden border border-slate-200 rounded-lg p-4 flex flex-col items-center justify-center text-center">
+                <svg class="overview-icon mb-2" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                <p class="text-2xl font-bold text-slate-800" id="overviewLockouts">—</p>
+                <p class="text-xs font-medium text-slate-600">Account Lockouts</p>
+                <p class="text-[10px] text-slate-500 mt-1">Last 7 days &rsaquo; Audit Log</p>
+              </a>
+              <a href="audit-log" id="overviewSharedTile" class="overview-tile hidden border border-slate-200 rounded-lg p-4 flex flex-col items-center justify-center text-center">
+                <svg class="overview-icon mb-2" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14.5a5 5 0 0 1 4.5 5"/></svg>
+                <p class="text-2xl font-bold text-slate-800" id="overviewShared">—</p>
+                <p class="text-xs font-medium text-slate-600">Possible Shared Accounts</p>
+                <p class="text-[10px] text-slate-500 mt-1">Last 7 days &rsaquo; Audit Log</p>
+              </a>
+              <a href="monitoring" id="overviewFlagsTile" class="overview-tile hidden border border-slate-200 rounded-lg p-4 flex flex-col items-center justify-center text-center" style="grid-column:1/-1">
+                <svg class="overview-icon mb-2" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg>
+                <p class="text-2xl font-bold text-slate-800" id="overviewFlags">—</p>
+                <p class="text-xs font-medium text-slate-600">Flags Waiting for Review</p>
+                <p class="text-[10px] text-slate-500 mt-1">Recommendations &rsaquo; Monitoring</p>
+              </a>
+            </div>
+          </div>
       </div>
 
       <div class="flex items-center justify-center gap-1.5 mt-6">
@@ -298,12 +332,14 @@
     </div>
     <div class="px-6 py-5 flex flex-col gap-4">
       <div class="flex items-center justify-between">
-        <p class="text-sm font-medium text-slate-800">Status</p>
-        <button type="button" id="policyEnabledToggle" class="w-11 h-6 rounded-full relative shrink-0" aria-label="Policy enabled">
+        <p id="policyToggleLabel" class="text-sm font-medium text-slate-800">Status</p>
+        <button type="button" id="policyEnabledToggle" aria-labelledby="policyToggleLabel" class="w-11 h-6 rounded-full relative shrink-0">
           <span class="absolute top-0.5 w-[18px] h-[18px] rounded-full bg-white transition-all"></span>
         </button>
       </div>
       <div id="policyFields" class="flex flex-col gap-4"></div>
+      <!-- Shown when saving fails, so the window does not close as if it worked. -->
+      <p id="policyModalError" class="hidden text-sm text-red-600" role="alert"></p>
     </div>
     <div class="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
       <button type="button" id="policyModalCancel" class="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-300 rounded-md hover:bg-slate-50">Cancel</button>
@@ -437,7 +473,29 @@
       renderPolicyList();
       renderSecuritySettings();
       renderPrincipalContact();
+      renderOverview();
       renderLastUpdated();
+    }
+
+    // A tile whose number is null is not for this person (they cannot open the page it links to), so it stays hidden.
+    function renderOverview() {
+      const o = state.overview || {};
+      const tiles = [
+        ['overviewLockoutsTile', 'overviewLockouts', o.lockouts7d],
+        ['overviewSharedTile', 'overviewShared', o.sharedLogins7d],
+        ['overviewFlagsTile', 'overviewFlags', o.pendingFlags],
+      ];
+      let any = false;
+      tiles.forEach(([tileId, numId, value]) => {
+        const tile = document.getElementById(tileId);
+        const shown = value !== null && value !== undefined;
+        tile.classList.toggle('hidden', !shown);
+        if (!shown) return;
+        any = true;
+        document.getElementById(numId).textContent = value;
+        tile.classList.toggle('is-alert', value > 0);
+      });
+      document.getElementById('overviewCard').classList.toggle('hidden', !any);
     }
 
     function renderPrincipalContact() {
@@ -505,6 +563,8 @@
       // A Guidance Facilitator does not see the permission table at all.
       document.getElementById('rbacCard').classList.toggle('hidden', state.rbacVisible === false);
       if (state.rbacVisible === false) return;
+      // Only the administrator gets editable cells from the server (Rbac::editableLevels); everyone else just looks.
+      document.getElementById('rbacViewOnlyNote').classList.toggle('hidden', MODULES.some(m => RBAC_COLUMNS.some(r => isEditable(m.id, r))));
       const tbody = document.getElementById('rbacTableBody');
       tbody.innerHTML = MODULES.map(m => {
         const cells = RBAC_COLUMNS.map(r => {
@@ -602,7 +662,9 @@
     const POLICY_META = {
       password: { title: 'Password Policy' },
       lockout: { title: 'Account Lockout' },
-      monitoring: { title: 'Login Activity Monitoring' }
+      monitoring: { title: 'Login Activity Monitoring' },
+      // Its switch deletes old audit log entries (lib/AuditRetention.php), so it is named for that.
+      retention: { title: 'Audit Log Retention', toggleLabel: 'Delete older logs automatically' }
     };
 
     function policyDesc(key) {
@@ -618,17 +680,25 @@
       if (key === 'lockout') {
         return 'Lock account after ' + p.maxAttempts + ' failed login attempts (' + p.lockoutMinutes + ' min lockout).';
       }
-      return 'Track and log user login activities and device information. Retained for ' + p.retentionDays + ' days.';
+      if (key === 'retention') {
+        return p.enabled
+          ? 'Deletes audit log entries older than ' + p.retentionDays + ' days, once a day when the Audit Log is opened.'
+          : 'Keeps all audit log entries. When turned on, deletes entries older than ' + p.retentionDays + ' days.';
+      }
+      return 'Track and log user login activities and device information.';
     }
 
     function renderPolicyList() {
       const container = document.getElementById('policyListContainer');
-      const keys = ['password', 'lockout', 'monitoring'];
+      const keys = ['password', 'lockout', 'monitoring', 'retention'];
       container.innerHTML = keys.map(function(key, idx) {
         const p = state.policies[key];
+        // "Disabled" on retention could read as "logs not kept", so its badge says what the switch does.
+        const onText = key === 'retention' ? 'Auto-delete on' : 'Enabled';
+        const offText = key === 'retention' ? 'Auto-delete off' : 'Disabled';
         const badge = p.enabled
-          ? '<span class="bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded-md">Enabled</span>'
-          : '<span class="bg-slate-100 text-slate-500 text-xs font-medium px-2 py-1 rounded-md">Disabled</span>';
+          ? '<span class="bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap">' + onText + '</span>'
+          : '<span class="bg-slate-100 text-slate-500 text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap">' + offText + '</span>';
         const tag = isAdmin ? 'button' : 'div';
         return '<' + tag + ' type="button" class="policy-row w-full flex items-center justify-between p-4 rounded-lg text-left' + (isAdmin ? ' hover:bg-slate-50' : '') + (idx > 0 ? ' border-t border-slate-100' : '') + '" data-policy="' + key + '">' +
           '<div><p class="text-sm font-medium text-slate-800">' + POLICY_META[key].title + '</p><p class="text-xs text-slate-500 policy-desc">' + policyDesc(key) + '</p></div>' +
@@ -669,20 +739,38 @@
           '<div class="flex items-center justify-between"><label class="text-xs text-slate-600">Lockout Duration (minutes)</label>' +
           '<input type="number" id="fldLockoutMinutes" min="1" max="1440" value="' + p.lockoutMinutes + '" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>';
       }
-      return '<div class="flex items-center justify-between"><label class="text-xs text-slate-600">Log Retention (days)</label>' +
-        '<input type="number" id="fldRetentionDays" min="7" max="365" value="' + p.retentionDays + '" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>';
+      if (key === 'retention') {
+        return '<div class="flex items-center justify-between"><label for="fldRetentionDays" class="text-xs text-slate-600">Keep entries for (days)<br><span class="text-slate-400">90 to 365 days</span></label>' +
+          '<input type="number" id="fldRetentionDays" min="90" max="365" value="' + p.retentionDays + '" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>' +
+          '<p id="fldRetentionWarning" class="hidden text-xs text-red-600" role="alert"></p>';
+      }
+      return '';
+    }
+    // The warning shows while "Delete older logs automatically" is on in the window. Turning it on starts
+    // the deleting tomorrow (api/security-config.php), which leaves a day to export the log first.
+    function updateRetentionWarning() {
+      const warning = document.getElementById('fldRetentionWarning');
+      if (!warning) return;
+      const rest = 'once a day when the Audit Log is opened. This cannot be undone.';
+      warning.textContent = state.policies.retention.enabled
+        ? 'Entries older than these days are permanently deleted, ' + rest
+        : 'Starting tomorrow, entries older than these days are permanently deleted, ' + rest;
+      warning.classList.toggle('hidden', !draftPolicyEnabled);
     }
 
     function openPolicyModal(key) {
       currentPolicyKey = key;
       draftPolicyEnabled = state.policies[key].enabled;
       document.getElementById('policyModalTitle').textContent = POLICY_META[key].title;
+      document.getElementById('policyToggleLabel').textContent = POLICY_META[key].toggleLabel || 'Status';
       document.getElementById('policyFields').innerHTML = policyFieldsHtml(key);
       setToggleVisual(document.getElementById('policyEnabledToggle'), draftPolicyEnabled);
+      updateRetentionWarning();
       document.getElementById('policyModal').classList.remove('hidden');
     }
     function closePolicyModal() {
       document.getElementById('policyModal').classList.add('hidden');
+      document.getElementById('policyModalError').classList.add('hidden');
       currentPolicyKey = null;
     }
     document.getElementById('policyModalClose').addEventListener('click', closePolicyModal);
@@ -693,6 +781,7 @@
     document.getElementById('policyEnabledToggle').addEventListener('click', function() {
       draftPolicyEnabled = !draftPolicyEnabled;
       setToggleVisual(this, draftPolicyEnabled);
+      updateRetentionWarning();
     });
     document.getElementById('policyModalSave').addEventListener('click', async function() {
       if (!currentPolicyKey) return;
@@ -706,18 +795,33 @@
       } else if (currentPolicyKey === 'lockout') {
         body.maxAttempts = parseInt(document.getElementById('fldMaxAttempts').value, 10) || 5;
         body.lockoutMinutes = parseInt(document.getElementById('fldLockoutMinutes').value, 10) || 15;
-      } else {
-        body.retentionDays = parseInt(document.getElementById('fldRetentionDays').value, 10) || 90;
+      } else if (currentPolicyKey === 'retention') {
+        body.retentionDays = parseInt(document.getElementById('fldRetentionDays').value, 10) || 365;
       }
 
-      const res = await fetch('api/security-config.php', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-      });
-      const data = await res.json();
-      if (data.success) {
+      // The window closes only when the server saved the change; otherwise it stays open and says why.
+      const saveBtn = this;
+      const errorEl = document.getElementById('policyModalError');
+      errorEl.classList.add('hidden');
+      saveBtn.disabled = true;
+      try {
+        const res = await fetch('api/security-config.php', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+        });
+        const data = await res.json().catch(function() { return {}; });
+        if (!res.ok || !data.success) {
+          errorEl.textContent = data.error || 'The change was not saved. Please try again.';
+          errorEl.classList.remove('hidden');
+          return;
+        }
         await loadState();
+        closePolicyModal();
+      } catch (err) {
+        errorEl.textContent = 'Unable to reach the server. The change was not saved.';
+        errorEl.classList.remove('hidden');
+      } finally {
+        saveBtn.disabled = false;
       }
-      closePolicyModal();
     });
 
     function renderSecuritySettings() {

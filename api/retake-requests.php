@@ -8,7 +8,7 @@ require_once __DIR__ . '/../lib/StaffScope.php';
 
 // Retake by request.
 //   Student:  GET -> { state, canRequest };  POST { type: 'request', reason }
-//   Staff (Guidance Counselors and the Head of Guidance, the Counseling Notes permission):
+//   Staff with the Counseling Notes permission (View Only to look, Full to decide):
 //             GET ?status=pending|approved|declined|completed|all -> the requests;  POST { type: 'decide', id, decision: 'approve'|'decline', note? }
 $user = Auth::requireLogin();
 $pdo = Database::get();

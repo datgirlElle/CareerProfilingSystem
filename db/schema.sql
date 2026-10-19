@@ -44,6 +44,17 @@ CREATE TABLE email_verification_tokens (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Consent receipts (RA 10173): who agreed to the Terms of Use and Data Privacy Policy, which version,
+-- how, and when (lib/Consent.php). No IP address or device is stored.
+CREATE TABLE consent_records (
+    id              BIGSERIAL PRIMARY KEY,
+    user_id         INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    policy_version  VARCHAR(20) NOT NULL,
+    method          VARCHAR(30) NOT NULL CHECK (method IN ('registration', 'staff_signup')),
+    consented_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_consent_records_user ON consent_records (user_id);
+
 -- Backs lib/DbSessionHandler.php — PHP sessions stored here instead of local
 -- disk, since Render's free web service tier wipes local disk on every
 -- restart after idling.
@@ -201,7 +212,11 @@ CREATE TABLE audit_log (
     target_id       VARCHAR(50),
     detail_enc      TEXT,
     ip_address      INET,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- Tamper protection (lib/AuditChain.php, db/migrate_add_audit_hash_chain.php): HMAC seal of this
+    -- entry and of the entry before it, so a changed or removed entry breaks the chain.
+    prev_hash       CHAR(64),
+    row_hash        CHAR(64)
 );
 
 CREATE TABLE security_rbac (
@@ -341,6 +356,18 @@ CREATE TABLE exam_schedules (
     schedule_type   VARCHAR(10) NOT NULL DEFAULT 'initial' CHECK (schedule_type IN ('initial', 'retake')),
     created_by      INT REFERENCES users(id),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- A student's RIASEC answers in progress, saved as they go (lib/AssessmentProgress.php), and the
+-- exam session that unlocked the assessment (NULL with is_retake for an approved retake). Lets a
+-- student who was signed out continue, on any PC, without the code while the session is open.
+-- answers_enc: JSON {set, answers}, encrypted (assessment data). Deleted on submit.
+CREATE TABLE assessment_progress (
+    student_id      INT PRIMARY KEY REFERENCES students(user_id) ON DELETE CASCADE,
+    schedule_id     INT REFERENCES exam_schedules(id) ON DELETE SET NULL,
+    is_retake       BOOLEAN NOT NULL DEFAULT FALSE,
+    answers_enc     TEXT,
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/LoginLock.php';
 require_once __DIR__ . '/../lib/Mailer.php';
 require_once __DIR__ . '/../lib/EmailTemplate.php';
 require_once __DIR__ . '/../lib/StaffPosition.php';
@@ -16,7 +17,8 @@ $pdo = Database::get();
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $rows = $pdo->query(
-        "SELECT id, username, full_name, staff_position, email, email_verified_at, is_active, approval_status, created_at
+        "SELECT id, username, full_name, staff_position, email, email_verified_at, is_active, approval_status, created_at,
+                (locked_until IS NOT NULL AND locked_until > NOW()) AS locked
          FROM users WHERE role = 'counselor'
          ORDER BY (approval_status = 'pending') DESC, created_at DESC"
     )->fetchAll();
@@ -31,6 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         'activated' => $r['email_verified_at'] !== null,
         'username' => $r['username'],
         'isActive' => (bool) $r['is_active'],
+        'locked' => (bool) $r['locked'],   // locked by wrong passwords: an administrator can Unlock
         'status' => $r['approval_status'],
         'createdAt' => $r['created_at'],
     ], $rows)]);
@@ -109,6 +112,20 @@ if ($type === 'reject') {
     AuditLogger::log($user['id'], $user['role'], 'reject_staff_account', 'user', (string) $id, $displayName);
     notifyStaff($target, $displayName, 'Your ProfilePath sign-up was not approved', 'Sign-up not approved', 'An administrator reviewed your staff sign-up and did not approve it. Please contact your system administrator if you think this is a mistake.');
     jsonResponse(['success' => true, 'status' => 'rejected']);
+}
+
+// Unlock a staff account locked by wrong passwords. Only an administrator does this, even when
+// guidance staff were given Staff Accounts access.
+if ($type === 'unlock') {
+    if ($user['role'] !== 'admin') {
+        jsonResponse(['success' => false, 'error' => 'Only an administrator can unlock a staff account.'], 403);
+    }
+    $pdo->prepare('UPDATE users SET failed_login_attempts = 0, locked_until = NULL, updated_at = NOW() WHERE id = ?')->execute([$id]);
+    LoginLock::clear($pdo, LoginLock::forAccount($id));   // the next lock is short again
+    $who = trim((string) ($target['full_name'] ?? '')) !== '' ? $target['full_name'] : $target['username'];
+    AuditLogger::log($user['id'], $user['role'], 'unlock_account', 'user', (string) $id,
+        'Unlocked ' . $who . ' (' . StaffPosition::label($target['staff_position'] ?? null) . ') after failed sign-in attempts');
+    jsonResponse(['success' => true]);
 }
 
 if ($type === 'toggleActive') {

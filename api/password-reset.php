@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/LoginLock.php';
 require_once __DIR__ . '/../lib/Mailer.php';
 require_once __DIR__ . '/../lib/EmailTemplate.php';
 require_once __DIR__ . '/../lib/PasswordPolicy.php';
@@ -249,6 +250,7 @@ if ($action === 'reset') {
         // A correct code also proves the person controls this inbox.
         $pdo->prepare('UPDATE users SET password_hash = ?, failed_login_attempts = 0, locked_until = NULL, email_verified_at = COALESCE(email_verified_at, NOW()), updated_at = NOW() WHERE id = ?')
             ->execute([password_hash($password, PASSWORD_BCRYPT), $userId]);
+        LoginLock::clear($pdo, LoginLock::forAccount((int) $userId));
         $pdo->prepare('UPDATE password_reset_codes SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL')->execute([$userId]);
         // Whoever was signed in with the old password is signed out (lib/SessionEnd.php).
         SessionEnd::endFor($pdo, $userId, 'password_changed');

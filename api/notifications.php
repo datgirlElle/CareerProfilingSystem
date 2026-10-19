@@ -58,24 +58,51 @@ if ($isStaff) {
         }
     }
 
-    // Pending monitoring flags awaiting review
-    $stmt = $pdo->query(
-        "SELECT mf.id, mf.reason, mf.created_at, s.first_name_enc, s.last_name_enc
-         FROM monitoring_flags mf
-         JOIN students s ON s.user_id = mf.student_id
-         WHERE mf.status = 'pending'
-         ORDER BY mf.created_at DESC LIMIT $each"
-    );
-    foreach ($stmt->fetchAll() as $row) {
-        $name = Crypto::dec($row['first_name_enc']) . ' ' . Crypto::dec($row['last_name_enc']);
-        $reasonLabel = $row['reason'] === 'low_confidence' ? 'low RIASEC confidence' : $row['reason'];
-        $items[] = [
-            'type' => 'flag',
-            'title' => 'Assessment flagged',
-            'text' => "$name ($reasonLabel).",
-            'link' => 'monitoring',
-            'ts' => $row['created_at'],
-        ];
+    // Monitoring flags: only for staff whose role can open Monitoring (the flag names who was flagged).
+    // Guidance staff handle flags as a team, so these are not limited to assigned sections.
+    if (Rbac::accessLevel('monitoring', Rbac::roleKey($user)) !== 'none') {
+        // Waiting for review
+        $stmt = $pdo->query(
+            "SELECT mf.id, mf.reason, mf.created_at, s.first_name_enc, s.last_name_enc
+             FROM monitoring_flags mf
+             JOIN students s ON s.user_id = mf.student_id
+             WHERE mf.status = 'pending'
+             ORDER BY mf.created_at DESC LIMIT $each"
+        );
+        foreach ($stmt->fetchAll() as $row) {
+            $name = Crypto::dec($row['first_name_enc']) . ' ' . Crypto::dec($row['last_name_enc']);
+            $reasonLabel = $row['reason'] === 'low_confidence' ? 'low RIASEC confidence' : $row['reason'];
+            $items[] = [
+                'type' => 'flag',
+                'title' => 'Assessment flagged',
+                'text' => "$name ($reasonLabel).",
+                'link' => 'monitoring',
+                'ts' => $row['created_at'],
+            ];
+        }
+
+        // Escalated to counseling and not decided yet (escalating keeps resolved_at empty, so the
+        // time comes from the audit entry written by api/monitoring-action.php).
+        $stmt = $pdo->query(
+            "SELECT mf.id, mf.created_at, s.first_name_enc, s.last_name_enc,
+                    (SELECT MAX(al.created_at) FROM audit_log al
+                     WHERE al.action = 'monitoring_escalate' AND al.target_type = 'monitoring_flag'
+                       AND al.target_id = mf.id::text) AS escalated_at
+             FROM monitoring_flags mf
+             JOIN students s ON s.user_id = mf.student_id
+             WHERE mf.status = 'escalated'
+             ORDER BY mf.created_at DESC LIMIT $each"
+        );
+        foreach ($stmt->fetchAll() as $row) {
+            $name = Crypto::dec($row['first_name_enc']) . ' ' . Crypto::dec($row['last_name_enc']);
+            $items[] = [
+                'type' => 'flag_escalated',
+                'title' => 'Flag escalated to counseling',
+                'text' => "$name needs a counselor's follow-up.",
+                'link' => 'monitoring-details?tab=counseling',
+                'ts' => $row['escalated_at'] ?? $row['created_at'],
+            ];
+        }
     }
 
     // Retake requests waiting for an answer: only for staff who handle them (the Counseling Notes permission,

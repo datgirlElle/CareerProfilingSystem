@@ -3,6 +3,7 @@
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/QuestionBank.php';
 require_once __DIR__ . '/../lib/RetakeRequest.php';
+require_once __DIR__ . '/../lib/AssessmentProgress.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -12,9 +13,14 @@ $user = Auth::requireLogin();
 if ($user['role'] !== 'student') {
     jsonResponse(['success' => false, 'error' => 'Only students can submit the RIASEC assessment.'], 403);
 }
-// Never trust the client to have honestly gone through the access-code gate
-// in assessment-instructions.html — re-check the session flag api/verify-access-code.php sets.
-if (empty($_SESSION['assessmentUnlocked'])) {
+// Never trust the client to have honestly gone through the access-code gate in
+// assessment-instructions.html. The unlock is kept in the database (lib/AssessmentProgress.php,
+// valid until the session ends plus a short grace period) and in the session.
+$access = AssessmentProgress::access(Database::get(), (int) $user['id']);
+if ($access['closed']) {
+    jsonResponse(['success' => false, 'error' => 'The assessment session has ended. Your answers are saved: please ask your guidance counselor for a new session.'], 403);
+}
+if (!$access['unlocked'] && empty($_SESSION['assessmentUnlocked'])) {
     jsonResponse(['success' => false, 'error' => 'Enter the assessment access code before submitting.'], 403);
 }
 
@@ -100,6 +106,7 @@ try {
         $pdo->prepare("UPDATE retake_requests SET status = 'completed', completed_attempt_number = ?, completed_at = NOW() WHERE id = ? AND status = 'approved'")->execute([$attemptNumber, $retakeId]);
         $pdo->prepare("UPDATE monitoring_flags SET status = 'dismissed', resolved_at = NOW(), note = 'Replaced by a retake' WHERE student_id = ? AND status = 'pending'")->execute([$studentId]);
     }
+    AssessmentProgress::clear($pdo, $studentId);   // submitted: nothing in progress any more
 
     $pdo->commit();
 } catch (Throwable $e) {

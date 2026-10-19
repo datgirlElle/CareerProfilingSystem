@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/QuestionBank.php';
+require_once __DIR__ . '/../lib/AuditChange.php';
 
 $pdo = Database::get();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -84,13 +85,24 @@ if ($method === 'PUT') {
     $isActive = array_key_exists('isActive', $body) ? (bool) $body['isActive'] : $question['is_active'];
 
     $update = $pdo->prepare('UPDATE assessment_questions SET question_text_enc = ?, is_active = ?, updated_at = NOW() WHERE id = ?');
-    $update->execute([Crypto::enc($text), $isActive, $id]);
+    // Bind an int, not a PHP bool: execute() sends false as '', which Postgres's boolean type rejects,
+    // so hiding a question (isActive false) used to fail.
+    $update->execute([Crypto::enc($text), (int) $isActive, $id]);
 
     $user = Auth::currentUser();
-    $wasActive = (bool) $question['is_active'];
-    AuditLogger::log($user['id'], $user['role'], 'update_question', 'assessment_question', (string) $id,
-        questionForLog($question['dimension'], $text)
-            . ((bool) $isActive !== $wasActive ? ($isActive ? "\nShown in the assessment" : "\nHidden from the assessment") : ''));
+    // Before -> after for the audit log (only what changed is kept).
+    try {
+        $oldText = Crypto::dec($question['question_text_enc']);
+    } catch (Throwable $e) {
+        $oldText = '(text could not be read)';
+    }
+    AuditLogger::log($user['id'], $user['role'], 'update_question', 'assessment_question', (string) $id, AuditChange::detail(
+        (QuestionBank::NAMES[$question['dimension']] ?? $question['dimension']) . ' question',
+        ['text' => $oldText, 'active' => (bool) $question['is_active']],
+        ['text' => $text, 'active' => (bool) $isActive],
+        ['text' => 'Question', 'active' => 'Shown in the assessment'],
+        ['active']
+    ));
 
     jsonResponse(['success' => true, 'balance' => QuestionBank::balance(activeCounts($pdo))]);
 }
@@ -150,7 +162,7 @@ if ($method === 'POST') {
     $next->execute([$dimension]);
     try {
         $insert = $pdo->prepare('INSERT INTO assessment_questions (dimension, question_text_enc, order_index, is_active, created_by) VALUES (?, ?, ?, ?, ?) RETURNING id');
-        $insert->execute([$dimension, Crypto::enc($text), (int) $next->fetchColumn(), $isActive, $user['id']]);
+        $insert->execute([$dimension, Crypto::enc($text), (int) $next->fetchColumn(), (int) $isActive, $user['id']]);
     } catch (PDOException $e) {
         jsonResponse(['success' => false, 'error' => 'Could not add the question. The database may need the latest update first.'], 500);
     }

@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/Faq.php';
+require_once __DIR__ . '/../lib/AuditChange.php';
 
 // The Help Center FAQs. Anyone signed in can read the list meant for them (students read the student FAQs;
 // staff read both, so they can see what students are told). The administrator and Guidance Counselors add,
@@ -74,7 +75,7 @@ if ($type === 'create') {
 }
 
 $id = (int) ($body['id'] ?? 0);
-$find = $pdo->prepare('SELECT id, audience, question FROM faqs WHERE id = ?');
+$find = $pdo->prepare('SELECT id, audience, question, answer FROM faqs WHERE id = ?');
 $find->execute([$id]);
 $faq = $find->fetch();
 if (!$faq) {
@@ -89,7 +90,13 @@ if ($type === 'update') {
         jsonResponse(['success' => false, 'error' => $problem], 400);
     }
     $pdo->prepare('UPDATE faqs SET question = ?, answer = ?, updated_by = ?, updated_at = NOW() WHERE id = ?')->execute([$question, $answer, $user['id'], $id]);
-    AuditLogger::log($user['id'], $user['role'], 'update_faq', 'faq', (string) $id, "{$faq['audience']}: $question");
+    // Before -> after for the audit log (only what changed is kept).
+    AuditLogger::log($user['id'], $user['role'], 'update_faq', 'faq', (string) $id, AuditChange::detail(
+        $faq['audience'] === 'staff' ? 'FAQ for staff' : 'FAQ for students',
+        ['question' => $faq['question'], 'answer' => $faq['answer']],
+        ['question' => $question, 'answer' => $answer],
+        ['question' => 'Question', 'answer' => 'Answer']
+    ));
     jsonResponse(['success' => true]);
 }
 

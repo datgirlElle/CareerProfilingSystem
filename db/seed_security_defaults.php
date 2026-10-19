@@ -26,8 +26,8 @@ $rbacStmt = $pdo->prepare(
 );
 $rbacCount = 0;
 foreach ($rbac as $module => $roles) {
-    // A Guidance Facilitator starts where the Guidance Counselor is, except Sections (View Only), Counseling Notes and
-    // Staff Accounts (No Access); the administrator can change any of it in Edit Roles.
+    // A Guidance Facilitator starts where the Guidance Counselor is, except Sections (View Only) and Staff Accounts
+    // (No Access); the administrator can change any of it in Security Configuration.
     $roles['facilitator'] = Rbac::facilitatorDefault($module, $roles['counselor']);
     foreach ($roles as $role => $level) {
         $rbacStmt->execute([$module, $role, $level]);
@@ -48,7 +48,7 @@ $policies = [
     'lockout.maxAttempts'                => '5',
     'lockout.lockoutMinutes'             => '15',
     'monitoring.enabled'                 => 'true',
-    'monitoring.retentionDays'           => '90',
+    'monitoring.retentionDays'           => '365',
     'monitoring.lowConfidenceThreshold'  => '0.50',
     'twoFactor'                          => 'true',
     'sessionTimeoutEnabled'              => 'true',

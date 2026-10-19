@@ -5,6 +5,8 @@ require_once __DIR__ . '/../lib/RateLimiter.php';
 require_once __DIR__ . '/../lib/AuditLogPdf.php';
 require_once __DIR__ . '/../lib/StaffPosition.php';
 require_once __DIR__ . '/../lib/QuestionBank.php';
+require_once __DIR__ . '/../lib/AuditChange.php';
+require_once __DIR__ . '/../lib/AuditRetention.php';
 
 $user = Rbac::requireAccess('rac', 'full'); // audit visibility lives alongside the other security/system admin tools
 
@@ -87,6 +89,7 @@ $actionLabels = [
     'deactivate_student_account' => 'Deactivated student account',
     'update_student_section' => 'Changed student section',
     'reset_student_assessment' => 'Reset student assessment',
+    'unlock_account' => 'Unlocked account',
     'export_student_list' => 'Exported student list',
     'export_student_roster' => 'Exported student roster',
     'upload_roster' => 'Uploaded class roster',
@@ -146,6 +149,10 @@ $actionLabels = [
     'send_principal_report_failed' => 'Principal report not sent',
     'export_audit_log' => 'Exported audit log',
     'export_audit_log_failed' => 'Audit log export failed',
+    'delete_old_audit_logs' => 'Deleted old audit logs',
+    'delete_old_audit_logs_failed' => 'Old audit log cleanup failed',
+    'verify_audit_log' => 'Checked the audit log',
+    'verify_audit_log_failed' => 'Audit log check found a problem',
     // Security settings
     'update_rbac' => 'Changed access permissions',
     'update_policy' => 'Changed security setting',
@@ -291,6 +298,9 @@ function readableTarget(PDO $pdo, array $r, string $target, bool $viewerIsAdmin)
     if (str_starts_with($action, 'export_audit_log')) {
         return ['Reference', $target];
     }
+    if ($action === 'verify_audit_log_failed') {
+        return ['Entry', '#' . $target];   // where the check found the problem
+    }
     if (in_array($action, SIGN_IN_ACTIONS, true)) {
         return [$action === 'staff_activation_failed' ? 'Username or email' : 'Username', $target];
     }
@@ -414,12 +424,6 @@ function buildFilters(array $q, array $actionLabels, array $roleLabels, array $c
         $where[] = 'al.target_type = ?';
         $params[] = $q['module'];
     }
-    // Exact role (set by clicking a role in a card breakdown). Searching a role name is not exact:
-    // "Student" also matches actions such as "Activated student account".
-    if (is_string($q['role'] ?? null) && isset(ROLE_BUCKETS[$q['role']])) {
-        $where[] = ROLE_BUCKET_SQL . ' = ?';
-        $params[] = $q['role'];
-    }
     if (!empty($q['from']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $q['from'])) {
         $where[] = 'al.created_at >= CAST(? AS date)';
         $params[] = $q['from'];
@@ -512,7 +516,16 @@ function buildFilters(array $q, array $actionLabels, array $roleLabels, array $c
             $where[] = '(' . implode(' OR ', $or) . ')';
         }
     }
-    return [implode(' AND ', $where), $params];
+
+    // Exact role (set by clicking a role in a card breakdown). Searching a role name is not exact:
+    // "Student" also matches actions such as "Activated student account". It goes last, so the
+    // filters without it come back too: the card breakdowns count every role with them.
+    $allRoles = [implode(' AND ', $where), $params];
+    if (is_string($q['role'] ?? null) && isset(ROLE_BUCKETS[$q['role']])) {
+        $where[] = ROLE_BUCKET_SQL . ' = ?';
+        $params[] = $q['role'];
+    }
+    return [implode(' AND ', $where), $params, ...$allRoles];
 }
 
 
@@ -616,11 +629,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
 
     $detail = null;
     $detailNote = null;
+    $changes = [];
     if (in_array($r['action'], HIDDEN_DETAIL_ACTIONS, true) || ($hideStudent && $studentAccountAction)) {
         $detailNote = "Hidden: sensitive student data. Open the student's record to see it.";
     } elseif ($r['detail_enc'] !== null) {
         try {
-            $detail = readableDetail(Crypto::dec($r['detail_enc']));
+            $plain = Crypto::dec($r['detail_enc']);
+            // Edits saved by AuditChange carry before -> after; anything else is shown as plain text.
+            $parsed = AuditChange::parse($plain);
+            if ($parsed !== null) {
+                $changes = $parsed['changes'];
+                $detail = $parsed['summary'] !== '' ? $parsed['summary'] : null;
+                // An announcement's message is for people with Announcements access (drafts too);
+                // anyone else only learns that it changed.
+                $messageHidden = false;
+                if ($r['target_type'] === 'announcement' && Rbac::accessLevel('announcements', Rbac::roleKey($user)) === 'none') {
+                    $kept = array_values(array_filter($changes, fn($c) => $c['field'] !== 'Message'));
+                    $messageHidden = count($kept) < count($changes);
+                    $changes = $kept;
+                }
+                if ($messageHidden) {
+                    $detail = trim(($detail ?? '') . "\nThe message changed too (hidden: you have no access to Announcements).");
+                } elseif (!$changes) {
+                    $detail = trim(($detail ?? '') . "\nSaved with no changes.");
+                }
+            } else {
+                $detail = readableDetail($plain);
+            }
         } catch (Throwable $e) {
             $detailNote = 'Could not be read.';
         }
@@ -647,6 +682,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
         'target' => $targetText,
         'detail' => $detail,
         'detailNote' => $detailNote,
+        'changes' => $changes,
     ]);
 }
 
@@ -655,7 +691,7 @@ $page = max(1, (int) ($_GET['page'] ?? 1));
 $pageSize = min(100, max(1, (int) ($_GET['pageSize'] ?? 10)));
 $sort = ($_GET['sort'] ?? 'desc') === 'asc' ? 'ASC' : 'DESC';
 
-[$where, $params] = buildFilters($_GET, $actionLabels, $roleLabels, $categoryLabels);
+[$where, $params, $whereAllRoles, $paramsAllRoles] = buildFilters($_GET, $actionLabels, $roleLabels, $categoryLabels);
 
 $countSql = "SELECT COUNT(*) FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id WHERE $where";
 $countStmt = $pdo->prepare($countSql);
@@ -692,9 +728,11 @@ $modules = $pdo->query('SELECT DISTINCT target_type FROM audit_log WHERE target_
 
 // Summary cards follow the same search/filters as the table, so they always describe the rows
 // below it. Successful is Total minus Failed over that same set, so the two always add up to
-// Total and the percentages stay meaningful. With no filters, Users Active keeps its usual
-// "last 7 days" meaning; with filters, it counts the distinct users in the filtered rows.
+// Total and the percentages stay meaningful. With no filters (a picked role aside), Users Active
+// keeps its usual "last 7 days" meaning; with filters, it counts the distinct users in the
+// filtered rows.
 $filtered = $where !== '1=1';
+$activeLastWeek = $whereAllRoles === '1=1';
 $summaryStmt = $pdo->prepare(
     "SELECT COUNT(*) FILTER (WHERE " . FAILED_SQL . "), COUNT(DISTINCT al.actor_user_id)
      FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id
@@ -703,37 +741,40 @@ $summaryStmt = $pdo->prepare(
 $summaryStmt->execute($params);
 [$failedCount, $usersInResults] = array_map('intval', $summaryStmt->fetch(PDO::FETCH_NUM));
 $successCount = $total - $failedCount;
-if ($filtered) {
-    $usersActive = $usersInResults;
-    $overallTotal = (int) $pdo->query('SELECT COUNT(*) FROM audit_log')->fetchColumn();
+$overallTotal = $filtered ? (int) $pdo->query('SELECT COUNT(*) FROM audit_log')->fetchColumn() : $total;
+if ($activeLastWeek) {
+    $activeStmt = $pdo->prepare(
+        "SELECT COUNT(DISTINCT al.actor_user_id) FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id
+         WHERE al.created_at >= NOW() - INTERVAL '7 days' AND $where"
+    );
+    $activeStmt->execute($params);
+    $usersActive = (int) $activeStmt->fetchColumn();
 } else {
-    $usersActive = (int) $pdo->query(
-        "SELECT COUNT(DISTINCT actor_user_id) FROM audit_log WHERE created_at >= NOW() - INTERVAL '7 days'"
-    )->fetchColumn();
-    $overallTotal = $total;
+    $usersActive = $usersInResults;
 }
 
-// Card breakdowns by role, over the same rows as the cards (so they follow the filters). Every group
-// is always listed, in a fixed order, so the rows add up to the card's number.
+// Card breakdowns by role. They follow every filter except the picked role, so picking a role keeps
+// the other roles' numbers in view, and the picked role's number matches the card. Every group is
+// always listed, in a fixed order (the page leaves "No account" off all but the Total card).
 $breakdownStmt = $pdo->prepare(
     'SELECT ' . ROLE_BUCKET_SQL . ' AS bucket, COUNT(*) AS total,
             COUNT(*) FILTER (WHERE ' . FAILED_SQL . ") AS failed,
             COUNT(*) FILTER (WHERE al.action IN ('" . implode("', '", BLOCKED_ACTIONS) . "')) AS blocked,
             COUNT(DISTINCT al.actor_user_id) AS people
      FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id
-     WHERE $where GROUP BY bucket"
+     WHERE $whereAllRoles GROUP BY bucket"
 );
-$breakdownStmt->execute($params);
+$breakdownStmt->execute($paramsAllRoles);
 $byBucket = [];
 foreach ($breakdownStmt->fetchAll() as $b) {
     $byBucket[$b['bucket']] = $b;
 }
 // Without filters, Users Active means the last 7 days, so its breakdown does too.
-$peopleLastWeek = $filtered ? [] : $pdo->query(
+$peopleLastWeek = $activeLastWeek ? $pdo->query(
     'SELECT ' . ROLE_BUCKET_SQL . " AS bucket, COUNT(DISTINCT al.actor_user_id)
      FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id
      WHERE al.created_at >= NOW() - INTERVAL '7 days' GROUP BY bucket"
-)->fetchAll(PDO::FETCH_KEY_PAIR);
+)->fetchAll(PDO::FETCH_KEY_PAIR) : [];
 $breakdown = [];
 foreach (ROLE_BUCKETS as $key => $label) {
     $b = $byBucket[$key] ?? ['total' => 0, 'failed' => 0, 'blocked' => 0, 'people' => 0];
@@ -744,7 +785,7 @@ foreach (ROLE_BUCKETS as $key => $label) {
         'successful' => (int) $b['total'] - (int) $b['failed'],
         'failed' => (int) $b['failed'],
         'blocked' => (int) $b['blocked'],
-        'people' => $key === 'none' ? 0 : (int) ($filtered ? $b['people'] : ($peopleLastWeek[$key] ?? 0)),
+        'people' => $key === 'none' ? 0 : (int) ($activeLastWeek ? ($peopleLastWeek[$key] ?? 0) : $b['people']),
     ];
 }
 
@@ -762,7 +803,12 @@ jsonResponse([
         'failed' => $failedCount,
         'usersActive' => $usersActive,
         'filtered' => $filtered,
+        'activeLastWeek' => $activeLastWeek,
         'overallTotal' => $overallTotal,
         'breakdown' => $breakdown,
     ],
+    // For the note under the table: what is really kept, and whether this person can change it.
+    'retention' => AuditRetention::settings($pdo) + ['canChange' => $user['role'] === 'admin'],
+    // "Check log" (api/audit-log-verify.php) is for administrators.
+    'canCheckLog' => $user['role'] === 'admin',
 ]);

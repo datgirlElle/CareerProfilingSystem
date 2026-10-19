@@ -319,11 +319,14 @@
   // The assessment is taken once: if it's already finished, say so right away and block the Begin button.
   let alreadyTaken = false;
   let retakeApproved = false; // the Guidance Office approved a retake: no session or access code needed
+  let resumeUnlocked = false; // the code was already entered for a session that is still open (signed out since)
   try {
     const st = await (await fetch('api/assessment-status.php')).json();
     retakeApproved = !!st.retakeApproved;
     alreadyTaken = !!st.completed && !retakeApproved;
+    resumeUnlocked = !st.completed && !!st.unlocked;
   } catch (e) {}
+  if (resumeUnlocked) beginBtn.textContent = 'Continue Assessment';
   if (alreadyTaken) {
     const banner = document.createElement('div');
     banner.className = 'bg-red-50 border border-red-100 rounded-lg p-4 mb-6 text-sm text-red-700';
@@ -359,6 +362,8 @@
   }
 
   document.getElementById('beginBtn').addEventListener('click', async function() {
+    // Already unlocked for this session: straight back to the saved answers, no code again.
+    if (resumeUnlocked) { window.location.href = 'riasec-assessment'; return; }
     if (!retakeApproved) { openModal(); return; }
     const btn = this;
     btn.disabled = true;

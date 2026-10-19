@@ -160,6 +160,8 @@
             </div>
             </div>
             <div class="sp-actions">
+              <!-- Shown only while the account is locked by wrong passwords (filled in from the student record). -->
+              <button type="button" id="unlockAccountBtn" class="hidden shrink-0 border border-[#19427b] text-[#19427b] rounded-md px-4 py-2 text-sm font-medium hover:bg-slate-50">Unlock Account</button>
               <button type="button" id="resetAssessmentBtn" class="hidden shrink-0 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50">Reset Assessment</button>
               <button type="button" id="toggleActiveBtn" class="hidden shrink-0 border rounded-md px-4 py-2 text-sm font-medium"></button>
             </div>
@@ -211,10 +213,6 @@
                 <div id="riasecThemes" class="flex flex-wrap gap-2 mt-3"></div>
               </div>
 
-              <div>
-                <p class="sp-label">Dimension Scores</p>
-                <div id="scoresGrid" class="sp-scores mt-3"></div>
-              </div>
 
               <div class="sp-status" id="counselingBox">
                 <div class="sp-sub">
@@ -229,10 +227,6 @@
                 <p class="sp-value" style="margin-top:0" id="registeredField">—</p>
               </div>
 
-              <div>
-                <p class="sp-label">Assessment Attempts</p>
-                <div id="attemptsList" class="mt-2"></div>
-              </div>
 
               <a href="admin-dashboard" class="border border-gray-300 text-gray-700 text-sm font-medium rounded-md px-5 py-2.5 hover:bg-gray-50 text-center">&larr; Back to Dashboard</a>
             </div>
@@ -245,15 +239,15 @@
                 <span id="recStatus" class="sp-badge wait"></span>
               </div>
               <div>
-                <p class="sp-label">Preferred Course (worksheet: what the student selected)</p>
+                <p class="sp-label">Preferred Course</p>
                 <p id="recPreferred" class="text-sm text-gray-800 mt-1"></p>
               </div>
               <div>
-                <p class="sp-label">Best RIASEC Match (CBF: highest cosine similarity)</p>
+                <p class="sp-label">Best RIASEC Match</p>
                 <p id="recBest" class="text-sm text-gray-800 mt-1"></p>
               </div>
               <div>
-                <p class="sp-label">Alternative Courses (CBF: next-highest cosine similarity)</p>
+                <p class="sp-label">Alternative Courses</p>
                 <p id="recAlternatives" class="text-sm text-gray-800 mt-1"></p>
               </div>
               <details class="border-t border-gray-100 pt-3">
@@ -264,7 +258,6 @@
                   <dt class="text-gray-500">3. Prediction model</dt><dd class="text-gray-800">Not available yet (WEKA dataset pending); not used.</dd>
                   <dt class="text-gray-500">Final Best Match</dt><dd class="text-gray-800">Not computed: needs the prediction model and an approved combination rule.</dd>
                 </dl>
-                <a id="recDebugLink" href="#" class="inline-block mt-3 text-xs font-medium text-blue-600 hover:underline">Show the full CBF calculation</a>
               </details>
             </div>
 
@@ -436,6 +429,29 @@
     closeToggleActiveModal();
   });
 
+  // Locked by too many wrong passwords (for example a classmate typing this Student Number): staff
+  // who can see the student unlock it, so they can sign in right away instead of waiting.
+  document.getElementById('unlockAccountBtn').addEventListener('click', async function() {
+    if (!(await PP.confirm('Unlock this student\'s account?\n\nIt was locked after too many wrong passwords. The student can sign in again right away.', { okLabel: 'Unlock' }))) return;
+    const btn = this;
+    btn.disabled = true;
+    try {
+      const res = await fetch('api/students.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'unlock', userId: toggleActiveUserId })
+      });
+      const data = await res.json();
+      if (!data.success) { PP.toast(data.error || 'Could not unlock the account.', true); btn.disabled = false; return; }
+      btn.classList.add('hidden');
+      btn.disabled = false;
+      PP.toast('Account unlocked. The student can sign in now.', false);
+    } catch (e) {
+      PP.toast('Unable to reach the server. Please try again.', true);
+      btn.disabled = false;
+    }
+  });
+
   // Admin only: delete a student's answers so they can retake the assessment (rare, and only when
   // the Guidance Office allows it). Shown only for a student who has finished it.
   document.getElementById('resetAssessmentBtn').addEventListener('click', async function() {
@@ -489,7 +505,7 @@
     const r = await res.json();
     if (!r.hasRecommendation) return;
     const withCosine = function(p) {
-      return p.title + (p.cosineSimilarity !== null && p.cosineSimilarity !== undefined ? ' (cosine ' + p.cosineSimilarity.toFixed(3) + ')' : '');
+      return p.title; // course names only: the CGC does not record scores
     };
     const list = function(items) { return items && items.length ? items.join(', ') : 'None'; };
     const status = document.getElementById('recStatus');
@@ -501,7 +517,6 @@
     document.getElementById('recBest').textContent = list(r.bestRiasecMatch.map(withCosine)) +
       (r.bestRiasecMatch.length > 1 ? ' (tied: same RIASEC letters)' : '') + (r.needsRecompute ? ' (saved before the CBF revision; recompute to update)' : '');
     document.getElementById('recAlternatives').textContent = list(r.alternatives.map(withCosine));
-    document.getElementById('recDebugLink').href = 'cbf-debug?studentId=' + encodeURIComponent(studentId);
     document.getElementById('recommendationCard').classList.remove('hidden');
   }
 
@@ -586,6 +601,7 @@
       const s = data.student;
       toggleActiveUserId = s.userId;
       renderToggleActiveButton(s.isActive);
+      if (s.lockedUntil) document.getElementById('unlockAccountBtn').classList.remove('hidden');
       if (currentUser.role === 'admin' && s.status === 'Completed') document.getElementById('resetAssessmentBtn').classList.remove('hidden');
       document.getElementById('studentName').textContent = s.name;
       document.getElementById('studentId').textContent = 'Grade ' + s.gradeLevel + ' · ' + s.strand + ' ' + s.section;
@@ -674,14 +690,6 @@
         : '<p class="text-sm text-gray-500">Not available — assessment not yet completed.</p>';
       document.getElementById('dominantLabel').classList.toggle('hidden', !topLetters.length);
 
-      const scoresGrid = document.getElementById('scoresGrid');
-      if (s.scores) {
-        scoresGrid.innerHTML = Object.keys(types).map(function(code) {
-          return '<div class="sp-score"><span>' + code + '</span><b>' + s.scores[code] + '</b></div>';
-        }).join('');
-      } else {
-        scoresGrid.innerHTML = '<p class="text-sm text-gray-500" style="grid-column:1/-1">Not available — assessment not yet completed.</p>';
-      }
 
       // Counseling status: amber until the student has asked for advising, green once they have.
       const counselingBox = document.getElementById('counselingBox');
@@ -691,18 +699,6 @@
       document.getElementById('counselingLabel').style.color = counselingText === 'Availed' ? '#15803d' : (s.counseling ? '#b45309' : '#6b7280');
       document.getElementById('counselingBadge').classList.toggle('hidden', !s.openRequest);
 
-      const attemptsList = document.getElementById('attemptsList');
-      const attempts = s.attempts || [];
-      attemptsList.innerHTML = attempts.length
-        ? attempts.map(function(a) {
-            const date = new Date(a.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-            const codes = String(a.riasec || '').split(',').map(letterOf).filter(Boolean).join(' · ');
-            return '<div class="sp-row">' +
-              '<span class="text-sm text-gray-500">' + date + '</span>' +
-              '<span class="text-right"><b class="text-sm text-gray-900">Attempt #' + a.attemptNumber + '</b>' + (codes ? '<br><span class="sp-codes">' + codes + '</span>' : '') + '</span>' +
-            '</div>';
-          }).join('')
-        : '<p class="text-sm text-gray-500 mt-2">No attempts yet.</p>';
       loadRecommendation(s.userId);
       loadCounselingNotes(s.userId);
     }

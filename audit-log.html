@@ -85,7 +85,7 @@
     /* Breakdown rows: role, bar, count, percent. Each row filters the table to that role. */
     .breakdown-row {
       display: grid;
-      grid-template-columns: 170px minmax(0, 1fr) 52px 44px;
+      grid-template-columns: 220px minmax(0, 1fr) 52px 44px;
       align-items: center;
       gap: 12px;
       width: 100%;
@@ -104,9 +104,32 @@
       outline: 2px solid #001c43;
       outline-offset: 1px;
     }
-    .breakdown-row:disabled {
-      opacity: 0.45;
+    /* A role with nothing to show: not clickable, but its 0 stays readable. */
+    .breakdown-row:disabled,
+    .breakdown-row:disabled .breakdown-count {
+      color: #6b7280;
       cursor: default;
+    }
+    /* The picked role: navy outline and a "Showing" tag, in the role chip's colors. The other
+       roles keep their numbers. */
+    .breakdown-row.is-picked,
+    button.breakdown-row.is-picked:not(:disabled):hover {
+      background: #eef2f8;
+      box-shadow: inset 0 0 0 1px #001c43;
+    }
+    .breakdown-name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .breakdown-tag {
+      padding: 1px 8px;
+      border-radius: 999px;
+      background: #001c43;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
     }
     .breakdown-bar {
       height: 8px;
@@ -234,6 +257,49 @@
       color: #6b7280;
       font-style: italic;
     }
+    /* "What changed": old value red and crossed out, new value green, one field per block. */
+    .change-summary {
+      margin-bottom: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #111827;
+    }
+    .change {
+      margin-top: 10px;
+      max-width: 760px;
+    }
+    .change-field {
+      margin-bottom: 3px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #374151;
+    }
+    .change-old,
+    .change-new {
+      display: flex;
+      gap: 8px;
+      padding: 4px 10px;
+      font-size: 14px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .change-old {
+      border-radius: 6px 6px 0 0;
+      background: #fef2f2;
+      color: #991b1b;
+    }
+    .change-new {
+      border-radius: 0 0 6px 6px;
+      background: #f0fdf4;
+      color: #166534;
+    }
+    .change-new ins {
+      text-decoration: none;
+    }
+    .change-sign {
+      flex-shrink: 0;
+      font-weight: 700;
+    }
     .detail-meta {
       display: flex;
       flex-wrap: wrap;
@@ -294,7 +360,25 @@
     .row-failed td:first-child {
       box-shadow: inset 3px 0 0 #dc2626;
     }
+    .check-result {
+      padding: 10px 16px;
+      font-size: 14px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .check-result.is-ok {
+      background: var(--color-green-50);
+      color: var(--color-green-700);
+    }
+    .check-result.is-bad {
+      background: var(--color-red-50);
+      color: var(--color-red-700);
+    }
+    .check-result.is-note {
+      background: var(--color-gray-50);
+      color: #374151;
+    }
     /* motion.css gives disabled buttons no visual change, so show it here (no results, bad date range). */
+    #checkLogBtn:disabled,
     #exportBtn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
@@ -553,12 +637,15 @@
               <input type="text" id="searchInput" placeholder="Search name, action, IP (use commas to combine)" aria-label="Search activities"
                 class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
             </div>
-            <!-- Shown while a role from a card breakdown filters the table. -->
+            <!-- Shown while a role from a card breakdown filters the table. Its x undoes that click. -->
             <span id="roleChip" class="role-chip hidden">
-              Role: <strong id="roleChipLabel"></strong>
+              <span id="roleChipLabel"></span>
               <button type="button" id="roleChipClear" aria-label="Remove the role filter">&times;</button>
             </span>
             <div class="flex items-center gap-3">
+              <!-- Administrators only (shown from the list answer): checks the log's seals. -->
+              <button type="button" id="checkLogBtn"
+                class="hidden bg-white border border-gray-300 rounded-md px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm">Check log</button>
               <span id="exportNote" class="text-xs text-gray-500"></span>
               <button type="button" id="exportBtn" aria-describedby="exportNote"
                 class="flex items-center gap-2 bg-white border border-gray-300 rounded-md px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm">
@@ -567,6 +654,8 @@
               </button>
             </div>
           </div>
+          <!-- Result of "Check log": green when intact, red when a problem was found, grey otherwise. -->
+          <p id="checkLogResult" class="hidden check-result" role="status"></p>
 
           <div class="overflow-auto max-h-[65vh]" id="auditScroll">
             <table class="w-full text-left border-collapse min-w-[1200px]">
@@ -611,11 +700,11 @@
           </div>
         </div>
 
-        <!-- Footer Info Box -->
-        <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-start gap-3 mt-6">
+        <!-- Retention note: says what is really kept (filled from the list answer, see renderRetention). -->
+        <div id="retentionBox" class="hidden bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-start gap-3 mt-6">
           <img src="images/audit/icon-info.svg" alt="" class="w-5 h-5 shrink-0">
-          <p class="text-sm text-blue-800">Audit logs are retained for 365 days in accordance with data privacy and
-            institutional security policies.</p>
+          <p class="text-sm text-blue-800"><span id="retentionText"></span>
+            <a id="retentionLink" href="security-configuration" class="hidden font-medium underline">Change this in Security Configuration.</a></p>
         </div>
 
       </main>
@@ -732,6 +821,7 @@
         const sortTimestampBtn = document.getElementById('sortTimestampBtn');
         const sortIcon = document.getElementById('sortIcon');
         const exportBtn = document.getElementById('exportBtn');
+        const checkLogBtn = document.getElementById('checkLogBtn');
         const exportNote = document.getElementById('exportNote');
         const auditScroll = document.getElementById('auditScroll');
         const paginationBar = document.getElementById('paginationBar');
@@ -860,6 +950,8 @@
           }
 
           renderSummary(data.summary);
+          renderRetention(data.retention);
+          checkLogBtn.classList.toggle('hidden', !data.canCheckLog);
           renderRows(data.rows, data.summary.filtered);
           paginationSummary.innerHTML = countText(data.total, data.summary.filtered);
           exportNote.textContent = exportText(data.total, data.summary.filtered);
@@ -973,24 +1065,39 @@
           document.getElementById('summaryTotalNote').textContent = summary.filtered
             ? 'of ' + summary.overallTotal.toLocaleString() + ' activities'
             : 'All logged actions';
-          document.getElementById('summaryActiveNote').textContent = summary.filtered ? 'in these results' : 'last 7 days';
+          document.getElementById('summaryActiveNote').textContent = summary.activeLastWeek ? 'last 7 days' : 'in these results';
           lastSummary = summary;
           renderBreakdown();
         }
 
+        // The note under the table says what is really kept: deletion of old entries is off unless an
+        // administrator turned it on in Security Configuration (only they get the link).
+        function renderRetention(r) {
+          if (!r) return;
+          const days = r.days.toLocaleString() + ' days';
+          document.getElementById('retentionText').textContent = r.autoDelete
+            ? 'Entries older than ' + days + ' are deleted automatically, once a day when this page is opened.'
+            : 'All entries are kept: automatic deletion is off. When an administrator turns it on, entries older than ' + days + ' are deleted.';
+          document.getElementById('retentionLink').classList.toggle('hidden', !r.canChange);
+          document.getElementById('retentionBox').classList.remove('hidden');
+        }
+
         // Card breakdowns: click a card to see its number split by role; click a role to show only its
-        // rows (an exact role filter, shown as a chip above the table). One card open at a time; the
-        // numbers follow the filters because they come with every load. Values go in with textContent.
+        // rows (an exact role filter, shown as a chip above the table), and click it again to show all.
+        // One card open at a time. The numbers come with every load and follow every filter except the
+        // picked role, so the other roles keep their numbers. Values go in with textContent.
         const breakdownPanel = document.getElementById('breakdownPanel');
         const breakdownTitle = document.getElementById('breakdownTitle');
         const breakdownRows = document.getElementById('breakdownRows');
         const breakdownNote = document.getElementById('breakdownNote');
         const roleChip = document.getElementById('roleChip');
         const roleChipLabel = document.getElementById('roleChipLabel');
+        const roleChipClear = document.getElementById('roleChipClear');
         const ROLE_LABELS = { admin: 'Administrator', counselor: 'Guidance Counselor', facilitator: 'Guidance Facilitator', student: 'Student', none: 'No account' };
-        // Bar colors match each card's icon.
+        // Bar colors match each card's icon. Only the Total card lists "No account" (sign-ins with an
+        // unknown username, system actions).
         const CARDS = {
-          total: { title: 'Total activities by role', count: b => b.total, color: '#2563eb' },
+          total: { title: 'Total activities by role', count: b => b.total, color: '#2563eb', noAccount: true },
           successful: { title: 'Successful activities by role', count: b => b.successful, color: '#16a34a', status: 'Success' },
           failed: { title: 'Failed activities by role', count: b => b.failed, color: '#dc2626', status: 'Failed' },
           people: { title: 'Active people by role', count: b => b.people, color: '#7c3aed', people: true },
@@ -1016,8 +1123,7 @@
         function renderBreakdown() {
           if (openCard === null || !lastSummary || !Array.isArray(lastSummary.breakdown)) return;
           const info = CARDS[openCard];
-          // People are counted by account, so "No account" has no row on the people card.
-          const groups = lastSummary.breakdown.filter(b => !(info.people && b.role === 'none'));
+          const groups = lastSummary.breakdown.filter(b => info.noAccount || b.role !== 'none');
           const sum = groups.reduce((n, b) => n + info.count(b), 0);
           // The rows are rebuilt after every load; keep keyboard focus on the role that had it.
           const focusedRole = breakdownRows.contains(document.activeElement) ? document.activeElement.dataset.role : null;
@@ -1025,12 +1131,19 @@
           breakdownRows.replaceChildren(...groups.map(b => {
             const n = info.count(b);
             const pct = sum > 0 ? Math.round((n / sum) * 100) : 0;
-            const row = el('button', 'breakdown-row');
+            const picked = b.role === state.role;
+            const row = el('button', picked ? 'breakdown-row is-picked' : 'breakdown-row');
             row.type = 'button';
             row.dataset.role = b.role;
-            row.disabled = n === 0;
-            row.setAttribute('aria-label', b.label + ': ' + n.toLocaleString() + ', ' + pct + ' percent. Show only these rows.');
-            row.appendChild(el('span', '', b.label));
+            // A role with nothing to show cannot be picked; the picked one can always be clicked again.
+            row.disabled = n === 0 && !picked;
+            // The name stays the same: aria-pressed says if it is picked, the note says what a click does.
+            row.setAttribute('aria-pressed', picked ? 'true' : 'false');
+            row.setAttribute('aria-label', b.label + ': ' + n.toLocaleString() + ', ' + pct + ' percent');
+            row.setAttribute('aria-describedby', 'breakdownNote');
+            const name = el('span', 'breakdown-name', b.label);
+            if (picked) name.appendChild(el('span', 'breakdown-tag', 'Showing'));
+            row.appendChild(name);
             const bar = el('span', 'breakdown-bar');
             const fill = el('span');
             fill.style.width = pct + '%';
@@ -1044,15 +1157,19 @@
           const notes = [];
           if (openCard === 'failed') {
             const blocked = groups.reduce((n, b) => n + b.blocked, 0);
-            if (blocked > 0) notes.push('Includes ' + blocked.toLocaleString() + ' blocked (stopped by a security rule, like an account lock).');
+            if (blocked > 0) notes.push('Includes ' + blocked.toLocaleString() + ' blocked.');
           }
-          if (info.people) notes.push(lastSummary.filtered ? 'People in these results.' : 'People active in the last 7 days.');
-          notes.push('Click a role to show only its activities.');
+          if (info.people) notes.push(lastSummary.activeLastWeek ? 'People active in the last 7 days.' : 'People in these results.');
+          if (state.role === '') notes.push('Click a role to show only its activities.');
+          else if (groups.some(b => b.role === state.role)) notes.push('Showing ' + ROLE_LABELS[state.role] + ' only. Click it again to show all roles.');
+          // "No account" can be picked on the Total card, but the other cards have no row for it.
+          else notes.push('Showing ' + ROLE_LABELS[state.role] + ' only (not listed on this card). Click the × on the Role chip to show all.');
           breakdownNote.textContent = notes.join(' ');
           if (focusedRole) {
             const again = breakdownRows.querySelector('[data-role="' + focusedRole + '"]');
             if (again && !again.disabled) again.focus();
-            else document.getElementById('roleChipClear').focus();
+            else if (state.role !== '') roleChipClear.focus();
+            else document.querySelector('.summary-card[data-card="' + openCard + '"]').focus();
           }
         }
 
@@ -1078,28 +1195,56 @@
         });
         document.getElementById('breakdownClose').addEventListener('click', () => closeBreakdown(true));
 
+        // The Status a bar click on the Successful or Failed card set, and the Status before it, so
+        // removing the role can put Status back: { set: 'Success', before: 'All' }. null when no bar
+        // click changed Status, or once Status was changed by hand (then it is the user's own choice).
+        let pickedStatus = null;
+
         function showRoleChip() {
           roleChip.classList.toggle('hidden', state.role === '');
-          roleChipLabel.textContent = ROLE_LABELS[state.role] || '';
+          const role = el('strong', '', ROLE_LABELS[state.role] || '');
+          if (pickedStatus) {
+            roleChipLabel.replaceChildren(role, ' · ' + (pickedStatus.set === 'Success' ? 'Successful' : 'Failed'));
+            roleChipClear.setAttribute('aria-label', 'Remove the role filter and the status it set');
+          } else {
+            roleChipLabel.replaceChildren('Role: ', role);
+            roleChipClear.setAttribute('aria-label', 'Remove the role filter');
+          }
+        }
+        // Undoes the bar click: removes the role, and puts Status back if the click changed it.
+        function clearRole() {
+          state.role = '';
+          if (pickedStatus) {
+            state.status = pickedStatus.before;
+            filterStatus.value = pickedStatus.before;
+            pickedStatus = null;
+          }
         }
         // A role row filters the table to that role; on the Successful and Failed cards it also sets
-        // the Status filter, so the table shows exactly the rows that were counted.
+        // the Status filter, so the table shows exactly the rows that were counted. Clicking the
+        // picked role again undoes it.
         breakdownRows.addEventListener('click', e => {
           const row = e.target.closest('.breakdown-row');
           if (!row || row.disabled) return;
-          const status = CARDS[openCard] ? CARDS[openCard].status : undefined;
-          state.role = row.dataset.role;
-          if (status) {
-            state.status = status;
-            filterStatus.value = status;
+          if (row.dataset.role === state.role) {
+            clearRole();
+          } else {
+            const status = CARDS[openCard] ? CARDS[openCard].status : undefined;
+            state.role = row.dataset.role;
+            if (status && state.status !== status) {
+              // Keep the Status from before the first bar click that changed it.
+              pickedStatus = { set: status, before: pickedStatus ? pickedStatus.before : state.status };
+              state.status = status;
+              filterStatus.value = status;
+            }
           }
           state.page = 1;
           showRoleChip();
           updateClearBtn();
           load();
         });
-        document.getElementById('roleChipClear').addEventListener('click', () => {
-          state.role = '';
+        roleChipClear.addEventListener('click', () => {
+          clearRole();
           state.page = 1;
           showRoleChip();
           updateClearBtn();
@@ -1213,7 +1358,29 @@
 
           // Nothing saved and nothing hidden: no empty Details box, only the bottom line.
           const parts = [];
-          if (d.detail || d.detailNote) {
+          const changes = Array.isArray(d.changes) ? d.changes : [];
+          if (changes.length) {
+            // An edit: what it was (d.detail), then each changed field, old value red and crossed out,
+            // new value green. Screen readers hear "Before:" and "After:".
+            const what = el('section');
+            what.appendChild(el('h3', 'detail-heading', 'What changed'));
+            if (d.detail) what.appendChild(el('p', 'change-summary', d.detail));
+            changes.forEach(c => {
+              const item = el('div', 'change');
+              item.appendChild(el('div', 'change-field', c.field));
+              [['change-old', 'Before: ', '-', 'del', c.before], ['change-new', 'After: ', '+', 'ins', c.after]].forEach(([cls, spoken, sign, tag, value]) => {
+                const line = el('div', cls);
+                line.appendChild(el('span', 'visually-hidden', spoken));
+                const mark = el('span', 'change-sign', sign);
+                mark.setAttribute('aria-hidden', 'true');
+                line.appendChild(mark);
+                line.appendChild(el(tag, '', value));
+                item.appendChild(line);
+              });
+              what.appendChild(item);
+            });
+            parts.push(what);
+          } else if (d.detail || d.detailNote) {
             const main = el('section');
             main.appendChild(el('h3', 'detail-heading', 'Details'));
             main.appendChild(d.detail ? el('p', 'detail-text', d.detail) : el('p', 'detail-text is-note', d.detailNote));
@@ -1263,6 +1430,8 @@
         });
         filterStatus.addEventListener('change', () => {
           state.status = filterStatus.value;
+          pickedStatus = null;
+          showRoleChip();
           state.page = 1;
           load();
         });
@@ -1360,6 +1529,7 @@
           state.from = '';
           state.to = '';
           state.role = '';
+          pickedStatus = null;
           state.page = 1;
           showRoleChip();
           setDateError(false);
@@ -1437,7 +1607,37 @@
           }
         });
 
-        load();
+        // "Check log" (administrators): the server checks every entry's seal and link and records the
+        // check, then the table reloads so that entry shows. kind: ok | bad (problem found) | note.
+        const checkLogResult = document.getElementById('checkLogResult');
+        function showCheckResult(text, kind) {
+          checkLogResult.textContent = text;
+          checkLogResult.className = 'check-result is-' + kind;
+        }
+        checkLogBtn.addEventListener('click', async () => {
+          checkLogBtn.disabled = true;
+          checkLogBtn.textContent = 'Checking…';
+          try {
+            const res = await fetch('api/audit-log-verify.php', { method: 'POST' });
+            if (res.status === 401) { window.location.replace('staff-login'); return; }
+            const data = await res.json().catch(() => ({}));
+            if (data.success) {
+              showCheckResult(data.message, data.intact ? 'ok' : 'bad');
+              load();
+            } else {
+              showCheckResult(data.error || 'The check could not finish. Please try again.', 'note');
+            }
+          } catch (e) {
+            showCheckResult('Unable to reach the server. Please try again.', 'note');
+          } finally {
+            checkLogBtn.disabled = false;
+            checkLogBtn.textContent = 'Check log';
+          }
+        });
+
+        // Runs today's cleanup of old entries first (only when it is turned on, at most once a day), so the
+        // table never shows entries that are about to go. The table loads even if that call fails.
+        fetch('api/audit-log-cleanup.php', { method: 'POST' }).catch(() => {}).finally(() => load());
       })();
     })();
   </script>
