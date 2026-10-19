@@ -137,6 +137,7 @@
             </div>
 
             <p id="rbacMessage" class="hidden px-5 pt-3 text-xs" aria-live="polite"></p>
+            <p id="rbacViewOnlyNote" class="hidden px-5 pt-3 text-xs text-slate-500">View only: only the administrator can change permissions.</p>
             <div class="overflow-x-auto">
               <table class="w-full text-left border-collapse min-w-[700px]">
                 <thead class="bg-slate-50/50 border-b border-slate-200">
@@ -562,6 +563,8 @@
       // A Guidance Facilitator does not see the permission table at all.
       document.getElementById('rbacCard').classList.toggle('hidden', state.rbacVisible === false);
       if (state.rbacVisible === false) return;
+      // Only the administrator gets editable cells from the server (Rbac::editableLevels); everyone else just looks.
+      document.getElementById('rbacViewOnlyNote').classList.toggle('hidden', MODULES.some(m => RBAC_COLUMNS.some(r => isEditable(m.id, r))));
       const tbody = document.getElementById('rbacTableBody');
       tbody.innerHTML = MODULES.map(m => {
         const cells = RBAC_COLUMNS.map(r => {

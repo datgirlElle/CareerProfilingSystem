@@ -20,7 +20,7 @@ class Rbac
      * Where a Guidance Facilitator starts when the database has no 'facilitator' rows yet (an older database, before the
      * column existed): the Guidance Counselor's level, but no higher than this. Once the rows exist the matrix decides.
      */
-    public const FACILITATOR_DEFAULT_LIMITS = ['sections' => 'limited', 'counselingNotes' => 'none', 'staffAccounts' => 'none'];
+    public const FACILITATOR_DEFAULT_LIMITS = ['sections' => 'limited', 'staffAccounts' => 'none'];
 
     /** The starting level of a Guidance Facilitator for $module, given the Guidance Counselor's level. */
     public static function facilitatorDefault(string $module, string $counselorLevel): string
@@ -50,14 +50,12 @@ class Rbac
 
     /**
      * The levels $actorKey may set for a cell of the matrix (module x role), or [] when the cell is fixed for them.
+     *  - Only the administrator (Head of Guidance) changes permissions: the Guidance Counselor and Guidance Facilitator
+     *    columns, to any level. Everyone else with access to the page only looks at the table.
      *  - The administrator column and the Student column are never editable (nobody can lock the Head of Guidance out, and a
      *    Student can never be given an administrative module).
-     *  - The Head of Guidance can set the Guidance Counselor and Guidance Facilitator columns to any level.
-     *  - A Guidance Counselor can set only the Facilitator column, never above the level they hold themselves, and never the
-     *    account modules or their own column.
-     *  - A Guidance Facilitator and a Student change nothing.
      *
-     * @param array<string,array<string,string>> $matrix module => role => level
+     * @param array<string,array<string,string>> $matrix module => role => level (kept for callers; not needed any more)
      * @return array<int,string>
      */
     public static function editableLevels(string $actorKey, string $module, string $targetRole, array $matrix): array
@@ -65,15 +63,7 @@ class Rbac
         if (!in_array($module, self::MODULES, true) || !in_array($targetRole, ['counselor', 'facilitator'], true)) {
             return [];
         }
-        if ($actorKey === 'admin') {
-            return self::LEVELS;
-        }
-        if ($actorKey !== 'counselor' || $targetRole !== 'facilitator' || in_array($module, self::SENSITIVE_MODULES, true)) {
-            return [];
-        }
-        $rank = ['none' => 0, 'limited' => 1, 'full' => 2];
-        $own = $matrix[$module]['counselor'] ?? 'none';
-        return array_values(array_filter(self::LEVELS, fn($l) => $rank[$l] <= ($rank[$own] ?? 0)));
+        return $actorKey === 'admin' ? self::LEVELS : [];
     }
 
     /** The matrix column for a signed-in user: 'admin', 'counselor', 'facilitator' or 'student'. */

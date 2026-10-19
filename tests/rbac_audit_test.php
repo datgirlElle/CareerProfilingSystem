@@ -55,21 +55,22 @@ check('a student is still not cut off from other modules (Recommendations stays 
 echo "\n=== Guidance Facilitators have a column of their own ===\n";
 $facilitator = [
     'career' => 'limited', 'rac' => 'full', 'recommendations' => 'full', 'counselor' => 'full', 'monitoring' => 'full',
-    'announcements' => 'limited', 'examinations' => 'full', 'counselingNotes' => 'none', 'sections' => 'limited', 'staffAccounts' => 'none',
+    // counselingNotes is left out: the administrator sets it in the table (Full by default for a new database).
+    'announcements' => 'limited', 'examinations' => 'full', 'sections' => 'limited', 'staffAccounts' => 'none',
 ];
 foreach ($facilitator as $module => $level) {
     check("$module/facilitator == $level", Rbac::accessLevel($module, 'facilitator') === $level);
 }
 check('the matrix has four columns', Rbac::ROLES === ['admin', 'counselor', 'facilitator', 'student']);
-check('facilitator defaults follow the counselor, capped on sections, notes and staff accounts',
+check('facilitator defaults follow the counselor, capped on sections and staff accounts (counseling notes: same as the counselor)',
     Rbac::facilitatorDefault('sections', 'full') === 'limited' && Rbac::facilitatorDefault('sections', 'none') === 'none'
-    && Rbac::facilitatorDefault('counselingNotes', 'full') === 'none' && Rbac::facilitatorDefault('staffAccounts', 'limited') === 'none'
+    && Rbac::facilitatorDefault('counselingNotes', 'full') === 'full' && Rbac::facilitatorDefault('staffAccounts', 'limited') === 'none'
     && Rbac::facilitatorDefault('announcements', 'full') === 'full' && Rbac::facilitatorDefault('career', 'limited') === 'limited');
 $pdoFac = Database::get();
 $pdoFac->beginTransaction();
 $pdoFac->exec("DELETE FROM security_rbac WHERE role = 'facilitator'");
 check('with no facilitator rows (an older database) the level is derived from the counselor: sections View Only', Rbac::accessLevel('sections', 'facilitator') === 'limited');
-check('...and counseling notes No Access', Rbac::accessLevel('counselingNotes', 'facilitator') === 'none');
+check('...and counseling notes as the counselor has them', Rbac::accessLevel('counselingNotes', 'facilitator') === Rbac::accessLevel('counselingNotes', 'counselor'));
 check('...and announcements as the counselor has them', Rbac::accessLevel('announcements', 'facilitator') === Rbac::accessLevel('announcements', 'counselor'));
 $pdoFac->rollBack();
 check('the Facilitator column can be changed independently of the counselor', (function () use ($pdoFac) {
@@ -104,8 +105,7 @@ check('the administrator can set the counselor and facilitator columns to any le
     Rbac::editableLevels('admin', 'career', 'counselor', $matrix) === ['full', 'limited', 'none'] && Rbac::editableLevels('admin', 'sections', 'facilitator', $matrix) === ['full', 'limited', 'none']);
 check('nobody can change the administrator column', Rbac::editableLevels('admin', 'career', 'admin', $matrix) === [] && Rbac::editableLevels('counselor', 'career', 'admin', $matrix) === []);
 check('nobody can change the student column', Rbac::editableLevels('admin', 'career', 'student', $matrix) === [] && Rbac::editableLevels('counselor', 'staffAccounts', 'student', $matrix) === []);
-check('a counselor can set the facilitator column', Rbac::editableLevels('counselor', 'announcements', 'facilitator', $matrix) === ['full', 'limited', 'none']);
-check('a counselor cannot go above the level they hold (career: they have View Only)', Rbac::editableLevels('counselor', 'career', 'facilitator', $matrix) === ['limited', 'none']);
+check('only the administrator changes permissions: a counselor cannot set the facilitator column', Rbac::editableLevels('counselor', 'announcements', 'facilitator', $matrix) === [] && Rbac::editableLevels('counselor', 'career', 'facilitator', $matrix) === []);
 check('a counselor cannot change their own column', Rbac::editableLevels('counselor', 'announcements', 'counselor', $matrix) === []);
 check('a counselor cannot change the account modules for anyone', Rbac::editableLevels('counselor', 'staffAccounts', 'facilitator', $matrix) === [] && Rbac::editableLevels('counselor', 'counselor', 'facilitator', $matrix) === []);
 check('a facilitator and a student change nothing', Rbac::editableLevels('facilitator', 'career', 'facilitator', $matrix) === [] && Rbac::editableLevels('student', 'career', 'counselor', $matrix) === []);

@@ -174,15 +174,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $body = readJsonBody();
     $type = $body['type'] ?? '';
 
-    // The Guidance Office hours and the counseling booking link are the Guidance Counselors' to keep up to date (the Counseling
-    // Notes permission: the Head of Guidance and Guidance Counselors, not Facilitators). Everything else here is the administrator's.
+    // The Guidance Office hours and the counseling booking link are kept up to date by whoever holds Full on Counseling Notes
+    // (set in the permission table). Everything else here, the permission table included, is the administrator's.
     if (in_array($type, ['officeHours', 'bookingLink'], true)) {
         $user = Rbac::requireAccess('counselingNotes', 'full');
     } elseif ($type === 'rbac') {
-        // The permission table is changed by the Head of Guidance and by Guidance Counselors (what each may change is set by
-        // Rbac::editableLevels); a Facilitator or anyone else is refused.
-        if ($user['role'] !== 'admin' && !($user['role'] === 'counselor' && !Rbac::isFacilitator($user))) {
-            jsonResponse(['success' => false, 'error' => 'Only the Head of Guidance and Guidance Counselors can change permissions.'], 403);
+        // Only the Head of Guidance (administrator) changes permissions; Rbac::editableLevels says the same for each cell.
+        if ($user['role'] !== 'admin') {
+            jsonResponse(['success' => false, 'error' => 'Only the administrator can change permissions.'], 403);
         }
     } elseif ($user['role'] !== 'admin') {
         jsonResponse(['success' => false, 'error' => 'Only administrators can change security configuration.'], 403);
@@ -215,8 +214,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($level === $from) {
                 continue; // nothing to change
             }
-            // The server decides, not the page: an administrator or Student cell, an account module for a counselor, or a level
-            // above what a counselor holds is refused, and nothing in the request is saved.
+            // The server decides, not the page: anything other than the administrator changing the Guidance Counselor or Guidance
+            // Facilitator column is refused, and nothing in the request is saved.
             if (!in_array($level, Rbac::editableLevels($actorKey, $module, $role, $current), true)) {
                 jsonResponse(['success' => false, 'error' => 'You cannot set ' . $roleLabels[$role] . ' to ' . $levelLabels[$level] . ' for ' . $moduleLabels[$module] . '.'], 403);
             }
