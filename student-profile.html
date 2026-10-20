@@ -498,7 +498,9 @@
     document.getElementById('recAlternatives').textContent = list(r.alternatives.map(withCosine));
     const pred = r.prediction || { status: 'unavailable' };
     document.getElementById('recPrediction').textContent = pred.course
-      ? pred.course.title + (pred.course.inBestRiasecMatch ? ' (also a Best RIASEC Match)' : ' (not a Best RIASEC Match)')
+      ? pred.course.title + (pred.course.inBestRiasecMatch ? ' (also a Best RIASEC Match)'
+          : pred.course.inAlternatives ? ' (one of the Alternative Courses)'
+          : " (outside the student's RIASEC matches)")
       : pred.status === 'no_prediction' ? 'No prediction for this RIASEC profile'
       : 'Not available (no model, or computed before the model was added; recompute to update)';
     if (pred.modelVersion) document.getElementById('recModelVersion').textContent = pred.modelVersion + ', shown above (separate; never changes the CBF result)';

@@ -155,7 +155,8 @@ if (!$showPrediction) {
     $predicted = $predictionIds ? ($programs[$predictionIds[0]] ?? null) : null;
     $response['prediction'] = [
         'status' => $response['sources']['prediction'],
-        'course' => $predicted ? $predicted + ['inBestRiasecMatch' => in_array($predicted['id'], $bestIds, true)] : null,
+        'course' => $predicted ? $predicted + ['inBestRiasecMatch' => in_array($predicted['id'], $bestIds, true),
+            'inAlternatives' => in_array($predicted['id'], $alternativeIds, true)] : null,
         'modelVersion' => $row['model_version'],
     ];
 }
