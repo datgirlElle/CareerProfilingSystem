@@ -75,5 +75,42 @@ class HybridShare(unittest.TestCase):
         self.assertAlmostEqual(sum(me.share(scores(**{C[0]: 0.9, C[1]: 0.3})).values()), 1.0)
 
 
+class Filtered(unittest.TestCase):
+    def test_candidates_come_first_ordered_by_probability(self):
+        cos = scores(**{C[0]: 0.9, C[1]: 0.9, C[2]: 0.7, C[3]: 0.5})
+        prob = scores(**{C[1]: 0.6, C[3]: 0.4})          # classifier prefers C1, and C3 (not a candidate)
+        out = me.filtered(cos, prob, "best")
+        ranked = sorted(out, key=lambda c: -out[c])
+        self.assertEqual(ranked[:2], [C[1], C[0]])        # both Best Match courses first, C1 above C0
+        self.assertEqual(ranked[2], C[2])                 # then cosine order; C3's probability is ignored
+        self.assertLess(out[C[3]], out[C[0]])
+
+    def test_best_plus_alternatives(self):
+        cos = scores(**{C[0]: 0.9, C[2]: 0.7})
+        prob = scores(**{C[2]: 0.8})
+        out = me.filtered(cos, prob, "best+alt")
+        self.assertGreater(out[C[2]], out[C[0]])           # an Alternative can lead when the classifier prefers it
+
+    def test_cbf_levels(self):
+        best, alt = me.cbf_levels(scores(**{C[0]: 0.9, C[1]: 0.9, C[2]: 0.7}))
+        self.assertEqual((best, alt), ({C[0], C[1]}, {C[2]}))
+
+
+class TreeWalker(unittest.TestCase):
+    def test_python_walker_matches_php_rules(self):
+        import cbf_eval as ce
+        tree = {"attribute": "R", "branches": [
+            {"op": "=", "value": "x", "node": {"class": "BS Civil Engineering"}},
+            {"op": "=", "value": "blank", "node": {"class": "BS Nursing"}}]}
+        ric = {"R": "40", "I": "50", "A": "10", "S": "10", "E": "20", "C": "40"}
+        isa = {"R": "10", "I": "50", "A": "30", "S": "40", "E": "20", "C": "15"}
+        self.assertEqual(ce.predict_tree({"tree": tree}, ric), "BS Civil Engineering")
+        self.assertEqual(ce.predict_tree({"tree": tree}, isa), "BS Nursing")
+        rank_tree = {"attribute": "S", "branches": [
+            {"op": "<=", "value": "2", "node": {"class": "BS Psychology"}},
+            {"op": ">", "value": "2", "node": {"class": "BS Civil Engineering"}}]}
+        self.assertEqual(ce.predict_tree({"tree": rank_tree, "features": "rank"}, isa), "BS Psychology")
+
+
 if __name__ == "__main__":
     unittest.main()

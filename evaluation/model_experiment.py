@@ -244,6 +244,24 @@ def cbf_scores(row, student_scale, course_enc):
     return {c: ce.cosine(svec, cvecs[c]) for c in COURSES}
 
 
+def cbf_levels(cos):
+    """CBF candidate sets from cosine scores: (Best RIASEC Match, Alternatives), as the web app."""
+    levels = sorted({round(v, 9) for v in cos.values()}, reverse=True)
+    best = {c for c, v in cos.items() if round(v, 9) == levels[0]}
+    alt = {c for c, v in cos.items() if len(levels) > 1 and round(v, 9) == levels[1]}
+    return best, alt
+
+
+def filtered(cos, prob, mode):
+    """'CBF selects, classifier ranks': courses in the CBF candidate set come first, ordered by
+    the classifier's probability (equal probabilities fall back to cosine); every other course
+    follows in cosine order. mode = 'best' (Best RIASEC Match) or 'best+alt' (plus Alternatives).
+    Every course shown first is therefore RIASEC-aligned by construction."""
+    best, alt = cbf_levels(cos)
+    cand = best | alt if mode == "best+alt" else best
+    return {c: (2.0 + prob[c] + 1e-6 * cos[c]) if c in cand else cos[c] for c in COURSES}
+
+
 def share(scores):
     total = sum(scores.values())
     return {c: (v / total if total > 0 else 1 / len(COURSES)) for c, v in scores.items()}
@@ -342,6 +360,17 @@ def main():
             res[w] = evaluate(mixed, y_train, k)["MRR"]
         hybrid_w = max(grid, key=lambda w: (round(res[w], 9), w))  # a tie keeps the larger CBF share (simpler)
 
+    # "CBF selects, classifier ranks": the candidate-set mode is chosen on out-of-fold predictions,
+    # for the selected classifier and for the best J48 (the only model the web app imports today).
+    cos_tr = [cbf_scores(r, *current_cbf) for r in train]
+    j48_cis = [ci for (alg_, enc_), ci in best_per.items() if alg_ == "J48" and enc_ in DEPLOYABLE]
+    best_j48 = max(j48_cis, key=lambda ci: cv[ci]["MRR"]) if j48_cis else None
+    filt = {}
+    for ci in {x for x in (best_clf, best_j48) if x is not None}:
+        cvs = {mode: evaluate([filtered(c, p, mode) for c, p in zip(cos_tr, oof[ci])], y_train, k)["MRR"] for mode in ("best", "best+alt")}
+        mode = max(cvs, key=lambda m: (round(cvs[m], 9), m == "best"))
+        filt[ci] = (mode, cvs[mode])
+
     # 2. Final: train each selected configuration once on all of train, evaluate once on test.
     finals = {}
     with cf.ThreadPoolExecutor(a.workers) as ex:
@@ -364,6 +393,12 @@ def main():
         mixed = [{c: hybrid_w * q[c] + (1 - hybrid_w) * p[c] for c in COURSES} for q, p in zip(cbf_te, finals[best_clf])]
         alg, _, opts, enc = configs[best_clf]
         rows.append(("Hybrid", f"w={hybrid_w:.1f} x CBF(web app) + {1 - hybrid_w:.1f} x {alg} [{enc}]", " ".join(opts), {"MRR": res[hybrid_w]}, evaluate(mixed, y_test, k)))
+
+    cos_te = [cbf_scores(r, *current_cbf) for r in test]
+    for ci, (mode, cvm) in filt.items():
+        alg, _, opts, enc = configs[ci]
+        rows.append(("Filtered", f"CBF {mode} -> ranked by {alg} [{enc}]", " ".join(opts), {"MRR": cvm},
+                     evaluate([filtered(c, p, mode) for c, p in zip(cos_te, finals[ci])], y_test, k)))
 
     # Baselines on test.
     maj = Counter(y_train).most_common(1)[0][0]
@@ -398,6 +433,8 @@ def main():
                    f"{clf_t['MRR'] - base['MRR']:+.3f}, 95% CI [{lo:+.3f}, {hi:+.3f}] (paired bootstrap over students).")
         out.append("\nHybrid, cross-validated MRR on train by CBF weight w (w = 0 is the classifier alone, w = 1 the CBF alone): "
                    + ", ".join(f"{w:.1f}: {v:.3f}" for w, v in sorted(res.items())))
+        out.append("\n'CBF X -> ranked by Y' rows: only courses in the CBF Best RIASEC Match (or Best Match + "
+                   "Alternatives) can come first, ordered by the classifier's probability; X was chosen on train.")
         j48 = [ci for (alg_, enc_), ci in best_per.items() if alg_ == "J48" and enc_ in DEPLOYABLE]
         if j48:
             bj = max(j48, key=lambda ci: cv[ci]["MRR"])

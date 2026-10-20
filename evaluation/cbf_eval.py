@@ -13,6 +13,9 @@ encodings, and prepares identical train/test splits for WEKA.
     python3 cbf_eval.py weights --students train.csv --k 3        -> encoding comparison
     python3 cbf_eval.py compare --train train.csv --students test.csv --weka j48_predictions.txt
                                                                   -> CBF vs J48 on the same test students
+    python3 cbf_eval.py agreement --students riasec.csv --model ../config/prediction_model.json
+                                                                  -> how often the imported WEKA model's course
+                                                                     is also a CBF Best RIASEC Match, per student
 
 Rows whose course is "Undecided" (or another --drop value) are removed when the file is read:
 they are not a course, so neither method can recommend them. The .arff files give WEKA the
@@ -541,6 +544,104 @@ def cmd_compare(a):
     print(f"\nPer-student results: {a.out}")
 
 
+# ---------------------------------------------------------------- WEKA model vs CBF agreement
+
+_TRUE = {"x", "yes", "y", "1", "true", "t"}
+_FALSE = {"no", "n", "0", "false", "f", "", "?", "blank", "none"}
+
+
+def _rank_features(vals):
+    order = sorted(range(6), key=lambda i: -vals[i])
+    out, i = [0.0] * 6, 0
+    while i < 6:
+        j = i
+        while j + 1 < 6 and abs(vals[order[j + 1]] - vals[order[i]]) < 1e-9:
+            j += 1
+        for k in range(i, j + 1):
+            out[order[k]] = (i + j) / 2 + 1
+        i = j + 1
+    return out
+
+
+def predict_tree(model, row):
+    """Walk an imported J48 model (config/prediction_model.json) for one student, exactly as
+    lib/PredictionModel.php does. Returns the class label, or None when no branch matches."""
+    features = model.get("features", "top3")
+    if features == "rank":
+        vals = dict(zip(DIMENSIONS, _rank_features([float(row[d]) for d in DIMENSIONS])))
+    else:
+        vals = dict(zip(DIMENSIONS, student_vector(row, "top3")))  # 1 = in the top 3
+    node = model["tree"]
+    while "class" not in node:
+        d = str(node.get("attribute", "")).strip(" '\"").upper()[:1]
+        if d not in DIMENSIONS:
+            return None
+        x = vals[d]
+        nxt = None
+        for b in node.get("branches", []):
+            op, v = b["op"], str(b["value"]).strip().lower()
+            if op in ("=", "!=") and features != "rank":
+                eq = (x == 1.0) if v in _TRUE else (x == 0.0) if v in _FALSE else None
+                if eq is None:
+                    continue
+                ok = eq if op == "=" else not eq
+            else:
+                t = float(v)
+                ok = {"<=": x <= t, "<": x < t, ">": x > t, ">=": x >= t, "=": abs(x - t) < 1e-9, "!=": abs(x - t) >= 1e-9}[op]
+            if ok:
+                nxt = b["node"]
+                break
+        if nxt is None:
+            return None
+        node = nxt
+    return str(node["class"])
+
+
+def cmd_agreement(a):
+    """Per-student agreement between the imported WEKA model and the CBF Best RIASEC Match,
+    next to how often the students' OWN course (the class) agrees with the CBF. The second
+    number is the ceiling a model trained on that class can be expected to approach."""
+    import json
+    rows = read_students(a.students)
+    with open(a.model, encoding="utf-8") as f:
+        model = json.load(f)
+    scale = "scores" if not any(is_marked_row(r) for r in rows) else "top3"
+    cvecs = course_vectors(ENCODINGS[DEFAULT_ENCODING])
+    code = {n: f for _, n, _, f in COURSES}
+    per_combo = {}
+    pred_in, own_in, pred_in_alt, no_pred = 0, 0, 0, 0
+    for r in rows:
+        scores = {c: cosine(student_vector(r, scale), v) for c, v in cvecs.items()}
+        levels = sorted({round(v, 9) for v in scores.values()}, reverse=True)
+        best = {c for c, v in scores.items() if round(v, 9) == levels[0]}
+        alt = {c for c, v in scores.items() if len(levels) > 1 and round(v, 9) == levels[1]}
+        label = predict_tree(model, r)
+        pred = COURSE_LOOKUP.get(_key(label)) if label else None
+        combo = "".join(d for d, v in zip(DIMENSIONS, student_vector(r, "top3")) if v)
+        c = per_combo.setdefault(combo, {"n": 0, "pred": pred, "in": 0, "own": 0})
+        c["n"] += 1
+        if pred is None:
+            no_pred += 1
+        else:
+            pred_in += pred in best
+            pred_in_alt += pred in best | alt
+            c["in"] += pred in best
+        own_in += r["ActualCourse"] in best
+        c["own"] += r["ActualCourse"] in best
+    n = len(rows)
+    print(f"\nStudents: {n}  (CBF student vector: {'actual scores, as the web app' if scale == 'scores' else 'top-3 x/blank'};"
+          f" model: {model.get('version', '?')}, features {model.get('features', 'top3')})\n")
+    print(f"{'Top 3':6} {'Students':>8}  {'WEKA predicts':32} {'code':5} {'WEKA in Best Match':>18} {'Own course in Best Match':>25}")
+    for combo, c in sorted(per_combo.items(), key=lambda kv: -kv[1]["n"]):
+        print(f"{combo:6} {c['n']:8}  {str(c['pred']):32} {code.get(c['pred'], '-'):5} {c['in']:>11}/{c['n']:<6} {c['own']:>18}/{c['n']}")
+    print(f"\nWEKA's course is a Best RIASEC Match for        {pred_in}/{n} students ({pred_in / n:.1%})")
+    print(f"WEKA's course is a Best Match or Alternative for {pred_in_alt}/{n} students ({pred_in_alt / n:.1%})")
+    print(f"Students' OWN course is a Best RIASEC Match for  {own_in}/{n} students ({own_in / n:.1%})  <- ceiling for a model trained on this class")
+    if no_pred:
+        print(f"No prediction (no tree branch): {no_pred} students")
+    print(f"Distinct top-3 patterns in the data: {len(per_combo)} of 20; the earlier '7 of 20' counted each pattern once, regardless of how many students have it.")
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -560,6 +661,9 @@ def main():
         if name == "cbf":
             s.add_argument("--encoding", choices=list(ENCODINGS), default=DEFAULT_ENCODING)
             s.add_argument("--out", default="cbf_results.csv")
+    g = sub.add_parser("agreement")
+    g.add_argument("--students", required=True, help="student CSV with the course column (all students)")
+    g.add_argument("--model", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "prediction_model.json"))
     c = sub.add_parser("compare")
     c.add_argument("--train", required=True, help="train.csv from `split` (for the most-frequent baseline)")
     c.add_argument("--students", required=True, help="test.csv from `split`")
@@ -567,7 +671,7 @@ def main():
     c.add_argument("--k", type=int, default=3)
     c.add_argument("--out", default="comparison_results.csv")
     a = p.parse_args()
-    {"courses": cmd_courses, "split": cmd_split, "cbf": cmd_cbf, "weights": cmd_weights, "compare": cmd_compare}[a.cmd](a)
+    {"courses": cmd_courses, "split": cmd_split, "cbf": cmd_cbf, "weights": cmd_weights, "compare": cmd_compare, "agreement": cmd_agreement}[a.cmd](a)
 
 
 if __name__ == "__main__":

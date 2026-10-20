@@ -587,3 +587,26 @@ bootstrap 95% CI.
 - A class of *preferred* course measures agreement with stated preference, not suitability.
 - The live CBF is **not** changed by this experiment. Any change (letter-order weights,
   enabling a classifier, a hybrid) needs these measured results and the adviser's approval.
+
+### 14.1 "CBF selects, classifier ranks"
+
+Only courses in the CBF candidate set can come first: the Best RIASEC Match, or the Best
+Match plus the Alternatives (chosen on train). They are ordered by the classifier's
+probability, with ties falling back to cosine, and every other course follows in cosine
+order. Every course ranked first is therefore RIASEC-aligned by construction, and the
+classifier breaks the CBF's ties (e.g. the 11 courses coded I, R, C). It is reported for the
+selected classifier and for the best J48, the only model the web app imports today.
+
+### 14.2 Agreement between the WEKA model and the CBF
+
+```
+python3 cbf_eval.py agreement --students riasec.csv --model ../config/prediction_model.json
+```
+
+For every student, this checks whether the imported model's course is a CBF Best RIASEC
+Match (and a Best Match or Alternative). It compares that with how often the student's
+**own** course (the class label) is a Best Match: a model trained on that label cannot be
+expected to agree with the CBF much more often than the label itself does.
+
+This replaces the earlier informal "7 of 20" count, which looked at each top-3 pattern once
+(regardless of how many students have it) and was not a scoring rule anywhere in the system.
