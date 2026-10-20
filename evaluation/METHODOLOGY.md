@@ -531,3 +531,59 @@ All 32 courses for this student: **5 score 100%** (CEI, CIE, ECI, EIC, IEC), 18 
   - "the weights are validated by Holland's theory"
   - "CBF is better because its accuracy is higher" (when comparing a ranked list with a single prediction)
   - any similarity threshold that was not chosen on validation data
+
+## 14. Model-selection experiment (`model_experiment.py`)
+
+Compares, on the **same** students, the CBF variants, several WEKA classifiers and a
+CBF + classifier hybrid. Every choice is made on the training set; the test set is used once.
+
+```
+python3 cbf_eval.py split --students riasec.csv            # train.csv / test.csv keep the scores
+python3 model_experiment.py --train train.csv --test test.csv --weka-jar "C:\Program Files\Weka-3-8-6\weka.jar"
+```
+
+**Protocol.**
+
+1. Stratified 10-fold cross-validation on `train.csv` (fixed seed). Each configuration
+   (algorithm × hyper-parameters × feature encoding) is trained on 9 folds and scored on the
+   10th, giving out-of-fold class probabilities for every training student.
+2. Selection on those out-of-fold results only: best hyper-parameters per algorithm and
+   encoding, the best deployable classifier, the CBF variant, and the hybrid weight *w*.
+   Selection metric: **MRR**. It uses the whole ranking, so it is less noisy than Top-1 on a
+   small dataset with many courses.
+3. Each selected configuration is trained once on all of `train.csv` and evaluated once on
+   `test.csv`.
+
+**Algorithms and grids** (kept small to limit over-fitting the cross-validation): ZeroR
+(baseline), J48 (C ∈ {0.1, 0.25, 0.5} × M ∈ {2, 5, 10}), RandomForest (200 trees, K ∈ {0, 2}),
+NaiveBayes, Logistic (ridge ∈ {1e-8, 1, 10}), SMO with calibrated probabilities
+(C ∈ {0.1, 1}), IBk (k ∈ {1, 5, 15}).
+
+**Feature encodings.**
+
+| Encoding | Inputs | Usable in the web app? |
+|---|---|---|
+| `top3` | x / blank for the 3 highest types (only 20 possible patterns) | Yes (current format) |
+| `rank` | each type's rank within the student (1 = highest; ties share the average rank) | Yes: `import_weka_tree.php --features rank`. Ranks are scale-free, so a tree trained on 0–10 scores applies to the web app's 10–50 scores |
+| `scores` | raw scores | Reference only, unless the dataset used the web app's instrument and scale |
+
+**Hybrid.** score(course) = *w* · cosine(course) / Σ cosine + (1 − *w*) · P(course), with
+*w* ∈ {0, 0.1, …, 1} chosen on out-of-fold predictions. *w* = 1 is pure CBF and *w* = 0 is
+the pure classifier. A tie keeps the larger CBF share. If *w* ends at 0 or 1, combining did
+not help, and the simpler method is kept.
+
+**Metrics** (tie-aware expected values; one relevant course per student): Top-1, Hit@K
+(= Recall@K), Precision@K = Hit@K / K, F1@K, MRR (= MAP here), NDCG@K, coverage@K (share of
+courses that appear in anyone's top K), and from each method's single top course, macro-F1
+and Cohen's κ. Baselines: random choice and the most frequent course. The MRR difference
+between the selected classifier and the web app's CBF on test is reported with a paired
+bootstrap 95% CI.
+
+**Known limits.**
+
+- 32 programs have only 11 distinct binary course vectors, so the CBF cannot rank programs
+  that share letters.
+- Courses with fewer than 5 students cannot be learned reliably.
+- A class of *preferred* course measures agreement with stated preference, not suitability.
+- The live CBF is **not** changed by this experiment. Any change (letter-order weights,
+  enabling a classifier, a hybrid) needs these measured results and the adviser's approval.

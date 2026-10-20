@@ -27,3 +27,14 @@ build-tools/
 
 __pycache__/
 *.pyc
+
+# Evaluation data and outputs: student data, never commit (see evaluation/METHODOLOGY.md)
+evaluation/*.arff
+evaluation/riasec*.csv
+evaluation/student_profiles.csv
+evaluation/train.csv
+evaluation/test.csv
+evaluation/comparison_results.csv
+evaluation/cbf_results.csv
+evaluation/experiment_report*
+evaluation/j48_*.txt
