@@ -671,7 +671,7 @@
                   <th class="px-6 py-3 text-xs font-semibold text-gray-500">Role</th>
                   <th class="px-6 py-3 text-xs font-semibold text-gray-500">Action</th>
                   <th class="px-6 py-3 text-xs font-semibold text-gray-500">Category</th>
-                  <th class="px-6 py-3 text-xs font-semibold text-gray-500">IP Address</th>
+                  <th id="ipHeader" class="px-6 py-3 text-xs font-semibold text-gray-500">IP Address</th>
                   <th class="px-6 py-3 text-xs font-semibold text-gray-500">Status</th>
                 </tr>
               </thead>
@@ -952,6 +952,13 @@
           renderSummary(data.summary);
           renderRetention(data.retention);
           checkLogBtn.classList.toggle('hidden', !data.canCheckLog);
+          // Only the administrator sees full IP addresses (and can search by them); other staff see the network part.
+          if (data.ipMasked) {
+            const ipHeader = document.getElementById('ipHeader');
+            ipHeader.textContent = 'IP Address (partial)';
+            ipHeader.title = 'Full addresses are shown only to the administrator.';
+            searchInput.placeholder = 'Search name or action (use commas to combine)';
+          }
           renderRows(data.rows, data.summary.filtered);
           paginationSummary.innerHTML = countText(data.total, data.summary.filtered);
           exportNote.textContent = exportText(data.total, data.summary.filtered);

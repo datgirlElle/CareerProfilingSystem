@@ -97,6 +97,10 @@ class AuditLogPdf
         $pdf->rect($left, self::HEADER_TOP, $wide, self::HEADER_H, self::GREY_FILL);
         $x = $left;
         foreach (self::COLUMNS as [$title, $width]) {
+            // Staff other than the administrator get masked addresses (api/audit-log.php maskIp()); say so on paper too.
+            if ($title === 'IP Address' && !empty($meta['ipMasked'])) {
+                $title = 'IP (partial)';
+            }
             $pdf->text($x + 4, self::HEADER_TOP + 12, $title, self::FONT, true, [0.25, 0.27, 0.30]);
             $x += $width;
         }

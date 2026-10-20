@@ -9,6 +9,9 @@ require_once __DIR__ . '/../lib/AuditChange.php';
 require_once __DIR__ . '/../lib/AuditRetention.php';
 
 $user = Rbac::requireAccess('rac', 'full'); // audit visibility lives alongside the other security/system admin tools
+// Full IP addresses are for the administrator (security incidents); other staff see them masked (maskIp()).
+$seeFullIp = $user['role'] === 'admin';
+$showIp = fn(?string $ip): ?string => $seeFullIp ? $ip : maskIp($ip);
 
 $pdo = Database::get();
 
@@ -231,6 +234,36 @@ function maskTyped(string $text): string
 }
 
 /**
+ * IP addresses are personal information (RA 10173). They are kept in full for security, but only the administrator
+ * sees them in full; other staff see the network part only: "112.198.xx.xx", or "2001:db8:xxxx::" for IPv6.
+ */
+function maskIp(?string $ip): ?string
+{
+    if ($ip === null || $ip === '') {
+        return $ip;
+    }
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        $parts = explode('.', $ip);
+        return $parts[0] . '.' . $parts[1] . '.xx.xx';
+    }
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+        // Expanded first, so short forms like "fe80::1" still give their first two groups ("fe80:0:xxxx::").
+        $groups = str_split(bin2hex(inet_pton($ip)), 4);
+        return (ltrim($groups[0], '0') ?: '0') . ':' . (ltrim($groups[1], '0') ?: '0') . ':xxxx::';
+    }
+    return 'xx.xx.xx.xx';
+}
+
+/** The same masking for addresses written inside a detail text (for example "Signed in from 112.198.45.201"). */
+function maskIpsInText(string $text): string
+{
+    $text = preg_replace_callback('/\b(?:\d{1,3}\.){3}\d{1,3}\b/', fn($m) => maskIp($m[0]) ?? $m[0], $text);
+    // Any run of hex digits and colons with 2 or more colons, including short forms ("::1", "2001:db8::").
+    return preg_replace_callback('/(?<![0-9a-f:])(?:[0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}(?![0-9a-f:])/i',
+        fn($m) => filter_var($m[0], FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) ? maskIp($m[0]) : $m[0], $text);
+}
+
+/**
  * Plain words for the details. Older security setting entries saved the raw request as JSON, like
  * {"type":"policy","key":"lockout","maxAttempts":3}; that becomes "Account lockout" plus one line per
  * setting ("Failed attempts before lockout: 3"). Any other text is returned as it is.
@@ -412,7 +445,7 @@ function exportFilterText(array $q, array $categoryLabels): string
     return "Dates: $dates | Status: $status | Category: $category | Role: $role | Search: " . ($search === '' ? 'none' : '"' . $search . '"');
 }
 
-function buildFilters(array $q, array $actionLabels, array $roleLabels, array $categoryLabels): array
+function buildFilters(array $q, array $actionLabels, array $roleLabels, array $categoryLabels, bool $searchIp = false): array
 {
     $where = ['1=1'];
     $params = [];
@@ -451,9 +484,12 @@ function buildFilters(array $q, array $actionLabels, array $roleLabels, array $c
             $or[] = "(COALESCE(u.role, '') <> 'student' AND (u.username ILIKE ? OR u.full_name ILIKE ?))";
             array_push($params, $like, $like);
 
-            // IP address.
-            $or[] = 'al.ip_address::text ILIKE ?';
-            $params[] = $like;
+            // IP address: administrators only. Other staff see masked addresses, and searching by IP would let
+            // them work out the hidden part one digit at a time.
+            if ($searchIp) {
+                $or[] = 'al.ip_address::text ILIKE ?';
+                $params[] = $like;
+            }
 
             // Student names: decrypt in PHP, then filter by user id (ids are integers).
             $ids = [];
@@ -547,7 +583,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['export'])) {
     }
 
     $filters = exportFilterText($_GET, $categoryLabels);
-    [$where, $params] = buildFilters($_GET, $actionLabels, $roleLabels, $categoryLabels);
+    [$where, $params] = buildFilters($_GET, $actionLabels, $roleLabels, $categoryLabels, $seeFullIp);
     $sql = "SELECT al.created_at, u.username, u.full_name, u.staff_position, al.actor_role, al.action, al.target_type, al.ip_address, st.first_name_enc, st.last_name_enc
             FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id LEFT JOIN students st ON st.user_id = al.actor_user_id
             WHERE $where ORDER BY al.created_at DESC LIMIT " . (MAX_EXPORT_ROWS + 1);
@@ -573,7 +609,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['export'])) {
                 roleLabel($row['actor_role'], $roleLabels, $row['staff_position']),
                 actionLabel($row['action'], $actionLabels),
                 categoryLabel($row['target_type'], $categoryLabels),
-                (string) ($row['ip_address'] ?? '-'),
+                (string) ($showIp($row['ip_address']) ?? '-'),
                 statusOf($row['action']),
             ];
         }
@@ -582,6 +618,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['export'])) {
             'exportedAt' => (new DateTime())->format('M j, Y g:i A'),
             'reference' => $reference,
             'filters' => $filters,
+            'ipMasked' => !$seeFullIp,
         ]);
     } catch (Throwable $e) {
         error_log('[audit-export] ' . $e->getMessage());
@@ -630,7 +667,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
     $detail = null;
     $detailNote = null;
     $changes = [];
-    if (in_array($r['action'], HIDDEN_DETAIL_ACTIONS, true) || ($hideStudent && $studentAccountAction)) {
+    // Other roles' permissions are for the administrator only (Security Configuration shows other staff just their
+    // own access), so a permission change shows that it happened, not what changed.
+    $hidePermissions = $r['action'] === 'update_rbac' && $user['role'] !== 'admin';
+    if ($hidePermissions) {
+        $targetLabel = null;
+        $targetText = null;
+        $detailNote = 'Hidden: permission changes are shown only to the administrator.';
+    } elseif (in_array($r['action'], HIDDEN_DETAIL_ACTIONS, true) || ($hideStudent && $studentAccountAction)) {
         $detailNote = "Hidden: sensitive student data. Open the student's record to see it.";
     } elseif ($r['detail_enc'] !== null) {
         try {
@@ -668,6 +712,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
     } catch (Throwable $e) {
         $name = 'Could not be read';
     }
+    // Some details name addresses too ("Possible shared account": signed in from one IP while another was recent).
+    if (!$seeFullIp && $detail !== null) {
+        $detail = maskIpsInText($detail);
+        // An administrator's export saves what was typed in the search, which can be part of an address
+        // ("112.198.45"); other staff see the search with every run of dotted numbers hidden.
+        if (str_starts_with($r['action'], 'export_audit_log')) {
+            $detail = preg_replace_callback('/Search: ".*"/s',
+                fn($m) => preg_replace('/\b\d{1,3}(?:\.\d{1,3})+\.?/', 'xx.xx', $m[0]), $detail);
+        }
+    }
 
     jsonResponse([
         'id' => (int) $r['id'],
@@ -677,7 +731,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
         'action' => actionLabel($r['action'], $actionLabels),
         'category' => categoryLabel($r['target_type'], $categoryLabels),
         'status' => statusOf($r['action']),
-        'ip' => $r['ip_address'],
+        'ip' => $showIp($r['ip_address']),
         'targetLabel' => $targetLabel,
         'target' => $targetText,
         'detail' => $detail,
@@ -691,7 +745,7 @@ $page = max(1, (int) ($_GET['page'] ?? 1));
 $pageSize = min(100, max(1, (int) ($_GET['pageSize'] ?? 10)));
 $sort = ($_GET['sort'] ?? 'desc') === 'asc' ? 'ASC' : 'DESC';
 
-[$where, $params, $whereAllRoles, $paramsAllRoles] = buildFilters($_GET, $actionLabels, $roleLabels, $categoryLabels);
+[$where, $params, $whereAllRoles, $paramsAllRoles] = buildFilters($_GET, $actionLabels, $roleLabels, $categoryLabels, $seeFullIp);
 
 $countSql = "SELECT COUNT(*) FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id WHERE $where";
 $countStmt = $pdo->prepare($countSql);
@@ -709,7 +763,7 @@ $sql = "SELECT al.id, al.created_at, u.username, u.full_name, u.staff_position, 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 
-$rows = array_map(function ($r) use ($actionLabels, $roleLabels) {
+$rows = array_map(function ($r) use ($actionLabels, $roleLabels, $showIp) {
     return [
         'id' => (int) $r['id'],
         'timestamp' => (new DateTime($r['created_at']))->format('M j, Y g:i:s A'),
@@ -717,7 +771,7 @@ $rows = array_map(function ($r) use ($actionLabels, $roleLabels) {
         'role' => roleLabel($r['actor_role'], $roleLabels, $r['staff_position']),
         'action' => actionLabel($r['action'], $actionLabels),
         'module' => $r['target_type'] ?? '-',
-        'ip' => $r['ip_address'],
+        'ip' => $showIp($r['ip_address']),
         'status' => statusOf($r['action']),
     ];
 }, $stmt->fetchAll());
@@ -811,4 +865,5 @@ jsonResponse([
     'retention' => AuditRetention::settings($pdo) + ['canChange' => $user['role'] === 'admin'],
     // "Check log" (api/audit-log-verify.php) is for administrators.
     'canCheckLog' => $user['role'] === 'admin',
+    'ipMasked' => !$seeFullIp,
 ]);
