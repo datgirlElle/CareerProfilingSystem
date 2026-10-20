@@ -333,10 +333,10 @@ def main():
 
     # Hybrid weight w on out-of-fold predictions.
     hybrid_w = None
+    res = {}
     if best_clf is not None:
         cbf_tr = [share(cbf_scores(r, *current_cbf)) for r in train]
         grid = [i / 10 for i in range(11)]
-        res = {}
         for w in grid:
             mixed = [{c: w * q[c] + (1 - w) * p[c] for c in COURSES} for q, p in zip(cbf_tr, oof[best_clf])]
             res[w] = evaluate(mixed, y_train, k)["MRR"]
@@ -363,7 +363,7 @@ def main():
         cbf_te = [share(cbf_scores(r, *current_cbf)) for r in test]
         mixed = [{c: hybrid_w * q[c] + (1 - hybrid_w) * p[c] for c in COURSES} for q, p in zip(cbf_te, finals[best_clf])]
         alg, _, opts, enc = configs[best_clf]
-        rows.append(("Hybrid", f"w={hybrid_w:.1f} x CBF(web app) + {1 - hybrid_w:.1f} x {alg} [{enc}]", " ".join(opts), None, evaluate(mixed, y_test, k)))
+        rows.append(("Hybrid", f"w={hybrid_w:.1f} x CBF(web app) + {1 - hybrid_w:.1f} x {alg} [{enc}]", " ".join(opts), {"MRR": res[hybrid_w]}, evaluate(mixed, y_test, k)))
 
     # Baselines on test.
     maj = Counter(y_train).most_common(1)[0][0]
@@ -396,6 +396,8 @@ def main():
         lo, hi = ce.paired_bootstrap(clf_t["_rr"], base["_rr"])
         out.append(f"\nMRR difference on test, {alg} [{enc}] - CBF (web app): "
                    f"{clf_t['MRR'] - base['MRR']:+.3f}, 95% CI [{lo:+.3f}, {hi:+.3f}] (paired bootstrap over students).")
+        out.append("\nHybrid, cross-validated MRR on train by CBF weight w (w = 0 is the classifier alone, w = 1 the CBF alone): "
+                   + ", ".join(f"{w:.1f}: {v:.3f}" for w, v in sorted(res.items())))
         j48 = [ci for (alg_, enc_), ci in best_per.items() if alg_ == "J48" and enc_ in DEPLOYABLE]
         if j48:
             bj = max(j48, key=lambda ci: cv[ci]["MRR"])
