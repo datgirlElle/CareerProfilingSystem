@@ -143,10 +143,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     $rbacNow = loadRbac($pdo);
-    // The permission table is for the Head of Guidance and Guidance Counselors. A Guidance Facilitator is sent only their own
-    // column (the pages need it to know what they may do), never the other roles' permissions, and cannot change anything.
-    $facilitator = Rbac::isFacilitator($user);
-    $rbacShown = $facilitator ? array_map(fn($levels) => ['facilitator' => $levels['facilitator']], $rbacNow) : $rbacNow;
+    // The full permission table is for the administrator, who is the only one who can change it. Other staff are sent only
+    // their own column ("Your Access" on the page; the other pages need it to know what they may do), never the other
+    // roles' permissions: need to know, as with the full IP addresses in the Audit Log.
+    $isAdmin = $user['role'] === 'admin';
+    $ownRole = Rbac::roleKey($user);
+    $rbacShown = $isAdmin ? $rbacNow : array_map(fn($levels) => [$ownRole => $levels[$ownRole] ?? 'none'], $rbacNow);
     // The Principal's name and email belong to the administrator's Principal report; other staff do not need them.
     $payloadPolicies = loadPolicies($pdo);
     if ($user['role'] !== 'admin') {
@@ -154,9 +156,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
     jsonResponse([
         'rbac' => $rbacShown,
-        'rbacVisible' => !$facilitator,
+        // Non-administrators see "Your Access" (their own column, view only) instead of the whole table.
+        'rbacOwnOnly' => $isAdmin ? null : $ownRole,
         // what this person may change in the table (empty for a fixed cell), and which changes ask for a confirmation
-        'rbacEditable' => $facilitator ? (object) [] : editableMatrix($user, $rbacNow),
+        'rbacEditable' => $isAdmin ? editableMatrix($user, $rbacNow) : (object) [],
         'rbacSensitive' => ['modules' => Rbac::SENSITIVE_MODULES, 'roles' => ['counselor']],
         // Uploading class rosters: administrator or Guidance Counselor with Full access to the roster module.
         'canEditRoster' => Rbac::accessLevel('rac', Rbac::roleKey($user)) === 'full'
