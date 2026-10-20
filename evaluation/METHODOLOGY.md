@@ -610,3 +610,51 @@ expected to agree with the CBF much more often than the label itself does.
 
 This replaces the earlier informal "7 of 20" count, which looked at each top-3 pattern once
 (regardless of how many students have it) and was not a scoring rule anywhere in the system.
+
+## 15. Results on the study dataset and decision (2026-10-20)
+
+Dataset: 314 students; 23 "Undecided" rows removed, leaving 291 across 28 courses. Split 200
+train / 91 test (stratified, seed 42). Class = the student's preferred course. All numbers
+below were produced by `cbf_eval.py` / `model_experiment.py` on this dataset; none were set
+by hand.
+
+**Agreement between the deployed J48 (top3, C 0.1, M 10) and the CBF**, per student, all 291
+students (`cbf_eval.py agreement`):
+
+| Measure | Students | Share |
+|---|---|---|
+| J48's course is a Best RIASEC Match | 82 / 291 | 28.2% |
+| J48's course is a Best Match or Alternative | 136 / 291 | 46.7% |
+| The student's **own** preferred course is a Best RIASEC Match | 52 / 291 | 17.9% |
+
+The model agrees with the RIASEC-based CBF more often than the students' own preferences do.
+The disagreement comes from the data: most students prefer a course outside their Best
+RIASEC Match. (The earlier informal "7 of 20" counted top-3 patterns, not students.)
+
+**Proposed Final Best Match rule, "CBF selects, J48 confirms"** (J48's course first only
+when it is in the Best RIASEC Match):
+
+- **Train, out-of-fold:** J48 confirmed a course for 29 / 200 students. MRR 0.193 vs the
+  CBF's 0.174.
+- **Test:** J48 confirmed a course for 7 / 91 students. MRR 0.159 vs the CBF's 0.163
+  (difference −0.005, 95% CI [−0.008, −0.002]); Top-1 difference −0.006
+  (95% CI [−0.010, −0.002]).
+
+**Decision:** the rule is **not adopted**. It changes the result for very few students, and
+on the test set it is slightly but consistently worse than the CBF alone. The three sources
+stay separate: the CBF Best RIASEC Match remains the system's recommendation; the
+Preferred Course and the J48 prediction are shown beside it and never change it.
+`finalBestMatch` stays empty.
+
+**Other measured findings (test set, 91 students):**
+
+- The CBF (MRR 0.163) ranks students' *preferred* courses below a popularity baseline
+  (0.241). Expected, since only 17.9% of preferences are RIASEC-congruent. Agreement with
+  stated preference is therefore **not a valid accuracy measure for the CBF**. Its relevance
+  should be judged against expert ratings or enrolment-and-success outcomes (§11).
+- The best usable classifier was Logistic on rank features: MRR 0.328, Hit@3 0.412.
+  J48 top3 scored MRR 0.278. A CBF + Logistic hybrid (w = 0.5) did not differ meaningfully
+  from Logistic alone (CV 0.410 vs 0.401; test 0.334 vs 0.328).
+- "CBF Best Match + Alternatives, ranked by J48 probability" scored test MRR 0.192 (CV 0.263)
+  and is RIASEC-aligned by construction. It is recorded as future work: the J48 import keeps
+  only each leaf's course, not its class probabilities.
