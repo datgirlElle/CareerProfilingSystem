@@ -42,7 +42,9 @@ import concurrent.futures as cf
 import csv
 import math
 import os
+import glob
 import random
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -128,6 +130,28 @@ def stratified_folds(rows, k, seed):
 
 
 # ---------------------------------------------------------------- WEKA
+
+def resolve_java(java, jar):
+    """The java program to run WEKA with. Tries --java, then PATH, then the Java that the
+    Windows WEKA installer puts next to weka.jar (e.g. C:/Program Files/Weka-3-8-6/jre/.../bin/java.exe)."""
+    jars = jar.split(os.pathsep)
+    missing = [j for j in jars if not os.path.isfile(j)]
+    if missing:
+        raise SystemExit(f"weka.jar not found: {missing[0]}\n"
+                         "Pass the full path, e.g. --weka-jar \"C:/Program Files/Weka-3-8-6/weka.jar\"")
+    if os.path.isfile(java):
+        return java
+    found = shutil.which(java)
+    if found:
+        return found
+    exe = "java.exe" if os.name == "nt" else "java"
+    weka_dir = os.path.dirname(os.path.abspath(jars[0]))
+    bundled = sorted(glob.glob(os.path.join(weka_dir, "jre", "**", "bin", exe), recursive=True))
+    if bundled:
+        return bundled[0]
+    raise SystemExit(f"Java was not found ('{java}' is not on PATH and there is no jre folder next to {jars[0]}).\n"
+                     "Pass WEKA's own Java with --java, e.g. --java \"C:/Program Files/Weka-3-8-6/jre/zulu17.../bin/java.exe\"")
+
 
 def run_weka(java, jar, cls, opts, train_arff, test_arff):
     """Train on train_arff, predict test_arff; returns [{course: probability}] in test order."""
@@ -240,6 +264,8 @@ def main():
     ap.add_argument("--algorithms", default=",".join(ALGORITHMS), help="comma-separated subset of: " + ",".join(ALGORITHMS))
     ap.add_argument("--report", default="experiment_report.md")
     a = ap.parse_args()
+    a.java = resolve_java(a.java, a.weka_jar)
+    print(f"Java: {a.java}")
 
     train = ce.read_students(a.train, quiet=True)
     test = ce.read_students(a.test, quiet=True)
@@ -265,6 +291,9 @@ def main():
         files[(enc, "full")] = (os.path.join(work, f"{enc}_train.arff"), os.path.join(work, f"{enc}_test.arff"))
         write_arff(files[(enc, "full")][0], train, enc)
         write_arff(files[(enc, "full")][1], test, enc)
+
+    # Check that WEKA runs at all before starting hundreds of runs.
+    run_weka(a.java, a.weka_jar, "weka.classifiers.rules.ZeroR", [], *files[(encs[0], 0)])
 
     # 1. Cross-validation on train only: out-of-fold probabilities for every configuration.
     configs = [(alg, cls, opts, enc) for alg in algos for cls, opts in ALGORITHMS[alg] for enc in encs]
