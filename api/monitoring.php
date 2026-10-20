@@ -55,14 +55,14 @@ function topMatchesLabel(array $ids, array $titles, string $empty): string
     if (!$ids) {
         return $empty;
     }
-    $names = array_map(fn($id) => $titles[$id] ?? '—', $ids);
+    $names = array_map(fn($id) => $titles[$id] ?? 'Removed program', $ids);
     $shown = array_slice($names, 0, 2);
     return implode(', ', $shown) . (count($names) > 2 ? ' (+' . (count($names) - 2) . ' more)' : '');
 }
 
 function statusLabel(?string $status): string
 {
-    return $status === 'mismatch' ? 'Mismatch' : ($status === 'match' ? 'Match' : '—');
+    return $status === 'mismatch' ? 'Mismatch' : ($status === 'match' ? 'Match' : 'Not compared yet');
 }
 
 function priorityFor(string $reason, ?float $topScore, float $threshold): string
@@ -126,7 +126,7 @@ function buildFlagRows(PDO $pdo, string $status, float $threshold): array
         $topScore = $r['top_score'] !== null ? (float) $r['top_score'] : null;
         return $student + [
             'flagId' => (int) $r['flag_id'],
-            'career' => topMatchesLabel(topMatchIds($r), $titles, $r['top_program_id'] !== null ? 'Recompute needed' : '—'),
+            'career' => topMatchesLabel(topMatchIds($r), $titles, $r['top_program_id'] !== null ? 'Recompute needed' : 'No match yet'),
             'match' => statusLabel($r['match_status']),
             'reason' => $reasonLabels[$r['reason']] ?? $r['reason'],
             'priority' => priorityFor($r['reason'], $topScore, $threshold),

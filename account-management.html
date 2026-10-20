@@ -331,7 +331,7 @@
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
   function formatDate(iso) {
-    if (!iso) return '—';
+    if (!iso) return 'Not recorded';
     const d = new Date(String(iso).replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00'));
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' });
   }
@@ -401,7 +401,7 @@
     // Which sections each staff member handles (none ticked = sees every section).
     let assignmentData = { assignments: {}, options: [] };
     function sectionsCell(a) {
-      if (a.status !== 'approved') return '—';
+      if (a.status !== 'approved') return '<span class="text-gray-400">Not assigned</span>';
       const mine = assignmentData.assignments[a.id] || [];
       const text = mine.length ? mine.map(function(s) { return escapeHtml(s.section); }).join(', ') : 'All sections';
       return '<span class="' + (mine.length ? 'text-gray-700' : 'text-gray-400') + '">' + text + '</span>' + (canAssign
@@ -425,9 +425,9 @@
       badge.classList.toggle('hidden', pending === 0);
       staffTbody.innerHTML = accounts.length ? accounts.map(function(a) {
         return '<tr>' +
-          '<td class="px-5 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">' + (a.fullName ? escapeHtml(a.fullName) : '—') + (a.username && a.username.indexOf('staff-') !== 0 ? '<span class="block text-xs font-normal text-gray-400">' + escapeHtml(a.username) + '</span>' : '') + '</td>' +
+          '<td class="px-5 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">' + (a.fullName ? escapeHtml(a.fullName) : '<span class="text-gray-400">No name</span>') + (a.username && a.username.indexOf('staff-') !== 0 ? '<span class="block text-xs font-normal text-gray-400">' + escapeHtml(a.username) + '</span>' : '') + '</td>' +
           '<td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(a.position || 'Guidance Counselor') + '</td>' +
-          '<td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">' + (a.email ? escapeHtml(a.email) : '—') + '</td>' +
+          '<td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">' + (a.email ? escapeHtml(a.email) : '<span class="text-gray-400">No email</span>') + '</td>' +
           '<td class="px-5 py-4 text-sm text-gray-500">' + sectionsCell(a) + '</td>' +
           '<td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">' + formatDate(a.createdAt) + '</td>' +
           '<td class="px-5 py-4 whitespace-nowrap">' + staffBadge(a) + '</td>' +
@@ -717,7 +717,7 @@
       const rows = data.sections || [];
       body.innerHTML = rows.length ? rows.map(function(s) {
         const d = s.lastUploaded ? new Date(String(s.lastUploaded).replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00')) : null;
-        const when = d && !isNaN(d) ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }) : '—';
+        const when = d && !isNaN(d) ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }) : 'Not uploaded';
         return '<tr><td class="px-4 py-3 text-sm text-gray-700">' + escapeHtml(s.strand) + '</td>' +
           '<td class="px-4 py-3 text-sm font-medium text-gray-900">' + escapeHtml(s.section) + '</td>' +
           '<td class="px-4 py-3 text-sm text-gray-700">' + s.students + '</td>' +

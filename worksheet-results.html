@@ -333,7 +333,7 @@
   // Worksheets submitted before careers existed have no stated career, so
   // fall back to the program title they chose.
   const statedCareer = recommendation.statedCareer || (statedProgram ? statedProgram.title : null);
-  document.getElementById('careerGoalText').textContent = statedCareer || '—';
+  document.getElementById('careerGoalText').textContent = statedCareer || 'Not answered';
   document.getElementById('careerProgramText').textContent = statedProgram
     ? statedProgram.title + ' — ' + statedProgram.collegeName + (statedProgram.isActive === false ? ' (no longer available)' : '')
     : 'Not linked to an MMCL program';
@@ -344,7 +344,7 @@
 
   document.getElementById('profileCode').textContent = topLetters.join(' ');
   document.getElementById('profileLabels').textContent = topTypes.map(function(t) { return t === 'Investigate' ? 'Investigative' : t; }).join(', ');
-  document.getElementById('topInterestArea').textContent = INTEREST_AREA[topLetters[0]] || '—';
+  document.getElementById('topInterestArea').textContent = INTEREST_AREA[topLetters[0]] || 'Not available';
 
   // Aligned = the Preferred Course is also one of the Best RIASEC Match courses (CBF).
   // The preference never changes the CBF result (lib/RecommendationPipeline.php).
@@ -382,7 +382,7 @@
     ? 'There is no program to compare letter by letter.'
     : programLetters.length
     ? matchedLetters.length + ' of ' + programLetters.length + ' letters in ' + statedProgram.title + '\'s code (' + statedProgram.hollandCode.split('').join(' ') + ') are in your top 3.'
-    : '—';
+    : 'This program has no RIASEC code to compare.';
   document.getElementById('dimensionMatch').innerHTML = programLetters.map(function(letter, i) {
     const rank = topLetters.indexOf(letter);
     const matched = rank !== -1;

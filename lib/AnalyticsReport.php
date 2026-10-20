@@ -231,7 +231,7 @@ class AnalyticsReport
             }
         }
         $topCareers = array_map(fn($r) => [
-            'title' => $titles[(int) $r['top_program_id']] ?? '—',
+            'title' => $titles[(int) $r['top_program_id']] ?? 'Removed program',
             'count' => (int) $r['cnt'],
             'percent' => $recCount > 0 ? round(((int) $r['cnt'] / $recCount) * 100, 1) : 0,
         ], $careerCounts);

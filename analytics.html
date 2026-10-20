@@ -136,18 +136,11 @@
               </div>
             </div>
           </div>
-          <a id="exportCsvBtn" href="#" class="flex items-center gap-2 bg-white border border-slate-300 rounded-md px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
-            Export Results (CSV)
-          </a>
           <button type="button" id="exportExcelBtn" class="flex items-center gap-2 bg-white border border-slate-300 rounded-md px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50" title="A protected Excel report with charts. The password to edit it is emailed to you.">
             Export Report (Excel)
           </button>
-          <button type="button" id="sendPrincipalReportBtn" class="hidden items-center gap-2 bg-[#19427b] text-white rounded-md px-4 py-2.5 text-sm font-medium shadow-sm hover:opacity-90">
-            Send Report to Principal
-          </button>
         </div>
       </div>
-      <p id="sendPrincipalReportStatus" class="hidden text-xs text-right -mt-3 mb-3" aria-live="polite"></p>
 
       <!-- Metric Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
@@ -320,22 +313,6 @@
   </div>
 </div>
 
-<!-- Principal Report Preview -->
-<div id="principalReportModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-lg max-h-[85vh] overflow-y-auto flex flex-col gap-4 p-6">
-    <div>
-      <h3 class="text-lg font-semibold text-black">Preview: Report to Principal</h3>
-      <p id="principalReportMeta" class="text-sm text-[#5c5a5a] mt-1"></p>
-    </div>
-    <div id="principalReportSections" class="flex flex-col gap-5"></div>
-    <p id="principalReportModalError" class="hidden text-sm text-[#ed1c24]" aria-live="polite"></p>
-    <div class="flex justify-end gap-2 pt-1 border-t border-slate-100 mt-1">
-      <button type="button" id="principalReportCancel" class="px-4 py-2 text-sm font-medium text-[#5c5a5a] border border-black/[0.15] rounded-md hover:bg-slate-50">Cancel</button>
-      <button type="button" id="principalReportConfirmSend" class="px-4 py-2 text-sm font-medium text-white bg-[#19427b] rounded-md hover:opacity-90">Send to Principal</button>
-    </div>
-  </div>
-</div>
-
 <div id="logoutConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
   <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
     <h3 class="text-lg font-semibold text-black">Log Out?</h3>
@@ -408,14 +385,6 @@
   const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
   document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
   document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
-
-  // Sending the Principal's report is an outward-facing action restricted
-  // to admins server-side (api/send-principal-report.php) — the button is
-  // hidden for counselors rather than shown-then-403'd.
-  if (currentUser.role === 'admin') {
-    document.getElementById('sendPrincipalReportBtn').classList.remove('hidden');
-    document.getElementById('sendPrincipalReportBtn').classList.add('flex');
-  }
 
   const logoutModal = document.getElementById('logoutConfirmModal');
   function openLogoutModal(e) {
@@ -702,7 +671,7 @@
     });
 
     const stats = data.assessmentStats;
-    document.getElementById('statsAy').textContent = stats.academicYear || '—';
+    document.getElementById('statsAy').textContent = stats.academicYear || 'not set';
     document.getElementById('statsCompleted').textContent = stats.completedCount.toLocaleString();
 
     // Overall: everyone expected this year, split into taken / not yet taken.
@@ -811,122 +780,7 @@
 
   function updateExportLink(data) {
     lastExportFilter = { strand: data.strand || '', section: data.section || '', academicYear: data.academicYear || '' };
-    const ay = data.assessmentStats && data.assessmentStats.academicYear ? data.assessmentStats.academicYear : '';
-    const btn = document.getElementById('exportCsvBtn');
-    if (!ay) {
-      // api/analytics-export.php 400s without an academic year, and since
-      // this is a plain link (not a fetch), that used to just dump raw JSON
-      // in the browser with no explanation. Disable it instead.
-      btn.removeAttribute('href');
-      btn.classList.add('opacity-50', 'cursor-not-allowed');
-      btn.title = 'Set the current Academic Year in Security Configuration first.';
-      return;
-    }
-    btn.classList.remove('opacity-50', 'cursor-not-allowed');
-    btn.title = '';
-    const params = new URLSearchParams({ academicYear: ay, strand: data.strand || '', section: data.section || '' });
-    btn.href = 'api/analytics-export.php?' + params.toString();
   }
-
-  // "Send Report to Principal" always opens a preview of the exact fixed
-  // template first (GET, no email sent) — the actual send only happens
-  // once the admin confirms inside the modal (POST). Both requests hit
-  // api/send-principal-report.php and build identical sections server-side,
-  // so what's previewed is guaranteed to match what gets emailed.
-  const sendPrincipalReportBtn = document.getElementById('sendPrincipalReportBtn');
-  const principalReportModal = document.getElementById('principalReportModal');
-  const principalReportSections = document.getElementById('principalReportSections');
-  const principalReportMeta = document.getElementById('principalReportMeta');
-  const principalReportModalError = document.getElementById('principalReportModalError');
-  const principalReportConfirmSend = document.getElementById('principalReportConfirmSend');
-  const principalReportStatus = document.getElementById('sendPrincipalReportStatus');
-
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  }
-
-  function openPrincipalReportModal() {
-    principalReportModal.classList.remove('hidden');
-    setTimeout(() => principalReportModal.classList.add('is-open'), 16);
-  }
-  function closePrincipalReportModal() {
-    principalReportModal.classList.remove('is-open');
-    setTimeout(() => principalReportModal.classList.add('hidden'), 260);
-  }
-
-  function renderPrincipalReportPreview(data) {
-    principalReportMeta.textContent = 'To: ' + data.principalName + ' <' + data.principalEmail + '> · AY ' + data.academicYear + ' · Generated ' + data.generatedAt;
-    principalReportSections.innerHTML = data.sections.map(section => `
-      <div>
-        <p class="text-[11px] font-semibold tracking-wide text-[#19427b] uppercase mb-2">${escapeHtml(section.title)}</p>
-        <div class="border border-slate-200 rounded-lg divide-y divide-slate-100">
-          ${section.rows.map(row => `
-            <div class="flex items-center justify-between gap-4 px-3 py-2 text-sm">
-              <span class="text-slate-500">${escapeHtml(row[0])}</span>
-              <span class="font-semibold text-slate-800 text-right">${escapeHtml(row[1])}</span>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    `).join('');
-  }
-
-  sendPrincipalReportBtn.addEventListener('click', async function() {
-    const originalLabel = sendPrincipalReportBtn.textContent;
-    sendPrincipalReportBtn.disabled = true;
-    sendPrincipalReportBtn.textContent = 'Loading preview…';
-    principalReportStatus.classList.add('hidden');
-    try {
-      const res = await fetch('api/send-principal-report.php');
-      const data = await res.json();
-      if (!data.success) {
-        principalReportStatus.classList.remove('hidden');
-        principalReportStatus.textContent = data.error || 'Failed to load the report preview.';
-        principalReportStatus.className = 'text-xs text-right -mt-3 mb-3 text-[#ed1c24]';
-        return;
-      }
-      renderPrincipalReportPreview(data);
-      principalReportModalError.classList.add('hidden');
-      openPrincipalReportModal();
-    } catch (err) {
-      principalReportStatus.classList.remove('hidden');
-      principalReportStatus.textContent = 'Unable to reach the server. Please try again.';
-      principalReportStatus.className = 'text-xs text-right -mt-3 mb-3 text-[#ed1c24]';
-    } finally {
-      sendPrincipalReportBtn.disabled = false;
-      sendPrincipalReportBtn.textContent = originalLabel;
-    }
-  });
-
-  document.getElementById('principalReportCancel').addEventListener('click', closePrincipalReportModal);
-  principalReportModal.addEventListener('click', function(e) { if (e.target.id === 'principalReportModal') closePrincipalReportModal(); });
-  document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && !principalReportModal.classList.contains('hidden')) closePrincipalReportModal(); });
-
-  principalReportConfirmSend.addEventListener('click', async function() {
-    const originalLabel = principalReportConfirmSend.textContent;
-    principalReportConfirmSend.disabled = true;
-    principalReportConfirmSend.textContent = 'Sending…';
-    principalReportModalError.classList.add('hidden');
-    try {
-      const res = await fetch('api/send-principal-report.php', { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        closePrincipalReportModal();
-        principalReportStatus.classList.remove('hidden');
-        principalReportStatus.textContent = 'Report sent to the Principal.';
-        principalReportStatus.className = 'text-xs text-right -mt-3 mb-3 text-green-600';
-      } else {
-        principalReportModalError.textContent = data.error || 'Failed to send the report.';
-        principalReportModalError.classList.remove('hidden');
-      }
-    } catch (err) {
-      principalReportModalError.textContent = 'Unable to reach the server. Please try again.';
-      principalReportModalError.classList.remove('hidden');
-    } finally {
-      principalReportConfirmSend.disabled = false;
-      principalReportConfirmSend.textContent = originalLabel;
-    }
-  });
 
   await load('', '');
 })();

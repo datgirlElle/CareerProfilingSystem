@@ -509,7 +509,7 @@
     };
     const list = function(items) { return items && items.length ? items.join(', ') : 'None'; };
     const status = document.getElementById('recStatus');
-    status.textContent = r.matchStatus === 'mismatch' ? 'Differs from RIASEC match' : r.matchStatus === 'match' ? 'Matches RIASEC' : '—';
+    status.textContent = r.matchStatus === 'mismatch' ? 'Differs from RIASEC match' : r.matchStatus === 'match' ? 'Matches RIASEC' : 'Not compared yet';
     status.className = 'sp-badge ' + (r.matchStatus === 'match' ? 'done' : 'wait');
     document.getElementById('recPreferred').textContent = r.preferredCourse
       ? withCosine(r.preferredCourse) + (r.preferredCourse.inBestRiasecMatch ? ', also a Best RIASEC Match' : ', differs from the Best RIASEC Match')
@@ -665,13 +665,13 @@
         closeSectionEditor();
       });
 
-      document.getElementById('academicYearField').textContent = s.academicYear || '—';
+      document.getElementById('academicYearField').textContent = s.academicYear || 'Not set';
       const badge = document.getElementById('statusBadge');
       badge.textContent = s.status === 'Completed' ? '✓ Completed' : s.status;
       badge.className = 'sp-badge ' + (s.status === 'Completed' ? 'done' : 'wait');
       document.getElementById('registeredField').textContent = s.registeredAt
         ? new Date(s.registeredAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-        : '—';
+        : 'Not recorded';
 
       // Top 3 themes: the API sends letters or full names; show the name with the colour of its type.
       const types = {

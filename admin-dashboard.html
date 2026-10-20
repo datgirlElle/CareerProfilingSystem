@@ -618,7 +618,7 @@
   // Shown in school time (Asia/Manila); Postgres may send "+08" without
   // minutes, which some browsers can't parse, so pad it first.
   function formatDate(iso) {
-    if (!iso) return '<span class="text-gray-500">—</span>';
+    if (!iso) return '<span class="text-gray-500">Not taken yet</span>';
     const d = new Date(String(iso).replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00'));
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' });
   }
@@ -630,7 +630,7 @@
     // Locked by wrong passwords (for example on exam day): shown right here with Unlock, so staff in the
     // room see it without opening each profile.
     const accountCell = isRosterOnly
-      ? '<span class="text-gray-400 text-xs">&mdash;</span>'
+      ? '<span class="inline-flex items-center bg-gray-100 border border-gray-200 text-gray-500 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">No account</span>'
       : (s.isActive && s.locked
           ? '<span class="inline-flex items-center gap-2 whitespace-nowrap">' +
               '<span class="inline-flex items-center bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium px-3 py-1 rounded-full">Locked</span>' +
@@ -641,7 +641,7 @@
           : '<span class="inline-flex items-center bg-gray-100 border border-gray-200 text-gray-500 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">Deactivated</span>');
     const counselingCell = s.counseling
       ? badge(s.counseling, COUNSELING_STYLE[s.counseling])
-      : '<span class="text-gray-500">—</span>';
+      : '<span class="text-gray-500">No request</span>';
     const params = new URLSearchParams({ id: s.userId });
     // A roster-only entry has no account to open a profile for — no link,
     // just a dash, matching the other empty-data cells in this row.
@@ -672,7 +672,7 @@
       '<td class="px-6 py-4 whitespace-nowrap">' + accountCell + '</td>' +
       '<td class="px-6 py-4 whitespace-nowrap">' + statusCell + '</td>' +
       '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + formatDate(s.assessmentDate) + '</td>' +
-      '<td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">' + (s.riasec ? escapeHtml(s.riasec) : '<span class="text-gray-500">—</span>') + '</td>' +
+      '<td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">' + (s.riasec ? escapeHtml(s.riasec) : '<span class="text-gray-500">No result yet</span>') + '</td>' +
       '<td class="px-6 py-4 text-center whitespace-nowrap" style="min-width:170px">' + counselingCell + '</td>' +
       '<td class="px-6 py-4 text-center">' + actionCell + '</td>' +
     '</tr>';
@@ -711,11 +711,11 @@
     document.getElementById('cardCompleted').textContent = data.summary.completedCount.toLocaleString();
     document.getElementById('cardPending').textContent = data.summary.pendingCount.toLocaleString();
     document.getElementById('cardMismatched').textContent = data.summary.mismatchedCount.toLocaleString();
-    const pct = (n) => data.summary.totalStudents > 0 ? Math.round((n / data.summary.totalStudents) * 100) + '% of total' : '—';
+    const pct = (n) => data.summary.totalStudents > 0 ? Math.round((n / data.summary.totalStudents) * 100) + '% of total' : '0% of total';
     document.getElementById('cardCompletedPct').textContent = pct(data.summary.completedCount);
     document.getElementById('cardPendingPct').textContent = pct(data.summary.pendingCount);
     // Mismatched is a share of the students who finished the assessment.
-    document.getElementById('cardMismatchedPct').textContent = data.summary.completedCount > 0 ? Math.round((data.summary.mismatchedCount / data.summary.completedCount) * 100) + '% of completed' : '—';
+    document.getElementById('cardMismatchedPct').textContent = data.summary.completedCount > 0 ? Math.round((data.summary.mismatchedCount / data.summary.completedCount) * 100) + '% of completed' : '0% of completed';
 
     const secRows = data.sections || [];
     lastSectionRows = secRows;

@@ -440,7 +440,7 @@
     document.getElementById('aCardReachedSub').textContent = 'of ' + s.activeStudents.toLocaleString() + ' active student' + (s.activeStudents === 1 ? '' : 's');
     document.getElementById('aCardScheduled').textContent = s.scheduled.toLocaleString();
     document.getElementById('aCardScheduledSub').innerHTML = s.nextScheduledAt ? 'Next: ' + escapeHtml(formatDay(s.nextScheduledAt)) : '&nbsp;';
-    document.getElementById('aCardRead').textContent = s.avgReadPercent === null ? '—' : s.avgReadPercent + '%';
+    document.getElementById('aCardRead').textContent = s.avgReadPercent === null ? '0%' : s.avgReadPercent + '%';
     document.getElementById('aCardReadSub').textContent = s.avgReadPercent === null ? 'No published announcements yet' : 'of recipients saw each one';
   }
   function formatDay(iso) {

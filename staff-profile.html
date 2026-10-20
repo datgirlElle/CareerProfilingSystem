@@ -229,14 +229,14 @@
     if (!a || !a.success) { ['infoEmail', 'infoSince'].forEach(function (id) { PP.statFailed(id); }); return; }
     if (a.fullName) document.getElementById('infoName').textContent = a.fullName;
     if (a.roleLabel) document.getElementById('infoRole').textContent = a.roleLabel;
-    document.getElementById('infoEmail').textContent = a.email || '—';
+    document.getElementById('infoEmail').textContent = a.email || 'No email on file';
     if (a.username) {
       document.getElementById('infoUsername').textContent = a.username;
       document.getElementById('infoUsernameWrap').classList.remove('hidden');
     }
     document.getElementById('infoSince').textContent = a.memberSince
       ? new Date(a.memberSince).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-      : '—';
+      : 'Not recorded';
   }, 300000).catch(function () {
     ['infoEmail', 'infoSince'].forEach(function (id) { PP.statFailed(id); });
   });

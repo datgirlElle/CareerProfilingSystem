@@ -308,17 +308,17 @@
     PP.statLoading('profileEmail');
     PP.swr('api/my-account.php', function (a) {
       if (!a || !a.success) { PP.statFailed('profileEmail'); return; }
-      document.getElementById('profileEmail').textContent = a.email || '—';
-      if (a.memberSince && document.getElementById('profileSince').textContent === '—') {
+      document.getElementById('profileEmail').textContent = a.email || 'No email on file';
+      if (a.memberSince && ['—', 'Not recorded'].indexOf(document.getElementById('profileSince').textContent) !== -1) {
         document.getElementById('profileSince').textContent = new Date(a.memberSince).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
       }
     }, 300000).catch(function () { PP.statFailed('profileEmail'); });
     document.getElementById('profileStrand').textContent = currentUser.strand;
     document.getElementById('profileGrade').textContent = 'Grade ' + currentUser.gradeLevel;
-    document.getElementById('profileSection').textContent = currentUser.section || '—';
+    document.getElementById('profileSection').textContent = currentUser.section || 'Not assigned';
     document.getElementById('profileSince').textContent = currentUser.registeredAt
       ? new Date(currentUser.registeredAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-      : '—';
+      : 'Not recorded';
     document.getElementById('profilePanelName').textContent = currentUser.firstName + ' ' + currentUser.lastName;
     document.getElementById('profilePanelMeta').textContent = 'Grade ' + currentUser.gradeLevel + ' - ' + currentUser.strand;
 
