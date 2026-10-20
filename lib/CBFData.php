@@ -137,12 +137,15 @@ class CBFData
         $recInsert = $pdo->prepare(
             'INSERT INTO recommendations (student_id, stated_program_id, scores, top_program_id, top_score, source_assessment_id, source_worksheet_id,
                                           match_status, mismatch_reason, cbf_program_ids, prediction_program_ids, final_program_ids, model_version)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL) RETURNING id'
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?) RETURNING id'
         );
         $recInsert->execute([
             $studentId, $statedProgramId, json_encode($scoresForStorage), $topProgramId, $topScore, $assessmentId, $worksheetId,
             $result['status'], $result['reason'],
             self::intArrayLiteral($cbf['candidateIds']), // Best RIASEC Match (CBF); final Best Match stays NULL
+            // Prediction model (WEKA): its course, or NULL when the model did not run.
+            $result['prediction']['status'] === 'unavailable' ? null : self::intArrayLiteral($result['prediction']['courseIds']),
+            $result['prediction']['modelVersion'] ?? null,
         ]);
         $recommendationId = (int) $recInsert->fetchColumn();
 
