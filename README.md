@@ -102,7 +102,7 @@ config/     .env loader
    php db/seed_admin.php
    ```
 
-   This creates `admin` / `ChangeMe123!` — change the password before any real deployment.
+   This creates the `admin` account with a temporary password (see `db/seed_admin.php`, never post it anywhere). Sign in and change it right away, and always before any real deployment.
 
 5. **Run the app:**
 

@@ -5,6 +5,7 @@ require_once __DIR__ . '/../lib/StaffPosition.php';
 require_once __DIR__ . '/../lib/LoginDevice.php';
 require_once __DIR__ . '/../lib/SessionEnd.php';
 require_once __DIR__ . '/../lib/LoginLock.php';
+require_once __DIR__ . '/../lib/RateLimiter.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
@@ -58,6 +59,21 @@ $genericError = ['success' => false, 'error' => 'Invalid username or password.']
 
 $policy = lockoutPolicy($pdo);
 
+// One address trying many accounts (the per-account lock cannot see that): at most 500 failed sign-ins per 15
+// minutes from one real visitor address (lib/AuditLogger.php). Loose on purpose: 800+ students on the school Wi-Fi
+// share one address, and an exam-day rush with typos must stay far below it; the per-account lock is the first line.
+// Only checked passwords that fail count (RateLimiter::hit on each failure below): a click while an account is
+// locked checks no password, so it does not count, and a success never takes one back, so a working account cannot
+// be used to earn more guesses. The answer is the same for every username, so it says nothing about which accounts
+// exist. The block is written to the audit log once per 15 minutes per address.
+$loginIpKey = 'login-ip:' . (AuditLogger::clientIpFrom($_SERVER) ?? 'unknown');
+if (RateLimiter::isLimited($loginIpKey, 500, 15)) {
+    if (!RateLimiter::tooMany('logged-' . $loginIpKey, 1, 15)) {
+        AuditLogger::log(null, null, 'login_failed', 'user', $typed, 'Too many failed sign-ins from this address');
+    }
+    jsonResponse(['success' => false, 'error' => 'Too many sign-in attempts from this network. Please wait a few minutes and try again.'], 429);
+}
+
 if (!$user || !$user['is_active']) {
     password_verify($password, TIMING_DUMMY_HASH);
     // Unknown names get the same soft lock as real accounts (lib/LoginLock.php), so the "locked"
@@ -73,6 +89,7 @@ if (!$user || !$user['is_active']) {
         LoginLock::recordFailure($pdo, $nameLock, $policy['maxAttempts'], $policy['lockoutMinutes']);
     }
     AuditLogger::log(null, null, 'login_failed', 'user', $typed, 'Unknown or inactive username');
+    RateLimiter::hit($loginIpKey);
     jsonResponse($genericError, 401);
 }
 
@@ -108,6 +125,7 @@ if ($user['role'] === 'student' && $user['email_verified_at'] === null) {
         LoginLock::recordFailure($pdo, $nameLock, $policy['maxAttempts'], $policy['lockoutMinutes']);
     }
     AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $typed, 'Email not verified');
+    RateLimiter::hit($loginIpKey);
     jsonResponse($genericError, 401);
 }
 
@@ -126,6 +144,7 @@ if (!password_verify($password, $user['password_hash'])) {
     }
 
     AuditLogger::log((int) $user['id'], $user['role'], 'login_failed', 'user', $typed, 'Incorrect password');
+    RateLimiter::hit($loginIpKey);
     jsonResponse($genericError, 401);
 }
 

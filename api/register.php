@@ -29,9 +29,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
 }
 
-// A public form that looks numbers up on the roster: keep one address from guessing at it.
-if (RateLimiter::tooMany('register:' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 20, 60)) {
-    jsonResponse(['success' => false, 'error' => 'Too many tries for now. Please wait a while and try again, or visit the Guidance Office for help.'], 429);
+// A public form that looks numbers up on the roster. The limit per address is loose (a whole school on one Wi-Fi
+// shares one address; lib/AuditLogger.php finds the real one behind Render's proxy); the tight limit is per Student
+// Number, below.
+$registerTooMany = ['success' => false, 'error' => 'Too many tries for now. Please wait a while and try again, or visit the Guidance Office for help.'];
+if (RateLimiter::tooMany('register:' . (AuditLogger::clientIpFrom($_SERVER) ?? 'unknown'), 300, 60)) {
+    jsonResponse($registerTooMany, 429);
 }
 
 $pdo = Database::get();
@@ -57,6 +60,11 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 }
 if (!str_ends_with($email, '@' . StudentNumber::EMAIL_DOMAIN)) {
     jsonResponse(['success' => false, 'error' => 'Please register using your official @' . StudentNumber::EMAIL_DOMAIN . ' student email address.'], 400);
+}
+// 5 tries an hour per Student Number, from anywhere (after the format checks, so typing mistakes do not use them up).
+// Any number can hit it, so it says nothing about the roster.
+if (RateLimiter::tooMany('register-num:' . $schoolId, 5, 60)) {
+    jsonResponse($registerTooMany, 429);
 }
 
 // The one answer every outcome below gets (the page shows "Almost there! Check your school email.").
