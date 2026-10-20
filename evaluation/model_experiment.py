@@ -262,6 +262,20 @@ def filtered(cos, prob, mode):
     return {c: (2.0 + prob[c] + 1e-6 * cos[c]) if c in cand else cos[c] for c in COURSES}
 
 
+def confirm(cos, prob):
+    """The web app's proposed Final Best Match rule, "CBF selects, J48 confirms": J48's single
+    predicted course (the most probable class, as the imported tree outputs it) goes first ONLY
+    if it is in the CBF Best RIASEC Match; otherwise the CBF ranking is used unchanged.
+    Returns (scores, confirmed?)."""
+    label = max(COURSES, key=lambda c: (prob[c], -COURSES.index(c)))
+    best, _ = cbf_levels(cos)
+    if label in best:
+        out = dict(cos)
+        out[label] = 2.0
+        return out, True
+    return dict(cos), False
+
+
 def share(scores):
     total = sum(scores.values())
     return {c: (v / total if total > 0 else 1 / len(COURSES)) for c, v in scores.items()}
@@ -395,6 +409,28 @@ def main():
         rows.append(("Hybrid", f"w={hybrid_w:.1f} x CBF(web app) + {1 - hybrid_w:.1f} x {alg} [{enc}]", " ".join(opts), {"MRR": res[hybrid_w]}, evaluate(mixed, y_test, k)))
 
     cos_te = [cbf_scores(r, *current_cbf) for r in test]
+    # "CBF selects, J48 confirms" with the best top3 J48 (the format the web app runs).
+    j48_top3 = [ci for (alg_, enc_), ci in best_per.items() if alg_ == "J48" and enc_ == "top3"]
+    confirm_note = None
+    if j48_top3:
+        cj = j48_top3[0]
+        cv_conf = [confirm(c, p) for c, p in zip(cos_tr, oof[cj])]
+        te_conf = [confirm(c, p) for c, p in zip(cos_te, finals[cj])]
+        m_cv = evaluate([x[0] for x in cv_conf], y_train, k)
+        m_te = evaluate([x[0] for x in te_conf], y_test, k)
+        rows.append(("Confirm", f"CBF Best Match, confirmed by J48 [top3] (proposed Final Best Match)", " ".join(configs[cj][2]),
+                     {"MRR": m_cv["MRR"]}, m_te))
+        base_cv = cbf_train[current_cbf]
+        base_te = [t for g, n, s_, c, t in rows if g == "CBF" and "(web app)" in n][0]
+        lo, hi = ce.paired_bootstrap(m_te["_rr"], base_te["_rr"])
+        lo1, hi1 = ce.paired_bootstrap(m_te["_top1"], base_te["_top1"])
+        confirm_note = (
+            f"**Proposed Final Best Match rule (CBF selects, J48 [top3] {' '.join(configs[cj][2])} confirms):** "
+            f"J48's course was inside the Best RIASEC Match for {sum(x[1] for x in cv_conf)}/{len(cv_conf)} training students "
+            f"(out-of-fold) and {sum(x[1] for x in te_conf)}/{len(te_conf)} test students. "
+            f"Train CV MRR {m_cv['MRR']:.3f} vs CBF {base_cv['MRR']:.3f}; Top-1 {m_cv['Top1']:.3f} vs {base_cv['Top1']:.3f}. "
+            f"Test MRR {m_te['MRR']:.3f} vs CBF {base_te['MRR']:.3f} (difference {m_te['MRR'] - base_te['MRR']:+.3f}, "
+            f"95% CI [{lo:+.3f}, {hi:+.3f}]); Top-1 difference {m_te['Top1'] - base_te['Top1']:+.3f}, 95% CI [{lo1:+.3f}, {hi1:+.3f}].")
     for ci, (mode, cvm) in filt.items():
         alg, _, opts, enc = configs[ci]
         rows.append(("Filtered", f"CBF {mode} -> ranked by {alg} [{enc}]", " ".join(opts), {"MRR": cvm},
@@ -435,6 +471,8 @@ def main():
                    + ", ".join(f"{w:.1f}: {v:.3f}" for w, v in sorted(res.items())))
         out.append("\n'CBF X -> ranked by Y' rows: only courses in the CBF Best RIASEC Match (or Best Match + "
                    "Alternatives) can come first, ordered by the classifier's probability; X was chosen on train.")
+        if confirm_note:
+            out.append("\n" + confirm_note)
         j48 = [ci for (alg_, enc_), ci in best_per.items() if alg_ == "J48" and enc_ in DEPLOYABLE]
         if j48:
             bj = max(j48, key=lambda ci: cv[ci]["MRR"])

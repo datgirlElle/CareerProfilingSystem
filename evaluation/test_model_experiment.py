@@ -112,5 +112,19 @@ class TreeWalker(unittest.TestCase):
         self.assertEqual(ce.predict_tree({"tree": rank_tree, "features": "rank"}, isa), "BS Psychology")
 
 
+class Confirm(unittest.TestCase):
+    def test_j48_course_inside_best_match_goes_first(self):
+        cos = scores(**{C[0]: 0.9, C[1]: 0.9, C[2]: 0.7})
+        out, ok = me.confirm(cos, scores(**{C[1]: 0.6, C[2]: 0.3}))
+        self.assertTrue(ok)
+        self.assertEqual(sorted(out, key=lambda c: -out[c])[:3], [C[1], C[0], C[2]])
+
+    def test_j48_course_outside_best_match_changes_nothing(self):
+        cos = scores(**{C[0]: 0.9, C[1]: 0.9, C[2]: 0.7})
+        out, ok = me.confirm(cos, scores(**{C[2]: 0.9}))
+        self.assertFalse(ok)
+        self.assertEqual(out, cos)
+
+
 if __name__ == "__main__":
     unittest.main()
