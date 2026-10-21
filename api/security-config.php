@@ -80,6 +80,12 @@ function loadPolicies(PDO $pdo): array
             'monitoring' => [
                 'enabled' => $b('monitoring.enabled', true), 'retentionDays' => $i('monitoring.retentionDays', 90),
             ],
+            // CBF low-match flag (lib/CBFData.php): a student goes to Monitoring > Needs Review when their
+            // highest cosine similarity is below the threshold. Stored under its original key.
+            'lowMatch' => [
+                'enabled' => $b('lowMatch.enabled', true),
+                'threshold' => (float) $s('monitoring.lowConfidenceThreshold', '0.50'),
+            ],
         ],
         'settings' => [
             'twoFactor' => $b('twoFactor', true),
@@ -245,7 +251,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($type === 'policy') {
         $key = $body['key'] ?? '';
-        if (!in_array($key, ['password', 'lockout', 'monitoring'], true)) {
+        if (!in_array($key, ['password', 'lockout', 'monitoring', 'lowMatch'], true)) {
             jsonResponse(['success' => false, 'error' => 'Unknown policy.'], 400);
         }
 
@@ -269,6 +275,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($key === 'lockout') {
             $set('lockout.maxAttempts', (string) max(1, min(20, (int) ($body['maxAttempts'] ?? 5))));
             $set('lockout.lockoutMinutes', (string) max(1, min(1440, (int) ($body['lockoutMinutes'] ?? 15))));
+        } elseif ($key === 'lowMatch') {
+            // Cosine similarity is 0-1; kept to two decimals.
+            $t = round(max(0.0, min(1.0, (float) ($body['threshold'] ?? 0.5))), 2);
+            $set('monitoring.lowConfidenceThreshold', number_format($t, 2, '.', ''));
         } else {
             $set('monitoring.retentionDays', (string) max(7, min(365, (int) ($body['retentionDays'] ?? 90))));
         }
