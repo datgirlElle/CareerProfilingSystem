@@ -143,10 +143,6 @@
               </div>
             </div>
           </div>
-          <button type="button" id="downloadReportBtn" class="flex items-center gap-2 bg-white border border-slate-300 rounded-md px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50" title="A protected Excel report with charts, for the school year and filters shown. The password to edit it is emailed to you.">
-            <svg class="w-4 h-4" viewBox="0 -960 960 960" fill="#475569" aria-hidden="true"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
-            Download Report (Excel)
-          </button>
         </div>
       </div>
 
@@ -839,8 +835,8 @@
     }
   }
 
-  // "Download Report (Excel)": the Analytics Summary Report (api/analytics-report.php), the same file the Send Analytics
-  // Report section emails, for the school year and filters shown on this page.
+  // "Download the Excel file" in the report preview: the Analytics Summary Report (api/analytics-report.php), the same
+  // file the Send Analytics Report section emails, for the school year and filters shown on this page.
   let lastExportFilter = { strand: '', section: '', academicYear: '' };
   async function downloadReport(btn) {
     const stop = PP.busy(btn, 'Preparing…');
@@ -870,7 +866,6 @@
       stop();
     }
   }
-  document.getElementById('downloadReportBtn').addEventListener('click', function() { downloadReport(this); });
 
   function updateExportLink(data) {
     lastExportFilter = { strand: data.strand || '', section: data.section || '', academicYear: data.academicYear || '' };
