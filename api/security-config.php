@@ -102,11 +102,6 @@ function loadPolicies(PDO $pdo): array
             'schedule' => OfficeHours::fromJson($s('officeHours.schedule', '')),
         ],
         'booking' => ['url' => $s('booking.url', '')],
-        'principal' => [
-            'name' => $s('principal.name', ''),
-            'email' => $s('principal.email', ''),
-            'lastSentAt' => $s('principal.lastSentAt', ''),
-        ],
     ];
 }
 
@@ -149,11 +144,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $isAdmin = $user['role'] === 'admin';
     $ownRole = Rbac::roleKey($user);
     $rbacShown = $isAdmin ? $rbacNow : array_map(fn($levels) => [$ownRole => $levels[$ownRole] ?? 'none'], $rbacNow);
-    // The Principal's name and email belong to the administrator's Principal report; other staff do not need them.
-    $payloadPolicies = loadPolicies($pdo);
-    if ($user['role'] !== 'admin') {
-        $payloadPolicies['principal'] = ['name' => '', 'email' => '', 'lastSentAt' => ''];
-    }
     jsonResponse([
         'rbac' => $rbacShown,
         // Non-administrators see "Your Access" (their own column, view only) instead of the whole table.
@@ -170,7 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             'sharedLogins7d' => $sharedLogins7d,
             'pendingFlags' => $pendingFlags,
         ],
-    ] + $payloadPolicies);
+    ] + loadPolicies($pdo));
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -349,31 +339,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([BookingLink::KEY, $checked['url'], $user['id']]);
         AuditLogger::log($user['id'], $user['role'], 'update_booking_link', 'security_policies', BookingLink::KEY,
             AuditChange::detail('Booking link', ['url' => $beforeUrl], ['url' => $checked['url']], ['url' => 'Booking link']));
-        jsonResponse(['success' => true] + loadPolicies($pdo));
-    }
-
-    if ($type === 'principalContact') {
-        $name = trim((string) ($body['name'] ?? ''));
-        $email = trim((string) ($body['email'] ?? ''));
-        if ($name === '' || mb_strlen($name) > 100) {
-            jsonResponse(['success' => false, 'error' => 'Principal name must be 1-100 characters.'], 400);
-        }
-        if ($email === '' || mb_strlen($email) > 150 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            jsonResponse(['success' => false, 'error' => 'Enter a valid email address.'], 400);
-        }
-        $set = function (string $k, string $v) use ($pdo, $user) {
-            $stmt = $pdo->prepare(
-                'INSERT INTO security_policies (key, value, updated_by) VALUES (?, ?, ?)
-                 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by'
-            );
-            $stmt->execute([$k, $v, $user['id']]);
-        };
-        $beforeContact = loadPolicies($pdo)['principal'];
-        $set('principal.name', $name);
-        $set('principal.email', $email);
-
-        AuditLogger::log($user['id'], $user['role'], 'update_principal_contact', 'security_policies', 'principal',
-            AuditChange::detail('Principal contact', $beforeContact, ['name' => $name, 'email' => $email], ['name' => 'Name', 'email' => 'Email']));
         jsonResponse(['success' => true] + loadPolicies($pdo));
     }
 

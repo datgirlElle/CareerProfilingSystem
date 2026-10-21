@@ -14,9 +14,9 @@ $pdo = Database::get();
 // matching students, except strandDistribution/sectionDistribution (kept
 // unfiltered so each stays useful as a population-wide breakdown
 // regardless of which filter is selected). See AnalyticsReport::compute()
-// for the actual computation — this endpoint and the emailed Principal's
-// report (api/send-principal-report.php) both read from that single
-// source so the two never disagree.
+// for the actual computation — this endpoint and the Excel export
+// (api/analytics-export-xlsx.php) both read from that single source so
+// the two never disagree.
 $strand = trim((string) ($_GET['strand'] ?? ''));
 $section = trim((string) ($_GET['section'] ?? ''));
 

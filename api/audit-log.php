@@ -148,8 +148,6 @@ $actionLabels = [
     // Reports and exports
     'export_analytics_xlsx' => 'Exported analytics report',
     'export_analytics_xlsx_failed' => 'Analytics export failed',
-    'send_principal_report' => 'Sent principal report',
-    'send_principal_report_failed' => 'Principal report not sent',
     'export_audit_log' => 'Exported audit log',
     'export_audit_log_failed' => 'Audit log export failed',
     'delete_old_audit_logs' => 'Deleted old audit logs',
@@ -162,7 +160,6 @@ $actionLabels = [
     'update_settings' => 'Changed security setting',
     'update_office_hours' => 'Changed office hours',
     'update_booking_link' => 'Changed booking link',
-    'update_principal_contact' => 'Changed principal contact',
 ];
 
 $roleLabels = [

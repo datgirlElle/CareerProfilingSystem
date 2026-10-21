@@ -3,12 +3,11 @@
 
 /**
  * Single source of truth for the institution-wide analytics figures shown
- * on the Analytics Dashboard (api/analytics.php) and mirrored, verbatim,
- * into the fixed-format report emailed to the SHS Principal
- * (api/send-principal-report.php). Both callers read the same numbers —
- * there is no separate, hand-maintained set of fields for the report, so
- * the two can never drift out of sync or ask staff to re-enter data that
- * the system already has.
+ * on the Analytics Dashboard (api/analytics.php) and in its Excel export
+ * (lib/AnalyticsXlsx.php). Both read the same numbers — there is no
+ * separate, hand-maintained set of fields for the export, so the two can
+ * never drift out of sync or ask staff to re-enter data that the system
+ * already has.
  */
 require_once __DIR__ . '/Sections.php';
 require_once __DIR__ . '/AcademicYear.php';
