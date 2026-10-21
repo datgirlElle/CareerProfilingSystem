@@ -28,8 +28,30 @@
     .ov-search { flex:1 1 220px; min-width:200px; max-width:320px; width:auto; }
     .ov-btn { width:auto; flex:0 0 auto; }
     .ov-filter { width:auto; flex:0 0 auto; }
-    #filterPanel { left:auto; right:0; width:288px; max-width:calc(100vw - 2rem); }
+    #filterPanel { left:auto; right:0; width:680px; max-width:calc(100vw - 2rem); }
   }
+  /* Filters panel: short lists are button groups (radio buttons underneath), so each choice is one click and
+     nothing hides in a drop-down. Two columns from 640px up, one column on a phone. */
+  .fp-grid { display:grid; grid-template-columns:1fr; gap:20px; }
+  @media (min-width:640px) { .fp-grid { grid-template-columns:1fr 1fr; gap:24px; } }
+  .fp-group { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .fp-heading { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:#475569; }
+  .fp-field { border:0; margin:0; padding:0; min-width:0; }
+  .fp-label { display:block; font-size:12px; font-weight:500; color:#334155; margin-bottom:6px; padding:0; }
+  .fp-options { display:flex; flex-wrap:wrap; gap:6px; }
+  .fp-option { position:relative; }
+  .fp-option input { position:absolute; opacity:0; width:1px; height:1px; }
+  .fp-option span { display:inline-flex; align-items:center; min-height:32px; padding:0 11px; border:1px solid #cbd5e1; border-radius:9999px;
+    font-size:13px; color:#334155; background:#fff; cursor:pointer; white-space:nowrap; transition:background-color .15s, border-color .15s, color .15s; }
+  .fp-option span:hover { background:#f1f5f9; }
+  .fp-option input:checked + span { background:#0f2a6b; border-color:#0f2a6b; color:#fff; }
+  .fp-option input:focus-visible + span { outline:2px solid #0f2a6b; outline-offset:2px; }
+  .fp-filter-count:not(.hidden) { display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px; padding:0 6px; border-radius:9999px;
+    background:#0f2a6b; color:#fff; font-size:11px; font-weight:600; }
+  .fp-chip { display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 4px 0 10px; border:1px solid #cbd5e1; border-radius:9999px;
+    background:#f8fafc; font-size:12px; color:#334155; }
+  .fp-chip button { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:9999px; color:#475569; }
+  .fp-chip button:hover { background:#e2e8f0; color:#0f172a; }
 </style>
 </head>
 <body class="bg-[#f9fafb]">
@@ -239,79 +261,95 @@
             <button type="button" id="downloadListBtn" class="ov-btn flex items-center justify-center gap-2 border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Download list (CSV)</button>
             <button type="button" id="emailListedBtn" class="ov-btn hidden items-center justify-center gap-2 border border-[#0f2a6b] text-[#0f2a6b] rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-slate-50">Email these students</button>
             <div class="relative ov-filter">
-              <button type="button" id="filterBtn" class="ov-btn flex items-center justify-center gap-2 border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                <svg class="w-3.5 h-3.5" viewBox="0 -960 960 960" fill="#64748B"><path d="M400-240v-80h160v80H400ZM240-440v-80h480v80H240ZM120-640v-80h720v80H120Z"/></svg>
+              <button type="button" id="filterBtn" aria-expanded="false" aria-controls="filterPanel" class="ov-btn flex items-center justify-center gap-2 border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <svg class="w-3.5 h-3.5" viewBox="0 -960 960 960" fill="#64748B" aria-hidden="true"><path d="M400-240v-80h160v80H400ZM240-440v-80h480v80H240ZM120-640v-80h720v80H120Z"/></svg>
                 Filters
+                <span id="filterCount" class="fp-filter-count hidden"></span>
               </button>
-              <div id="filterPanel" class="hidden absolute right-0 top-[calc(100%+8px)] w-[min(288px,calc(100vw-2rem))] bg-white border border-gray-200 rounded-xl shadow-lg p-4 z-10">
-                <div class="flex flex-col gap-3">
-                  <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Strand</label>
-                    <select id="filterStrand" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
-                      <option value="">All Strands</option>
-                      <option>STEM</option>
-                      <option>ABM</option>
-                      <option>ICT</option>
-                      <option>HUMSS</option>
-                    </select>
+              <div id="filterPanel" role="dialog" aria-label="Filter students" class="hidden absolute right-0 top-[calc(100%+8px)] bg-white border border-gray-200 rounded-xl shadow-lg z-10">
+                <div class="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100">
+                  <h3 class="text-sm font-semibold text-gray-900">Filter students</h3>
+                  <button type="button" id="closeFilters" aria-label="Close filters" class="w-8 h-8 -mr-2 rounded-md flex items-center justify-center text-gray-500 hover:bg-gray-100">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
+                  </button>
+                </div>
+                <div class="fp-grid px-5 py-4 max-h-[60vh] overflow-y-auto">
+                  <div class="fp-group">
+                    <p class="fp-heading">Class</p>
+                    <fieldset class="fp-field">
+                      <legend class="fp-label">Strand</legend>
+                      <div class="fp-options">
+                        <label class="fp-option"><input type="radio" name="filterStrand" value="" checked><span>All</span></label>
+                        <label class="fp-option"><input type="radio" name="filterStrand" value="STEM"><span>STEM</span></label>
+                        <label class="fp-option"><input type="radio" name="filterStrand" value="ABM"><span>ABM</span></label>
+                        <label class="fp-option"><input type="radio" name="filterStrand" value="ICT"><span>ICT</span></label>
+                        <label class="fp-option"><input type="radio" name="filterStrand" value="HUMSS"><span>HUMSS</span></label>
+                      </div>
+                    </fieldset>
+                    <div>
+                      <label for="filterSection" class="fp-label">Section</label>
+                      <select id="filterSection" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white">
+                        <option value="">All sections</option>
+                      </select>
+                    </div>
+                    <p class="fp-heading pt-2">Account</p>
+                    <fieldset class="fp-field">
+                      <legend class="fp-label">Registration</legend>
+                      <div class="fp-options">
+                        <label class="fp-option"><input type="radio" name="filterRegistration" value="" checked><span>All</span></label>
+                        <label class="fp-option"><input type="radio" name="filterRegistration" value="registered"><span>Registered</span></label>
+                        <label class="fp-option"><input type="radio" name="filterRegistration" value="notRegistered"><span>Not registered</span></label>
+                      </div>
+                    </fieldset>
+                    <fieldset class="fp-field">
+                      <legend class="fp-label">Account</legend>
+                      <div class="fp-options">
+                        <label class="fp-option"><input type="radio" name="filterAccount" value="" checked><span>All</span></label>
+                        <label class="fp-option"><input type="radio" name="filterAccount" value="active"><span>Active</span></label>
+                        <label class="fp-option"><input type="radio" name="filterAccount" value="inactive"><span>Deactivated</span></label>
+                      </div>
+                    </fieldset>
                   </div>
-                  <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Section</label>
-                    <select id="filterSection" aria-label="Section" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
-                      <option value="">All Sections</option>
-                    </select>
+                  <div class="fp-group">
+                    <p class="fp-heading">Assessment</p>
+                    <fieldset class="fp-field">
+                      <legend class="fp-label">Assessment status</legend>
+                      <div class="fp-options">
+                        <label class="fp-option"><input type="radio" name="filterStatus" value="" checked><span>All</span></label>
+                        <label class="fp-option"><input type="radio" name="filterStatus" value="Completed"><span>Completed</span></label>
+                        <label class="fp-option"><input type="radio" name="filterStatus" value="Pending"><span>Pending</span></label>
+                        <label class="fp-option"><input type="radio" name="filterStatus" value="Mismatched"><span>Mismatched</span></label>
+                        <label class="fp-option"><input type="radio" name="filterStatus" value="Not Registered"><span>Not registered</span></label>
+                      </div>
+                    </fieldset>
+                    <fieldset class="fp-field">
+                      <legend class="fp-label">Assessed</legend>
+                      <div class="fp-options">
+                        <label class="fp-option"><input type="radio" name="filterAssessment" value="" checked><span>All</span></label>
+                        <label class="fp-option"><input type="radio" name="filterAssessment" value="assessed"><span>Assessed</span></label>
+                        <label class="fp-option"><input type="radio" name="filterAssessment" value="notAssessed"><span>Not assessed</span></label>
+                      </div>
+                    </fieldset>
+                    <p class="fp-heading pt-2">Counseling</p>
+                    <fieldset class="fp-field">
+                      <legend class="fp-label">Counseling status</legend>
+                      <div class="fp-options">
+                        <label class="fp-option"><input type="radio" name="filterCounseling" value="" checked><span>All</span></label>
+                        <label class="fp-option"><input type="radio" name="filterCounseling" value="Availed"><span>Availed</span></label>
+                        <label class="fp-option"><input type="radio" name="filterCounseling" value="Did Not Avail"><span>Did not avail</span></label>
+                      </div>
+                    </fieldset>
                   </div>
-                  <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Assessment Status</label>
-                    <select id="filterStatus" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
-                      <option value="">All Status</option>
-                      <option>Completed</option>
-                      <option>Pending</option>
-                      <option>Mismatched</option>
-                      <option>Not Registered</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Account</label>
-                    <select id="filterAccount" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
-                      <option value="">All</option>
-                      <option value="active">Active</option>
-                      <option value="inactive">Deactivated</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Registration</label>
-                    <select id="filterRegistration" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
-                      <option value="">All</option>
-                      <option value="registered">Registered</option>
-                      <option value="notRegistered">Not Registered</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Assessed</label>
-                    <select id="filterAssessment" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
-                      <option value="">All</option>
-                      <option value="assessed">Assessed</option>
-                      <option value="notAssessed">Not Assessed</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Counseling Status</label>
-                    <select id="filterCounseling" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
-                      <option value="">All</option>
-                      <option>Availed</option>
-                      <option>Did Not Avail</option>
-                    </select>
-                  </div>
-                  <div class="flex items-center gap-2 pt-1">
-                    <button type="button" id="applyFilters" class="flex-1 bg-[#ed1c24] text-white text-sm font-medium rounded-md py-2 hover:opacity-90">Apply</button>
-                    <button type="button" id="clearFilters" class="flex-1 border border-gray-300 text-gray-700 text-sm font-medium rounded-md py-2 hover:bg-gray-50">Clear</button>
-                  </div>
+                </div>
+                <div class="flex items-center justify-between gap-3 px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-xl">
+                  <button type="button" id="clearFilters" class="text-sm font-medium text-gray-600 hover:text-gray-900 px-2 py-2 -ml-2 rounded-md">Clear all</button>
+                  <button type="button" id="applyFilters" class="bg-[#0f2a6b] text-white text-sm font-medium rounded-md px-5 py-2 hover:opacity-90">Apply filters</button>
                 </div>
               </div>
             </div>
           </div>
         </div>
+        <div id="activeFilters" class="hidden px-4 sm:px-6 py-3 border-b border-gray-200 flex flex-wrap items-center gap-2" aria-label="Filters in use"></div>
         <p id="noResults" class="hidden px-6 py-6 text-sm text-gray-500 text-center">No students match your search or filters.</p>
 
         <div class="overflow-auto max-h-[60vh]" id="studentTableScroll">
@@ -441,14 +479,27 @@
     e.stopPropagation();
     toggleDropdown(profilePanel, notifPanel, filterPanel);
   });
+  function closeFilterPanel(returnFocus) {
+    if (filterPanel.classList.contains('hidden')) return;
+    filterPanel.classList.add('hidden');
+    filterBtn.setAttribute('aria-expanded', 'false');
+    if (returnFocus) filterBtn.focus();
+  }
   filterBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     toggleDropdown(filterPanel, notifPanel, profilePanel);
+    const open = !filterPanel.classList.contains('hidden');
+    filterBtn.setAttribute('aria-expanded', String(open));
+    if (open) filterPanel.querySelector('input:checked').focus();
+  });
+  document.getElementById('closeFilters').addEventListener('click', () => closeFilterPanel(true));
+  filterPanel.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.stopPropagation(); closeFilterPanel(true); }
   });
   document.addEventListener('click', () => {
     notifPanel.classList.add('hidden');
     profilePanel.classList.add('hidden');
-    filterPanel.classList.add('hidden');
+    closeFilterPanel(false);
   });
 
   // Close open dropdown panels on scroll — they were anchored under their
@@ -905,10 +956,10 @@
   let sectionOptions = []; // [{ strand, code, isActive }]
   function renderSectionFilter() {
     const sec = document.getElementById('filterSection');
-    const strand = document.getElementById('filterStrand').value;
+    const strand = getChoice('filterStrand');
     const previous = sec.value;
     const list = sectionOptions.filter(function(s) { return !strand || s.strand === strand; });
-    sec.innerHTML = '<option value="">All Sections</option>' + list.map(function(s) {
+    sec.innerHTML = '<option value="">All sections</option>' + list.map(function(s) {
       return '<option value="' + escapeHtml(s.code) + '">' + escapeHtml(s.code) + (strand ? '' : ' (' + escapeHtml(s.strand) + ')') + (s.isActive ? '' : ' (inactive)') + '</option>';
     }).join('');
     sec.value = list.some(function(s) { return s.code === previous; }) ? previous : '';
@@ -925,39 +976,104 @@
     } catch (e) { /* keep the list we already have */ }
     renderSectionFilter();
   }
-  document.getElementById('filterStrand').addEventListener('change', renderSectionFilter);
+  document.querySelectorAll('input[name="filterStrand"]').forEach(function(r) { r.addEventListener('change', renderSectionFilter); });
   document.getElementById('filterBtn').addEventListener('click', refreshSectionFilter);
   refreshSectionFilter();
-  document.getElementById('applyFilters').addEventListener('click', () => {
-    state.strand = document.getElementById('filterStrand').value;
-    state.section = document.getElementById('filterSection').value;
-    state.status = document.getElementById('filterStatus').value;
-    state.counseling = document.getElementById('filterCounseling').value;
-    state.registration = document.getElementById('filterRegistration').value;
-    state.assessment = document.getElementById('filterAssessment').value;
-    state.account = document.getElementById('filterAccount').value;
-        load();
-    filterPanel.classList.add('hidden');
+
+  // Each filter: the state key it sets, its control (a radio group by name, or the Section drop-down), and its label for the chips.
+  const FILTERS = [
+    { key: 'strand', name: 'filterStrand', label: 'Strand' },
+    { key: 'section', select: 'filterSection', label: 'Section' },
+    { key: 'registration', name: 'filterRegistration', label: 'Registration' },
+    { key: 'account', name: 'filterAccount', label: 'Account' },
+    { key: 'status', name: 'filterStatus', label: 'Assessment status' },
+    { key: 'assessment', name: 'filterAssessment', label: 'Assessed' },
+    { key: 'counseling', name: 'filterCounseling', label: 'Counseling status' }
+  ];
+  function getChoice(name) {
+    const checked = document.querySelector('input[name="' + name + '"]:checked');
+    return checked ? checked.value : '';
+  }
+  function setChoice(name, value) {
+    document.querySelectorAll('input[name="' + name + '"]').forEach(function(r) { r.checked = r.value === value; });
+  }
+  function controlValue(f) { return f.select ? document.getElementById(f.select).value : getChoice(f.name); }
+  function setControl(f, value) {
+    if (f.select) document.getElementById(f.select).value = value; else setChoice(f.name, value);
+  }
+  function choiceText(f, value) {
+    if (f.select) return value;
+    const input = document.querySelector('input[name="' + f.name + '"][value="' + CSS.escape(value) + '"]');
+    return input ? input.nextElementSibling.textContent : value;
+  }
+  // The Filters button shows how many are on, and each one in use is a chip under the toolbar that removes it.
+  function renderActiveFilters() {
+    const active = FILTERS.filter(function(f) { return state[f.key]; });
+    const count = document.getElementById('filterCount');
+    count.textContent = active.length;
+    count.classList.toggle('hidden', active.length === 0);
+    filterBtn.setAttribute('aria-label', active.length ? 'Filters, ' + active.length + ' in use' : 'Filters');
+    const box = document.getElementById('activeFilters');
+    box.classList.toggle('hidden', active.length === 0);
+    box.classList.toggle('flex', active.length > 0);
+    box.innerHTML = active.map(function(f) {
+      const text = f.label + ': ' + choiceText(f, state[f.key]);
+      return '<span class="fp-chip">' + escapeHtml(text) +
+        '<button type="button" data-remove-filter="' + f.key + '" aria-label="Remove ' + escapeHtml(text) + '">' +
+        '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg></button></span>';
+    }).join('') + (active.length > 1 ? '<button type="button" data-remove-filter="all" class="text-xs font-medium text-gray-600 hover:text-gray-900 underline underline-offset-2 px-1">Clear all</button>' : '');
+  }
+  document.getElementById('activeFilters').addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-remove-filter]');
+    if (!btn) return;
+    const key = btn.dataset.removeFilter;
+    FILTERS.forEach(function(f) {
+      if (key !== 'all' && f.key !== key) return;
+      setControl(f, '');
+      state[f.key] = '';
+    });
+    if (key === 'all' || key === 'strand') renderSectionFilter();
+    renderActiveFilters();
+    load();
+    // The chip just removed had focus; keep the keyboard in the same place.
+    const next = document.querySelector('#activeFilters button') || filterBtn;
+    next.focus();
   });
+  document.getElementById('applyFilters').addEventListener('click', () => {
+    FILTERS.forEach(function(f) { state[f.key] = controlValue(f); });
+    renderActiveFilters();
+    load();
+    closeFilterPanel(true);
+  });
+  // Clear all resets the choices in the panel and shows every student again; the search box keeps its text.
   document.getElementById('clearFilters').addEventListener('click', () => {
-    document.getElementById('filterStrand').value = '';
-    document.getElementById('filterSection').value = '';
+    FILTERS.forEach(function(f) { setControl(f, ''); state[f.key] = ''; });
     renderSectionFilter();
-    document.getElementById('filterStatus').value = '';
-    document.getElementById('filterCounseling').value = '';
-    document.getElementById('filterRegistration').value = '';
-    document.getElementById('filterAssessment').value = '';
-    document.getElementById('filterAccount').value = '';
-    state.account = '';
-    searchInput.value = '';
-    state.search = '';
-    state.registration = '';
-    state.assessment = '';
-    state.strand = '';
-    state.section = '';
-    state.status = '';
-    state.counseling = '';
-        load();
+    renderActiveFilters();
+    load();
+  });
+  // The panel opens leftward from the Filters button. On a narrower screen it keeps inside the table card (so it never slides
+  // under the sidebar), and below 560px it shows one column. On a phone the CSS already makes it full width.
+  function fitFilterPanel() {
+    filterPanel.style.width = '';
+    filterPanel.querySelector('.fp-grid').style.gridTemplateColumns = '';
+    if (window.innerWidth < 640) return;
+    const card = filterBtn.closest('.rounded-xl').getBoundingClientRect();
+    const room = Math.floor(filterBtn.getBoundingClientRect().right - card.left - 16);
+    if (room < 680) {
+      filterPanel.style.width = room + 'px';
+      if (room < 560) filterPanel.querySelector('.fp-grid').style.gridTemplateColumns = '1fr';
+    }
+  }
+  window.addEventListener('resize', () => { if (!filterPanel.classList.contains('hidden')) fitFilterPanel(); });
+  // Closing without Apply leaves the table as it is, so the panel shows the filters in use the next time it opens.
+  filterBtn.addEventListener('click', () => {
+    if (filterPanel.classList.contains('hidden')) return;
+    FILTERS.forEach(function(f) { if (!f.select) setControl(f, state[f.key] || ''); });
+    renderSectionFilter();
+    document.getElementById('filterSection').value = state.section || '';
+    fitFilterPanel();
+    filterPanel.querySelector('input:checked').focus();
   });
 
   await load();
