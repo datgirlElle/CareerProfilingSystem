@@ -38,3 +38,7 @@ evaluation/comparison_results.csv
 evaluation/cbf_results.csv
 evaluation/experiment_report*
 evaluation/j48_*.txt
+
+# Counselor rule-review working files (may name staff)
+evaluation/rule_review*.csv
+evaluation/overall_reviews*.csv
