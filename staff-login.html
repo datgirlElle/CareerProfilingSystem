@@ -265,6 +265,13 @@
       }
     }).catch(function() {});
 
+    // A staff sign-up arrives here from verify-email after confirming the email address.
+    if (new URLSearchParams(window.location.search).get('verified') === '2') {
+      const banner = document.getElementById('verifiedBanner');
+      banner.textContent = 'Email verified! An administrator needs to approve your account before you can sign in.';
+      banner.classList.remove('hidden');
+    }
+
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       hideError();

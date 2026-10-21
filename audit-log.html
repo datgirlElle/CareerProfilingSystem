@@ -1558,11 +1558,20 @@
           if (String(window.getSelection ? window.getSelection() : '').length > 0 && !e.target.closest('.row-open-btn')) return;
           openDetails(tr);
         });
-        // A browser can restore typed filter values on reload, so set the starting state from the inputs.
-        // Restored dates stay visible under "Custom range..." instead of hiding behind "Any time".
-        if (filterFrom.value || filterTo.value) filterRange.value = 'custom';
-        customRange.classList.toggle('hidden', filterRange.value !== 'custom');
-        updateClearBtn();
+        // A browser can restore typed filter values on reload or Back, so the first load starts from the inputs and the
+        // table matches the filters on screen. Restored dates stay visible under "Custom range..." instead of hiding
+        // behind "Any time". Called once the page has loaded: the browser restores the values late, after this script starts.
+        function readRestoredFilters() {
+          if (filterFrom.value || filterTo.value) filterRange.value = 'custom';
+          customRange.classList.toggle('hidden', filterRange.value !== 'custom');
+          state.search = searchInput.value.trim();
+          state.status = filterStatus.value;
+          state.from = filterFrom.value;
+          state.to = filterTo.value;
+          state.pageSize = Number(pageSizeSelect.value) || 50;
+          syncDateLimits();
+          updateClearBtn();
+        }
 
         let sortAscending = false;
         sortTimestampBtn.addEventListener('click', () => {
@@ -1644,7 +1653,11 @@
 
         // Runs today's cleanup of old entries first (only when it is turned on, at most once a day), so the
         // table never shows entries that are about to go. The table loads even if that call fails.
-        fetch('api/audit-log-cleanup.php', { method: 'POST' }).catch(() => {}).finally(() => load());
+        const pageLoaded = document.readyState === 'complete'
+          ? Promise.resolve()
+          : new Promise(resolve => window.addEventListener('load', resolve, { once: true }));
+        Promise.all([fetch('api/audit-log-cleanup.php', { method: 'POST' }).catch(() => {}), pageLoaded])
+          .finally(() => { readRestoredFilters(); load(); });
       })();
     })();
   </script>

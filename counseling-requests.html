@@ -266,7 +266,7 @@
     });
     const tabs = view === 'retakes'
       ? [['pending', 'Pending' + (counts && counts.pending !== undefined ? ' (' + counts.pending + ')' : '')], ['approved', 'Approved'], ['declined', 'Declined'], ['completed', 'Retaken'], ['all', 'All']]
-      : [['open', 'Open' + (counts && counts.open !== undefined ? ' (' + counts.open + ')' : '')], ['resolved', 'Resolved'], ['All', 'All']];
+      : [['open', 'Open' + (counts && counts.open !== undefined ? ' (' + counts.open + ')' : '')], ['resolved', 'Resolved'], ['all', 'All']];
     const active = view === 'retakes' ? retakeStatus : activeStatus;
     document.getElementById('statusTabs').innerHTML = tabs.map(function(tb) {
       return '<button type="button" data-status="' + tb[0] + '" class="status-tab px-4 py-2 rounded-md text-sm font-medium border ' + (tb[0] === active ? TAB_ON : TAB_OFF) + '">' + tb[1] + '</button>';
