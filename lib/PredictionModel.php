@@ -11,6 +11,12 @@ require_once __DIR__ . '/CBFEngine.php';
  * RIASEC Assessment, the tree is walked, and the predicted class (one course) is
  * returned.
  *
+ * Feature encodings (stored as 'features' in the model file; 'top3' when absent):
+ *   top3  x / blank (or 1 / 0) for the student's three highest RIASEC types.
+ *   rank  each type's rank within the student, 1 = highest, tied scores share the average
+ *         rank (as evaluation/model_experiment.py writes it). Scale-free, so a tree trained
+ *         on another instrument's scores still applies to the web app's 10-50 scores.
+ *
  * The tree is imported from WEKA's printed J48 output by db/import_weka_tree.php
  * into config/prediction_model.json, so WEKA/Java is not needed on the server.
  * When that file does not exist, the model is "not available" and predict() returns null.
@@ -55,6 +61,72 @@ class PredictionModel
             $next = null;
             foreach ($node['branches'] ?? [] as $branch) {
                 if (self::branchMatches($branch['op'], (string) $branch['value'], $isSelected)) {
+                    $next = $branch['node'];
+                    break;
+                }
+            }
+            if ($next === null) {
+                return null;
+            }
+            $node = $next;
+        }
+        return (string) $node['class'];
+    }
+
+    /**
+     * Rank of each RIASEC type within the student, keyed R..C: 1 = highest score, tied
+     * scores share the average of their positions (e.g. two types tied for 2nd get 2.5).
+     *
+     * @param array<string,int|float> $scores
+     * @return array<string,float>
+     */
+    public static function ranks(array $scores): array
+    {
+        $dims = CBFEngine::DIMENSIONS;
+        $order = $dims;
+        usort($order, fn($a, $b) => ((float) $scores[$b] <=> (float) $scores[$a]) ?: (array_search($a, $dims) <=> array_search($b, $dims)));
+        $out = [];
+        for ($i = 0, $n = count($order); $i < $n; $i = $j + 1) {
+            $j = $i;
+            while ($j + 1 < $n && abs((float) $scores[$order[$j + 1]] - (float) $scores[$order[$i]]) < 1e-9) {
+                $j++;
+            }
+            for ($k = $i; $k <= $j; $k++) {
+                $out[$order[$k]] = ($i + $j) / 2 + 1;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Predicted class label from the student's RIASEC scores (R..C), using the feature
+     * encoding the model was trained on. null if the tree has no branch for the input.
+     */
+    public static function predictLabelFromScores(array $model, array $scores): ?string
+    {
+        $features = $model['features'] ?? 'top3';
+        if ($features === 'top3') {
+            return self::predictLabel($model['tree'], CBFEngine::topRiasecLetters($scores, 3));
+        }
+        if ($features !== 'rank') {
+            throw new InvalidArgumentException("Unknown feature encoding '$features' in the prediction model.");
+        }
+        $rank = self::ranks($scores);
+        $node = $model['tree'];
+        while (!isset($node['class'])) {
+            $letter = self::dimension((string) ($node['attribute'] ?? ''));
+            if ($letter === null) {
+                return null;
+            }
+            $x = $rank[$letter];
+            $next = null;
+            foreach ($node['branches'] ?? [] as $branch) {
+                $t = (float) $branch['value'];
+                $ok = match ($branch['op']) {
+                    '<=' => $x <= $t, '<' => $x < $t, '>' => $x > $t, '>=' => $x >= $t,
+                    '=' => abs($x - $t) < 1e-9, '!=' => abs($x - $t) >= 1e-9, default => false,
+                };
+                if ($ok) {
                     $next = $branch['node'];
                     break;
                 }

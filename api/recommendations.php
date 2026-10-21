@@ -9,7 +9,10 @@
  *                     RIASEC profile (ties listed together)
  *   alternatives      CBF: course(s) at the next-highest cosine similarity
  *   each course carries its cosine similarity (0-1), never a percentage
- *   finalBestMatch    null: needs the prediction model (WEKA), which is not available yet
+ *   prediction        the WEKA J48 model's course ("students with a similar RIASEC profile
+ *                     chose"), shown on its own. Staff always get it; students only when
+ *                     config/cbf.php decision_tree.show_to_students is true.
+ *   finalBestMatch    null: needs an adviser-approved combination rule
  * Staff (studentId=...) also get `cbf`: every course's cosine calculation.
  */
 
@@ -39,7 +42,7 @@ $isStaff = $user['role'] !== 'student';
 try {
     $stmt = $pdo->prepare(
         'SELECT id, computed_at, stated_program_id, scores, source_worksheet_id, match_status, mismatch_reason,
-                cbf_program_ids, final_program_ids
+                cbf_program_ids, final_program_ids, prediction_program_ids, model_version
          FROM recommendations WHERE student_id = ? AND source_assessment_id = (SELECT id FROM assessments WHERE student_id = recommendations.student_id AND is_latest = TRUE)
          ORDER BY computed_at DESC LIMIT 1'
     );
@@ -83,6 +86,12 @@ $bestIds = $isCurrent && $row['cbf_program_ids'] !== null
 // Alternative Courses: courses at the next-highest cosine similarity (CBF only).
 $alternativeIds = array_map('intval', array_column(CBFEngine::selectAlternatives($scores, 'cosine'), 'programId'));
 $candidateIds = array_merge($bestIds, $alternativeIds);
+// Prediction model (WEKA): NULL = did not run; {} = ran but predicted no active program.
+$predictionIds = CBFData::parseIntArray($row['prediction_program_ids'] ?? null);
+$showPrediction = $isStaff || !empty(CBFEngine::config()['decision_tree']['show_to_students']);
+if ($showPrediction && $predictionIds) {
+    $candidateIds = array_merge($candidateIds, $predictionIds);
+}
 
 $neededIds = array_merge($candidateIds, $preferredId !== null ? [$preferredId] : [], $isStaff ? array_column($scores, 'programId') : []);
 $programs = [];
@@ -125,10 +134,11 @@ $response = [
     'preferredCourse' => $preferredId !== null && isset($programs[$preferredId])
         ? $programs[$preferredId] + ['inBestRiasecMatch' => in_array($preferredId, $bestIds, true)]
         : null,
-    // The final Best Match (CBF + prediction model + worksheet) needs the prediction model,
-    // which is not available yet, so it is not computed.
+    // The final Best Match (CBF + prediction model + worksheet) needs an adviser-approved
+    // combination rule, so it is not computed.
     'finalBestMatch' => null,
-    'sources' => ['cbf' => 'available', 'worksheet' => $preferredId !== null ? 'available' : 'empty', 'prediction' => 'unavailable'],
+    'sources' => ['cbf' => 'available', 'worksheet' => $preferredId !== null ? 'available' : 'empty',
+        'prediction' => $predictionIds === null ? 'unavailable' : ($predictionIds ? 'available' : 'no_prediction')],
     'isComplete' => false,
     // What the student typed on the Career Worksheet, and the program it was linked to (if any).
     'statedProgramId' => $preferredId,
@@ -138,6 +148,18 @@ $response = [
     'mismatchReason' => $row['mismatch_reason'],
     'needsRecompute' => !$isCurrent,
 ];
+if (!$showPrediction) {
+    $response['sources']['prediction'] = 'staff_only';
+} else {
+    // Source 3, on its own: never changes the Best RIASEC Match or the Preferred Course.
+    $predicted = $predictionIds ? ($programs[$predictionIds[0]] ?? null) : null;
+    $response['prediction'] = [
+        'status' => $response['sources']['prediction'],
+        'course' => $predicted ? $predicted + ['inBestRiasecMatch' => in_array($predicted['id'], $bestIds, true),
+            'inAlternatives' => in_array($predicted['id'], $alternativeIds, true)] : null,
+        'modelVersion' => $row['model_version'],
+    ];
+}
 if ($isStaff) {
     $response['cbf'] = [
         'bestRiasecMatch' => array_column($programsFor($bestIds), 'title'),

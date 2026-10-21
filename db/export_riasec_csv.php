@@ -11,6 +11,11 @@
  * in from enrolment records, never from the system's own recommendation.
  *
  *   php db/export_riasec_csv.php > evaluation/student_profiles.csv
+ *   php db/export_riasec_csv.php --scores > evaluation/student_profiles.csv
+ *
+ * --scores writes the six RIASEC totals (10-50) instead of x/blank. Use it for
+ * evaluation/model_experiment.py: the CBF then uses the actual profile (as the web app
+ * does), and cbf_eval.py split still builds the x/blank WEKA files from the scores.
  *
  * The StudentID is the school ID. Replace it with a code (S001, S002, ...)
  * before sharing the file outside the research team.
@@ -29,6 +34,7 @@ $rows = Database::get()->query(
      WHERE a.is_latest = TRUE ORDER BY s.school_id'
 )->fetchAll();
 
+$withScores = in_array('--scores', $argv, true);
 $out = fopen('php://stdout', 'w');
 fputcsv($out, ['StudentID', ...CBFEngine::DIMENSIONS, 'course']);
 foreach ($rows as $r) {
@@ -36,6 +42,10 @@ foreach ($rows as $r) {
         'R' => (int) $r['score_r'], 'I' => (int) $r['score_i'], 'A' => (int) $r['score_a'],
         'S' => (int) $r['score_s'], 'E' => (int) $r['score_e'], 'C' => (int) $r['score_c'],
     ];
+    if ($withScores) {
+        fputcsv($out, [$r['school_id'], ...array_values($scores), '']);
+        continue;
+    }
     $top = CBFEngine::topRiasecLetters($scores, CBFEngine::config()['student_top_n'] ?? 3);
     fputcsv($out, [$r['school_id'], ...array_map(fn($d) => in_array($d, $top, true) ? 'x' : '', CBFEngine::DIMENSIONS), '']);
 }

@@ -200,6 +200,60 @@ class Evaluation(unittest.TestCase):
             self.assertNotIn("StudentID", arff)                    # ID is never a WEKA attribute
             self.assertEqual(arff.count("@ATTRIBUTE"), 7)          # R..C + class only
 
+    def test_undecided_rows_are_removed_and_student_id_header_accepted(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "raw.csv")
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                w = csv.writer(f)
+                w.writerow(["student_id", "R", "I", "A", "S", "E", "C", "course"])
+                w.writerow(["1", 2, 9, 1, 8, 3, 7, "BS Nursing"])
+                w.writerow(["2", 5, 5, 5, 5, 5, 5, "Undecided"])
+            rows = m.read_students(path, quiet=True)
+            self.assertEqual([r["StudentID"] for r in rows], ["1"])
+
+    def test_scores_scale_keeps_the_actual_profile(self):
+        row = {"StudentID": "1", "R": "4", "I": "5", "A": "1", "S": "1", "E": "2", "C": "4"}
+        self.assertEqual(m.student_vector(row, "scores"), [4.0, 5.0, 1.0, 1.0, 2.0, 4.0])
+        # Same ranking as the web app: IRC course cosine 0.946 (13 / (sqrt(63) * sqrt(3))).
+        self.assertAlmostEqual(m.cosine(m.student_vector(row, "scores"), m.holland_to_vector("IRC")), 13 / (math.sqrt(63) * math.sqrt(3)))
+
+    def test_top3_arff_uses_x_blank(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "t.arff")
+            m.write_arff(path, [{"StudentID": "1", "R": "2", "I": "9", "A": "1", "S": "8", "E": "3", "C": "7",
+                                 "ActualCourse": "BS Nursing"}], "auto")
+            with open(path, encoding="utf-8") as f:
+                arff = f.read()
+            self.assertIn("@ATTRIBUTE R {x,blank}", arff)
+            self.assertIn("blank,x,blank,x,blank,x,'BS Nursing'", arff)   # top 3 = I, S, C
+
+    def test_third_place_tie_detected(self):
+        self.assertTrue(m.third_place_tie({"R": 9, "I": 8, "A": 7, "S": 7, "E": 1, "C": 0}))
+        self.assertFalse(m.third_place_tie({"R": 9, "I": 8, "A": 7, "S": 6, "E": 1, "C": 0}))
+
+    def test_weka_csv_predictions_are_read(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "out.txt")
+            dist = ["0"] * len(m.COURSE_NAMES)
+            dist[m.COURSE_NAMES.index("BS Nursing")] = "*0.75"
+            dist[m.COURSE_NAMES.index("BS Biology")] = "0.25"
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("=== Predictions on test data ===\n\ninst#,actual,predicted,error,distribution" + "," * 31 + "\n")
+                f.write("1,10:'BS Nursing',10:BS Nursing,," + ",".join(dist) + "\n")
+                f.write("2,2:'B Multimedia Arts',10:BS Nursing,+," + ",".join(dist) + "\n\n=== Evaluation ===\n")
+            preds = m.read_weka_predictions(path)
+            self.assertEqual([(a, p) for a, p, _ in preds], [("BS Nursing", "BS Nursing"), ("B Multimedia Arts", "BS Nursing")])
+            self.assertAlmostEqual(preds[0][2]["BS Nursing"], 0.75)
+            hit1, hit3, rr = m.rank_metrics(preds[0][2], "BS Biology", 3)
+            self.assertEqual((hit1, rr), (0.0, 0.5))     # Biology is ranked 2nd by probability
+            self.assertEqual(hit3, 1.0)
+
+    def test_mcnemar_exact(self):
+        b, c, p = m.mcnemar_exact([1, 1, 1, 0], [0, 0, 0, 0])
+        self.assertEqual((b, c), (3, 0))
+        self.assertAlmostEqual(p, 0.25)                 # 2 * (1/2)^3
+        self.assertEqual(m.mcnemar_exact([1, 0], [1, 0])[2], 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -66,6 +66,22 @@ $model = ['version' => 'test', 'tree' => $tree2];
 check('predict(): label mapped to the program id', PredictionModel::predict(['C', 'I', 'E'], $programs, $model) === [4]);
 check('no model file -> load() returns null (model not available)', PredictionModel::load(__DIR__ . '/no_such_model.json') === null);
 
+echo "\n=== Rank features (evaluation/model_experiment.py 'rank' encoding) ===\n";
+$r = PredictionModel::ranks(['R' => 40, 'I' => 50, 'A' => 10, 'S' => 10, 'E' => 20, 'C' => 40]);
+check('ranks: I=1, R and C tied for 2nd -> 2.5 each, E=4, A and S tied -> 5.5', $r === ['I' => 1, 'R' => 2.5, 'C' => 2.5, 'E' => 4, 'A' => 5.5, 'S' => 5.5]);
+check('ranks are scale-free: 0-10 counts give the same ranks as 10-50 totals',
+    PredictionModel::ranks(['R' => 8, 'I' => 10, 'A' => 2, 'S' => 2, 'E' => 4, 'C' => 8]) == $r);
+$rankTree = PredictionModel::parseJ48("J48 pruned tree\n------------------\n\nS <= 2\n|   I <= 1.5: BS Nursing (5.0/1.0)\n|   I > 1.5: BS Psychology (4.0/2.0)\nS > 2: BS Civil Engineering (9.0/5.0)\n");
+$rankModel = ['tree' => $rankTree, 'features' => 'rank'];
+check('rank tree: S 1st, I 2nd -> BS Psychology', PredictionModel::predictLabelFromScores($rankModel, ['R' => 20, 'I' => 40, 'A' => 10, 'S' => 50, 'E' => 15, 'C' => 12]) === 'BS Psychology');
+check('rank tree: I 1st, S 2nd -> BS Nursing', PredictionModel::predictLabelFromScores($rankModel, ['R' => 20, 'I' => 50, 'A' => 10, 'S' => 40, 'E' => 15, 'C' => 12]) === 'BS Nursing');
+check('rank tree: S not in the top 2 -> BS Civil Engineering', PredictionModel::predictLabelFromScores($rankModel, ['R' => 50, 'I' => 40, 'A' => 10, 'S' => 20, 'E' => 15, 'C' => 30]) === 'BS Civil Engineering');
+check('a model without "features" is a top-3 model (files imported before this change)',
+    PredictionModel::predictLabelFromScores(['tree' => $tree2], ['R' => 10, 'I' => 40, 'A' => 10, 'S' => 10, 'E' => 30, 'C' => 50]) === 'bsit');
+$threw = false;
+try { PredictionModel::predictLabelFromScores(['tree' => $rankTree, 'features' => 'zscore'], $r); } catch (InvalidArgumentException $e) { $threw = true; }
+check('unknown feature encoding -> refused, not guessed', $threw);
+
 
 echo "\n=== Summary: $passed passed, $failed failed ===\n";
 exit($failed ? 1 : 0);

@@ -21,11 +21,16 @@ return [
     'student_top_n' => 3,
 
     // ---- Prediction model (WEKA) -------------------------------------------------
-    // OUT OF SCOPE for the current CBF revision: lib/RecommendationPipeline.php does not
-    // read these settings and does not run the prediction model. Left unchanged for the
-    // separate WEKA work (lib/PredictionModel.php, db/import_weka_tree.php).
+    // Source 3 of lib/RecommendationPipeline.php: the J48 tree imported into
+    // config/prediction_model.json (db/import_weka_tree.php). It is shown on its own and
+    // never changes the CBF result or the Preferred Course.
+    //   enabled           run the model when a recommendation is computed (needs the model file)
+    //   show_to_students  false = staff only (Student Profile); true = also on the student's
+    //                     Career Results page. Decide with the adviser: the model was trained on
+    //                     students' preferred courses and is right about 1 time in 9 on the test set.
     'decision_tree' => [
-        'enabled' => false,
+        'enabled' => true,
+        'show_to_students' => false,
     ],
     'mismatch' => [
         'definition' => 'no_common_course',      // future rule, once the prediction model exists
