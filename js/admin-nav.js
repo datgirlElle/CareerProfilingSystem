@@ -27,7 +27,7 @@
   var MENU = [
     { title: 'Overview', items: [
       { id: 'admin-dashboard', href: 'admin-dashboard', label: 'Student Information', icon: 'people' },
-      { id: 'analytics', href: 'analytics', label: 'Analytics', icon: 'analytics' }
+      { id: 'analytics', href: 'analytics', label: 'Analytics &amp; Report', icon: 'analytics' }
     ] },
     { title: 'Assessment', items: [
       { id: 'career-dataset', href: 'career-dataset', label: 'Career Dataset', icon: 'database' },

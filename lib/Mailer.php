@@ -13,10 +13,18 @@ require_once __DIR__ . '/../config/env.php';
  * sending is skipped and, on a local machine (APP_ENV=local), the message is
  * written to the PHP error log instead, so the reset/notification flow stays
  * testable without real credentials.
+ *
+ * $attachments: optional files to attach, each ['name' => 'file.xlsx', 'content' => the file's raw bytes].
+ * BREVO_API_URL can point at a stand-in server for automated tests; it defaults to Brevo's real endpoint.
  */
 class Mailer
 {
-    public static function send(string $toEmail, string $toName, string $subject, string $bodyHtml, string $bodyText): bool
+    public const DEFAULT_API_URL = 'https://api.brevo.com/v3/smtp/email';
+
+    /**
+     * @param array<int,array{name:string,content:string}> $attachments
+     */
+    public static function send(string $toEmail, string $toName, string $subject, string $bodyHtml, string $bodyText, array $attachments = []): bool
     {
         $apiKey = envValue('BREVO_API_KEY');
         if (!$apiKey) {
@@ -30,13 +38,7 @@ class Mailer
             return false;
         }
 
-        $payload = json_encode([
-            'sender' => ['name' => envValue('SMTP_FROM_NAME') ?: 'ProfilePath', 'email' => envValue('SMTP_FROM_EMAIL')],
-            'to' => [['email' => $toEmail, 'name' => $toName]],
-            'subject' => $subject,
-            'htmlContent' => $bodyHtml,
-            'textContent' => $bodyText,
-        ]);
+        $payload = json_encode(self::payload($toEmail, $toName, $subject, $bodyHtml, $bodyText, $attachments));
 
         $context = stream_context_create([
             'http' => [
@@ -48,7 +50,7 @@ class Mailer
             ],
         ]);
 
-        $result = @file_get_contents('https://api.brevo.com/v3/smtp/email', false, $context);
+        $result = @file_get_contents(envValue('BREVO_API_URL') ?: self::DEFAULT_API_URL, false, $context);
         $status = 0;
         foreach ($http_response_header ?? [] as $header) {
             if (preg_match('#^HTTP/\S+\s+(\d{3})#', $header, $m)) {
@@ -63,5 +65,26 @@ class Mailer
 
         error_log("[Mailer] Brevo API send failed (HTTP $status): " . ($result !== false ? $result : 'no response — request may not have reached Brevo'));
         return false;
+    }
+
+    /**
+     * The Brevo request body. Attachments go as base64, which is how Brevo's API takes file content.
+     *
+     * @param array<int,array{name:string,content:string}> $attachments
+     * @return array<string,mixed>
+     */
+    public static function payload(string $toEmail, string $toName, string $subject, string $bodyHtml, string $bodyText, array $attachments = []): array
+    {
+        $payload = [
+            'sender' => ['name' => envValue('SMTP_FROM_NAME') ?: 'ProfilePath', 'email' => envValue('SMTP_FROM_EMAIL')],
+            'to' => [['email' => $toEmail, 'name' => $toName]],
+            'subject' => $subject,
+            'htmlContent' => $bodyHtml,
+            'textContent' => $bodyText,
+        ];
+        if ($attachments) {
+            $payload['attachment'] = array_map(fn($a) => ['name' => $a['name'], 'content' => base64_encode($a['content'])], $attachments);
+        }
+        return $payload;
     }
 }

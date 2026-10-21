@@ -173,6 +173,191 @@ class AnalyticsXlsx
         return $x->build();
     }
 
+    public const SUMMARY_TITLE = 'ProfilePath Career Profiling System: Analytics Summary Report';
+    public const SUMMARY_SCHOOL = 'Mapúa Malayan Colleges Laguna, Center for Guidance and Counseling';
+
+    /**
+     * The Analytics Summary Report that is emailed to the principal or another school official (api/analytics-report.php):
+     * the same numbers the Analytics & Report page shows, from AnalyticsReport::compute(), as tables. Totals and shares
+     * only: no student names, Student Numbers, answers or other personal details. The page's preview and the Excel file are
+     * both built from this, so what the administrator previews is what gets sent.
+     *
+     * Each table: title, columns, rows (cells are int = count, float = percent or score, string = text) and an optional note.
+     *
+     * @param array<string,mixed> $data the result of AnalyticsReport::compute()
+     * @return array{title:string,generatedAt:string,scope:string,sections:array<int,array{title:string,columns:array<int,string>,rows:array<int,array<int,int|float|string>>,note?:string}>}
+     */
+    public static function summaryReport(array $data, string $generatedAt): array
+    {
+        $pct = fn(int $n, int $whole): float => $whole > 0 ? min(100.0, round($n / $whole * 100, 1)) : 0.0;
+        $scope = trim(($data['strand'] ?: '') . ' ' . ($data['section'] ?: ''));
+        $scope = $scope === '' ? 'All strands and sections' : $scope;
+        $ay = (string) $data['academicYear'];
+
+        $expected = (int) $data['completion']['total'];
+        $assessed = (int) $data['completion']['count'];
+        $notAssessed = max(0, $expected - $assessed);
+        $registered = min($expected, (int) ($data['assessmentStats']['registeredCount'] ?? 0));
+
+        $sections = [];
+        $sections[] = [
+            'title' => 'Report information',
+            'columns' => ['Item', 'Details'],
+            'rows' => [
+                ['Report', self::SUMMARY_TITLE],
+                ['School', self::SUMMARY_SCHOOL],
+                ['Academic year', $ay],
+                ['Students covered', $scope],
+                ['Generated', $generatedAt],
+            ],
+        ];
+        $sections[] = [
+            'title' => 'Assessment participation',
+            'columns' => ['Measure', 'Students', 'Percent (%)'],
+            'rows' => [
+                ['Students expected this academic year', $expected, 100.0],
+                ['Registered a ProfilePath account', $registered, $pct($registered, $expected)],
+                ['Not registered yet (on the class roster only)', $expected - $registered, $pct($expected - $registered, $expected)],
+                ['Completed the RIASEC assessment', $assessed, (float) $data['completion']['rate']],
+                ['Not yet completed the assessment', $notAssessed, $pct($notAssessed, $expected)],
+                ['Completed the Career Electives Worksheet', (int) $data['worksheet']['count'], (float) $data['worksheet']['rate']],
+                ['High-confidence program match (cosine similarity ' . number_format((float) $data['confidence']['threshold'], 2) . ' or higher)', (int) $data['confidence']['count'], (float) $data['confidence']['rate']],
+            ],
+            'note' => 'Students expected = registered students plus students on the uploaded class roster who have not registered yet. Every percent in this table is out of that number.',
+        ];
+
+        $bySection = [];
+        foreach ($data['assessmentStats']['bySection'] as $s) {
+            $bySection[] = [(string) $s['section'], (int) $s['expected'], (int) ($s['registered'] ?? 0), (int) $s['completed'], max(0, (int) $s['expected'] - (int) $s['completed']), $pct((int) $s['completed'], (int) $s['expected'])];
+        }
+        $sections[] = [
+            'title' => 'Assessment completion by section',
+            'columns' => ['Section', 'Expected', 'Registered', 'Completed', 'Not yet completed', 'Completion (%)'],
+            'rows' => $bySection,
+            'note' => $bySection ? '' : 'No students are expected for this academic year yet.',
+        ];
+
+        $riasec = [];
+        foreach (self::RIASEC_NAMES as $letter => $label) {
+            $riasec[] = [$label, $letter, (float) ($data['riasecAverages'][$letter] ?? 0)];
+        }
+        $sections[] = [
+            'title' => 'Career interests: average RIASEC scores',
+            'columns' => ['Interest area', 'Letter', 'Average score (10 to 50)'],
+            'rows' => $riasec,
+            'note' => $assessed > 0 ? 'Averages of the students who completed the assessment.' : 'No completed assessments yet, so every average is 0.',
+        ];
+
+        $programs = [];
+        foreach ($data['topCareers'] as $i => $c) {
+            $programs[] = [$i + 1, (string) $c['title'], (int) $c['count'], (float) $c['percent']];
+        }
+        $sections[] = [
+            'title' => 'Top 5 programs most similar to students\' RIASEC profiles',
+            'columns' => ['Rank', 'Program', 'Students', 'Percent of students with a recommendation (%)'],
+            'rows' => $programs,
+            'note' => $programs ? 'From Content-Based Filtering (cosine similarity). A student can count toward more than one program.' : 'No recommendations computed yet.',
+        ];
+
+        $strandTotal = array_sum(array_map(fn($r) => (int) $r['count'], $data['strandDistribution']));
+        $sections[] = [
+            'title' => 'Registered students by strand',
+            'columns' => ['Strand', 'Students', 'Percent (%)'],
+            'rows' => array_map(fn($r) => [(string) $r['strand'], (int) $r['count'], $pct((int) $r['count'], $strandTotal)], $data['strandDistribution']),
+            'note' => $strandTotal ? 'Registered student accounts in ProfilePath.' : 'No registered students yet.',
+        ];
+
+        $sections[] = [
+            'title' => 'Assessment completion by academic year',
+            'columns' => ['Academic year', 'Registered students', 'Completed', 'Completion (%)'],
+            'rows' => array_map(fn($y) => [(string) $y['academicYear'], (int) $y['total'], (int) $y['completed'], (float) $y['rate']], $data['completionByYear']),
+            'note' => $data['completionByYear'] ? 'All strands and sections.' : 'No academic year data yet.',
+        ];
+
+        return ['title' => self::SUMMARY_TITLE, 'generatedAt' => $generatedAt, 'scope' => $scope . ', Academic Year ' . $ay, 'sections' => $sections];
+    }
+
+    /**
+     * The Analytics Summary Report as an Excel workbook, from summaryReport(): an Overview sheet (report information and
+     * participation) and one sheet per table, with the same charts style as the export above. Like that export, every
+     * sheet is protected with $password so the file can't be edited by accident or by whoever it is passed to;
+     * api/analytics-report.php emails the password to the staff member who downloaded or sent it ($passwordTo).
+     *
+     * @param array<string,mixed> $report the result of summaryReport()
+     * @return string the .xlsx file's bytes
+     */
+    public static function buildSummaryReport(array $report, string $password, string $passwordTo): string
+    {
+        $x = new XlsxWriter();
+        $S = fn($v, int $style) => ['v' => $v, 's' => $style];
+        $cell = function ($v, int $col) use ($S) {
+            if (is_int($v)) {
+                return $S($v, XlsxWriter::S_INT);
+            }
+            if (is_float($v)) {
+                return $S($v, XlsxWriter::S_NUM1);
+            }
+            return $S($v, $col === 0 ? XlsxWriter::S_LABEL : XlsxWriter::S_TEXT);
+        };
+        $table = function (array $section) use ($S, $cell): array {
+            $rows = [[$S($section['title'], XlsxWriter::S_BOLD)]];
+            $rows[] = array_map(fn($h) => $S($h, XlsxWriter::S_HEADER), $section['columns']);
+            foreach ($section['rows'] as $r) {
+                $rows[] = array_map($cell, $r, array_keys($r));
+            }
+            if (!empty($section['note'])) {
+                $rows[] = [$S($section['note'], XlsxWriter::S_NOTE)];
+            }
+            return $rows;
+        };
+        [$info, $participation, $bySection, $riasec, $programs, $strands, $byYear] = $report['sections'];
+
+        // ---- Overview: title, report information and participation
+        $rows = [
+            [$S($report['title'], XlsxWriter::S_TITLE)],
+            [$S('Generated ' . $report['generatedAt'], XlsxWriter::S_NOTE)],
+            [$S('This report is protected against editing. The password to edit it was emailed to ' . $passwordTo . '.', XlsxWriter::S_NOTE)],
+            [],
+        ];
+        foreach ($info['rows'] as $r) {
+            $rows[] = [$S($r[0], XlsxWriter::S_LABEL), $S($r[1], XlsxWriter::S_TEXT)];
+        }
+        $rows[] = [];
+        $rows = array_merge($rows, $table($participation));
+        $x->addSheet('Overview', $rows, [58, 16, 16], false, [[0, 0, 0, 4]]);
+
+        // ---- By Section, with a completion chart
+        $sheet = $x->addSheet('By Section', $table($bySection), [18, 12, 12, 12, 18, 16]);
+        if ($bySection['rows']) {
+            $last = 2 + count($bySection['rows']); // title row, header row, then data from row 3
+            $x->addChart([
+                'title' => 'Assessment completion by section', 'sheet' => $sheet, 'anchor' => [7, 1, 17, 20],
+                'catRef' => "'By Section'!\$A\$3:\$A\$$last", 'cats' => array_map(fn($r) => $r[0], $bySection['rows']),
+                'valRef' => "'By Section'!\$F\$3:\$F\$$last", 'vals' => array_map(fn($r) => $r[5], $bySection['rows']),
+                'seriesName' => 'Completion (%)', 'colors' => array_fill(0, count($bySection['rows']), '0F2A6B'), 'max' => 100, 'axisTitle' => 'Percent completed',
+            ]);
+        }
+
+        // ---- Career Interests: RIASEC averages (with a chart) and the top programs
+        $rows = $table($riasec);
+        $rows[] = [];
+        $rows = array_merge($rows, $table($programs));
+        $sheet = $x->addSheet('Career Interests', $rows, [44, 30, 24, 22]);
+        $x->addChart([
+            'title' => 'Average RIASEC scores', 'sheet' => $sheet, 'anchor' => [5, 1, 15, 19],
+            'catRef' => "'Career Interests'!\$A\$3:\$A\$8", 'cats' => array_map(fn($r) => $r[0], $riasec['rows']),
+            'valRef' => "'Career Interests'!\$C\$3:\$C\$8", 'vals' => array_map(fn($r) => $r[2], $riasec['rows']),
+            'seriesName' => 'Average score', 'colors' => ['2563EB', '059669', 'D97706', '9333EA', 'DC2626', '0891B2'], 'axisTitle' => 'Average score',
+        ]);
+
+        // ---- Strands and Years
+        $x->addSheet('By Strand', $table($strands), [18, 12, 14]);
+        $x->addSheet('By Year', $table($byYear), [18, 20, 12, 16]);
+
+        $x->protect($password);
+        return $x->build();
+    }
+
     /** A readable edit password: no 0/O/1/I/l, so it can be typed from an email. */
     public static function generatePassword(int $length = 12): string
     {

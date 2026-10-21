@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
-<title>Analytics Dashboard — Career Profiling System</title>
+<title>Analytics &amp; Report — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -14,6 +14,13 @@
 <style>
   body{ font-family:'Inter', sans-serif; }
   select{ appearance:none; -webkit-appearance:none; }
+  /* Send Analytics Report */
+  .report-tick { flex:0 0 16px; height:16px; margin-top:2px; border-radius:9999px; background:#e6f3eb url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231b8a47' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M5 13l4 4L19 7'/%3E%3C/svg%3E") center/10px no-repeat; }
+  #reportEmail[aria-invalid="true"] { border-color:#b91c1c; }
+  .rp-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .rp-table th { text-align:left; font-weight:600; color:#334155; background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:8px 10px; }
+  .rp-table td { color:#1e293b; border-bottom:1px solid #f1f5f9; padding:7px 10px; vertical-align:top; }
+  .rp-table .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
 </style>
 <link rel="stylesheet" href="css/motion.css">
 </head>
@@ -104,7 +111,7 @@
       <!-- Page Header -->
       <div class="flex items-start justify-between flex-wrap gap-4 mb-8">
         <div>
-          <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Analytics Dashboard</h1>
+          <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Analytics &amp; Report</h1>
           <p class="text-sm text-slate-500 mt-1">Insights and trends based on student assessments and career profiling data.</p>
         </div>
         <div class="flex items-center gap-3">
@@ -136,8 +143,9 @@
               </div>
             </div>
           </div>
-          <button type="button" id="exportExcelBtn" class="flex items-center gap-2 bg-white border border-slate-300 rounded-md px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50" title="A protected Excel report with charts. The password to edit it is emailed to you.">
-            Export Report (Excel)
+          <button type="button" id="downloadReportBtn" class="flex items-center gap-2 bg-white border border-slate-300 rounded-md px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50" title="A protected Excel report with charts, for the school year and filters shown. The password to edit it is emailed to you.">
+            <svg class="w-4 h-4" viewBox="0 -960 960 960" fill="#475569" aria-hidden="true"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
+            Download Report (Excel)
           </button>
         </div>
       </div>
@@ -301,6 +309,59 @@
         </div>
       </div>
 
+      <!-- Send Analytics Report (administrator only): emails the Analytics Summary Report as an Excel file (api/analytics-report.php) -->
+      <section id="sendReportCard" class="hidden bg-white border border-slate-200 rounded-xl shadow-sm mt-6" aria-labelledby="sendReportTitle">
+        <div class="border-b border-slate-200 px-5 py-5 flex items-start gap-4">
+          <span class="w-10 h-10 rounded-lg bg-[#eef3fc] flex items-center justify-center shrink-0" aria-hidden="true">
+            <svg class="w-5 h-5" viewBox="0 -960 960 960" fill="#19427b"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h640q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160H160Zm320-280L160-640v400h640v-400L480-440Zm0-80 320-200H160l320 200ZM160-640v-80 480-400Z"/></svg>
+          </span>
+          <div>
+            <h2 id="sendReportTitle" class="text-base font-semibold text-slate-900">Send Analytics Report</h2>
+            <p class="text-sm text-slate-500 mt-0.5">Generate and send a summary of the current ProfilePath analytics to the school principal or another authorized school official.</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 p-5">
+          <form id="sendReportForm" class="lg:col-span-3 flex flex-col gap-4" novalidate>
+            <div>
+              <label for="reportEmail" class="block text-sm font-medium text-slate-700 mb-1.5">Recipient email address</label>
+              <input type="email" id="reportEmail" name="reportEmail" autocomplete="email" maxlength="254" spellcheck="false" autocapitalize="none"
+                placeholder="principal@school.edu.ph" aria-describedby="reportEmailHint reportEmailError"
+                class="w-full max-w-md border border-slate-300 rounded-md px-3.5 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2a6b] focus:border-transparent">
+              <p id="reportEmailHint" class="text-xs text-slate-500 mt-1.5">Type the address yourself. The recipient does not need a ProfilePath account.</p>
+              <p id="reportEmailError" class="hidden text-xs font-medium text-red-700 mt-1.5" role="alert"></p>
+            </div>
+            <div class="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3">
+              <p class="text-xs font-medium text-slate-500">Report covers</p>
+              <p id="reportScope" class="text-sm font-semibold text-slate-800 mt-0.5">—</p>
+              <p class="text-xs text-slate-500 mt-1">The school year and filters chosen at the top of this page. The latest data is used when the report is sent.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <button type="button" id="previewReportBtn" class="inline-flex items-center gap-2 bg-white border border-slate-300 rounded-md px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+                <svg class="w-4 h-4" viewBox="0 -960 960 960" fill="#475569" aria-hidden="true"><path d="M480-320q75 0 127.5-52.5T660-500q0-75-52.5-127.5T480-680q-75 0-127.5 52.5T300-500q0 75 52.5 127.5T480-320Zm0-72q-45 0-76.5-31.5T372-500q0-45 31.5-76.5T480-608q45 0 76.5 31.5T588-500q0 45-31.5 76.5T480-392Zm0 192q-146 0-266-81.5T40-500q54-137 174-218.5T480-800q146 0 266 81.5T920-500q-54 137-174 218.5T480-200Z"/></svg>
+                Preview report
+              </button>
+              <button type="submit" id="sendReportBtn" class="inline-flex items-center gap-2 bg-[#0f2a6b] text-white rounded-md px-5 py-2.5 text-sm font-medium shadow-sm hover:opacity-90">
+                <svg class="w-4 h-4" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M120-160v-640l760 320-760 320Zm80-120 474-200-474-200v140l240 60-240 60v140Zm0 0v-400 400Z"/></svg>
+                Send report
+              </button>
+            </div>
+            <p id="sendReportStatus" class="hidden text-sm rounded-md border px-3.5 py-2.5" role="status" aria-live="polite"></p>
+          </form>
+          <div class="lg:col-span-2 lg:border-l lg:border-slate-200 lg:pl-6">
+            <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-3">What the report includes</p>
+            <ul class="flex flex-col gap-2.5 text-sm text-slate-700">
+              <li class="flex gap-2.5"><span class="report-tick" aria-hidden="true"></span>Assessment participation: students expected, registered, completed and not yet completed</li>
+              <li class="flex gap-2.5"><span class="report-tick" aria-hidden="true"></span>Career Electives Worksheet completion and high-confidence program matches</li>
+              <li class="flex gap-2.5"><span class="report-tick" aria-hidden="true"></span>Assessment completion by section</li>
+              <li class="flex gap-2.5"><span class="report-tick" aria-hidden="true"></span>Career interests: average RIASEC scores and the top 5 programs</li>
+              <li class="flex gap-2.5"><span class="report-tick" aria-hidden="true"></span>Registered students by strand and completion by academic year</li>
+            </ul>
+            <p class="text-xs text-slate-500 mt-4">Sent as an Excel file (.xlsx) attached to the email. Totals and percentages only: no student names, Student Numbers or assessment answers.</p>
+            <p class="text-xs text-slate-500 mt-2">The file is protected against editing. Its edit password is emailed to you, not to the recipient.</p>
+          </div>
+        </div>
+      </section>
+
     </main>
 
       <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
@@ -331,6 +392,47 @@
     <div class="flex justify-end gap-2 pt-1">
       <button type="button" id="genericConfirmCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
       <button type="button" id="genericConfirmOkBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Send Analytics Report: preview of the report that would be attached -->
+<div id="reportPreviewModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="reportPreviewTitle">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-3xl max-h-[90vh] flex flex-col">
+    <div class="flex items-start justify-between gap-4 px-6 pt-5 pb-4 border-b border-slate-200">
+      <div>
+        <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Preview</p>
+        <h3 id="reportPreviewTitle" class="text-base font-semibold text-slate-900 mt-0.5">ProfilePath Career Profiling System: Analytics Summary Report</h3>
+        <p id="reportPreviewMeta" class="text-xs text-slate-500 mt-1"></p>
+      </div>
+      <button type="button" data-close-dialog aria-label="Close preview" class="w-8 h-8 -mr-2 rounded-md flex items-center justify-center text-slate-500 hover:bg-slate-100 shrink-0">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div id="reportPreviewBody" class="px-6 py-5 overflow-y-auto flex flex-col gap-6" tabindex="0" aria-label="Report contents"></div>
+    <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl">
+      <button type="button" id="reportDownloadBtn" class="inline-flex items-center gap-2 text-sm font-medium text-[#0f2a6b] hover:underline">
+        <svg class="w-4 h-4" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
+        Download the Excel file
+      </button>
+      <button type="button" data-close-dialog class="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-md bg-white hover:bg-slate-50">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Send Analytics Report: confirm before anything is emailed -->
+<div id="reportConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="reportConfirmTitle" aria-describedby="reportConfirmText">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-md p-6 flex flex-col gap-4">
+    <h3 id="reportConfirmTitle" class="text-lg font-semibold text-slate-900">Send this report?</h3>
+    <dl class="rounded-lg border border-slate-200 divide-y divide-slate-200 text-sm">
+      <div class="px-4 py-2.5"><dt class="text-xs text-slate-500">To</dt><dd id="reportConfirmEmail" class="font-semibold text-slate-900 break-all"></dd></div>
+      <div class="px-4 py-2.5"><dt class="text-xs text-slate-500">Report</dt><dd class="text-slate-800">ProfilePath Career Profiling System: Analytics Summary Report</dd></div>
+      <div class="px-4 py-2.5"><dt class="text-xs text-slate-500">Covers</dt><dd id="reportConfirmScope" class="text-slate-800"></dd></div>
+    </dl>
+    <p id="reportConfirmText" class="text-sm text-slate-600">An Excel file with assessment participation, career interests and the other tables in the preview, built from the latest data. Totals and percentages only, no student details. The file is protected against editing; its edit password is emailed to you.</p>
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" data-close-dialog class="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-300 rounded-md hover:bg-slate-50">Cancel</button>
+      <button type="button" id="reportConfirmSendBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#0f2a6b] rounded-md hover:opacity-90">Confirm send</button>
     </div>
   </div>
 </div>
@@ -737,49 +839,194 @@
     }
   }
 
-  // "Export Report (Excel)": a protected workbook with charts. Its edit password is emailed to whoever
-  // downloads it, so the file is fetched here (rather than a plain link) to show what happened.
+  // "Download Report (Excel)": the Analytics Summary Report (api/analytics-report.php), the same file the Send Analytics
+  // Report section emails, for the school year and filters shown on this page.
   let lastExportFilter = { strand: '', section: '', academicYear: '' };
-  function showExportToast(text, isError) {
-    const el = document.createElement('div');
-    el.className = 'fixed bottom-4 right-4 z-[60] max-w-sm px-4 py-3 rounded-lg shadow-lg text-sm font-medium whitespace-pre-wrap ' + (isError ? 'bg-[#ed1c24] text-white' : 'bg-green-600 text-white');
-    el.textContent = text;
-    document.body.appendChild(el);
-    setTimeout(function() { el.remove(); }, 9000);
-  }
-  document.getElementById('exportExcelBtn').addEventListener('click', async function() {
-    const btn = this, label = btn.textContent;
-    btn.disabled = true; btn.textContent = 'Preparing…';
+  async function downloadReport(btn) {
+    const stop = PP.busy(btn, 'Preparing…');
     try {
-      const params = new URLSearchParams({ strand: lastExportFilter.strand, section: lastExportFilter.section, academicYear: lastExportFilter.academicYear });
-      const res = await fetch('api/analytics-export-xlsx.php?' + params.toString());
+      const res = await fetch('api/analytics-report.php?' + new URLSearchParams(Object.assign({ format: 'xlsx' }, lastExportFilter)).toString());
       if (!res.ok) {
-        let message = 'Could not export the report. Please try again.';
+        let message = 'Could not make the Excel report. Please try again.';
         try { message = (await res.json()).error || message; } catch (e) {}
-        showExportToast(message, true);
+        showToast(message, true);
         return;
       }
       const match = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(await res.blob());
       const a = document.createElement('a');
-      a.href = url; a.download = match ? match[1] : 'report.xlsx';
+      a.href = url; a.download = match ? match[1] : 'ProfilePath-Analytics-Summary-Report.xlsx';
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+      // The file is protected against editing; its password was emailed to whoever downloaded it.
       const to = res.headers.get('X-Password-Emailed-To');
       const localPassword = res.headers.get('X-Edit-Password'); // only when no email service is set up (local testing)
-      showExportToast(localPassword
+      showToast(localPassword
         ? 'Report downloaded. The email could not be sent here, so the edit password is: ' + localPassword
         : 'Report downloaded. The password to edit it was emailed to ' + (to || 'you') + '.', false);
     } catch (e) {
-      showExportToast('Unable to reach the server. Please try again.', true);
+      showToast('Unable to reach the server. Please try again.', true);
     } finally {
-      btn.disabled = false; btn.textContent = label;
+      stop();
     }
-  });
+  }
+  document.getElementById('downloadReportBtn').addEventListener('click', function() { downloadReport(this); });
 
   function updateExportLink(data) {
     lastExportFilter = { strand: data.strand || '', section: data.section || '', academicYear: data.academicYear || '' };
+    const who = [data.strand, data.section].filter(Boolean).join(' ') || 'All strands and sections';
+    document.getElementById('reportScope').textContent = who + ', Academic Year ' + (data.academicYear || 'not set');
+  }
+
+  // ---- Send Analytics Report: the administrator and Guidance Counselors, not Guidance Facilitators
+  // (api/analytics-report.php checks this again). The report follows the filters on this page (lastExportFilter).
+  if (['admin', 'counselor'].includes(currentUser.rbacRole || currentUser.role)) {
+    const card = document.getElementById('sendReportCard');
+    const form = document.getElementById('sendReportForm');
+    const emailInput = document.getElementById('reportEmail');
+    const emailError = document.getElementById('reportEmailError');
+    const statusEl = document.getElementById('sendReportStatus');
+    const sendBtn = document.getElementById('sendReportBtn');
+    const previewBtn = document.getElementById('previewReportBtn');
+    const previewModal = document.getElementById('reportPreviewModal');
+    const confirmModal = document.getElementById('reportConfirmModal');
+    const confirmSendBtn = document.getElementById('reportConfirmSendBtn');
+    card.classList.remove('hidden');
+    let sending = false;
+
+    function reportParams(extra) {
+      return new URLSearchParams(Object.assign({}, lastExportFilter, extra || {})).toString();
+    }
+    // Same rule as the server: trimmed, not empty, at most 254 characters, name@domain.tld.
+    function checkEmail() {
+      const value = emailInput.value.trim();
+      emailInput.value = value;
+      let message = '';
+      if (value === '') message = 'Enter the recipient\'s email address.';
+      else if (value.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) message = 'Enter a valid email address, like name@school.edu.ph.';
+      showEmailError(message);
+      return message === '' ? value : null;
+    }
+    function showEmailError(message) {
+      emailError.textContent = message;
+      emailError.classList.toggle('hidden', !message);
+      emailInput.setAttribute('aria-invalid', message ? 'true' : 'false');
+    }
+    emailInput.addEventListener('input', function() { if (emailInput.getAttribute('aria-invalid') === 'true') showEmailError(''); });
+    function showStatus(text, ok) {
+      statusEl.textContent = text;
+      statusEl.className = 'text-sm rounded-md border px-3.5 py-2.5 ' + (ok ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800');
+    }
+
+    // Dialogs: Escape and the close buttons close them, Tab stays inside, and focus goes back to the button that opened them.
+    let openDialog = null, returnFocus = null;
+    function openModal(modal, focusEl, returnTo) {
+      returnFocus = returnTo || document.activeElement;
+      openDialog = modal;
+      modal.classList.remove('hidden');
+      setTimeout(function() { modal.classList.add('is-open'); (focusEl || modal.querySelector('button')).focus(); }, 16);
+    }
+    function closeModal() {
+      if (!openDialog) return;
+      const modal = openDialog;
+      openDialog = null;
+      modal.classList.remove('is-open');
+      setTimeout(function() { modal.classList.add('hidden'); }, 260);
+      if (returnFocus) returnFocus.focus();
+    }
+    [previewModal, confirmModal].forEach(function(modal) {
+      modal.addEventListener('click', function(e) { if (e.target === modal || e.target.closest('[data-close-dialog]')) closeModal(); });
+    });
+    document.addEventListener('keydown', function(e) {
+      if (!openDialog) return;
+      if (e.key === 'Escape') { e.stopPropagation(); closeModal(); return; }
+      if (e.key !== 'Tab') return;
+      const items = Array.from(openDialog.querySelectorAll('button, [tabindex="0"]')).filter(function(el) { return !el.disabled && el.offsetParent !== null; });
+      if (!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }, true);
+
+    // Preview: the report as tables, built on the server from the same data as the Excel file.
+    const fmt = function(v) { return typeof v === 'number' ? (Number.isInteger(v) ? v.toLocaleString() : v.toFixed(1)) : v; };
+    function renderPreview(report) {
+      document.getElementById('reportPreviewMeta').textContent = report.scope + ' · Generated ' + report.generatedAt;
+      document.getElementById('reportPreviewBody').innerHTML = report.sections.map(function(s) {
+        const numeric = s.rows.length ? s.rows[0].map(function(v) { return typeof v === 'number'; }) : [];
+        return '<section><h4 class="text-sm font-semibold text-slate-900 mb-2">' + escapeHtml(s.title) + '</h4>' +
+          (s.rows.length
+            ? '<div class="overflow-x-auto border border-slate-200 rounded-lg"><table class="rp-table"><thead><tr>' +
+                s.columns.map(function(c, i) { return '<th scope="col"' + (numeric[i] ? ' class="num"' : '') + '>' + escapeHtml(c) + '</th>'; }).join('') +
+              '</tr></thead><tbody>' +
+                s.rows.map(function(r) { return '<tr>' + r.map(function(v, i) { return '<td' + (numeric[i] ? ' class="num"' : '') + '>' + escapeHtml(fmt(v)) + '</td>'; }).join('') + '</tr>'; }).join('') +
+              '</tbody></table></div>'
+            : '') +
+          (s.note ? '<p class="text-xs text-slate-500 mt-2">' + escapeHtml(s.note) + '</p>' : '') +
+          '</section>';
+      }).join('');
+    }
+    previewBtn.addEventListener('click', async function() {
+      const body = document.getElementById('reportPreviewBody');
+      document.getElementById('reportPreviewMeta').textContent = '';
+      body.innerHTML = '<p class="text-sm text-slate-500">Preparing the preview…</p>';
+      openModal(previewModal);
+      try {
+        const res = await fetch('api/analytics-report.php?' + reportParams());
+        const data = await res.json().catch(function() { return {}; });
+        if (!res.ok || !data.success) throw new Error(data.error || 'The preview could not be made. Please try again.');
+        renderPreview(data);
+      } catch (e) {
+        body.innerHTML = '<p class="text-sm text-red-700" role="alert">' + escapeHtml(e.message && e.message !== 'Failed to fetch' ? e.message : 'Unable to reach the server. Please try again.') + '</p>';
+      }
+    });
+    // The exact file that would be attached, to open in Excel before sending.
+    document.getElementById('reportDownloadBtn').addEventListener('click', function() { downloadReport(this); });
+
+    // Send: check the address, confirm in a dialog, then send once. The result shown is the server's answer.
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (sending) return;
+      statusEl.classList.add('hidden');
+      const email = checkEmail();
+      if (!email) { emailInput.focus(); return; }
+      document.getElementById('reportConfirmEmail').textContent = email;
+      document.getElementById('reportConfirmScope').textContent = document.getElementById('reportScope').textContent;
+      openModal(confirmModal, confirmSendBtn, sendBtn);
+    });
+    confirmSendBtn.addEventListener('click', async function() {
+      if (sending) return;
+      sending = true;
+      const email = emailInput.value.trim();
+      closeModal();
+      const stop = PP.busy(sendBtn, 'Sending…');
+      previewBtn.disabled = true;
+      let focusAfter = sendBtn; // the button was disabled while sending, which drops keyboard focus; put it back
+      try {
+        const res = await fetch('api/analytics-report.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(Object.assign({ email: email }, lastExportFilter))
+        });
+        const data = await res.json().catch(function() { return {}; });
+        if (res.ok && data.success) {
+          showStatus(data.message, true);
+          showToast(data.message, false);
+        } else if (data.field === 'email') {
+          showEmailError(data.error);
+          focusAfter = emailInput;
+        } else {
+          showStatus(data.error || 'The report could not be sent. Please try again.', false);
+        }
+      } catch (e) {
+        showStatus('Unable to reach the server, so the report was not sent. Please try again.', false);
+      } finally {
+        stop();
+        previewBtn.disabled = false;
+        sending = false;
+        focusAfter.focus();
+      }
+    });
   }
 
   await load('', '');

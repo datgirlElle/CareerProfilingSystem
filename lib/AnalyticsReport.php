@@ -189,6 +189,7 @@ class AnalyticsReport
             $where = implode(' AND ', $conds);
 
             $expectedBySection = [];
+            $registeredBySection = []; // expected students who have an account (the rest are only on the roster)
             $seen = [];
             foreach (['students', 'assessment_roster'] as $table) { // account first: its section wins over a roster row's
                 $stmt = $pdo->prepare("SELECT school_id, section FROM $table WHERE $where");
@@ -199,6 +200,9 @@ class AnalyticsReport
                     }
                     $seen[$r['school_id']] = true;
                     $expectedBySection[$r['section']] = ($expectedBySection[$r['section']] ?? 0) + 1;
+                    if ($table === 'students') {
+                        $registeredBySection[$r['section']] = ($registeredBySection[$r['section']] ?? 0) + 1;
+                    }
                 }
             }
 
@@ -215,6 +219,7 @@ class AnalyticsReport
             return array_values(array_map(fn($sec) => [
                 'section' => (string) $sec,
                 'expected' => $expectedBySection[$sec] ?? 0,
+                'registered' => $registeredBySection[$sec] ?? 0,
                 'completed' => (int) ($completedBySection[$sec] ?? 0),
             ], $sections));
         })();
@@ -275,6 +280,8 @@ class AnalyticsReport
             'assessmentStats' => [
                 'academicYear' => $currentAy,
                 'expectedCount' => $expectedCount,
+                // Of the expected students, how many have registered an account (by section in bySection).
+                'registeredCount' => array_sum(array_column($assessmentBySection, 'registered')),
                 'completedCount' => $assessedCount,
                 'expectedSections' => $expectedSections,
                 'bySection' => $assessmentBySection,
