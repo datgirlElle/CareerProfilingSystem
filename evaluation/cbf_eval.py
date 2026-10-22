@@ -8,6 +8,7 @@ evaluates Top-N performance against ActualCourse, compares Holland-code rank
 encodings, and prepares identical train/test splits for WEKA.
 
     python3 cbf_eval.py inspect --students "riasec_scores (1).csv"  -> data-quality report; changes nothing
+    python3 cbf_eval.py yesno   --students "riasec_scores (1).csv" -> riasec_yesno.csv (the adviser's Yes/No table)
     python3 cbf_eval.py courses                                   -> course_profiles.csv
     python3 cbf_eval.py split   --students student_profiles.csv   -> train/test .csv + .arff
     python3 cbf_eval.py cbf     --students test.csv --k 3         -> cbf_results.csv + metrics
@@ -357,6 +358,27 @@ def write_arff(path, rows, scale, fmt="top3", level="course"):
             else:
                 cells = [f"{v:g}" for v in student_vector(r, scale)]
             f.write(",".join(cells) + ",'" + label(r).replace("'", "\\'") + "'\n")
+
+
+def cmd_yesno(a):
+    """The adviser's Yes/No table: one row per student, Yes for each of the student's top 3
+    RIASEC scores (the same rule as the WEKA files), No for the rest, then the course.
+    For viewing and checking only: train WEKA with all.arff, which has no student ID."""
+    rows = read_students(a.students)
+    out = []
+    ties = 0
+    for r in rows:
+        vec = student_vector(r, "top3")
+        tie = not is_marked_row(r) and third_place_tie(r)
+        ties += tie
+        code = "".join(d for d, v in zip(DIMENSIONS, vec) if v)  # letters in R,I,A,S,E,C order
+        out.append([r["StudentID"], *["Yes" if v else "No" for v in vec], r["ActualCourse"], code, "Yes" if tie else ""])
+    write_csv(a.out, ["student_id", *DIMENSIONS, "course", "Top3", "TieFor3rd"], out)
+    print(f"Wrote {a.out}: {len(out)} students, Yes = one of the student's top 3 RIASEC scores.")
+    if ties:
+        print(f"  {ties} student(s) have a tie for 3rd place (TieFor3rd = Yes): the Yes went to the earlier letter in R,I,A,S,E,C order.")
+    print("  Open it in Excel to show or check. For WEKA use all.arff (no student ID); if you load this CSV in WEKA,")
+    print("  remove student_id, Top3 and TieFor3rd first (Preprocess -> tick them -> Remove).")
 
 
 # ---------------------------------------------------------------- dataset inspection
@@ -843,6 +865,9 @@ def main():
         if name == "cbf":
             s.add_argument("--encoding", choices=list(ENCODINGS), default=DEFAULT_ENCODING)
             s.add_argument("--out", default="cbf_results.csv")
+    y = sub.add_parser("yesno")
+    y.add_argument("--students", required=True)
+    y.add_argument("--out", default="riasec_yesno.csv")
     i = sub.add_parser("inspect")
     i.add_argument("--students", required=True, help="the raw dataset, e.g. \"riasec_scores (1).csv\"")
     i.add_argument("--min", type=float, default=0, help="lowest valid score (default 0)")
@@ -858,7 +883,7 @@ def main():
     c.add_argument("--k", type=int, default=3)
     c.add_argument("--out", default="comparison_results.csv")
     a = p.parse_args()
-    {"inspect": cmd_inspect, "courses": cmd_courses, "split": cmd_split, "cbf": cmd_cbf, "weights": cmd_weights, "compare": cmd_compare, "agreement": cmd_agreement}[a.cmd](a)
+    {"yesno": cmd_yesno, "inspect": cmd_inspect, "courses": cmd_courses, "split": cmd_split, "cbf": cmd_cbf, "weights": cmd_weights, "compare": cmd_compare, "agreement": cmd_agreement}[a.cmd](a)
 
 
 if __name__ == "__main__":

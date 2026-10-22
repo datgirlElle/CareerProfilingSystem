@@ -348,5 +348,24 @@ class CollegeLevel(unittest.TestCase):
                 self.assertEqual(course, college)          # identical students, identical order
 
 
+class YesNoTable(unittest.TestCase):
+    def test_yes_for_top3_scores_same_as_weka_file(self):
+        with tempfile.TemporaryDirectory() as d:
+            src, out = os.path.join(d, "riasec_scores.csv"), os.path.join(d, "yn.csv")
+            with open(src, "w", newline="") as f:
+                csv.writer(f).writerows([["student_id", "R", "I", "A", "S", "E", "C", "course"],
+                                         ["S1", 2, 9, 1, 3, 7, 8, "bsit"],
+                                         ["S2", 1, 8, 2, 9, 5, 5, "BS Nursing"],      # E and C tie for 3rd
+                                         ["S3", 5, 5, 5, 5, 5, 5, "Undecided"]])
+            m.cmd_yesno(type("A", (), {"students": src, "out": out})())
+            rows = list(csv.DictReader(open(out)))
+        self.assertEqual(len(rows), 2)                                  # Undecided removed, as in split
+        self.assertEqual([rows[0][d] for d in m.DIMENSIONS], ["No", "Yes", "No", "No", "Yes", "Yes"])
+        self.assertEqual((rows[0]["course"], rows[0]["Top3"]), ("BS Information Technology", "IEC"))
+        self.assertEqual(rows[1]["Top3"], "ISE")                         # tie: E before C
+        self.assertEqual(rows[1]["TieFor3rd"], "Yes")
+        self.assertEqual(rows[0]["TieFor3rd"], "")
+
+
 if __name__ == "__main__":
     unittest.main()
