@@ -653,6 +653,15 @@ This replaces the earlier informal "7 of 20" count, which looked at each top-3 p
 
 ## 15. Results on the study dataset and decision (2026-10-20)
 
+**Provenance (confirmed with the team, 2026-10-22).** Collected by the project team from
+314 of MMCL's 600 SHS students during their Life and Career Skills class, using the same
+30-item O\*NET interest items as the web app (5 per RIASEC type), recorded as 0–10 per type.
+The web app stores the same items on a 10–50 scale (answers 1–5, rescaled); the top-3 x/blank
+attributes use only the order of the six scores, so the model applies to both. The adviser
+defined the target as the student's program/course (the preferred course in the dataset).
+No accuracy target was set. The college-level model (§17) is a supplementary analysis
+suggested during development, not an adviser or panel requirement.
+
 Dataset: 314 students; 23 "Undecided" rows removed, leaving 291 across 28 courses. Split 200
 train / 91 test (stratified, seed 42). Class = the student's preferred course. All numbers
 below were produced by `cbf_eval.py` / `model_experiment.py` on this dataset; none were set
