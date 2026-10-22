@@ -602,11 +602,8 @@
     const POLICY_META = {
       password: { title: 'Password Policy' },
       lockout: { title: 'Account Lockout' },
-      monitoring: { title: 'Login Activity Monitoring' },
-      lowMatch: { title: 'Low RIASEC Match Flag' }
+      monitoring: { title: 'Login Activity Monitoring' }
     };
-    // With binary course codes, the highest match score a valid RIASEC profile can get is about 0.55.
-    const LOWEST_POSSIBLE_MATCH = 0.55;
 
     function policyDesc(key) {
       const p = state.policies[key];
@@ -621,16 +618,12 @@
       if (key === 'lockout') {
         return 'Lock account after ' + p.maxAttempts + ' failed login attempts (' + p.lockoutMinutes + ' min lockout).';
       }
-      if (key === 'lowMatch') {
-        return 'Flag a student for review when their best RIASEC match score is below ' + Number(p.threshold).toFixed(2) + '.' +
-          (p.threshold < LOWEST_POSSIBLE_MATCH ? ' Currently flags no one (scores never go below about 0.55).' : '');
-      }
       return 'Track and log user login activities and device information. Retained for ' + p.retentionDays + ' days.';
     }
 
     function renderPolicyList() {
       const container = document.getElementById('policyListContainer');
-      const keys = ['password', 'lockout', 'monitoring', 'lowMatch'];
+      const keys = ['password', 'lockout', 'monitoring'];
       container.innerHTML = keys.map(function(key, idx) {
         const p = state.policies[key];
         const badge = p.enabled
@@ -676,13 +669,6 @@
           '<div class="flex items-center justify-between"><label class="text-xs text-slate-600">Lockout Duration (minutes)</label>' +
           '<input type="number" id="fldLockoutMinutes" min="1" max="1440" value="' + p.lockoutMinutes + '" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>';
       }
-      if (key === 'lowMatch') {
-        return '<div class="flex items-center justify-between"><label class="text-xs text-slate-600" for="fldThreshold">Match Score Threshold (0 to 1)</label>' +
-          '<input type="number" id="fldThreshold" min="0" max="1" step="0.01" value="' + Number(p.threshold).toFixed(2) + '" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>' +
-          '<p class="text-xs text-slate-500">Students whose best RIASEC match score (cosine similarity) is below this go to Monitoring for review. ' +
-          'Scores never go below about 0.55, so a lower value flags no one. Set it from the real score spread ' +
-          '(php db/cbf_score_distribution.php), with the Guidance Office. Applies to results computed from now on.</p>';
-      }
       return '<div class="flex items-center justify-between"><label class="text-xs text-slate-600">Log Retention (days)</label>' +
         '<input type="number" id="fldRetentionDays" min="7" max="365" value="' + p.retentionDays + '" class="border border-slate-200 rounded-md px-3 py-1.5 text-xs text-slate-700 w-20 text-right"></div>';
     }
@@ -720,9 +706,6 @@
       } else if (currentPolicyKey === 'lockout') {
         body.maxAttempts = parseInt(document.getElementById('fldMaxAttempts').value, 10) || 5;
         body.lockoutMinutes = parseInt(document.getElementById('fldLockoutMinutes').value, 10) || 15;
-      } else if (currentPolicyKey === 'lowMatch') {
-        const t = parseFloat(document.getElementById('fldThreshold').value);
-        body.threshold = isNaN(t) ? 0.5 : t;
       } else {
         body.retentionDays = parseInt(document.getElementById('fldRetentionDays').value, 10) || 90;
       }

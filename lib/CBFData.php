@@ -151,9 +151,7 @@ class CBFData
 
         $threshold = $pdo->query("SELECT value FROM security_policies WHERE key = 'monitoring.lowConfidenceThreshold'")->fetchColumn();
         $threshold = $threshold !== false ? (float) $threshold : 0.50;
-        // Security Configuration > Low RIASEC Match Flag can switch the flag off.
-        $flagOn = $pdo->query("SELECT value FROM security_policies WHERE key = 'lowMatch.enabled'")->fetchColumn() !== 'false';
-        if ($flagOn && $topScore < $threshold) {
+        if ($topScore < $threshold) {
             $pendingCheck = $pdo->prepare(
                 "SELECT id FROM monitoring_flags WHERE student_id = ? AND reason = 'low_confidence' AND status = 'pending'"
             );
