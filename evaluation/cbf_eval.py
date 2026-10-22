@@ -9,6 +9,9 @@ encodings, and prepares identical train/test splits for WEKA.
 
     python3 cbf_eval.py inspect --students "riasec_scores (1).csv"  -> data-quality report; changes nothing
     python3 cbf_eval.py yesno   --students "riasec_scores (1).csv" -> riasec_yesno.csv (the adviser's Yes/No table)
+    python3 cbf_eval.py doublecheck --a riasec_raw_A.csv --b riasec_raw_B.csv
+                                                                  -> lists every cell where two independent typings
+                                                                     differ; writes riasec_raw_verified.csv if none
     python3 cbf_eval.py courses                                   -> course_profiles.csv
     python3 cbf_eval.py split   --students student_profiles.csv   -> train/test .csv + .arff
     python3 cbf_eval.py cbf     --students test.csv --k 3         -> cbf_results.csv + metrics
@@ -379,6 +382,76 @@ def cmd_yesno(a):
         print(f"  {ties} student(s) have a tie for 3rd place (TieFor3rd = Yes): the Yes went to the earlier letter in R,I,A,S,E,C order.")
     print("  Open it in Excel to show or check. For WEKA use all.arff (no student ID); if you load this CSV in WEKA,")
     print("  remove student_id, Top3 and TieFor3rd first (Preprocess -> tick them -> Remove).")
+
+
+def _read_entry(path):
+    """One typed sheet: student_id, R..C, course. Returns ({id: row}, problems)."""
+    with open(path, newline="", encoding="utf-8-sig") as f:
+        raw = [r for r in csv.reader(f) if any(c.strip() for c in r)]
+    if not raw:
+        raise SystemExit(f"{path} is empty")
+    low = [h.strip().lower().replace(" ", "") for h in raw[0]]
+    need = ["student_id", "r", "i", "a", "s", "e", "c", "course"]
+    missing = [n for n in need if n not in low]
+    if missing:
+        raise SystemExit(f"{path}: missing column(s) {missing}. Use exactly: student_id,R,I,A,S,E,C,course")
+    idx = {n: low.index(n) for n in need}
+    rows, problems = {}, []
+    for line, r in enumerate(raw[1:], start=2):
+        cell = lambda n: r[idx[n]].strip() if idx[n] < len(r) else ""
+        sid = cell("student_id")
+        if not sid:
+            problems.append(f"line {line}: empty student_id")
+            continue
+        if sid in rows:
+            problems.append(f"line {line}: student_id {sid} appears twice")
+            continue
+        rows[sid] = {"line": line, **{d: cell(d.lower()) for d in DIMENSIONS}, "course": cell("course")}
+        for d in DIMENSIONS:
+            v = rows[sid][d]
+            if not v.isdigit():
+                problems.append(f"line {line} ({sid}): {d} = {v!r} is not a whole number")
+    return rows, problems
+
+
+def cmd_doublecheck(a):
+    """Double-entry verification: two people type the raw scores from the same O*NET links
+    independently; every disagreement is listed so only those links are re-opened. When the
+    two sheets agree completely, the verified copy is written. Nothing is guessed or fixed."""
+    A, pa = _read_entry(a.a)
+    B, pb = _read_entry(a.b)
+    for name, probs in ((os.path.basename(a.a), pa), (os.path.basename(a.b), pb)):
+        for p in probs:
+            print(f"{name}: {p}")
+    only_a, only_b = sorted(set(A) - set(B)), sorted(set(B) - set(A))
+    if only_a:
+        print(f"In {os.path.basename(a.a)} only: {only_a}")
+    if only_b:
+        print(f"In {os.path.basename(a.b)} only: {only_b}")
+    diffs = []
+    for sid in sorted(set(A) & set(B), key=lambda x: A[x]["line"]):
+        for col in [*DIMENSIONS, "course"]:
+            va, vb = A[sid][col], B[sid][col]
+            same = _key(va) == _key(vb) if col == "course" else va == vb
+            if not same:
+                diffs.append((sid, col, va, vb))
+    for sid, col, va, vb in diffs:
+        print(f"DIFFERENT  {sid}  {col}: A = {va!r}   B = {vb!r}   -> open this student's link again")
+    both = set(A) & set(B)
+    scores = [int(A[s][d]) for s in both for d in DIMENSIONS if A[s][d].isdigit()]
+    print(f"\nStudents: A {len(A)}, B {len(B)}, in both {len(both)}.  Cells that differ: {len(diffs)}.")
+    if scores:
+        print(f"Raw scores range from {min(scores)} to {max(scores)} (use --max with `inspect` for the profiler's real maximum).")
+    unknown = sorted({A[s]['course'] for s in both if _key(A[s]['course']) not in COURSE_LOOKUP
+                      and _key(A[s]['course']) not in {_key(x) for x in DROP_DEFAULT}})
+    if unknown:
+        print(f"Course names not recognised (fix the spelling in both sheets): {unknown}")
+    if pa or pb or only_a or only_b or diffs:
+        print("\nNOT VERIFIED: fix the items above in the sheet that is wrong (check the link), then run again.")
+        raise SystemExit(1)
+    order = sorted(both, key=lambda x: A[x]["line"])
+    write_csv(a.out, ["student_id", *DIMENSIONS, "course"], [[s, *[A[s][d] for d in DIMENSIONS], A[s]["course"]] for s in order])
+    print(f"\nVERIFIED: both typings agree on every cell. Wrote {a.out} ({len(order)} students).")
 
 
 # ---------------------------------------------------------------- dataset inspection
@@ -865,6 +938,10 @@ def main():
         if name == "cbf":
             s.add_argument("--encoding", choices=list(ENCODINGS), default=DEFAULT_ENCODING)
             s.add_argument("--out", default="cbf_results.csv")
+    dc = sub.add_parser("doublecheck")
+    dc.add_argument("--a", required=True, help="first person's typed sheet")
+    dc.add_argument("--b", required=True, help="second person's typed sheet")
+    dc.add_argument("--out", default="riasec_raw_verified.csv")
     y = sub.add_parser("yesno")
     y.add_argument("--students", required=True)
     y.add_argument("--out", default="riasec_yesno.csv")
@@ -883,7 +960,7 @@ def main():
     c.add_argument("--k", type=int, default=3)
     c.add_argument("--out", default="comparison_results.csv")
     a = p.parse_args()
-    {"yesno": cmd_yesno, "inspect": cmd_inspect, "courses": cmd_courses, "split": cmd_split, "cbf": cmd_cbf, "weights": cmd_weights, "compare": cmd_compare, "agreement": cmd_agreement}[a.cmd](a)
+    {"doublecheck": cmd_doublecheck, "yesno": cmd_yesno, "inspect": cmd_inspect, "courses": cmd_courses, "split": cmd_split, "cbf": cmd_cbf, "weights": cmd_weights, "compare": cmd_compare, "agreement": cmd_agreement}[a.cmd](a)
 
 
 if __name__ == "__main__":

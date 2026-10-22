@@ -367,5 +367,42 @@ class YesNoTable(unittest.TestCase):
         self.assertEqual(rows[0]["TieFor3rd"], "")
 
 
+class DoubleCheck(unittest.TestCase):
+    HEAD = ["student_id", "R", "I", "A", "S", "E", "C", "course"]
+
+    def run_check(self, a_rows, b_rows):
+        d = tempfile.mkdtemp()
+        pa, pb, out = (os.path.join(d, n) for n in ("a.csv", "b.csv", "v.csv"))
+        for path, rows in ((pa, a_rows), (pb, b_rows)):
+            with open(path, "w", newline="") as f:
+                csv.writer(f).writerows([self.HEAD, *rows])
+        args = type("A", (), {"a": pa, "b": pb, "out": out})()
+        try:
+            m.cmd_doublecheck(args)
+            ok = True
+        except SystemExit:
+            ok = False
+        return ok, (list(csv.reader(open(out))) if os.path.exists(out) else None)
+
+    def test_identical_typings_are_verified_and_raw_scores_kept(self):
+        rows = [["S1", 3, 2, 6, 1, 19, 8, "bsit"], ["S2", 12, 15, 4, 9, 7, 11, "BS Nursing"]]
+        ok, out = self.run_check(rows, rows)
+        self.assertTrue(ok)
+        self.assertEqual(out[1], ["S1", "3", "2", "6", "1", "19", "8", "bsit"])   # nothing converted
+
+    def test_any_difference_blocks_the_verified_file(self):
+        ok, out = self.run_check([["S1", 3, 2, 6, 1, 19, 8, "bsit"]], [["S1", 3, 2, 6, 1, 18, 8, "bsit"]])
+        self.assertFalse(ok)
+        self.assertIsNone(out)
+
+    def test_missing_student_and_bad_cell_block_it(self):
+        self.assertFalse(self.run_check([["S1", 3, 2, 6, 1, 19, 8, "bsit"], ["S2", 1, 1, 1, 1, 1, 1, "bsn"]],
+                                        [["S1", 3, 2, 6, 1, 19, 8, "bsit"]])[0])
+        self.assertFalse(self.run_check([["S1", 3, 2, "6.5", 1, 19, 8, "bsit"]], [["S1", 3, 2, "6.5", 1, 19, 8, "bsit"]])[0])
+
+    def test_course_case_and_spacing_do_not_count_as_differences(self):
+        self.assertTrue(self.run_check([["S1", 3, 2, 6, 1, 19, 8, "BS Nursing"]], [["S1", 3, 2, 6, 1, 19, 8, "bs nursing"]])[0])
+
+
 if __name__ == "__main__":
     unittest.main()

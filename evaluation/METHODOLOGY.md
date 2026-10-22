@@ -670,6 +670,14 @@ courses. 82 of the 291 analysed students (28.2%) tie for the third-highest score
 R-I-A-S-E-C order, as in the web app). Twenty randomly selected records (seed 2026) were checked
 against the original forms by the team; all matched.
 
+**Correction in progress (2026-10-22).** The scores were collected from each student's O\*NET
+Interest Profiler share link ("raw interest scores", which can exceed 10, e.g. 19), but
+`riasec_scores (1).csv` never exceeds 10, so its values were converted at some step and may not
+reproduce every student's top 3. The raw scores are being re-recorded from all 314 links by
+double entry (two people type them independently; `cbf_eval.py doublecheck` lists every
+disagreement until both agree). The analysis above will be re-run on the verified raw file;
+results here are from the converted file until then.
+
 Dataset: 314 students; 23 "Undecided" rows removed, leaving 291 across 28 courses. Split 200
 train / 91 test (stratified, seed 42). Class = the student's preferred course. All numbers
 below were produced by `cbf_eval.py` / `model_experiment.py` on this dataset; none were set
