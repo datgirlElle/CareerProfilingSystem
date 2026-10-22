@@ -99,6 +99,19 @@ student1,,x,,,x,x,bsit
 
 ## 3. Course-vector conversion
 
+> **Update (2026-10-22): rank weights 3-2-1.** The program profiles (the Holland codes) come from the
+> guidance counselors, Ms. Mylde Loraine L. De Guzman (Guidance Counselor) and Ms. Tricia Pauline S. Lacap
+> (Guidance Facilitator), and they rank the three letters: the 1st letter is the program's strongest type and
+> the 3rd its weakest (RIC: R 1st, I 2nd, C 3rd). The web app (`lib/CBFEngine.php`, `courseVector()`) and the
+> toolkit (`cbf_eval.py`, encoding `ranksum`) now give the 1st, 2nd and 3rd letter the weights 3, 2 and 1 (rank-sum
+> weights, Stillwell, Seaver & Edwards, 1981; set in `config/cbf.php` as `holland_rank_weights`). A letter that is
+> not in the code gets 0. Example: RIC -> [3, 2, 0, 0, 0, 1], IRC -> [2, 3, 0, 0, 0, 1], ICR -> [1, 3, 0, 0, 0, 2].
+> Every course vector has the same size, sqrt(14), so no program is favoured by size, and the 32 programs now have
+> 22 different vectors (the 22 different final codes) instead of 11. The weights are the ratio 3:2:1 of the
+> counselors' rank, not values fitted to data. The binary encoding described below is kept in `cbf_eval.py`
+> (`--encoding binary`) as a sensitivity comparison. Where this section and sections 5, 6, 10, 10a and 13 speak of
+> "binary" or "same letters = same similarity", read them with this update.
+
 **Vector order:** `[R, I, A, S, E, C]`.
 
 **[Theory]** A Holland code lists a person's or environment's three most prominent types
@@ -360,8 +373,9 @@ test students** at **matching output levels**:
 
 ## 10. Encoding decision, tie handling and counseling referral
 
-- **Encoding:** binary (YES = 1 / NO = 0) for both students (top 3 RIASEC types) and courses
-  (letters of the final Holland code). Weighted letter positions are **not used** (§3).
+- **Encoding (updated 2026-10-22):** the course vector uses the counselors' letter rank with rank-sum
+  weights 3, 2, 1 (§3 update). The student vector is the six mean item scores. The older binary
+  encoding is kept only as a comparison.
 - **Ties between courses.** Courses with the same score keep the same match percentage. When
   more courses tie than fit in the Top-3, they are listed in course-list order. The evaluation
   counts tied courses as equally likely (§9).
@@ -401,8 +415,9 @@ separate; none is given a numeric weight, and the worksheet never enters the cos
 | **3. Prediction model** | What course does the model predict from patterns in the training dataset? | WEKA decision tree | **not available** (no real dataset yet); excluded |
 
 - **Best RIASEC Match (CBF only):** every course tied at the highest cosine similarity. Because
-  course vectors are binary, courses with the same three letters (e.g. IRC, RIC, ICR) always have
-  the same similarity; such ties are shown together and never broken.
+  course vectors use the rank weights 3-2-1, only courses with the same code (same letters in the same
+  order, e.g. the four IRC programs) always have the same similarity; such ties are shown together and
+  never broken.
 - **Alternative Courses (CBF only):** every course at the next-highest cosine similarity.
 - **Preferred Course:** the student's own selection, shown separately on the results page. It
   never increases, decreases, forces or replaces a CBF result. The page says whether it is also a
@@ -486,22 +501,24 @@ sample row).
 
 ## 13. Worked examples
 
-### Current method: top-3 binary student vs. binary course (the system)
+### Current method: mean-score student vector vs. rank-weighted course vector (the system)
 
-Test student with scores R 36, I 39, A 37, S 32, E 39, C 41:
-- Top 3 = **C, I, E**, so the student vector is **S = [0, 1, 0, 0, 1, 1]**. This matches the
-  adviser's sample row (x under C, I, E).
-- ‖S‖ = √3 = 1.7321 and ‖C‖ = √3 = 1.7321, so similarity = shared letters ÷ 3.
+Development student (made-up scores, not research data): R 15, I 40, A 12, S 18, E 35, C 45.
+- Student vector S = scores / 10 = **[1.5, 4.0, 1.2, 1.8, 3.5, 4.5]**, ||S|| = **7.4451**.
+- Every course vector has ||C|| = sqrt(14) = **3.7417** (weights 3, 2, 1), so cosine = (S · C) / (7.4451 x 3.7417).
 
-| Course (code) | Course vector C | Shared letters | Cosine |
+| Course (code) | Course vector C (R I A S E C) | S · C | Cosine |
 |---|---|---|---|
-| BS Accountancy (CEI) | [0, 1, 0, 0, 1, 1] | C, E, I → 3 | 3 / 3 = **100%** |
-| BS Accounting Information System (CIE) | [0, 1, 0, 0, 1, 1] | C, I, E → 3 | 3 / 3 = **100%** |
-| BS Computer Science (IRC) | [1, 1, 0, 0, 0, 1] | I, C → 2 | 2 / 3 ≈ **67%** |
-| BS Tourism Management (SEA) | [0, 0, 1, 1, 1, 0] | E → 1 | 1 / 3 ≈ **33%** |
+| BS Accounting Information System (CIE) | [0, 2, 0, 0, 1, 3] | 2x4.0 + 1x3.5 + 3x4.5 = 25.0 | **0.8974** (Best RIASEC Match) |
+| BS Accountancy (CEI) | [0, 1, 0, 0, 2, 3] | 4.0 + 7.0 + 13.5 = 24.5 | **0.8795** (Alternative Course) |
+| BS Business Analytics with AI (IEC) | [0, 3, 0, 0, 2, 1] | 12.0 + 7.0 + 4.5 = 23.5 | 0.8436 |
+| BS Computer Science (IRC) | [2, 3, 0, 0, 0, 1] | 3.0 + 12.0 + 4.5 = 19.5 | 0.7000 |
+| BS Tourism Management (SEA) | [0, 0, 1, 3, 2, 0] | 1.2 + 5.4 + 7.0 = 13.6 | 0.4882 |
 
-All 32 courses for this student: **5 score 100%** (CEI, CIE, ECI, EIC, IEC), 18 score 67% and
-9 score 33%. The Top-3 shows 3 of the 5 tied courses, chosen by course-list order.
+The student's strongest types in order are C, I, E, and the code CIE lists the same types in the same order, so it
+has the highest cosine. The same three letters in another order (CEI, IEC, ECI, EIC) score lower, which the older
+binary encoding could not show (it gave all five programs the same value). Numbers produced by running
+`CBFEngine::compute()`; hand check in `tests/pipeline_test.php`.
 
 ## 14. How to document this in the thesis
 

@@ -14,20 +14,26 @@
  *                      mean item score of that type (raw total ÷ 10 items, so 1.0-5.0).
  *                      Dividing every value by the same number does not change cosine
  *                      values; it only puts the vector on the answer scale (1-5).
- *   2. Course vectors  [R, I, A, S, E, C] = 1 if the letter is in the program's code,
- *                      0 if not (e.g. AES -> [0, 0, 1, 1, 1, 0]). Letter order carries
- *                      no weight. A program without a valid code is flagged and skipped.
+ *   2. Course vectors  [R, I, A, S, E, C] = the rank weight of the letter in the program's
+ *                      code, 0 if the letter is not in it. The guidance counselors rank the
+ *                      letters: the 1st is the program's strongest type and the 3rd its
+ *                      weakest, so the 1st letter gets 3, the 2nd 2 and the 3rd 1 (rank-sum
+ *                      weights, config/cbf.php holland_rank_weights). Example: AES ->
+ *                      [0, 0, 3, 1, 2, 0] (A 3, E 2, S 1). Every code has the same three
+ *                      weights, so every course vector has the same magnitude (sqrt(14)).
+ *                      A program without a valid code is flagged and skipped.
  *   3. Cosine          computed between the student vector and EVERY valid course vector,
  *                      with the dot product and both magnitudes kept for auditing.
  *   4. Results         all courses sorted by cosine similarity (highest first; equal
  *                      values keep the program-list order).
  *   5. Best RIASEC Match  every course tied at the highest cosine similarity (ties are
- *                      kept, never broken: courses with the same three letters have the
- *                      same vector and therefore the same similarity).
+ *                      kept, never broken: courses with the same three letters in the same
+ *                      order have the same vector and therefore the same similarity).
  *   6. Alternatives    every course at the next-highest cosine similarity.
  *
- * Nothing else enters the calculation: no worksheet answers, no strand, no electives,
- * no prediction model, and no weights (no 70/30, no 1.00/0.67/0.33). The worksheet and
+ * Nothing else enters the calculation: no worksheet answers, no strand, no electives, no
+ * prediction model, and no blend with other sources (no 70/30). The only weights are the
+ * rank weights of the counselors' letter order inside a program's own code. The worksheet and
  * the prediction model are separate recommendation sources (lib/RecommendationPipeline.php).
  *
  * Cosine similarity is a similarity score between 0 and 1. It is not an accuracy and not
@@ -89,17 +95,26 @@ class CBFEngine
     }
 
     /**
-     * A program's Holland code -> binary course vector in [R, I, A, S, E, C] order.
+     * A program's Holland code -> course vector in [R, I, A, S, E, C] order. The letters are
+     * ranked by the guidance counselors (1st = strongest, 3rd = weakest), so the letter at
+     * position p gets the p-th rank weight (default 3, 2, 1) and the other types get 0.
+     * Example: RIC -> [3, 2, 0, 0, 0, 1]; IRC -> [2, 3, 0, 0, 0, 1].
      * Returns null for a missing or invalid code (anything other than three different
      * RIASEC letters), so the program is flagged instead of given a made-up vector.
+     *
+     * @param float[]|null $weights weights of the 1st, 2nd and 3rd letter; null = config/cbf.php
      */
-    public static function courseVector(?string $hollandCode): ?array
+    public static function courseVector(?string $hollandCode, ?array $weights = null): ?array
     {
         $code = strtoupper(trim((string) $hollandCode));
         if (!preg_match('/^[RIASEC]{3}$/', $code) || count(array_unique(str_split($code))) !== 3) {
             return null;
         }
-        return array_map(fn($d) => str_contains($code, $d) ? 1 : 0, self::DIMENSIONS);
+        $weights ??= self::config()['holland_rank_weights'];
+        return array_map(function ($d) use ($code, $weights) {
+            $position = strpos($code, $d);
+            return $position === false ? 0 : $weights[$position];
+        }, self::DIMENSIONS);
     }
 
     public static function dotProduct(array $a, array $b): float
@@ -150,7 +165,7 @@ class CBFEngine
         $results = [];
         $excluded = [];
         foreach ($programs as $p) {
-            $course = self::courseVector($p['hollandCode'] ?? null);
+            $course = self::courseVector($p['hollandCode'] ?? null, $config['holland_rank_weights'] ?? null);
             if ($course === null) {
                 $excluded[] = ['id' => $p['id'], 'title' => $p['title'] ?? null, 'hollandCode' => $p['hollandCode'] ?? null,
                     'reason' => 'Missing or invalid RIASEC mapping (needs three different letters from R, I, A, S, E, C).'];

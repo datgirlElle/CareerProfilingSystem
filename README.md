@@ -131,8 +131,10 @@ connection matching `.env`.
 Three recommendation sources are kept separate (`lib/RecommendationPipeline.php`):
 
 1. **CBF** (`lib/CBFEngine.php`): the student's RIASEC profile (mean item score per type,
-   [R, I, A, S, E, C]) is compared with every program's Holland code (binary vector) using cosine
-   similarity, cos(S, C) = (S · C) / (||S|| × ||C||). No weights (no 70/30, no 1.00/0.67/0.33).
+   [R, I, A, S, E, C]) is compared with every program's Holland code using cosine
+   similarity, cos(S, C) = (S · C) / (||S|| × ||C||). The guidance counselors rank the three letters of a
+   code (1st = strongest type, 3rd = weakest), so the program vector uses rank weights 3, 2, 1
+   (`holland_rank_weights` in `config/cbf.php`; RIC = [3, 2, 0, 0, 0, 1]). No 70/30 blend with the worksheet.
 2. **Worksheet**: the Preferred Course from the Career Electives Worksheet.
 3. **Prediction model (WEKA)**: not available yet; excluded and not called. The existing WEKA
    code (`lib/PredictionModel.php`, `db/import_weka_tree.php`) is kept for the separate WEKA work.

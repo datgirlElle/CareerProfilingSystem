@@ -3,10 +3,17 @@
  * Content-Based Filtering (CBF) settings. lib/CBFEngine.php reads them from here.
  *
  * The CBF compares the student's RIASEC profile with each program's Holland (RIASEC)
- * code using cosine similarity. There are no weights: no 70/30 split with the worksheet,
- * no 1.00/0.67/0.33 letter-position weights, no strand or elective block.
+ * code using cosine similarity. The guidance counselors rank the three letters of a
+ * program's code (1st = strongest type, 3rd = weakest), and the course vector uses that
+ * rank. There is no 70/30 split with the worksheet and no strand or elective block.
  */
 return [
+    // Weight of the 1st, 2nd and 3rd letter of a program's Holland code (rank-sum weights:
+    // 3, 2, 1; only the ratio matters because cosine ignores the overall size). A letter
+    // that is not in the code gets 0.
+    'holland_rank_weights' => [3, 2, 1],
+
+
     // RIASEC scores are stored on a 10-50 scale per type, whatever the number of questions
     // (lib/QuestionBank.php scaleScore; e.g. the 30-item O*NET Mini Interest Profiler, 5 per
     // type), i.e. as if each type had 10 items answered 1-5. The student vector uses each

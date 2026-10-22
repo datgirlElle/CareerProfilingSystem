@@ -36,10 +36,13 @@ DIMENSIONS = ["R", "I", "A", "S", "E", "C"]  # fixed vector order
 
 # Encodings for a 3-letter Holland code: weight of the 1st, 2nd and 3rd letter
 # (absent letters = 0). These are ENGINEERING choices, not weights defined by
-# Holland's theory. "binary" (letter present = 1) is what the web app uses
-# (config/cbf.php); the others keep letter order and are compared in `weights`.
-DEFAULT_ENCODING = "binary"
+# Holland's theory. "ranksum" (3, 2, 1) follows the guidance counselors' ranking of
+# the letters (1st = strongest) with rank-sum weights, and is what the web app uses
+# (config/cbf.php holland_rank_weights). "binary" (letter present = 1) ignores the order
+# and is kept as a comparison; the others are compared in `weights`.
+DEFAULT_ENCODING = "ranksum"
 ENCODINGS = {
+    "ranksum": (3.0, 2.0, 1.0),
     "proposed": (1.00, 0.67, 0.33),
     "binary": (1.00, 1.00, 1.00),
     "steep": (1.00, 0.50, 0.25),
