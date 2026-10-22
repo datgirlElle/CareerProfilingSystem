@@ -87,6 +87,8 @@ COURSES = [
     ("CMET", "BS Marine Transportation", "REC", "REC"),
 ]
 COURSE_NAMES = [c[1] for c in COURSES]
+COLLEGE_OF = {c[1]: c[0] for c in COURSES}
+COLLEGES = list(dict.fromkeys(c[0] for c in COURSES))  # CAS, CCIS, CHS, CN, ETYCB, MITL, MIA, CMET
 TIE_EPS = 1e-12  # scores closer than this are treated as equal (identical course vectors)
 
 
@@ -326,26 +328,35 @@ def write_csv(path, header, rows):
         w.writerows(rows)
 
 
-def write_arff(path, rows, scale, fmt="top3"):
-    """WEKA file + ActualCourse nominal (all 32 classes declared so train/test headers match).
+def write_arff(path, rows, scale, fmt="top3", level="course"):
+    """WEKA file + class nominal (all classes declared so train/test headers match).
     StudentID is deliberately NOT an attribute.
 
     fmt="top3"    : R..C nominal {x,blank}: x = one of the student's top 3 types (the
                     adviser's format, which lib/PredictionModel.php runs in the web app)
-    fmt="numeric" : R..C numeric, from student_vector(row, scale)"""
-    classes = ",".join("'" + c.replace("'", "\\'") + "'" for c in COURSE_NAMES)
+    fmt="numeric" : R..C numeric, from student_vector(row, scale)
+    level="course"  : class ActualCourse = the 32 programs
+    level="college" : class College = the college of the student's course (8 colleges);
+                      supplementary analysis only, never imported into the web app"""
+    if level == "college":
+        class_name, names = "College", COLLEGES
+        label = lambda r: COLLEGE_OF[r["ActualCourse"]]
+    else:
+        class_name, names = "ActualCourse", COURSE_NAMES
+        label = lambda r: r["ActualCourse"]
+    classes = ",".join("'" + c.replace("'", "\\'") + "'" for c in names)
     with open(path, "w", encoding="utf-8") as f:
         f.write("@RELATION student_riasec\n\n")
         for d in DIMENSIONS:
             f.write(f"@ATTRIBUTE {d} {{x,blank}}\n" if fmt == "top3" else f"@ATTRIBUTE {d} NUMERIC\n")
-        f.write(f"@ATTRIBUTE ActualCourse {{{classes}}}\n\n@DATA\n")
+        f.write(f"@ATTRIBUTE {class_name} {{{classes}}}\n\n@DATA\n")
         for r in rows:
             if fmt == "top3":
                 vec = student_vector(r, "top3")
                 cells = ["x" if v else "blank" for v in vec]
             else:
                 cells = [f"{v:g}" for v in student_vector(r, scale)]
-            f.write(",".join(cells) + ",'" + r["ActualCourse"].replace("'", "\\'") + "'\n")
+            f.write(",".join(cells) + ",'" + label(r).replace("'", "\\'") + "'\n")
 
 
 # ---------------------------------------------------------------- dataset inspection
@@ -536,8 +547,15 @@ def cmd_split(a):
         write_csv(os.path.join(base, f"{name}.csv"), header, [[r[h] for h in header] for r in part])
         write_arff(os.path.join(base, f"{name}.arff"), part, a.scale, getattr(a, "arff", "top3"))
     write_arff(os.path.join(base, "all.arff"), rows, a.scale, getattr(a, "arff", "top3"))
+    # Same students, same split, class = college (supplementary analysis; METHODOLOGY.md §17).
+    for name, part in (("train", train), ("test", test), ("all", rows)):
+        write_arff(os.path.join(base, f"{name}_college.arff"), part, a.scale, getattr(a, "arff", "top3"), level="college")
     print(f"train={len(train)} test={len(test)} (seed {a.seed}); files in {base}")
     print(f"  all.arff = every student (for 10-fold cross-validation / the final tree for the web app)")
+    college_counts = Counter(COLLEGE_OF[r["ActualCourse"]] for r in rows)
+    print("  *_college.arff = the same students with College as the class (supplementary model):")
+    print("    " + ", ".join(f"{c} {college_counts.get(c, 0)}" for c in COLLEGES)
+          + f"; most common: {college_counts.most_common(1)[0][0]} = {college_counts.most_common(1)[0][1] / len(rows):.1%} of students")
     counts = Counter(r["ActualCourse"] for r in rows)
     small = sorted(c for c, n in counts.items() if n < 5)
     missing = [c for c in COURSE_NAMES if c not in counts]

@@ -316,5 +316,37 @@ class ClassReport(unittest.TestCase):
         self.assertEqual(attrs, ["R", "I", "A", "S", "E", "C", "ActualCourse"])
 
 
+class CollegeLevel(unittest.TestCase):
+    def test_every_course_has_one_of_8_colleges(self):
+        self.assertEqual(m.COLLEGES, ["CAS", "CCIS", "CHS", "CN", "ETYCB", "MITL", "MIA", "CMET"])
+        self.assertEqual(set(m.COLLEGE_OF), set(m.COURSE_NAMES))
+
+    def test_college_arff_same_features_college_class(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "t.arff")
+            m.write_arff(path, [student("S1", [9, 8, 1, 2, 3, 7], "BS Civil Engineering"),
+                                student("S2", [1, 8, 1, 9, 3, 2], "BS Nursing")], "scores", level="college")
+            lines = open(path).read().splitlines()
+        attrs = [l.split()[1] for l in lines if l.startswith("@ATTRIBUTE")]
+        self.assertEqual(attrs, ["R", "I", "A", "S", "E", "C", "College"])
+        data = lines[lines.index("@DATA") + 1:]
+        self.assertEqual(data, ["x,x,blank,blank,blank,x,'MITL'", "blank,x,blank,x,x,blank,'CN'"])
+
+    def test_split_writes_college_files_for_the_same_students(self):
+        with tempfile.TemporaryDirectory() as d:
+            src = os.path.join(d, "riasec.csv")
+            rows = [["student_id", "R", "I", "A", "S", "E", "C", "course"]]
+            for i in range(6):
+                rows.append([f"S{i}", 9, 8, 1, 2, 3, 7, "BS Civil Engineering"])
+                rows.append([f"N{i}", 1, 8, 1, 9, 3, 2, "BS Nursing"])
+            with open(src, "w", newline="") as f:
+                csv.writer(f).writerows(rows)
+            m.cmd_split(type("A", (), {"students": src, "seed": 42, "test_fraction": 0.3, "scale": "auto", "arff": "top3"})())
+            for name in ("train", "test", "all"):
+                course = [l.rsplit(",", 1)[0] for l in open(os.path.join(d, f"{name}.arff")) if l[0] in "xb"]
+                college = [l.rsplit(",", 1)[0] for l in open(os.path.join(d, f"{name}_college.arff")) if l[0] in "xb"]
+                self.assertEqual(course, college)          # identical students, identical order
+
+
 if __name__ == "__main__":
     unittest.main()

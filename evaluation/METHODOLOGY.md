@@ -726,3 +726,20 @@ stratifies, but their per-class values rest on very few cases and should be repo
 Accuracy here measures agreement with students' stated preferences, not whether a career
 choice is correct.
 
+
+## 17. Supplementary model: predicting the college instead of the program
+
+`cbf_eval.py split` also writes `train_college.arff`, `test_college.arff` and
+`all_college.arff`: the **same students in the same split**, with the same six x/blank
+attributes, but the class is the **college** of the preferred course (8 classes: CAS, CCIS,
+CHS, CN, ETYCB, MITL, MIA, CMET) instead of the program (32 classes).
+
+- Purpose: fewer classes with more students each, to see whether the RIASEC signal is
+  clearer at the level of broad fields. It answers a **different, coarser question**
+  ("which college?"), so it is reported **beside** the program-level model, never instead of it.
+- Same protocol as the program model: J48 with the same settings, 10-fold CV on
+  `train_college.arff` (or `all_college.arff` for the cross-validation estimate), one run on
+  `test_college.arff`, and ZeroR (always the most common college) as the baseline. Compare
+  accuracy **and kappa** with the baseline: with 8 unequal classes the majority college alone
+  already gives a high accuracy.
+- It is **not** imported into the web app: its classes are not programs (the importer refuses them).
