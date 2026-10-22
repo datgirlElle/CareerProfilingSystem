@@ -662,6 +662,14 @@ defined the target as the student's program/course (the preferred course in the 
 No accuracy target was set. The college-level model (§17) is a supplementary analysis
 suggested during development, not an adviser or panel requirement.
 
+**Verification (2026-10-22).** `cbf_eval.py inspect` on the raw file: 314 rows; no missing,
+non-numeric or out-of-range scores (all whole numbers 0–10); no all-zero rows; no duplicate or
+empty student IDs; no repeated records; all 29 course labels matched MMCL programs (two BSBA
+majors written in full); 23 "Undecided"; one pair of identical score profiles with different
+courses. 82 of the 291 analysed students (28.2%) tie for the third-highest score (resolved in
+R-I-A-S-E-C order, as in the web app). Twenty randomly selected records (seed 2026) were checked
+against the original forms by the team; all matched.
+
 Dataset: 314 students; 23 "Undecided" rows removed, leaving 291 across 28 courses. Split 200
 train / 91 test (stratified, seed 42). Class = the student's preferred course. All numbers
 below were produced by `cbf_eval.py` / `model_experiment.py` on this dataset; none were set
