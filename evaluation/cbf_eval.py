@@ -7,11 +7,6 @@ It builds the course dataset, runs the CBF on student RIASEC profiles,
 evaluates Top-N performance against ActualCourse, compares Holland-code rank
 encodings, and prepares identical train/test splits for WEKA.
 
-    python3 cbf_eval.py inspect --students "riasec_scores (1).csv"  -> data-quality report; changes nothing
-    python3 cbf_eval.py yesno   --students "riasec_scores (1).csv" -> riasec_yesno.csv (the adviser's Yes/No table)
-    python3 cbf_eval.py doublecheck --a riasec_raw_A.csv --b riasec_raw_B.csv
-                                                                  -> lists every cell where two independent typings
-                                                                     differ; writes riasec_raw_verified.csv if none
     python3 cbf_eval.py courses                                   -> course_profiles.csv
     python3 cbf_eval.py split   --students student_profiles.csv   -> train/test .csv + .arff
     python3 cbf_eval.py cbf     --students test.csv --k 3         -> cbf_results.csv + metrics
@@ -91,8 +86,6 @@ COURSES = [
     ("CMET", "BS Marine Transportation", "REC", "REC"),
 ]
 COURSE_NAMES = [c[1] for c in COURSES]
-COLLEGE_OF = {c[1]: c[0] for c in COURSES}
-COLLEGES = list(dict.fromkeys(c[0] for c in COURSES))  # CAS, CCIS, CHS, CN, ETYCB, MITL, MIA, CMET
 TIE_EPS = 1e-12  # scores closer than this are treated as equal (identical course vectors)
 
 
@@ -332,282 +325,26 @@ def write_csv(path, header, rows):
         w.writerows(rows)
 
 
-def write_arff(path, rows, scale, fmt="top3", level="course"):
-    """WEKA file + class nominal (all classes declared so train/test headers match).
+def write_arff(path, rows, scale, fmt="top3"):
+    """WEKA file + ActualCourse nominal (all 32 classes declared so train/test headers match).
     StudentID is deliberately NOT an attribute.
 
     fmt="top3"    : R..C nominal {x,blank}: x = one of the student's top 3 types (the
                     adviser's format, which lib/PredictionModel.php runs in the web app)
-    fmt="numeric" : R..C numeric, from student_vector(row, scale)
-    level="course"  : class ActualCourse = the 32 programs
-    level="college" : class College = the college of the student's course (8 colleges);
-                      supplementary analysis only, never imported into the web app"""
-    if level == "college":
-        class_name, names = "College", COLLEGES
-        label = lambda r: COLLEGE_OF[r["ActualCourse"]]
-    else:
-        class_name, names = "ActualCourse", COURSE_NAMES
-        label = lambda r: r["ActualCourse"]
-    classes = ",".join("'" + c.replace("'", "\\'") + "'" for c in names)
+    fmt="numeric" : R..C numeric, from student_vector(row, scale)"""
+    classes = ",".join("'" + c.replace("'", "\\'") + "'" for c in COURSE_NAMES)
     with open(path, "w", encoding="utf-8") as f:
         f.write("@RELATION student_riasec\n\n")
         for d in DIMENSIONS:
             f.write(f"@ATTRIBUTE {d} {{x,blank}}\n" if fmt == "top3" else f"@ATTRIBUTE {d} NUMERIC\n")
-        f.write(f"@ATTRIBUTE {class_name} {{{classes}}}\n\n@DATA\n")
+        f.write(f"@ATTRIBUTE ActualCourse {{{classes}}}\n\n@DATA\n")
         for r in rows:
             if fmt == "top3":
                 vec = student_vector(r, "top3")
                 cells = ["x" if v else "blank" for v in vec]
             else:
                 cells = [f"{v:g}" for v in student_vector(r, scale)]
-            f.write(",".join(cells) + ",'" + label(r).replace("'", "\\'") + "'\n")
-
-
-def cmd_yesno(a):
-    """The adviser's Yes/No table: one row per student, Yes for each of the student's top 3
-    RIASEC scores (the same rule as the WEKA files), No for the rest, then the course.
-    For viewing and checking only: train WEKA with all.arff, which has no student ID."""
-    rows = read_students(a.students)
-    out = []
-    ties = 0
-    for r in rows:
-        vec = student_vector(r, "top3")
-        tie = not is_marked_row(r) and third_place_tie(r)
-        ties += tie
-        code = "".join(d for d, v in zip(DIMENSIONS, vec) if v)  # letters in R,I,A,S,E,C order
-        out.append([r["StudentID"], *["Yes" if v else "No" for v in vec], r["ActualCourse"], code, "Yes" if tie else ""])
-    write_csv(a.out, ["student_id", *DIMENSIONS, "course", "Top3", "TieFor3rd"], out)
-    print(f"Wrote {a.out}: {len(out)} students, Yes = one of the student's top 3 RIASEC scores.")
-    if ties:
-        print(f"  {ties} student(s) have a tie for 3rd place (TieFor3rd = Yes): the Yes went to the earlier letter in R,I,A,S,E,C order.")
-    print("  Open it in Excel to show or check. For WEKA use all.arff (no student ID); if you load this CSV in WEKA,")
-    print("  remove student_id, Top3 and TieFor3rd first (Preprocess -> tick them -> Remove).")
-
-
-def _read_entry(path):
-    """One typed sheet: student_id, R..C, course. Returns ({id: row}, problems)."""
-    with open(path, newline="", encoding="utf-8-sig") as f:
-        raw = [r for r in csv.reader(f) if any(c.strip() for c in r)]
-    if not raw:
-        raise SystemExit(f"{path} is empty")
-    low = [h.strip().lower().replace(" ", "") for h in raw[0]]
-    need = ["student_id", "r", "i", "a", "s", "e", "c", "course"]
-    missing = [n for n in need if n not in low]
-    if missing:
-        raise SystemExit(f"{path}: missing column(s) {missing}. Use exactly: student_id,R,I,A,S,E,C,course")
-    idx = {n: low.index(n) for n in need}
-    rows, problems = {}, []
-    for line, r in enumerate(raw[1:], start=2):
-        cell = lambda n: r[idx[n]].strip() if idx[n] < len(r) else ""
-        sid = cell("student_id")
-        if not sid:
-            problems.append(f"line {line}: empty student_id")
-            continue
-        if sid in rows:
-            problems.append(f"line {line}: student_id {sid} appears twice")
-            continue
-        rows[sid] = {"line": line, **{d: cell(d.lower()) for d in DIMENSIONS}, "course": cell("course")}
-        for d in DIMENSIONS:
-            v = rows[sid][d]
-            if not v.isdigit():
-                problems.append(f"line {line} ({sid}): {d} = {v!r} is not a whole number")
-    return rows, problems
-
-
-def cmd_doublecheck(a):
-    """Double-entry verification: two people type the raw scores from the same O*NET links
-    independently; every disagreement is listed so only those links are re-opened. When the
-    two sheets agree completely, the verified copy is written. Nothing is guessed or fixed."""
-    A, pa = _read_entry(a.a)
-    B, pb = _read_entry(a.b)
-    for name, probs in ((os.path.basename(a.a), pa), (os.path.basename(a.b), pb)):
-        for p in probs:
-            print(f"{name}: {p}")
-    only_a, only_b = sorted(set(A) - set(B)), sorted(set(B) - set(A))
-    if only_a:
-        print(f"In {os.path.basename(a.a)} only: {only_a}")
-    if only_b:
-        print(f"In {os.path.basename(a.b)} only: {only_b}")
-    diffs = []
-    for sid in sorted(set(A) & set(B), key=lambda x: A[x]["line"]):
-        for col in [*DIMENSIONS, "course"]:
-            va, vb = A[sid][col], B[sid][col]
-            same = _key(va) == _key(vb) if col == "course" else va == vb
-            if not same:
-                diffs.append((sid, col, va, vb))
-    for sid, col, va, vb in diffs:
-        print(f"DIFFERENT  {sid}  {col}: A = {va!r}   B = {vb!r}   -> open this student's link again")
-    both = set(A) & set(B)
-    scores = [int(A[s][d]) for s in both for d in DIMENSIONS if A[s][d].isdigit()]
-    print(f"\nStudents: A {len(A)}, B {len(B)}, in both {len(both)}.  Cells that differ: {len(diffs)}.")
-    if scores:
-        print(f"Raw scores range from {min(scores)} to {max(scores)} (use --max with `inspect` for the profiler's real maximum).")
-    unknown = sorted({A[s]['course'] for s in both if _key(A[s]['course']) not in COURSE_LOOKUP
-                      and _key(A[s]['course']) not in {_key(x) for x in DROP_DEFAULT}})
-    if unknown:
-        print(f"Course names not recognised (fix the spelling in both sheets): {unknown}")
-    if pa or pb or only_a or only_b or diffs:
-        print("\nNOT VERIFIED: fix the items above in the sheet that is wrong (check the link), then run again.")
-        raise SystemExit(1)
-    order = sorted(both, key=lambda x: A[x]["line"])
-    write_csv(a.out, ["student_id", *DIMENSIONS, "course"], [[s, *[A[s][d] for d in DIMENSIONS], A[s]["course"]] for s in order])
-    print(f"\nVERIFIED: both typings agree on every cell. Wrote {a.out} ({len(order)} students).")
-
-
-# ---------------------------------------------------------------- dataset inspection
-
-def cmd_inspect(a):
-    """Data-quality report on the raw file. Reads every row, removes nothing, writes nothing
-    unless --out is given (a Markdown copy of the report)."""
-    with open(a.students, newline="", encoding="utf-8-sig") as f:
-        raw = list(csv.reader(f))
-    out = []
-    say = lambda line="": out.append(line)
-    if not raw:
-        raise SystemExit(f"{a.students} is empty")
-    header = [h.strip() for h in raw[0]]
-    rows = [r for r in raw[1:] if any(c.strip() for c in r)]
-    say(f"# Dataset inspection: {os.path.basename(a.students)}\n")
-    say(f"Rows (excluding header and blank lines): {len(rows)}   Blank lines: {len(raw) - 1 - len(rows)}")
-    say(f"Columns: {header}")
-    low = {h.lower().replace(' ', ''): i for i, h in enumerate(header)}
-    id_col = next((low[k] for k in ("student_id", "studentid", "student", "id", "") if k in low), None)
-    course_col = next((low[k] for k in ("course", "actualcourse") if k in low), None)
-    dim_cols = {d: low.get(d.lower()) for d in DIMENSIONS}
-    missing_cols = [d for d, i in dim_cols.items() if i is None] + (["course"] if course_col is None else [])
-    if missing_cols:
-        raise SystemExit(f"Missing columns: {missing_cols}")
-    say(f"Features used by the model: {DIMENSIONS}  (student id column '{header[id_col] if id_col is not None else '-'}' is NOT a feature)")
-    say(f"Target class: '{header[course_col]}'\n")
-    bad_len = [i + 2 for i, r in enumerate(rows) if len(r) != len(header)]
-    if bad_len:
-        say(f"Rows with a different number of cells than the header (file line numbers): {bad_len[:20]}")
-
-    say("## RIASEC values")
-    invalid, values = [], {d: [] for d in DIMENSIONS}
-    for i, r in enumerate(rows):
-        for d, c in dim_cols.items():
-            cell = r[c].strip() if c < len(r) else ""
-            try:
-                v = float(cell)
-                if math.isnan(v):
-                    raise ValueError
-                values[d].append(v)
-            except ValueError:
-                invalid.append((i + 2, d, cell))
-    say(f"Missing or non-numeric cells: {len(invalid)}" + (f"  e.g. {invalid[:10]}" if invalid else ""))
-    for d in DIMENSIONS:
-        v = values[d]
-        if v:
-            say(f"  {d}: min {min(v):g}  max {max(v):g}  mean {sum(v) / len(v):.2f}  non-integer values: {sum(1 for x in v if x != int(x))}")
-    lo, hi = a.min, a.max
-    out_of_range = [(i + 2, d) for i, r in enumerate(rows) for d, c in dim_cols.items()
-                    if c < len(r) and _num(r[c]) is not None and not lo <= _num(r[c]) <= hi]
-    say(f"Values outside the expected range {lo:g}-{hi:g}: {len(out_of_range)}" + (f"  e.g. {out_of_range[:10]}" if out_of_range else ""))
-    all_zero = [i + 2 for i, r in enumerate(rows) if all(_num(r[c]) == 0 for c in dim_cols.values() if c < len(r))]
-    say(f"Rows with all six scores = 0 (zero vector: cosine undefined): {len(all_zero)}" + (f" lines {all_zero[:10]}" if all_zero else ""))
-    ties3 = sum(1 for r in rows if all(_num(r[c]) is not None for c in dim_cols.values())
-                and third_place_tie({d: r[c] for d, c in dim_cols.items()}))
-    say(f"Rows where 3rd and 4th highest scores tie (top-3 decided by R,I,A,S,E,C order): {ties3}\n")
-
-    say("## Course labels (exactly as written)")
-    labels = Counter(r[course_col].strip() if course_col < len(r) else "" for r in rows)
-    for lab, n in labels.most_common():
-        mapped = COURSE_LOOKUP.get(_key(lab))
-        note = "" if mapped == lab else (f" -> {mapped}" if mapped else ("  <- NOT A COURSE (non-course response)" if _key(lab) in {_key(x) for x in DROP_DEFAULT}
-                                                                   else "  <- NOT RECOGNISED (needs a decision)"))
-        say(f"  {n:4d}  {lab!r}{note}")
-    say(f"Distinct labels as written: {len(labels)}")
-    groups = {}
-    for lab in labels:
-        if COURSE_LOOKUP.get(_key(lab)):
-            groups.setdefault(COURSE_LOOKUP[_key(lab)], []).append(lab)
-    merged = {k: v for k, v in groups.items() if len(v) > 1}
-    if merged:
-        say("Different spellings of the same course (merged by cbf_eval.py's name normalisation):")
-        for k, v in merged.items():
-            say(f"  {k}: {v}")
-    counts = Counter()
-    for lab, n in labels.items():
-        if COURSE_LOOKUP.get(_key(lab)):
-            counts[COURSE_LOOKUP[_key(lab)]] += n
-    say(f"Distinct courses after normalisation: {len(counts)} of {len(COURSE_NAMES)} programs")
-    say(f"Programs with no students (J48 can never predict them): {[c for c in COURSE_NAMES if c not in counts]}")
-    say(f"Courses with fewer than 10 students (fewer than one per fold in 10-fold CV): {sorted(c for c, n in counts.items() if n < 10)}")
-    say(f"Courses with 1 student (cannot be both trained and tested): {sorted(c for c, n in counts.items() if n == 1)}\n")
-
-    say("## Duplicates")
-    if id_col is not None:
-        ids = Counter(r[id_col].strip() for r in rows if id_col < len(r))
-        dup_ids = {k: n for k, n in ids.items() if n > 1}
-        say(f"Duplicate student IDs: {len(dup_ids)}" + (f"  e.g. {list(dup_ids.items())[:10]}" if dup_ids else ""))
-        say(f"Empty student IDs: {ids.get('', 0)}")
-    full = Counter(tuple(c.strip() for i, c in enumerate(r) if i != id_col) for r in rows)
-    say(f"Rows identical in scores AND course (different IDs): {sum(n - 1 for n in full.values() if n > 1)} extra copies (normal for 0-10 scores; not removed)")
-    by_profile = {}
-    for r in rows:
-        key = tuple(r[c].strip() for c in dim_cols.values())
-        by_profile.setdefault(key, set()).add(r[course_col].strip())
-    conflicting = sum(1 for v in by_profile.values() if len(v) > 1)
-    say(f"Identical score profiles with different courses: {conflicting} profile(s) (no classifier can get all of them right)\n")
-
-    say("## Not changed by this command")
-    say("Nothing is removed or rewritten. `split` later removes only the labels in --drop (default 'Undecided') and prints how many.")
-    text = "\n".join(out)
-    print(text)
-    if a.out:
-        with open(a.out, "w", encoding="utf-8") as f:
-            f.write(text + "\n")
-        print(f"\nReport saved to {a.out}")
-
-
-def _num(cell):
-    try:
-        v = float(str(cell).strip())
-        return None if math.isnan(v) else v
-    except ValueError:
-        return None
-
-
-# ---------------------------------------------------------------- per-class metrics
-
-def class_report(pairs):
-    """[(actual, predicted)] -> (rows, accuracy, macro P/R/F1, weighted P/R/F1, labels, matrix).
-    Precision of a class never predicted is reported as 0 (as WEKA shows '?')."""
-    labels = sorted({x for p in pairs for x in p}, key=lambda c: (COURSE_NAMES.index(c) if c in COURSE_NAMES else 99, c))
-    idx = {c: i for i, c in enumerate(labels)}
-    matrix = [[0] * len(labels) for _ in labels]
-    for act, pred in pairs:
-        matrix[idx[act]][idx[pred]] += 1
-    rows = []
-    for c in labels:
-        i = idx[c]
-        tp = matrix[i][i]
-        support = sum(matrix[i])
-        predicted = sum(matrix[r][i] for r in range(len(labels)))
-        p = tp / predicted if predicted else 0.0
-        r = tp / support if support else 0.0
-        f = 2 * p * r / (p + r) if p + r else 0.0
-        rows.append((c, p, r, f, support, predicted))
-    real = [x for x in rows if x[4] > 0]
-    n = sum(x[4] for x in real)
-    macro = tuple(sum(x[k] for x in real) / len(real) for k in (1, 2, 3))
-    weighted = tuple(sum(x[k] * x[4] for x in real) / n for k in (1, 2, 3))
-    acc = sum(matrix[i][i] for i in range(len(labels))) / n
-    return rows, acc, macro, weighted, labels, matrix
-
-
-def print_class_report(pairs, title, out_csv=None):
-    rows, acc, macro, weighted, labels, matrix = class_report(pairs)
-    print(f"\n{title}: accuracy {acc:.4f} on {len(pairs)} students")
-    print(f"{'Course':50} {'Prec':>6} {'Recall':>6} {'F1':>6} {'Actual':>6} {'Predicted':>9}")
-    for c, p, r, f, sup, pred in rows:
-        print(f"{c[:50]:50} {p:6.3f} {r:6.3f} {f:6.3f} {sup:6d} {pred:9d}")
-    print(f"{'Macro average (courses present in the test set)':50} {macro[0]:6.3f} {macro[1]:6.3f} {macro[2]:6.3f}")
-    print(f"{'Weighted average':50} {weighted[0]:6.3f} {weighted[1]:6.3f} {weighted[2]:6.3f}")
-    if out_csv:
-        write_csv(out_csv, ["Actual \\ Predicted", *labels], [[labels[i], *matrix[i]] for i in range(len(labels))])
-        print(f"Confusion matrix (rows = actual, columns = predicted): {out_csv}")
+            f.write(",".join(cells) + ",'" + r["ActualCourse"].replace("'", "\\'") + "'\n")
 
 
 # ---------------------------------------------------------------- commands
@@ -642,15 +379,8 @@ def cmd_split(a):
         write_csv(os.path.join(base, f"{name}.csv"), header, [[r[h] for h in header] for r in part])
         write_arff(os.path.join(base, f"{name}.arff"), part, a.scale, getattr(a, "arff", "top3"))
     write_arff(os.path.join(base, "all.arff"), rows, a.scale, getattr(a, "arff", "top3"))
-    # Same students, same split, class = college (supplementary analysis; METHODOLOGY.md §17).
-    for name, part in (("train", train), ("test", test), ("all", rows)):
-        write_arff(os.path.join(base, f"{name}_college.arff"), part, a.scale, getattr(a, "arff", "top3"), level="college")
     print(f"train={len(train)} test={len(test)} (seed {a.seed}); files in {base}")
     print(f"  all.arff = every student (for 10-fold cross-validation / the final tree for the web app)")
-    college_counts = Counter(COLLEGE_OF[r["ActualCourse"]] for r in rows)
-    print("  *_college.arff = the same students with College as the class (supplementary model):")
-    print("    " + ", ".join(f"{c} {college_counts.get(c, 0)}" for c in COLLEGES)
-          + f"; most common: {college_counts.most_common(1)[0][0]} = {college_counts.most_common(1)[0][1] / len(rows):.1%} of students")
     counts = Counter(r["ActualCourse"] for r in rows)
     small = sorted(c for c, n in counts.items() if n < 5)
     missing = [c for c in COURSE_NAMES if c not in counts]
@@ -807,9 +537,6 @@ def cmd_compare(a):
     print(f"McNemar (exact), Top-1: J48 right & CBF wrong = {b}, CBF right & J48 wrong = {c}, p = {p:.4f}"
           "  (CBF counted right only when its top course is unique)")
 
-    print_class_report([(act, pred) for act, pred, _ in preds], "J48 per-class results on the test set",
-                       os.path.splitext(a.out)[0] + "_j48_confusion.csv")
-
     header = ["StudentID", "ActualCourse", "J48Predicted", "J48Correct"]
     for sc in cbf_scales:
         header += [f"CBF_{sc}_Top", f"CBF_{sc}_Top1", f"CBF_{sc}_Hit@{k}"]
@@ -882,7 +609,7 @@ def cmd_agreement(a):
     cvecs = course_vectors(ENCODINGS[DEFAULT_ENCODING])
     code = {n: f for _, n, _, f in COURSES}
     per_combo = {}
-    pred_in, own_in, pred_in_alt, no_pred, all_three = 0, 0, 0, 0, 0
+    pred_in, own_in, pred_in_alt, no_pred = 0, 0, 0, 0
     for r in rows:
         scores = {c: cosine(student_vector(r, scale), v) for c, v in cvecs.items()}
         levels = sorted({round(v, 9) for v in scores.values()}, reverse=True)
@@ -900,8 +627,6 @@ def cmd_agreement(a):
             pred_in_alt += pred in best | alt
             c["in"] += pred in best
         own_in += r["ActualCourse"] in best
-        # Final Best Match rule (lib/RecommendationPipeline.php): Best RIASEC Match ∩ WEKA ∩ preferred course.
-        all_three += pred is not None and pred == r["ActualCourse"] and pred in best
         c["own"] += r["ActualCourse"] in best
     n = len(rows)
     print(f"\nStudents: {n}  (CBF student vector: {'actual scores, as the web app' if scale == 'scores' else 'top-3 x/blank'};"
@@ -912,8 +637,6 @@ def cmd_agreement(a):
     print(f"\nWEKA's course is a Best RIASEC Match for        {pred_in}/{n} students ({pred_in / n:.1%})")
     print(f"WEKA's course is a Best Match or Alternative for {pred_in_alt}/{n} students ({pred_in_alt / n:.1%})")
     print(f"Students' OWN course is a Best RIASEC Match for  {own_in}/{n} students ({own_in / n:.1%})  <- ceiling for a model trained on this class")
-    print(f"Final Best Match (in Best RIASEC Match AND WEKA AND preferred course) for {all_three}/{n} students ({all_three / n:.1%});"
-          " the rest would see 'no common course'. In-sample if the model was trained on these students.")
     if no_pred:
         print(f"No prediction (no tree branch): {no_pred} students")
     print(f"Distinct top-3 patterns in the data: {len(per_combo)} of 20; the earlier '7 of 20' counted each pattern once, regardless of how many students have it.")
@@ -938,18 +661,6 @@ def main():
         if name == "cbf":
             s.add_argument("--encoding", choices=list(ENCODINGS), default=DEFAULT_ENCODING)
             s.add_argument("--out", default="cbf_results.csv")
-    dc = sub.add_parser("doublecheck")
-    dc.add_argument("--a", required=True, help="first person's typed sheet")
-    dc.add_argument("--b", required=True, help="second person's typed sheet")
-    dc.add_argument("--out", default="riasec_raw_verified.csv")
-    y = sub.add_parser("yesno")
-    y.add_argument("--students", required=True)
-    y.add_argument("--out", default="riasec_yesno.csv")
-    i = sub.add_parser("inspect")
-    i.add_argument("--students", required=True, help="the raw dataset, e.g. \"riasec_scores (1).csv\"")
-    i.add_argument("--min", type=float, default=0, help="lowest valid score (default 0)")
-    i.add_argument("--max", type=float, default=10, help="highest valid score (default 10)")
-    i.add_argument("--out", help="also save the report as Markdown")
     g = sub.add_parser("agreement")
     g.add_argument("--students", required=True, help="student CSV with the course column (all students)")
     g.add_argument("--model", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "prediction_model.json"))
@@ -960,7 +671,7 @@ def main():
     c.add_argument("--k", type=int, default=3)
     c.add_argument("--out", default="comparison_results.csv")
     a = p.parse_args()
-    {"doublecheck": cmd_doublecheck, "yesno": cmd_yesno, "inspect": cmd_inspect, "courses": cmd_courses, "split": cmd_split, "cbf": cmd_cbf, "weights": cmd_weights, "compare": cmd_compare, "agreement": cmd_agreement}[a.cmd](a)
+    {"courses": cmd_courses, "split": cmd_split, "cbf": cmd_cbf, "weights": cmd_weights, "compare": cmd_compare, "agreement": cmd_agreement}[a.cmd](a)
 
 
 if __name__ == "__main__":

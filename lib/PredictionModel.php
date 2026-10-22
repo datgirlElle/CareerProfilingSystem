@@ -104,59 +104,39 @@ class PredictionModel
      */
     public static function predictLabelFromScores(array $model, array $scores): ?string
     {
-        return self::explain($model, $scores)['label'];
-    }
-
-    /**
-     * The tree walk for one student, for auditing: the input features the tree saw, the
-     * conditions on the path from the root (the decision rule that fired) and the leaf label.
-     *
-     * @return array{features:string, inputs:array<string,string|float>, path:string[], label:?string}
-     */
-    public static function explain(array $model, array $scores): array
-    {
         $features = $model['features'] ?? 'top3';
         if ($features === 'top3') {
-            $top = CBFEngine::topRiasecLetters($scores, 3);
-            $inputs = [];
-            foreach (CBFEngine::DIMENSIONS as $d) {
-                $inputs[$d] = in_array($d, $top, true) ? 'x' : 'blank';
-            }
-        } elseif ($features === 'rank') {
-            $inputs = self::ranks($scores);
-        } else {
+            return self::predictLabel($model['tree'], CBFEngine::topRiasecLetters($scores, 3));
+        }
+        if ($features !== 'rank') {
             throw new InvalidArgumentException("Unknown feature encoding '$features' in the prediction model.");
         }
-        $path = [];
+        $rank = self::ranks($scores);
         $node = $model['tree'];
         while (!isset($node['class'])) {
             $letter = self::dimension((string) ($node['attribute'] ?? ''));
             if ($letter === null) {
-                return ['features' => $features, 'inputs' => $inputs, 'path' => $path, 'label' => null];
+                return null;
             }
+            $x = $rank[$letter];
             $next = null;
             foreach ($node['branches'] ?? [] as $branch) {
-                if ($features === 'top3') {
-                    $ok = self::branchMatches($branch['op'], (string) $branch['value'], $inputs[$letter] === 'x');
-                } else {
-                    [$x, $t] = [$inputs[$letter], (float) $branch['value']];
-                    $ok = match ($branch['op']) {
-                        '<=' => $x <= $t, '<' => $x < $t, '>' => $x > $t, '>=' => $x >= $t,
-                        '=' => abs($x - $t) < 1e-9, '!=' => abs($x - $t) >= 1e-9, default => false,
-                    };
-                }
+                $t = (float) $branch['value'];
+                $ok = match ($branch['op']) {
+                    '<=' => $x <= $t, '<' => $x < $t, '>' => $x > $t, '>=' => $x >= $t,
+                    '=' => abs($x - $t) < 1e-9, '!=' => abs($x - $t) >= 1e-9, default => false,
+                };
                 if ($ok) {
-                    $path[] = $node['attribute'] . ' ' . $branch['op'] . ' ' . $branch['value'];
                     $next = $branch['node'];
                     break;
                 }
             }
             if ($next === null) {
-                return ['features' => $features, 'inputs' => $inputs, 'path' => $path, 'label' => null];
+                return null;
             }
             $node = $next;
         }
-        return ['features' => $features, 'inputs' => $inputs, 'path' => $path, 'label' => (string) $node['class']];
+        return (string) $node['class'];
     }
 
     /**
@@ -275,58 +255,6 @@ class PredictionModel
             throw new InvalidArgumentException('No J48 tree found in the file.');
         }
         return json_decode(json_encode($root), true);
-    }
-
-    /**
-     * What WEKA itself reported about the run, copied verbatim from the classifier output
-     * ("=== Run information ===", "=== Summary ===", "=== Detailed Accuracy By Class ===",
-     * "=== Confusion Matrix ==="), so the audit view shows WEKA's own numbers and nothing
-     * computed here. Missing sections are left out.
-     *
-     * @return array{scheme?:string, relation?:string, instances?:int, attributes?:string[],
-     *               testMode?:string, evaluationTitle?:string, summary?:string,
-     *               perClass?:string, confusionMatrix?:string}
-     */
-    public static function parseWekaRun(string $text): array
-    {
-        $lines = preg_split('/\r\n|\r|\n/', $text);
-        $out = [];
-        $attrs = null;
-        $section = null;
-        $blocks = [];
-        foreach ($lines as $line) {
-            $t = trim($line);
-            if (preg_match('/^=== (.+?) ===$/', $t, $m)) {
-                $section = $m[1];
-                $attrs = null;
-                if (preg_match('/(cross-validation|test set|training set|split)/i', $section)) {
-                    $out['evaluationTitle'] = $section;
-                }
-                continue;
-            }
-            if ($section === 'Run information') {
-                if (preg_match('/^(Scheme|Relation|Instances|Test mode):\s*(.+)$/', $t, $m)) {
-                    $key = ['Scheme' => 'scheme', 'Relation' => 'relation', 'Instances' => 'instances', 'Test mode' => 'testMode'][$m[1]];
-                    $out[$key] = $key === 'instances' ? (int) $m[2] : $m[2];
-                    $attrs = null;
-                } elseif (preg_match('/^Attributes:\s*\d+/', $t)) {
-                    $attrs = [];
-                } elseif (is_array($attrs) && $t !== '') {
-                    $attrs[] = $t;
-                    $out['attributes'] = $attrs;
-                }
-                continue;
-            }
-            if (in_array($section, ['Summary', 'Detailed Accuracy By Class', 'Confusion Matrix'], true)) {
-                $blocks[$section][] = rtrim($line);
-            }
-        }
-        foreach (['Summary' => 'summary', 'Detailed Accuracy By Class' => 'perClass', 'Confusion Matrix' => 'confusionMatrix'] as $name => $key) {
-            if (!empty($blocks[$name]) && ($body = trim(implode("\n", $blocks[$name]), "\n")) !== '') {
-                $out[$key] = $body;
-            }
-        }
-        return $out;
     }
 
     /** Every class label used in a tree's leaves. */

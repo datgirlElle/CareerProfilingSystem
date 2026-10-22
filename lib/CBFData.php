@@ -99,8 +99,8 @@ class CBFData
     }
 
     /**
-     * Run the recommendation sources (lib/RecommendationPipeline.php: CBF, worksheet,
-     * prediction model, Final Best Match) for one student and save the result as a new
+     * Run the recommendation sources (lib/RecommendationPipeline.php: CBF, worksheet;
+     * prediction model unavailable) for one student and save the result as a new
      * `recommendations` row (earlier rows are kept as history). Also raises the
      * low-confidence monitoring flag when the highest cosine similarity is below the
      * configured threshold. The caller manages the transaction.
@@ -137,16 +137,14 @@ class CBFData
         $recInsert = $pdo->prepare(
             'INSERT INTO recommendations (student_id, stated_program_id, scores, top_program_id, top_score, source_assessment_id, source_worksheet_id,
                                           match_status, mismatch_reason, cbf_program_ids, prediction_program_ids, final_program_ids, model_version)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id'
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?) RETURNING id'
         );
         $recInsert->execute([
             $studentId, $statedProgramId, json_encode($scoresForStorage), $topProgramId, $topScore, $assessmentId, $worksheetId,
             $result['status'], $result['reason'],
-            self::intArrayLiteral($cbf['candidateIds']), // Best RIASEC Match (CBF)
+            self::intArrayLiteral($cbf['candidateIds']), // Best RIASEC Match (CBF); final Best Match stays NULL
             // Prediction model (WEKA): its course, or NULL when the model did not run.
             $result['prediction']['status'] === 'unavailable' ? null : self::intArrayLiteral($result['prediction']['courseIds']),
-            // Final Best Match (CBF ∩ WEKA ∩ worksheet): NULL = rule not applicable, {} = no common course.
-            $result['finalBestMatchIds'] === null ? null : self::intArrayLiteral($result['finalBestMatchIds']),
             $result['prediction']['modelVersion'] ?? null,
         ]);
         $recommendationId = (int) $recInsert->fetchColumn();
@@ -169,8 +167,7 @@ class CBFData
         $named = fn(array $ids) => array_values(array_map(fn($id) => $titles[$id], $ids));
         return ['recommendationId' => $recommendationId, 'topProgramId' => $topProgramId, 'topScore' => $topScore,
             'status' => $result['status'], 'reason' => $result['reason'],
-            'bestRiasecMatchTitles' => $named($result['bestRiasecMatchIds']), 'alternativeTitles' => $named($result['alternativeIds']),
-            'finalStatus' => $result['finalStatus']];
+            'bestRiasecMatchTitles' => $named($result['bestRiasecMatchIds']), 'alternativeTitles' => $named($result['alternativeIds'])];
     }
 
     /** PostgreSQL INT[] literal, e.g. {3,4,6}. */

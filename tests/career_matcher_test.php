@@ -29,29 +29,31 @@ $programs = [
 ];
 
 echo "=== resolve: typed career -> program ===\n";
-check('exact listed career (any case/spacing)', CareerMatcher::resolve('  civil   ENGINEER ', $programs) === 4);
-check('program title typed as a career', CareerMatcher::resolve('Nursing', $programs) === 2);
-check('word form differs from the list ("nurse" -> Registered Nurse)', CareerMatcher::resolve('nurse', $programs) === 2);
-check('profession vs program word ("pharmacist" -> BS Pharmacy)', CareerMatcher::resolve('pharmacist', $programs) === 3);
-check('partial overlap on a meaningful word ("software developer")', CareerMatcher::resolve('software developer', $programs) === 1);
-check('exact career beats a looser one ("hotel manager" not Marketing Manager)', CareerMatcher::resolve('hotel manager', $programs) === 6);
-check('only a generic word in common is NOT a link ("bank manager")', CareerMatcher::resolve('bank manager', $programs) === null);
-check('unknown career has no link ("game developer")', CareerMatcher::resolve('game developer', $programs) === null);
+check('exact listed career (any case/spacing)', CareerMatcher::resolve('  civil   ENGINEER ', $programs, null) === 4);
+check('program title typed as a career', CareerMatcher::resolve('Nursing', $programs, null) === 2);
+check('word form differs from the list ("nurse" -> Registered Nurse)', CareerMatcher::resolve('nurse', $programs, null) === 2);
+check('profession vs program word ("pharmacist" -> BS Pharmacy)', CareerMatcher::resolve('pharmacist', $programs, null) === 3);
+check('partial overlap on a meaningful word ("software developer")', CareerMatcher::resolve('software developer', $programs, null) === 1);
+check('exact career beats a looser one ("hotel manager" not Marketing Manager)', CareerMatcher::resolve('hotel manager', $programs, null) === 6);
+check('only a generic word in common is NOT a link ("bank manager")', CareerMatcher::resolve('bank manager', $programs, null) === null);
+check('unknown career has no link ("game developer")', CareerMatcher::resolve('game developer', $programs, null) === null);
 // Regression: "design"/"designer" alone used to link "graphic designer" to
 // Electrical Engineering through "Electrical Design Engineer".
-check('"graphic designer" is NOT linked to Electrical Engineering via the word "design"', CareerMatcher::resolve('graphic designer', $programs) === null);
-check('"interior designer" is not linked through "design" either', CareerMatcher::resolve('interior designer', $programs) === null);
+check('"graphic designer" is NOT linked to Electrical Engineering via the word "design"', CareerMatcher::resolve('graphic designer', $programs, null) === null);
+check('"interior designer" is not linked through "design" either', CareerMatcher::resolve('interior designer', $programs, null) === null);
 $withMedia = array_merge($programs, [['id' => 9, 'title' => 'BS Multimedia Arts', 'hollandCode' => 'AER', 'careers' => ['Graphic Designer', 'Animator']]]);
-check('"graphic designer" links to the program that lists it', CareerMatcher::resolve('graphic designer', $withMedia) === 9);
-check('"Electrical Design Engineer" still links to Electrical Engineering', CareerMatcher::resolve('electrical design engineer', $programs) === 7);
-check('gibberish has no link', CareerMatcher::resolve('zzzz qqqq', $programs) === null);
-check('empty text has no link', CareerMatcher::resolve('   ', $programs) === null);
+check('"graphic designer" links to the program that lists it', CareerMatcher::resolve('graphic designer', $withMedia, null) === 9);
+check('"Electrical Design Engineer" still links to Electrical Engineering', CareerMatcher::resolve('electrical design engineer', $programs, null) === 7);
+check('gibberish has no link', CareerMatcher::resolve('zzzz qqqq', $programs, null) === null);
+check('empty text has no link', CareerMatcher::resolve('   ', $programs, null) === null);
 
-echo "\n=== resolve: ties never use the student's RIASEC scores ===\n";
+echo "\n=== resolve: ties go to the student's RIASEC fit ===\n";
+$realistic = ['R' => 45, 'I' => 20, 'A' => 10, 'S' => 10, 'E' => 30, 'C' => 25]; // RIASEC totals are 10-50
+$investigative = ['R' => 10, 'I' => 48, 'A' => 10, 'S' => 10, 'E' => 10, 'C' => 40];
 // "engineer" is generic, so every engineering program matches equally.
-$engineering = array_column(CareerMatcher::rank('engineer', $programs), 'id');
-check('"engineer" matches several programs equally (a tie)', count($engineering) > 1);
-check('the tie goes to the first program in the list (lowest id), not to a RIASEC fit', CareerMatcher::resolve('engineer', $programs) === min($engineering));
+check('"engineer" for a Realistic/Enterprising student -> REC Mechanical (id 8)', CareerMatcher::resolve('engineer', $programs, $realistic) === 8);
+check('"engineer" for an Investigative/Conventional student -> IRC/RIC program', in_array(CareerMatcher::resolve('engineer', $programs, $investigative), [1, 4, 7], true));
+check('tie with no scores still returns a program', CareerMatcher::resolve('engineer', $programs, null) !== null);
 
 echo "\n=== sanitize: what the student typed ===\n";
 check('trims and collapses spaces', CareerMatcher::sanitize("  Software    Engineer ") === 'Software Engineer');

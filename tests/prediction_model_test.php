@@ -82,29 +82,6 @@ $threw = false;
 try { PredictionModel::predictLabelFromScores(['tree' => $rankTree, 'features' => 'zscore'], $r); } catch (InvalidArgumentException $e) { $threw = true; }
 check('unknown feature encoding -> refused, not guessed', $threw);
 
-echo "\n=== explain(): the decision rule that fired (audit) ===\n";
-$ex = PredictionModel::explain($rankModel, ['R' => 20, 'I' => 40, 'A' => 10, 'S' => 50, 'E' => 15, 'C' => 12]);
-check('explain() returns the same label as predictLabelFromScores()', $ex['label'] === 'BS Psychology');
-check('explain() lists the conditions on the path from the root', $ex['path'] !== [] && str_starts_with($ex['path'][0], 'S '));
-$ex = PredictionModel::explain(['tree' => $tree2], ['R' => 10, 'I' => 40, 'A' => 10, 'S' => 10, 'E' => 30, 'C' => 50]);
-check('explain() top3 inputs are x/blank for the three highest types', $ex['inputs'] === ['R' => 'blank', 'I' => 'x', 'A' => 'blank', 'S' => 'blank', 'E' => 'x', 'C' => 'x']);
-
-echo "\n=== parseWekaRun(): WEKA's own evaluation, copied verbatim ===\n";
-// TEST FIXTURE: a made-up, shortened WEKA output (not a real run, not research results).
-$buffer = "=== Run information ===\n\nScheme:       weka.classifiers.trees.J48 -C 0.1 -M 10\nRelation:     student_riasec\nInstances:    20\nAttributes:   7\n              R\n              I\n              A\n              S\n              E\n              C\n              ActualCourse\nTest mode:    10-fold cross-validation\n\n"
-    . "=== Classifier model (full training set) ===\n\nJ48 pruned tree\n------------------\n\nR = x: BS Civil Engineering (10.0/4.0)\nR = blank: BS Nursing (10.0/5.0)\n\nNumber of Leaves  : 2\n\n"
-    . "=== Stratified cross-validation ===\n=== Summary ===\n\nCorrectly Classified Instances           9               45      %\nKappa statistic                          0.1\n\n"
-    . "=== Detailed Accuracy By Class ===\n\n                 TP Rate  FP Rate  Precision  Recall   F-Measure  Class\n                 0.600    0.300    0.500      0.600    0.545      BS Civil Engineering\n\n"
-    . "=== Confusion Matrix ===\n\n a b   <-- classified as\n 6 4 | a = BS Civil Engineering\n 7 3 | b = BS Nursing\n";
-$run = PredictionModel::parseWekaRun($buffer);
-check('run information: scheme, instances, test mode', $run['scheme'] === 'weka.classifiers.trees.J48 -C 0.1 -M 10' && $run['instances'] === 20 && $run['testMode'] === '10-fold cross-validation');
-check('attributes = R..C + class; no student id', $run['attributes'] === ['R', 'I', 'A', 'S', 'E', 'C', 'ActualCourse']);
-check('evaluation section recognised', $run['evaluationTitle'] === 'Stratified cross-validation');
-check('summary, per-class table and confusion matrix kept as WEKA printed them',
-    str_contains($run['summary'], 'Correctly Classified Instances           9') && str_contains($run['perClass'], '0.545') && str_contains($run['confusionMatrix'], '6 4 | a = BS Civil Engineering'));
-check('the tree still parses from the same buffer', PredictionModel::parseJ48($buffer)['attribute'] === 'R');
-check('a tree-only file -> no evaluation (nothing invented)', PredictionModel::parseWekaRun("J48 pruned tree\n\nR = x: A (1.0)\n") === []);
-
 
 echo "\n=== Summary: $passed passed, $failed failed ===\n";
 exit($failed ? 1 : 0);

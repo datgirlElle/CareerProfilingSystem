@@ -25,7 +25,7 @@ if ($typed === null) {
 try {
     $pdo = Database::get();
     $programs = CareerMatcher::loadPrograms($pdo);
-    $programId = CareerMatcher::resolve($typed, $programs);
+    $programId = CareerMatcher::resolve($typed, $programs, CareerMatcher::latestScores($pdo, (int) $user['id']));
 } catch (Throwable $e) {
     error_log('[career-match] failed: ' . $e->getMessage());
     jsonResponse(['career' => $typed, 'matched' => false]);

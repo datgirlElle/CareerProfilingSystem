@@ -34,8 +34,7 @@ evaluation/riasec*.csv
 evaluation/student_profiles.csv
 evaluation/train.csv
 evaluation/test.csv
-evaluation/comparison_results*.csv
-evaluation/dataset_inspection*.md
+evaluation/comparison_results.csv
 evaluation/cbf_results.csv
 evaluation/experiment_report*
 evaluation/j48_*.txt
