@@ -32,6 +32,14 @@ return [
         'enabled' => true,
         'show_to_students' => false,
     ],
+    // ---- Final Best Match ------------------------------------------------------------
+    // Adviser's integration rule (lib/RecommendationPipeline.php finalRecommendation):
+    //   Best RIASEC Match (CBF) ∩ WEKA predicted course ∩ Preferred Course (worksheet)
+    // Shown only when a course is common to all three; otherwise "no common course".
+    // No weights and no fallback. false = not computed or shown anywhere.
+    'final_best_match' => [
+        'enabled' => true,
+    ],
     'mismatch' => [
         'definition' => 'no_common_course',      // future rule, once the prediction model exists
         'interim'    => 'preferred_not_matched', // rule in use now

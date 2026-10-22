@@ -32,7 +32,7 @@ $pdo = Database::get();
 $studentId = (int) $user['id'];
 
 $assessmentStmt = $pdo->prepare(
-    'SELECT id, attempt_number, score_r, score_i, score_a, score_s, score_e, score_c, top_types
+    'SELECT id, attempt_number, top_types
      FROM assessments WHERE student_id = ? AND is_latest = TRUE'
 );
 $assessmentStmt->execute([$studentId]);
@@ -41,17 +41,12 @@ if (!$assessment) {
     jsonResponse(['success' => false, 'error' => 'Complete the RIASEC assessment before submitting the worksheet.'], 400);
 }
 
-// RIASEC totals (10-50 scale); used only to link the typed career to a program.
-$scores = [
-    'R' => (int) $assessment['score_r'], 'I' => (int) $assessment['score_i'], 'A' => (int) $assessment['score_a'],
-    'S' => (int) $assessment['score_s'], 'E' => (int) $assessment['score_e'], 'C' => (int) $assessment['score_c'],
-];
-
 $allPrograms = CareerMatcher::loadPrograms($pdo);
 
 // Link the typed career to a program: that program is the student's Preferred Course
-// (null if nothing is close enough; the CBF result does not depend on it either way).
-$programId = CareerMatcher::resolve($career, $allPrograms, $scores);
+// (null if nothing is close enough). Text only: the RIASEC scores are not used, so the
+// Preferred Course and the CBF result stay independent of each other.
+$programId = CareerMatcher::resolve($career, $allPrograms);
 
 $pdo->beginTransaction();
 try {

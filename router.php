@@ -43,6 +43,7 @@ const PROTECTED_PAGES = [
     'question-bank' => ['admin', 'counselor'],
     'security-configuration' => ['admin', 'counselor'],
     'student-profile' => ['admin', 'counselor'],
+    'recommendation-audit' => ['admin', 'counselor'],
     'account-management' => ['admin', 'counselor'],
     'assessment' => ['student'],
     'assessment-instructions' => ['student'],

@@ -41,8 +41,12 @@ check('predicted course is not an active program -> no_prediction, no substitute
 $run = RecommendationPipeline::run(['riasec' => $ric], $progs, [22], $on, $model);
 check('run(): the prediction never changes the Best RIASEC Match', $run['bestRiasecMatchIds'] === $run['cbf']['candidateIds'] && $run['predictionIds'] === [21]);
 check('run(): Civil Engineering (RIC) is also a Best RIASEC Match for an R,I,C student', $run['predictionInBestRiasecMatch'] === true);
-check('run(): prediction listed as a used source; Final Best Match still not computed',
-    in_array('prediction', $run['sourcesUsed'], true) && $run['finalBestMatchIds'] === null && $run['isComplete'] === false && $run['pendingSources'] === []);
+check('run(): prediction listed as a used source', in_array('prediction', $run['sourcesUsed'], true) && $run['pendingSources'] === []);
+check('run(): Preferred Nursing is not the prediction -> no course common to all three, no substitute',
+    $run['finalStatus'] === 'no_common_course' && $run['finalBestMatchIds'] === [] && $run['isComplete'] === true);
+$run = RecommendationPipeline::run(['riasec' => $ric], $progs, [21], $on, $model);
+check('run(): Civil Engineering is Best RIASEC Match, prediction and Preferred Course -> Final Best Match',
+    $run['finalStatus'] === 'best_match' && $run['finalBestMatchIds'] === [21]);
 
 echo "\n=== Preferred Course is separate from the CBF result ===\n";
 $r = RecommendationPipeline::finalRecommendation($cbf([$A, $B], [$C]), $ws([$D]), $noPrediction);
@@ -67,11 +71,37 @@ check('CBF unavailable (invalid RIASEC profile) -> nothing recommended', $r['bes
 $r = RecommendationPipeline::finalRecommendation($cbf([]), $ws([$A]), $noPrediction);
 check('no CBF result -> mismatch (no_cbf_match)', $r['reason'] === 'no_cbf_match');
 
-echo "\n=== Final Best Match not computed (prediction model unavailable) ===\n";
-check('finalBestMatchIds is null and the result is incomplete', $r['finalBestMatchIds'] === null && $r['isComplete'] === false && $r['pendingSources'] === ['prediction']);
-$r = RecommendationPipeline::finalRecommendation($cbf([$A, $B]), $ws([$A]), ['status' => 'available', 'courseIds' => [$C]]);
-check('a prediction outside the Best RIASEC Match changes nothing there', $r['bestRiasecMatchIds'] === [$A, $B] && $r['finalBestMatchIds'] === null
-    && $r['predictionIds'] === [$C] && $r['predictionInBestRiasecMatch'] === false && $r['status'] === 'match');
+echo "\n=== Final Best Match = Best RIASEC Match ∩ prediction ∩ Preferred Course ===\n";
+$pred = fn(array $ids) => ['status' => 'available', 'courseIds' => $ids];
+$r = RecommendationPipeline::finalRecommendation($cbf([$A, $B], [$C]), $ws([$A]), $noPrediction);
+check('prediction unavailable -> rule not applied (incomplete), no Best Match invented',
+    $r['finalBestMatchIds'] === null && $r['finalStatus'] === 'incomplete' && $r['finalMissing'] === ['prediction'] && $r['isComplete'] === false && $r['pendingSources'] === ['prediction']);
+$r = RecommendationPipeline::finalRecommendation($cbf([$A, $B], [$C]), $ws([$A]), ['status' => 'no_prediction', 'courseIds' => []]);
+check('tree has no branch (no_prediction) -> incomplete, no placeholder course', $r['finalStatus'] === 'incomplete' && $r['finalMissing'] === ['prediction']);
+$r = RecommendationPipeline::finalRecommendation($cbf([$A, $B], [$C]), $ws([]), $pred([$A]));
+check('no Preferred Course -> incomplete (worksheet missing), even though CBF and WEKA agree on A',
+    $r['finalStatus'] === 'incomplete' && $r['finalMissing'] === ['worksheet'] && $r['overlaps']['cbfAndPrediction'] === [$A]);
+$r = RecommendationPipeline::finalRecommendation($cbf([$A, $B], [$C]), $ws([$A]), $pred([$A]));
+check('course supported by all three sources -> Final Best Match', $r['finalStatus'] === 'best_match' && $r['finalBestMatchIds'] === [$A] && $r['isComplete'] === true);
+check('... and the Best RIASEC Match list is unchanged (B still listed)', $r['bestRiasecMatchIds'] === [$A, $B]);
+$r = RecommendationPipeline::finalRecommendation($cbf([$A, $B], [$C]), $ws([$B]), $pred([$A]));
+check('supported by two sources only (CBF+WEKA = A, CBF+worksheet = B) -> no common course, nothing chosen',
+    $r['finalStatus'] === 'no_common_course' && $r['finalBestMatchIds'] === []
+    && $r['overlaps'] === ['cbfAndPrediction' => [$A], 'cbfAndWorksheet' => [$B], 'predictionAndWorksheet' => []]);
+$r = RecommendationPipeline::finalRecommendation($cbf([$A, $B], [$C]), $ws([$C]), $pred([$C]));
+check('prediction and Preferred Course agree on an Alternative (C) -> not a Final Best Match (needs the Best RIASEC Match)',
+    $r['finalStatus'] === 'no_common_course' && $r['overlaps']['predictionAndWorksheet'] === [$C]);
+$r = RecommendationPipeline::finalRecommendation($cbf([$A, $B], [$C]), $ws([$D]), $pred([$A]));
+check('Preferred Course differs from CBF -> no common course; the preference is not forced in',
+    $r['finalStatus'] === 'no_common_course' && $r['finalBestMatchIds'] === [] && $r['preferred'] === [['id' => $D, 'inBestRiasecMatch' => false]]);
+$r = RecommendationPipeline::finalRecommendation($cbf([$A]), $ws([$A]), $pred([$C]));
+check('a prediction outside the Best RIASEC Match changes nothing there', $r['bestRiasecMatchIds'] === [$A]
+    && $r['predictionIds'] === [$C] && $r['predictionInBestRiasecMatch'] === false && $r['status'] === 'match' && $r['finalStatus'] === 'no_common_course');
+// Test data only: hypothetical multi-course sources, to show ties are kept if a source ever returns several courses.
+$r = RecommendationPipeline::finalRecommendation($cbf([$A, $B, $C]), $ws([$B, $A]), $pred([$A, $B]));
+check('several common courses -> all kept, in Best RIASEC Match order, no tie-break', $r['finalBestMatchIds'] === [$A, $B]);
+$r = RecommendationPipeline::finalRecommendation($cbf([$A], [$B]), $ws([$A]), $pred([$A]), ['final_best_match' => ['enabled' => false]]);
+check('switched off (config final_best_match.enabled = false) -> disabled, nothing computed', $r['finalStatus'] === 'disabled' && $r['finalBestMatchIds'] === null);
 
 echo "\n=== Worksheet source ===\n";
 $programs = [['id' => 1, 'title' => 'x'], ['id' => 2, 'title' => 'y']];

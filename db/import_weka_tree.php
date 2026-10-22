@@ -16,6 +16,10 @@
  * The script checks that every predicted course in the tree is one of the system's
  * programs, and prints the prediction for all 20 possible top-3 RIASEC combinations
  * so it can be compared with WEKA.
+ *
+ * WEKA's run information and evaluation (Summary, Detailed Accuracy By Class, Confusion
+ * Matrix) in the same file are stored verbatim under 'training', so the staff audit page
+ * shows WEKA's own numbers. Save the result buffer of the evaluation run you report.
  */
 
 require_once __DIR__ . '/../lib/PredictionModel.php';
@@ -41,6 +45,8 @@ if (($i = array_search('--version', $argv, true)) !== false && isset($argv[$i + 
 
 try {
     $tree = PredictionModel::parseJ48((string) file_get_contents($file));
+    // WEKA's own run details and evaluation, verbatim (shown on the staff audit page).
+    $training = PredictionModel::parseWekaRun((string) file_get_contents($file));
 } catch (InvalidArgumentException $e) {
     exit('Could not read the tree: ' . $e->getMessage() . "\n");
 }
@@ -82,7 +88,7 @@ if ($features === 'rank') {
         $label === null ? $none++ : $seen[PredictionModel::resolveLabel($label, $titles)] = true;
     }
     printf("\nRank features: %d of 720 type orderings get a prediction; %d different courses can be predicted.\n", 720 - $none, count($seen));
-    $model = ['version' => $version, 'source' => basename($file), 'imported_at' => date('c'), 'features' => 'rank', 'tree' => $tree];
+    $model = ['version' => $version, 'source' => basename($file), 'imported_at' => date('c'), 'features' => 'rank', 'training' => $training, 'tree' => $tree];
     file_put_contents(PredictionModel::MODEL_FILE, json_encode($model, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
     exit("\nSaved to config/prediction_model.json ($version, rank features).\n");
 }
@@ -105,7 +111,10 @@ if ($noBranch) {
         . "blank (missing) values. Build the WEKA file with evaluation/cbf_eval.py (x -> 1, blank -> 0) to avoid it.\n";
 }
 
-$model = ['version' => $version, 'source' => basename($file), 'imported_at' => date('c'), 'features' => 'top3', 'tree' => $tree];
+echo isset($training['summary'])
+    ? "\nWEKA evaluation saved with the model (" . ($training['evaluationTitle'] ?? 'evaluation') . ").\n"
+    : "\nNo WEKA evaluation in this file: save the full result buffer (with the evaluation) to show it on the audit page.\n";
+$model = ['version' => $version, 'source' => basename($file), 'imported_at' => date('c'), 'features' => 'top3', 'training' => $training, 'tree' => $tree];
 file_put_contents(PredictionModel::MODEL_FILE, json_encode($model, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
 echo "\nSaved to config/prediction_model.json ($version).\n"
     . "Next: check config/cbf.php decision_tree (enabled, show_to_students), then run php db/recompute_recommendations.php\n";

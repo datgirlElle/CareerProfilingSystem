@@ -1,7 +1,6 @@
 <?php
 
 require_once __DIR__ . '/Careers.php';
-require_once __DIR__ . '/CBFEngine.php';
 
 /**
  * Links a career a student typed on the Career Worksheet to an MMCL program.
@@ -9,10 +8,12 @@ require_once __DIR__ . '/CBFEngine.php';
  * The student types freely; this compares the words they used with each active
  * program's careers list and title (lightly stemmed, ignoring filler and very
  * generic words like "manager"/"engineer" unless that is all they typed). When
- * several programs match equally well, the one that fits the student's own
- * RIASEC scores best wins. If nothing is close enough there is no link: the
- * career is kept as typed, with no program, so the worksheet bonus and the
- * letter-by-letter match simply don't apply.
+ * several programs match equally well, the first in the program list is linked;
+ * the worksheet's live preview shows the student that program, so they can type a
+ * more specific career. The student's RIASEC scores are NOT used: the Preferred
+ * Course must stay independent of the CBF (otherwise ties would be broken towards
+ * the Best RIASEC Match and inflate their agreement). If nothing is close enough
+ * there is no link: the career is kept as typed, with no Preferred Course.
  */
 class CareerMatcher
 {
@@ -115,45 +116,20 @@ class CareerMatcher
     }
 
     /**
-     * Picks the single best program for a typed career, breaking ties with the
-     * student's RIASEC fit. Null when nothing is close enough.
+     * Picks the single best program for a typed career. Ties keep the program-list
+     * order (lowest id first); nothing from the student's assessment is used.
+     * Null when nothing is close enough.
      *
-     * @param array<int,array{id:int,title:string,careers:array<int,string>,hollandCode:string}> $programs
-     * @param array<string,int>|null $studentScores RIASEC scores keyed R,I,A,S,E,C, if the student has them
+     * @param array<int,array{id:int,title:string,careers:array<int,string>}> $programs
      */
-    public static function resolve(string $typed, array $programs, ?array $studentScores): ?int
+    public static function resolve(string $typed, array $programs): ?int
     {
         $ranked = self::rank($typed, $programs);
         if ($ranked === []) {
             return null;
         }
-
-        $top = array_values(array_filter($ranked, fn($r) => $r['exact'] === $ranked[0]['exact'] && abs($r['score'] - $ranked[0]['score']) < 1e-9));
-        if (count($top) === 1 || $studentScores === null) {
-            return $top[0]['id'];
-        }
-
-        $byId = [];
-        foreach ($programs as $p) {
-            $byId[(int) $p['id']] = $p;
-        }
-        // Same vectors as the CBF (lib/CBFEngine.php): mean item scores vs binary course codes.
-        try {
-            $studentVec = CBFEngine::studentVector($studentScores);
-        } catch (InvalidArgumentException $e) {
-            return $top[0]['id'];
-        }
-        $bestId = $top[0]['id'];
-        $bestCosine = -1.0;
-        foreach ($top as $candidate) {
-            $courseVec = CBFEngine::courseVector($byId[$candidate['id']]['hollandCode'] ?? null);
-            $cosine = $courseVec !== null ? CBFEngine::cosineSimilarity($studentVec, $courseVec) : null;
-            if ($cosine !== null && $cosine > $bestCosine) {
-                $bestCosine = $cosine;
-                $bestId = $candidate['id'];
-            }
-        }
-        return $bestId;
+        $top = array_filter($ranked, fn($r) => $r['exact'] === $ranked[0]['exact'] && abs($r['score'] - $ranked[0]['score']) < 1e-9);
+        return min(array_column($top, 'id'));
     }
 
     /**
@@ -194,20 +170,5 @@ class CareerMatcher
             'collegeCode' => $r['college_code'],
             'collegeName' => $r['college_name'],
         ], $rows);
-    }
-
-    /** @return array<string,int>|null the student's latest RIASEC scores, keyed R,I,A,S,E,C */
-    public static function latestScores(PDO $pdo, int $studentId): ?array
-    {
-        $stmt = $pdo->prepare('SELECT score_r, score_i, score_a, score_s, score_e, score_c FROM assessments WHERE student_id = ? AND is_latest = TRUE');
-        $stmt->execute([$studentId]);
-        $a = $stmt->fetch();
-        if (!$a) {
-            return null;
-        }
-        return [
-            'R' => (int) $a['score_r'], 'I' => (int) $a['score_i'], 'A' => (int) $a['score_a'],
-            'S' => (int) $a['score_s'], 'E' => (int) $a['score_e'], 'C' => (int) $a['score_c'],
-        ];
     }
 }

@@ -255,5 +255,66 @@ class Evaluation(unittest.TestCase):
         self.assertEqual(m.mcnemar_exact([1, 0], [1, 0])[2], 1.0)
 
 
+class Inspect(unittest.TestCase):
+    """Synthetic fixture shaped like riasec_scores.csv (student_id, R..C 0-10, course)."""
+    ROWS = [
+        ["student_id", "R", "I", "A", "S", "E", "C", "course"],
+        ["1", "9", "8", "1", "2", "3", "7", "BS Civil Engineering"],
+        ["2", "9", "8", "1", "2", "3", "7", "BSCE"],                 # same course, other spelling
+        ["3", "9", "8", "1", "2", "3", "7", "BS Nursing"],           # same profile, other course
+        ["3", "1", "2", "12", "4", "5", "x", "Undecided"],           # duplicate id, out of range, non-numeric
+        ["5", "0", "0", "0", "0", "0", "0", "Basket Weaving"],       # zero vector, unknown label
+    ]
+
+    def run_inspect(self):
+        with tempfile.TemporaryDirectory() as d:
+            src, rep = os.path.join(d, "riasec_scores (1).csv"), os.path.join(d, "report.md")
+            with open(src, "w", newline="") as f:
+                csv.writer(f).writerows(self.ROWS)
+            before = open(src).read()
+            m.cmd_inspect(type("A", (), {"students": src, "min": 0, "max": 10, "out": rep})())
+            self.assertEqual(open(src).read(), before)        # original file untouched
+            return open(rep).read()
+
+    def test_report_finds_every_problem_and_removes_nothing(self):
+        r = self.run_inspect()
+        self.assertIn("Rows (excluding header and blank lines): 5", r)
+        self.assertIn("student id column 'student_id' is NOT a feature", r)
+        self.assertIn("Missing or non-numeric cells: 1", r)
+        self.assertIn("Values outside the expected range 0-10: 1", r)
+        self.assertIn("all six scores = 0 (zero vector: cosine undefined): 1", r)
+        self.assertIn("'Undecided'  <- NOT A COURSE", r)
+        self.assertIn("'Basket Weaving'  <- NOT RECOGNISED", r)
+        self.assertIn("'BSCE' -> BS Civil Engineering", r)
+        self.assertIn("BS Civil Engineering: ['BS Civil Engineering', 'BSCE']", r)
+        self.assertIn("Duplicate student IDs: 1", r)
+        self.assertIn("Identical score profiles with different courses: 1", r)
+
+
+class ClassReport(unittest.TestCase):
+    def test_precision_recall_f1_and_matrix(self):
+        pairs = [("BS Nursing", "BS Nursing"), ("BS Nursing", "BS Biology"), ("BS Biology", "BS Biology"), ("BS Biology", "BS Biology")]
+        rows, acc, macro, weighted, labels, matrix = m.class_report(pairs)
+        got = {c: (p, r, f) for c, p, r, f, _, _ in rows}
+        self.assertAlmostEqual(acc, 0.75)
+        self.assertEqual(got["BS Nursing"][:2], (1.0, 0.5))
+        self.assertAlmostEqual(got["BS Biology"][0], 2 / 3)
+        self.assertEqual(got["BS Biology"][1], 1.0)
+        self.assertAlmostEqual(got["BS Nursing"][2], 2 / 3)
+        self.assertEqual(matrix[labels.index("BS Nursing")], [1 if l == "BS Nursing" else 1 if l == "BS Biology" else 0 for l in labels])
+
+    def test_class_never_predicted_has_zero_precision(self):
+        rows, *_ = m.class_report([("BS Nursing", "BS Biology"), ("BS Biology", "BS Biology")])
+        nursing = next(x for x in rows if x[0] == "BS Nursing")
+        self.assertEqual((nursing[1], nursing[2], nursing[5]), (0.0, 0.0, 0))
+
+    def test_student_id_is_never_an_arff_attribute(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "t.arff")
+            m.write_arff(path, [student("S1", [9, 8, 1, 2, 3, 7], "BS Civil Engineering")], "scores", "numeric")
+            attrs = [l.split()[1] for l in open(path) if l.startswith("@ATTRIBUTE")]
+        self.assertEqual(attrs, ["R", "I", "A", "S", "E", "C", "ActualCourse"])
+
+
 if __name__ == "__main__":
     unittest.main()

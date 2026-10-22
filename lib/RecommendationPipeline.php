@@ -20,8 +20,13 @@ require_once __DIR__ . '/PredictionModel.php';
  *                                 changes the CBF result or the Preferred Course. Unavailable when
  *                                 config/cbf.php decision_tree.enabled is false or no model is imported.
  *
- *   Final Best Match (CBF + prediction model + worksheet) is NOT computed yet: it needs an
- *   adviser-approved combination rule. finalBestMatchIds is null and isComplete is false until then.
+ *   Final Best Match  the adviser's integration rule: the course(s) supported by all three
+ *                     sources, compared by set membership on each source's actual output:
+ *                       Best RIASEC Match (CBF tie group) ∩ {WEKA predicted course} ∩ {Preferred Course}
+ *                     Computed only when all three sources produced a course; ties are kept; no
+ *                     fallback: when nothing is common the result is "no common course", never a
+ *                     substitute (not the Preferred Course, not the top CBF course). Switch:
+ *                     config/cbf.php final_best_match.enabled.
  *
  * No source is given a numeric weight.
  */
@@ -40,7 +45,7 @@ class RecommendationPipeline
         $worksheet = self::worksheetRecommendation($preferredIds, $programs);
         $prediction = self::predictionRecommendation($profile['riasec'] ?? null, $programs, $config, $model);
         return ['cbf' => $cbf, 'worksheet' => $worksheet, 'prediction' => $prediction]
-            + self::finalRecommendation($cbf, $worksheet, $prediction);
+            + self::finalRecommendation($cbf, $worksheet, $prediction, $config);
     }
 
     /** Source 1: CBF. status 'unavailable' (with reason) if the RIASEC profile is missing/invalid. */
@@ -99,18 +104,29 @@ class RecommendationPipeline
     }
 
     /**
-     * Combines the sources for display (pure; tested in tests/pipeline_test.php). The CBF
-     * result is passed through unchanged; the Preferred Course is only compared with it.
+     * Combines the sources (pure; tested in tests/pipeline_test.php). The CBF result is passed
+     * through unchanged; the Preferred Course and the prediction are only compared with it.
+     *
+     * Final Best Match = Best RIASEC Match ∩ prediction ∩ worksheet (see the class comment).
+     *   finalStatus  'best_match'       one or more courses are supported by all three sources
+     *                'no_common_course' all three sources produced a course, none in common
+     *                'incomplete'       a source has no course (finalMissing says which), so the
+     *                                   rule cannot be applied; finalBestMatchIds is null
+     *                'disabled'         final_best_match.enabled is false
      *
      * @return array{bestRiasecMatchIds:int[], alternativeIds:int[], preferred:array, status:string, reason:?string,
-     *               predictionIds:int[], predictionInBestRiasecMatch:bool,
- *               finalBestMatchIds:null, sourcesUsed:string[], pendingSources:string[], isComplete:bool}
+     *               predictionIds:int[], predictionInBestRiasecMatch:bool, finalBestMatchIds:?array,
+     *               finalStatus:string, finalMissing:string[], overlaps:array, sourcesUsed:string[],
+     *               pendingSources:string[], isComplete:bool}
      */
-    public static function finalRecommendation(array $cbf, array $worksheet, array $prediction): array
+    public static function finalRecommendation(array $cbf, array $worksheet, array $prediction, ?array $config = null): array
     {
+        $config ??= CBFEngine::config();
         $available = $cbf['status'] === 'available';
         $best = $available ? $cbf['candidateIds'] : [];
         $alternatives = $available ? ($cbf['alternatives'] ?? []) : [];
+        $predicted = $prediction['status'] === 'available' ? $prediction['courseIds'] : [];
+        $preferredIds = $worksheet['status'] === 'available' ? $worksheet['courseIds'] : [];
 
         $preferred = array_map(fn($id) => ['id' => $id, 'inBestRiasecMatch' => in_array($id, $best, true)], $worksheet['courseIds']);
 
@@ -131,10 +147,19 @@ class RecommendationPipeline
         if ($prediction['status'] === 'available') {
             $sourcesUsed[] = 'prediction';
         }
-        // FUTURE: once the adviser has approved a combination rule, compute the final Best Match
-        // here from the CBF, the prediction model and the worksheet, and set isComplete = true.
-        // Until then the prediction is reported on its own and changes nothing above.
         $pending = in_array($prediction['status'], ['available', 'no_prediction'], true) ? [] : ['prediction'];
+
+        // Final Best Match: set intersection, in the Best RIASEC Match order (ties kept).
+        $common = fn(array $a, array $b) => array_values(array_intersect($a, $b));
+        $missing = array_keys(array_filter(['cbf' => $best, 'prediction' => $predicted, 'worksheet' => $preferredIds], fn($ids) => $ids === []));
+        if (empty($config['final_best_match']['enabled'])) {
+            [$finalIds, $finalStatus] = [null, 'disabled'];
+        } elseif ($missing) {
+            [$finalIds, $finalStatus] = [null, 'incomplete'];
+        } else {
+            $finalIds = $common($common($best, $predicted), $preferredIds);
+            $finalStatus = $finalIds ? 'best_match' : 'no_common_course';
+        }
 
         return [
             'bestRiasecMatchIds' => $best,
@@ -144,10 +169,18 @@ class RecommendationPipeline
             'predictionInBestRiasecMatch' => $prediction['courseIds'] !== [] && array_intersect($prediction['courseIds'], $best) !== [],
             'status' => $status,
             'reason' => $reason,
-            'finalBestMatchIds' => null,
+            'finalBestMatchIds' => $finalIds,
+            'finalStatus' => $finalStatus,
+            'finalMissing' => $missing,
+            // Which pairs of sources agree (traceability; not used to pick anything).
+            'overlaps' => [
+                'cbfAndPrediction' => $common($best, $predicted),
+                'cbfAndWorksheet' => $common($best, $preferredIds),
+                'predictionAndWorksheet' => $common($predicted, $preferredIds),
+            ],
             'sourcesUsed' => $sourcesUsed,
             'pendingSources' => $pending,
-            'isComplete' => false,
+            'isComplete' => in_array($finalStatus, ['best_match', 'no_common_course'], true),
         ];
     }
 }

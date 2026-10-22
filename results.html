@@ -296,7 +296,7 @@
         </section>
 
         <!-- 3. Best RIASEC Match: CBF only (RIASEC profile + course RIASEC codes + cosine similarity).
-             Not the final Best Match, which will also need the prediction model. -->
+             Not the Final Best Match (section 3b). -->
         <section class="pp-section" aria-labelledby="crBestHeading">
           <div class="pp-sechead">
             <h2 id="crBestHeading" class="pp-h2">Best RIASEC Match</h2>
@@ -311,6 +311,17 @@
           </details>
           <p id="cr-tieNote" class="hidden pp-note"></p>
           <div id="cr-bestRiasec" class="pp-grid"></div>
+        </section>
+
+        <!-- 3b. Final Best Match: shown only when a course is supported by all three sources
+             (Best RIASEC Match, prediction model, Preferred Course; lib/RecommendationPipeline.php).
+             Otherwise hidden: no substitute course is ever shown here. -->
+        <section id="cr-finalSection" class="hidden pp-section" aria-labelledby="crFinalHeading">
+          <div class="pp-sechead">
+            <h2 id="crFinalHeading" class="pp-h2">Best Match</h2>
+            <p class="pp-sub">Supported by all three: your RIASEC match, the prediction model and your preferred course</p>
+          </div>
+          <div id="cr-final" class="pp-grid"></div>
         </section>
 
         <!-- 4. Alternative Courses: the next most similar courses (CBF only). -->
@@ -872,6 +883,16 @@ document.addEventListener('click', function (e) {
     document.getElementById('cr-bestRiasec').innerHTML = best.length
       ? best.map(function(p) { return programCardHtml(p, { cls: 'pp-course--best', fav: true, badge: prefBadge(p) }); }).join('')
       : '<div class="pp-course text-sm text-[#191c1e]">No course could be matched to your RIASEC profile. Please visit the Guidance Office for career counseling.</div>';
+
+    // 3b. Final Best Match: only when the three sources share a course (ties all shown).
+    const fin = recommendation.finalBestMatch;
+    if (fin && fin.status === 'best_match' && fin.courses.length) {
+      document.getElementById('cr-final').innerHTML = fin.courses.map(function(p) {
+        return programCardHtml(p, { cls: 'pp-course--match', fav: true,
+          badge: '<span class="pp-badge pp-badge--match">' + ICON_CHECK + 'RIASEC match · Prediction model · Your preferred course</span>' });
+      }).join('');
+      document.getElementById('cr-finalSection').classList.remove('hidden');
+    }
 
     // 4. Alternative Courses (CBF): the next-highest cosine similarity.
     const alts = recommendation.alternatives || [];
