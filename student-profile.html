@@ -251,7 +251,14 @@
               <div>
                 <p class="sp-label">WEKA Prediction</p>
                 <p id="recPrediction" class="text-sm text-gray-800 mt-1">—</p>
-                <p class="text-xs text-gray-500 mt-1">Most common choice of past students with the same top 3.</p>
+                <ol id="recPredTop3" class="hidden text-sm text-gray-800 mt-2 list-decimal pl-5 space-y-0.5"></ol>
+                <p class="text-xs text-gray-500 mt-1">Predicts the intended course of past students with the same top 3 types (J48). Probabilities are shares of those past students, not suitability scores.</p>
+                <details id="recPredDetails" class="hidden mt-2">
+                  <summary class="text-xs font-medium text-gray-600 cursor-pointer">All course probabilities</summary>
+                  <p id="recPredInputs" class="text-xs text-gray-500 mt-2"></p>
+                  <table class="text-xs mt-2 w-full"><tbody id="recPredDist"></tbody></table>
+                  <p id="recPredModel" class="text-xs text-gray-500 mt-2"></p>
+                </details>
               </div>
               <details class="border-t border-gray-100 pt-3">
                 <summary class="text-xs font-medium text-gray-600 cursor-pointer">About these results</summary>
@@ -497,14 +504,42 @@
     document.getElementById('recBest').textContent = list(r.bestRiasecMatch.map(withCosine)) +
       (r.bestRiasecMatch.length > 1 ? ' · ' + r.bestRiasecMatch.length + ' tied' : '') + (r.needsRecompute ? ' · Outdated: run recompute' : '');
     document.getElementById('recAlternatives').textContent = list(r.alternatives.map(withCosine));
-    const pred = r.prediction || { status: 'unavailable' };
-    document.getElementById('recPrediction').textContent = pred.course
-      ? pred.course.title + (pred.course.inBestRiasecMatch ? ' · In Best Match'
-          : pred.course.inAlternatives ? ' · In Alternatives'
-          : ' · Outside RIASEC matches')
-      : pred.status === 'no_prediction' ? 'No prediction for this profile'
-      : 'Not available: run recompute';
-    if (pred.modelVersion) document.getElementById('recModelVersion').textContent = "Past students' choice (" + pred.modelVersion + ')';
+    // Prediction Module (api/recommendations.php predictionDetail): staff only, separate from the CBF.
+    const pd = r.predictionDetail || { status: 'unavailable', reason: 'Not available.' };
+    const where = function(c) {
+      return c.inBestRiasecMatch ? ' · In Best Match' : c.inAlternatives ? ' · In Alternatives' : ' · Outside RIASEC matches';
+    };
+    const courseName = function(c) { return c.title || (c.label + ' (not in the program list)'); };
+    const prob = function(p) { return p.toFixed(3); };
+    const predEl = document.getElementById('recPrediction');
+    if (pd.status === 'available') {
+      predEl.textContent = courseName(pd.predicted) + where(pd.predicted) + (pd.savedPredictionDiffers ? ' · Saved result is from an older model: run recompute' : '');
+      const top3 = document.getElementById('recPredTop3');
+      top3.innerHTML = '';
+      pd.top3.forEach(function(c) {
+        const li = document.createElement('li');
+        li.textContent = courseName(c) + ', probability ' + prob(c.probability) + (c.tied ? ' (tied)' : '');
+        top3.appendChild(li);
+      });
+      top3.classList.remove('hidden');
+      document.getElementById('recPredInputs').textContent = 'Inputs (1 = one of the top 3 types): ' +
+        Object.keys(pd.inputs).map(function(k) { return k + ' ' + pd.inputs[k]; }).join(', ');
+      const dist = document.getElementById('recPredDist');
+      dist.innerHTML = '';
+      pd.distribution.slice().sort(function(a, b) { return b.probability - a.probability; }).forEach(function(c) {
+        const tr = document.createElement('tr');
+        const name = document.createElement('td'); name.textContent = courseName(c);
+        const val = document.createElement('td'); val.textContent = prob(c.probability); val.style.textAlign = 'right';
+        tr.appendChild(name); tr.appendChild(val); dist.appendChild(tr);
+      });
+      document.getElementById('recPredModel').textContent = 'Model: ' + (pd.model.version || '—') + ' · ' + pd.model.classifier +
+        ' · Weka ' + pd.model.wekaVersion + ' · ' + pd.model.classes + ' classes. Equal probabilities are listed in the model\'s class order.';
+      document.getElementById('recPredDetails').classList.remove('hidden');
+      document.getElementById('recModelVersion').textContent = "Past students' intended course (" + (pd.model.version || 'J48') + ')';
+    } else {
+      // Unavailable: say why; the RIASEC recommendations above are unaffected.
+      predEl.textContent = 'Unavailable: ' + (pd.reason || 'the Prediction Module could not run.');
+    }
     document.getElementById('recommendationCard').classList.remove('hidden');
   }
 

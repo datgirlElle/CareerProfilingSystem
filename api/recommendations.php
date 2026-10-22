@@ -13,7 +13,14 @@
  *                     chose"), shown on its own. Staff always get it; students only when
  *                     config/cbf.php decision_tree.show_to_students is true.
  *   finalBestMatch    null: needs an adviser-approved combination rule
- * Staff (studentId=...) also get `cbf`: every course's cosine calculation.
+ * Staff (studentId=...) also get `cbf`: every course's cosine calculation, and
+ *   predictionDetail  the Prediction Module (WEKA J48) run on the student's latest RIASEC scores
+ *                     with the current model: predicted course, top three, every class
+ *                     probability, the six 0/1 inputs and the model version. Probabilities say
+ *                     how past students with the same top three were distributed over their
+ *                     intended courses; they are not suitability percentages. Students never
+ *                     receive it. If it fails, status is 'unavailable' and the CBF result is
+ *                     returned as usual.
  */
 
 require_once __DIR__ . '/_bootstrap.php';
@@ -41,7 +48,7 @@ $isStaff = $user['role'] !== 'student';
 
 try {
     $stmt = $pdo->prepare(
-        'SELECT id, computed_at, stated_program_id, scores, source_worksheet_id, match_status, mismatch_reason,
+        'SELECT id, computed_at, stated_program_id, scores, source_assessment_id, source_worksheet_id, match_status, mismatch_reason,
                 cbf_program_ids, final_program_ids, prediction_program_ids, model_version
          FROM recommendations WHERE student_id = ? AND source_assessment_id = (SELECT id FROM assessments WHERE student_id = recommendations.student_id AND is_latest = TRUE)
          ORDER BY computed_at DESC LIMIT 1'
@@ -176,4 +183,84 @@ if ($isStaff) {
         ], $scores),
     ];
 }
+if ($isStaff) {
+    $response['predictionDetail'] = predictionDetail($pdo, $row, $programs, $bestIds, $alternativeIds);
+}
 jsonResponse($response);
+
+/**
+ * Prediction Module for staff (lib/PredictionModel.php). Never throws: any failure becomes
+ * status 'unavailable' with a reason, so the CBF recommendation is always shown.
+ */
+function predictionDetail(PDO $pdo, array $row, array $programs, array $bestIds, array $alternativeIds): array
+{
+    $unavailable = fn(string $reason) => ['status' => 'unavailable', 'reason' => $reason];
+    if (empty(CBFEngine::config()['decision_tree']['enabled'])) {
+        return $unavailable('The Prediction Module is switched off (config/cbf.php decision_tree.enabled).');
+    }
+    try {
+        $model = PredictionModel::load();
+        if ($model === null) {
+            return $unavailable('No prediction model is installed.');
+        }
+        if (($model['format'] ?? null) !== PredictionModel::LOOKUP_FORMAT) {
+            return $unavailable('The installed model has no class probabilities; export it with tools/weka/ExportJ48Lookup.');
+        }
+        $stmt = $pdo->prepare('SELECT score_r, score_i, score_a, score_s, score_e, score_c FROM assessments WHERE id = ?');
+        $stmt->execute([(int) $row['source_assessment_id']]);
+        $a = $stmt->fetch();
+        if (!$a) {
+            return $unavailable('The RIASEC result for this recommendation was not found.');
+        }
+        $scores = ['R' => $a['score_r'], 'I' => $a['score_i'], 'A' => $a['score_a'], 'S' => $a['score_s'], 'E' => $a['score_e'], 'C' => $a['score_c']];
+        $result = PredictionModel::predictBinary($model, $scores);
+    } catch (InvalidArgumentException $e) {
+        return $unavailable('Invalid RIASEC result: ' . $e->getMessage());
+    } catch (UnexpectedValueException $e) {
+        error_log('[prediction] ' . $e->getMessage());
+        return $unavailable($e->getMessage() . ' Re-export it with tools/weka/ExportJ48Lookup.');
+    } catch (Throwable $e) {
+        error_log('[prediction] ' . $e->getMessage());
+        return $unavailable('The Prediction Module could not run.');
+    }
+
+    // Class labels -> programs (config/course_aliases.php covers the dataset's spellings).
+    $titles = array_column($programs, 'title', 'id');
+    $course = function (array $c) use ($titles, $bestIds, $alternativeIds): array {
+        $title = PredictionModel::resolveLabel($c['label'], array_values($titles));
+        $id = $title !== null ? array_search($title, $titles, true) : false;
+        return [
+            'label' => $c['label'],                 // exactly as in the model
+            'title' => $title,                      // null if no program matches
+            'programId' => $id === false ? null : $id,
+            'probability' => $c['probability'],
+            'inBestRiasecMatch' => $id !== false && in_array($id, $bestIds, true),
+            'inAlternatives' => $id !== false && in_array($id, $alternativeIds, true),
+        ];
+    };
+    $ranked = array_map($course, $result['ranked']);
+    foreach ($ranked as $i => &$c) {
+        // Equal probabilities keep the model's class order (display rule); flag them.
+        $c['tied'] = count(array_filter($ranked, fn($o) => abs($o['probability'] - $c['probability']) < 1e-12)) > 1;
+    }
+    unset($c);
+    $predicted = $result['predicted'] === null ? null : $ranked[array_search($result['predicted'], array_column($ranked, 'label'), true)];
+    return [
+        'status' => $predicted === null ? 'no_prediction' : 'available',
+        'reason' => $predicted === null ? 'The model gives no class for this input.' : null,
+        'inputs' => array_combine(CBFEngine::DIMENSIONS, $result['inputs']),
+        'predicted' => $predicted,
+        'top3' => array_slice($ranked, 0, 3),
+        'distribution' => array_map($course, $result['distribution']),   // model's class order
+        'model' => [
+            'version' => $model['version'] ?? null,
+            'wekaVersion' => $model['weka_version'] ?? null,
+            'classifier' => trim(($model['classifier'] ?? '') . ' ' . ($model['options'] ?? '')),
+            'classAttribute' => $model['class_attribute'] ?? null,
+            'classes' => count($model['class_labels']),
+            'sha256' => $model['model_sha256'] ?? null,
+        ],
+        'savedPredictionDiffers' => $predicted !== null && ($row['prediction_program_ids'] ?? null) !== null
+            && CBFData::parseIntArray($row['prediction_program_ids']) !== ($predicted['programId'] !== null ? [$predicted['programId']] : []),
+    ];
+}

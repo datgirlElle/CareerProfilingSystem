@@ -82,6 +82,16 @@ if (preg_match('~^/([a-z-]+?)(?:\.html)?/?$~', $path, $renamed) && isset(RENAMED
     return true;
 }
 
+// Server-side files are never served: configuration (incl. the exported prediction model),
+// the Weka model files, evaluation data and tools. Without this, the "real file on disk"
+// branch below would hand them to anyone who asked.
+if (preg_match('~^/(config|models|evaluation|tools)(/|$)~i', $path) || preg_match('~\.(model|arff|env)$~i', $path)) {
+    http_response_code(404);
+    header('Content-Type: text/plain; charset=UTF-8');
+    echo "404 Not Found";
+    return true;
+}
+
 // Root path: hand off to the built-in server's own default behavior,
 // which finds and executes index.php in the docroot — that script
 // already contains the real logic (redirect a logged-in user to their

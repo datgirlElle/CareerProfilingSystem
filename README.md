@@ -168,3 +168,11 @@ in the Render dashboard after the first deploy.
   `api/security-config.php` for the admin-facing config UI.
 - All sensitive/state-changing actions are recorded via `lib/AuditLogger.php` and viewable on
   `audit-log.html`.
+
+## Prediction Module (Weka J48)
+
+Guidance staff see a Weka J48 prediction of the student's intended course beside the content-based
+recommendation. The model (`models/ProfilePath_J48_Binary.model`) is exported to
+`config/prediction_model.json` with Weka's own predictions and probabilities, so the server needs no
+Java. See `tools/weka/README.md` for the export, the check against Weka, and the API.
+

@@ -21,9 +21,11 @@ return [
     'student_top_n' => 3,
 
     // ---- Prediction model (WEKA) -------------------------------------------------
-    // Source 3 of lib/RecommendationPipeline.php: the J48 tree imported into
-    // config/prediction_model.json (db/import_weka_tree.php). It is shown on its own and
-    // never changes the CBF result or the Preferred Course.
+    // Source 3 of lib/RecommendationPipeline.php: the J48 model in config/prediction_model.json,
+    // exported from models/ProfilePath_J48_Binary.model with tools/weka/ExportJ48Lookup (Weka's
+    // own predictions and class probabilities for all 20 possible inputs; see
+    // tools/weka/README.md). It is shown on its own and never changes the CBF result or the
+    // Preferred Course.
     //   enabled           run the model when a recommendation is computed (needs the model file)
     //   show_to_students  false = staff only (Student Profile); true = also on the student's
     //                     Career Results page. Decide with the adviser: the model was trained on
