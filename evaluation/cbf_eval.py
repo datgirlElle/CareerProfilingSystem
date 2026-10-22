@@ -799,7 +799,7 @@ def cmd_agreement(a):
     print(f"\nWEKA's course is a Best RIASEC Match for        {pred_in}/{n} students ({pred_in / n:.1%})")
     print(f"WEKA's course is a Best Match or Alternative for {pred_in_alt}/{n} students ({pred_in_alt / n:.1%})")
     print(f"Students' OWN course is a Best RIASEC Match for  {own_in}/{n} students ({own_in / n:.1%})  <- ceiling for a model trained on this class")
-    print(f"Final Best Match (Best RIASEC Match ∩ WEKA ∩ preferred course) for {all_three}/{n} students ({all_three / n:.1%});"
+    print(f"Final Best Match (in Best RIASEC Match AND WEKA AND preferred course) for {all_three}/{n} students ({all_three / n:.1%});"
           " the rest would see 'no common course'. In-sample if the model was trained on these students.")
     if no_pred:
         print(f"No prediction (no tree branch): {no_pred} students")
