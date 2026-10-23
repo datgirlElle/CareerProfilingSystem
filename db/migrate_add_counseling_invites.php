@@ -2,7 +2,7 @@
 // Counseling invitations: a counselor invites a student from Student Information, and the student gets the CGC booking link by
 // email and as a notification. Safe to re-run.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 $pdo->exec(

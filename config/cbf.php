@@ -1,6 +1,6 @@
 <?php
 /**
- * Content-Based Filtering (CBF) settings. lib/CBFEngine.php reads them from here.
+ * Content-Based Filtering (CBF) settings. modules/ContentBasedFiltering/lib/CBFEngine.php reads them from here.
  *
  * The CBF compares the student's RIASEC profile with each program's Holland (RIASEC)
  * code using cosine similarity. The guidance counselors rank the three letters of a
@@ -15,7 +15,7 @@ return [
 
 
     // RIASEC scores are stored on a 10-50 scale per type, whatever the number of questions
-    // (lib/QuestionBank.php scaleScore; e.g. the 30-item O*NET Mini Interest Profiler, 5 per
+    // (modules/CareerProfiling/lib/QuestionBank.php scaleScore; e.g. the 30-item O*NET Mini Interest Profiler, 5 per
     // type), i.e. as if each type had 10 items answered 1-5. The student vector uses each
     // type's mean item score = score / 10 (1.0-5.0). A score outside 10-50 is rejected as
     // invalid instead of being corrected.
@@ -28,7 +28,7 @@ return [
     'student_top_n' => 3,
 
     // ---- Prediction model (WEKA) -------------------------------------------------
-    // Source 3 of lib/RecommendationPipeline.php: the J48 tree imported into
+    // Source 3 of modules/ContentBasedFiltering/lib/RecommendationPipeline.php: the J48 tree imported into
     // config/prediction_model.json (db/import_weka_tree.php). It is shown on its own and
     // never changes the CBF result or the Preferred Course.
     //   enabled           run the model when a recommendation is computed (needs the model file)

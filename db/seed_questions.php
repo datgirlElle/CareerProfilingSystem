@@ -1,7 +1,7 @@
 <?php
-require_once __DIR__ . '/../lib/Database.php';
-require_once __DIR__ . '/../lib/Crypto.php';
-require_once __DIR__ . '/../lib/QuestionBank.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
+require_once __DIR__ . '/../modules/Encryption/lib/Crypto.php';
+require_once __DIR__ . '/../modules/CareerProfiling/lib/QuestionBank.php';
 
 // A new database starts with the 30 questions of the O*NET Mini Interest Profiler (5 per type). Staff can then edit,
 // add or remove questions in the Question Bank.

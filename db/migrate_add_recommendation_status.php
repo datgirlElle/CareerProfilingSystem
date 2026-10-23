@@ -3,7 +3,7 @@
 // set by RecommendationPipeline::finalRecommendation() whenever a recommendation is saved. Existing rows
 // stay NULL until db/recompute_recommendations.php is run. Safe to run more than once.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 $pdo->exec("ALTER TABLE recommendations ADD COLUMN IF NOT EXISTS match_status VARCHAR(10)");

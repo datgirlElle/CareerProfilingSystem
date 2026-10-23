@@ -1,7 +1,7 @@
 <?php
 
-require_once __DIR__ . '/../lib/Sections.php';
-require_once __DIR__ . '/../lib/StudentNumber.php';
+require_once __DIR__ . '/../modules/StudentManagement/lib/Sections.php';
+require_once __DIR__ . '/../modules/StudentManagement/lib/StudentNumber.php';
 
 $failures = 0;
 $passed = 0;

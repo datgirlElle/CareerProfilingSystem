@@ -20,14 +20,37 @@ academic monitoring, security, and reporting.
 
 ## Project layout
 
+The code is grouped by module. Each module folder holds its own `pages/` (one static page per route),
+`api/` (JSON endpoints, one file per action) and `lib/` (PHP classes). URLs do not show the folders:
+`router.php` serves `/announcements` from `modules/Announcements/pages/announcements.html` and
+`/api/announcements.php` from `modules/Announcements/api/announcements.php`.
+
 ```
-api/        JSON API endpoints (one file per action, e.g. api/login.php)
-lib/        Shared PHP classes (Database, Auth, Crypto, CBFEngine, Rbac, Mailer, ...)
-db/         Schema, migrations, and seed scripts
-tests/      Standalone PHP test scripts (no test framework/DB dependency for most)
-images/     Static assets, grouped by page/section
-*.html      One static page per route (served without the .html extension, see router.php)
-config/     .env loader
+modules/
+  Authentication/         Sign-in, registration, email verification, passwords, sessions, CSRF, 2FA, roles (Rbac)
+  Encryption/             Modified AES-256 and the Crypto facade
+  CareerProfiling/        RIASEC assessment, question bank, assessment scheduling, retakes, career worksheet
+  ContentBasedFiltering/  CBF engine (cosine similarity), recommendation pipeline, WEKA J48 model, results
+  CareerDataset/          Programs and the careers they lead to
+  StudentManagement/      Student Information, class rosters, sections, Student Numbers
+  UserManagement/         Staff accounts and assignments, My Profile pages, avatars, consent
+  AnalyticsAndReports/    Analytics & Report page, PDF and Excel exports
+  Monitoring/             Monitoring flags and their actions
+  Counseling/             Counseling requests, notes, invites, booking link, Help Centers, FAQs
+  Announcements/          Announcements and their templates
+  Notifications/          Student and staff notifications
+  AuditLog/               Tamper-evident audit log, retention, PDF export
+  SecurityConfiguration/  Security Configuration page and public settings
+shared/
+  api/_bootstrap.php      Loaded by every endpoint: session, CSRF check, JSON errors
+  lib/                    Classes every module uses (Database, Mailer, EmailTemplate, PdfWriter, Xlsx*, RateLimiter, ...)
+  pages/                  Privacy, Terms and Accessibility pages
+css/ js/ images/          Front-end assets shared by all pages (loaded by URL)
+config/                   .env loader, CBF settings, course aliases, WEKA model
+db/                       Schema, migrations, and seed scripts
+tests/                    Standalone PHP test scripts (no test framework/DB dependency for most)
+evaluation/               Python scripts for evaluating the recommendations
+router.php, index.php     Entry points for PHP's built-in server
 ```
 
 ## Prerequisites
@@ -128,16 +151,16 @@ connection matching `.env`.
 
 ## Recommendation engine (CBF with cosine similarity)
 
-Three recommendation sources are kept separate (`lib/RecommendationPipeline.php`):
+Three recommendation sources are kept separate (`modules/ContentBasedFiltering/lib/RecommendationPipeline.php`):
 
-1. **CBF** (`lib/CBFEngine.php`): the student's RIASEC profile (mean item score per type,
+1. **CBF** (`modules/ContentBasedFiltering/lib/CBFEngine.php`): the student's RIASEC profile (mean item score per type,
    [R, I, A, S, E, C]) is compared with every program's Holland code using cosine
    similarity, cos(S, C) = (S · C) / (||S|| × ||C||). The guidance counselors rank the three letters of a
    code (1st = strongest type, 3rd = weakest), so the program vector uses rank weights 3, 2, 1
    (`holland_rank_weights` in `config/cbf.php`; RIC = [3, 2, 0, 0, 0, 1]). No 70/30 blend with the worksheet.
 2. **Worksheet**: the Preferred Course from the Career Electives Worksheet.
 3. **Prediction model (WEKA)**: not available yet; excluded and not called. The existing WEKA
-   code (`lib/PredictionModel.php`, `db/import_weka_tree.php`) is kept for the separate WEKA work.
+   code (`modules/ContentBasedFiltering/lib/PredictionModel.php`, `db/import_weka_tree.php`) is kept for the separate WEKA work.
 
 The results page shows, in order: RIASEC profile, **Preferred Course** (what the student selected),
 **Best RIASEC Match** (courses tied at the highest cosine similarity; CBF only) and **Alternative
@@ -164,9 +187,9 @@ in the Render dashboard after the first deploy.
 ## Security notes
 
 - Encrypted columns (suffixed `_enc`) use a Modified AES-256-CBC cipher with a key-dependent
-  S-box (`lib/Crypto.php`, `lib/ModifiedAES256.php`) and are never used in `WHERE`/`ORDER BY`/
+  S-box (`modules/Encryption/lib/Crypto.php`, `modules/Encryption/lib/ModifiedAES256.php`) and are never used in `WHERE`/`ORDER BY`/
   `JOIN` — see the header comment in `db/schema.sql` for the convention.
-- Module-level access is enforced via `lib/Rbac.php`; see `security-configuration.html` and
+- Module-level access is enforced via `modules/Authentication/lib/Rbac.php`; see `security-configuration.html` and
   `api/security-config.php` for the admin-facing config UI.
-- All sensitive/state-changing actions are recorded via `lib/AuditLogger.php` and viewable on
+- All sensitive/state-changing actions are recorded via `modules/AuditLog/lib/AuditLogger.php` and viewable on
   `audit-log.html`.

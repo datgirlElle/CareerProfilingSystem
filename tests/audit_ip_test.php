@@ -8,7 +8,7 @@
  * DEVELOPMENT TEST DATA ONLY. The private addresses are made up; the public ones are well-known public
  * DNS servers (8.8.8.8, 1.1.1.1, 9.9.9.9), used only as examples of internet addresses.
  */
-require_once __DIR__ . '/../lib/AuditLogger.php';
+require_once __DIR__ . '/../modules/AuditLog/lib/AuditLogger.php';
 
 $failures = 0;
 $passed = 0;

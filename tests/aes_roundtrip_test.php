@@ -1,7 +1,7 @@
 <?php
 
-require_once __DIR__ . '/../lib/ModifiedAES256.php';
-require_once __DIR__ . '/../lib/Crypto.php';
+require_once __DIR__ . '/../modules/Encryption/lib/ModifiedAES256.php';
+require_once __DIR__ . '/../modules/Encryption/lib/Crypto.php';
 
 $failures = 0;
 $passed = 0;

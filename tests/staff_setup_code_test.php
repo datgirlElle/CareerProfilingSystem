@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../lib/StaffSetupCode.php';
+require_once __DIR__ . '/../modules/Authentication/lib/StaffSetupCode.php';
 
 $failures = 0;
 $passed = 0;

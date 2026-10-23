@@ -1,0 +1,256 @@
+<?php
+
+/**
+ * Content-Based Filtering (CBF) using Cosine Similarity.
+ *
+ *   User          = the student
+ *   User profile  = the student's RIASEC profile from the RIASEC Assessment (scores on a 10-50 scale)
+ *   Items         = the MCL degree programs
+ *   Item profile  = each program's guidance-approved Holland (RIASEC) code
+ *   Similarity    = cosine similarity, cos(S, C) = (S · C) / (||S|| × ||C||)
+ *
+ * Process (compute()):
+ *   1. Student vector  [R, I, A, S, E, C] = the student's six RIASEC results, each as the
+ *                      mean item score of that type (raw total ÷ 10 items, so 1.0-5.0).
+ *                      Dividing every value by the same number does not change cosine
+ *                      values; it only puts the vector on the answer scale (1-5).
+ *   2. Course vectors  [R, I, A, S, E, C] = the rank weight of the letter in the program's
+ *                      code, 0 if the letter is not in it. The guidance counselors rank the
+ *                      letters: the 1st is the program's strongest type and the 3rd its
+ *                      weakest, so the 1st letter gets 3, the 2nd 2 and the 3rd 1 (rank-sum
+ *                      weights, config/cbf.php holland_rank_weights). Example: AES ->
+ *                      [0, 0, 3, 1, 2, 0] (A 3, E 2, S 1). Every code has the same three
+ *                      weights, so every course vector has the same magnitude (sqrt(14)).
+ *                      A program without a valid code is flagged and skipped.
+ *   3. Cosine          computed between the student vector and EVERY valid course vector,
+ *                      with the dot product and both magnitudes kept for auditing.
+ *   4. Results         all courses sorted by cosine similarity (highest first; equal
+ *                      values keep the program-list order).
+ *   5. Best RIASEC Match  every course tied at the highest cosine similarity (ties are
+ *                      kept, never broken: courses with the same three letters in the same
+ *                      order have the same vector and therefore the same similarity).
+ *   6. Alternatives    every course at the next-highest cosine similarity.
+ *
+ * Nothing else enters the calculation: no worksheet answers, no strand, no electives, no
+ * prediction model, and no blend with other sources (no 70/30). The only weights are the
+ * rank weights of the counselors' letter order inside a program's own code. The worksheet and
+ * the prediction model are separate recommendation sources (modules/ContentBasedFiltering/lib/RecommendationPipeline.php).
+ *
+ * Cosine similarity is a similarity score between 0 and 1. It is not an accuracy and not
+ * a percentage, and must never be shown as one.
+ */
+class CBFEngine
+{
+    /** Feature order used everywhere (student and course vectors). Never change it. */
+    public const DIMENSIONS = ['R', 'I', 'A', 'S', 'E', 'C'];
+
+    public const RIASEC_LABELS = [
+        'R' => 'Realistic', 'I' => 'Investigative', 'A' => 'Artistic',
+        'S' => 'Social', 'E' => 'Enterprising', 'C' => 'Conventional',
+    ];
+
+    /** Equal cosine values (within this tolerance) are treated as ties. */
+    public const TIE_EPSILON = 1e-9;
+
+    private static ?array $config = null;
+
+    /** The settings in config/cbf.php (loaded once per request). */
+    public static function config(): array
+    {
+        return self::$config ??= require __DIR__ . '/../../../config/cbf.php';
+    }
+
+    // ------------------------------------------------------------------
+    // Vectors
+    // ------------------------------------------------------------------
+
+    /**
+     * Student RIASEC totals (R..C, each = sum of the type's items) -> student vector of
+     * mean item scores in [R, I, A, S, E, C] order.
+     *
+     * @param array<string,int|float>|null $scores
+     * @throws InvalidArgumentException when a score is missing, not numeric or out of range
+     *         (no value is ever substituted)
+     */
+    public static function studentVector(?array $scores, ?array $config = null): array
+    {
+        $config ??= self::config();
+        $items = (int) $config['riasec_items_per_type'];
+        [$min, $max] = [$items * $config['riasec_answer_min'], $items * $config['riasec_answer_max']];
+        if (!$scores) {
+            throw new InvalidArgumentException('The student has no RIASEC Assessment result.');
+        }
+        $vector = [];
+        foreach (self::DIMENSIONS as $d) {
+            $v = $scores[$d] ?? null;
+            if ($v === null || !is_numeric($v)) {
+                throw new InvalidArgumentException("The RIASEC score for $d is missing or not a number.");
+            }
+            if ($v < $min || $v > $max) {
+                throw new InvalidArgumentException("The RIASEC score for $d ($v) is outside the valid range $min-$max.");
+            }
+            $vector[] = round($v / $items, 4);
+        }
+        return $vector;
+    }
+
+    /**
+     * A program's Holland code -> course vector in [R, I, A, S, E, C] order. The letters are
+     * ranked by the guidance counselors (1st = strongest, 3rd = weakest), so the letter at
+     * position p gets the p-th rank weight (default 3, 2, 1) and the other types get 0.
+     * Example: RIC -> [3, 2, 0, 0, 0, 1]; IRC -> [2, 3, 0, 0, 0, 1].
+     * Returns null for a missing or invalid code (anything other than three different
+     * RIASEC letters), so the program is flagged instead of given a made-up vector.
+     *
+     * @param float[]|null $weights weights of the 1st, 2nd and 3rd letter; null = config/cbf.php
+     */
+    public static function courseVector(?string $hollandCode, ?array $weights = null): ?array
+    {
+        $code = strtoupper(trim((string) $hollandCode));
+        if (!preg_match('/^[RIASEC]{3}$/', $code) || count(array_unique(str_split($code))) !== 3) {
+            return null;
+        }
+        $weights ??= self::config()['holland_rank_weights'];
+        return array_map(function ($d) use ($code, $weights) {
+            $position = strpos($code, $d);
+            return $position === false ? 0 : $weights[$position];
+        }, self::DIMENSIONS);
+    }
+
+    public static function dotProduct(array $a, array $b): float
+    {
+        $sum = 0.0;
+        foreach ($a as $i => $x) {
+            $sum += $x * $b[$i];
+        }
+        return $sum;
+    }
+
+    public static function magnitude(array $v): float
+    {
+        return sqrt(array_sum(array_map(fn($x) => $x * $x, $v)));
+    }
+
+    /**
+     * cos(A, B) = (A · B) / (||A|| × ||B||). null when either magnitude is 0: the
+     * similarity is undefined, and returning 0 would be a misleading value.
+     */
+    public static function cosineSimilarity(array $a, array $b): ?float
+    {
+        $den = self::magnitude($a) * self::magnitude($b);
+        return $den > 0 ? self::dotProduct($a, $b) / $den : null;
+    }
+
+    // ------------------------------------------------------------------
+    // CBF over all courses
+    // ------------------------------------------------------------------
+
+    /**
+     * Runs the CBF for one student against every program.
+     *
+     * @param array<string,int|float>|null $riasecScores student's RIASEC totals keyed R..C
+     * @param array<int,array{id:int,title?:string,hollandCode:?string}> $programs all active programs
+     * @return array{studentScores:array, studentVector:float[], studentMagnitude:float,
+     *               results:array, excluded:array, candidates:array}
+     *         results: every valid course, highest cosine first, each with
+     *         courseVector, dotProduct, courseMagnitude and cosine.
+     * @throws InvalidArgumentException for an invalid RIASEC profile
+     */
+    public static function compute(?array $riasecScores, array $programs, ?array $config = null): array
+    {
+        $config ??= self::config();
+        $student = self::studentVector($riasecScores, $config);
+        $studentMagnitude = self::magnitude($student);
+
+        $results = [];
+        $excluded = [];
+        foreach ($programs as $p) {
+            $course = self::courseVector($p['hollandCode'] ?? null, $config['holland_rank_weights'] ?? null);
+            if ($course === null) {
+                $excluded[] = ['id' => $p['id'], 'title' => $p['title'] ?? null, 'hollandCode' => $p['hollandCode'] ?? null,
+                    'reason' => 'Missing or invalid RIASEC mapping (needs three different letters from R, I, A, S, E, C).'];
+                continue;
+            }
+            $cosine = self::cosineSimilarity($student, $course);
+            if ($cosine === null) {
+                $excluded[] = ['id' => $p['id'], 'title' => $p['title'] ?? null, 'hollandCode' => $p['hollandCode'],
+                    'reason' => 'Zero-magnitude vector: cosine similarity is undefined.'];
+                continue;
+            }
+            $results[] = [
+                'id' => (int) $p['id'],
+                'title' => $p['title'] ?? null,
+                'hollandCode' => strtoupper($p['hollandCode']),
+                'courseVector' => $course,
+                'dotProduct' => round(self::dotProduct($student, $course), 4),
+                'courseMagnitude' => round(self::magnitude($course), 4),
+                'cosine' => $cosine,
+            ];
+        }
+
+        // Highest similarity first; equal values keep the program-list order (lower id).
+        usort($results, fn($a, $b) => abs($a['cosine'] - $b['cosine']) < self::TIE_EPSILON
+            ? $a['id'] <=> $b['id']
+            : $b['cosine'] <=> $a['cosine']);
+
+        $candidates = self::selectCandidates($results, 'cosine');
+        $alternatives = self::selectAlternatives($results, 'cosine');
+        foreach ($results as &$r) {
+            $r['cosine'] = round($r['cosine'], 4);
+        }
+        unset($r);
+
+        return [
+            'studentScores' => array_combine(self::DIMENSIONS, array_map(fn($d) => $riasecScores[$d], self::DIMENSIONS)),
+            'studentVector' => $student,
+            'studentMagnitude' => round($studentMagnitude, 4),
+            'results' => $results,
+            'excluded' => $excluded,
+            'candidates' => array_map(fn($c) => (int) $c['id'], $candidates),
+            'alternatives' => array_map(fn($c) => (int) $c['id'], $alternatives),
+        ];
+    }
+
+    /**
+     * Best RIASEC Match (CBF candidates) from results sorted by $key (highest first): every
+     * course tied at the highest cosine similarity. Also used by api/recommendations.php on saved results.
+     */
+    public static function selectCandidates(array $sorted, string $key = 'cosine'): array
+    {
+        if (!$sorted) {
+            return [];
+        }
+        $best = (float) $sorted[0][$key];
+        if ($best <= 0) {
+            return [];
+        }
+        return array_values(array_filter($sorted, fn($e) => abs((float) $e[$key] - $best) < self::TIE_EPSILON));
+    }
+
+    /**
+     * Alternative courses from results sorted by $key (highest first): every course at the
+     * next-highest cosine similarity after the Best RIASEC Match level. Also used by
+     * api/recommendations.php on saved results.
+     */
+    public static function selectAlternatives(array $sorted, string $key = 'cosine'): array
+    {
+        $top = self::selectCandidates($sorted, $key);
+        $rest = array_slice($sorted, count($top));
+        if (!$top || !$rest) {
+            return [];
+        }
+        return self::selectCandidates(array_values($rest), $key);
+    }
+
+    /**
+     * Student's top N RIASEC letters (highest score first; ties keep R,I,A,S,E,C order).
+     * Not used by the CBF calculation; kept for the dataset export and the prediction
+     * model code (modules/ContentBasedFiltering/lib/PredictionModel.php), which are outside the CBF.
+     */
+    public static function topRiasecLetters(array $scores, int $n = 3): array
+    {
+        $ranked = array_intersect_key(array_merge(array_flip(self::DIMENSIONS), $scores), array_flip(self::DIMENSIONS));
+        arsort($ranked);
+        return array_slice(array_keys($ranked), 0, $n);
+    }
+}

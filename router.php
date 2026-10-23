@@ -2,9 +2,14 @@
 /**
  * Router script for PHP's built-in server (`php -S host:port router.php`).
  * Lets every page be reached without its ".html" extension in the URL
- * (e.g. /announcements instead of /announcements.html), while every other
- * request — API endpoints (.php), images, CSS, JS — is served exactly as
- * before, unaffected by this file.
+ * (e.g. /announcements instead of /announcements.html), while images, CSS
+ * and JS are served exactly as before, unaffected by this file.
+ *
+ * The code is grouped by module: each page and API endpoint lives in
+ * modules/<Module>/pages or modules/<Module>/api (or shared/pages, shared/api).
+ * Their URLs stayed the same: /announcements and /api/announcements.php are
+ * found here by name (moduleFile()), so links, bookmarks and emailed links
+ * keep working. modules/ and shared/ themselves are never served directly.
  *
  * How PHP's built-in server treats a router script: for every request, it
  * calls this script first. Returning false hands the request back to the
@@ -13,8 +18,8 @@
  * script fully handled the response itself.
  */
 
-require_once __DIR__ . '/lib/Auth.php';
-require_once __DIR__ . '/lib/SecurityHeaders.php';
+require_once __DIR__ . '/modules/Authentication/lib/Auth.php';
+require_once __DIR__ . '/shared/lib/SecurityHeaders.php';
 
 SecurityHeaders::send();
 
@@ -73,6 +78,13 @@ const RENAMED_PAGES = [
     'student-accounts' => 'admin-dashboard',
 ];
 
+// The page or API file with this name in its module folder (or in shared/), or null.
+function moduleFile(string $kind, string $file): ?string
+{
+    $found = array_merge(glob(__DIR__ . "/modules/*/$kind/$file") ?: [], glob(__DIR__ . "/shared/$kind/$file") ?: []);
+    return $found[0] ?? null;
+}
+
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path = urldecode($path ?? '/');
 
@@ -91,6 +103,22 @@ if ($path === '/' || $path === '') {
     return false;
 }
 
+// API endpoint: /api/login.php runs modules/Authentication/api/login.php. Each endpoint checks its own
+// session and role (shared/api/_bootstrap.php). Required here at the top level, as if it had been
+// requested directly, so its variables stay global as before.
+if (preg_match('~^/api/([a-z0-9-]+)\.php$~', $path, $api) && ($apiFile = moduleFile('api', $api[1] . '.php')) !== null) {
+    require $apiFile;
+    return true;
+}
+
+// The module code (modules/, shared/) is reached only through the page and API URLs, never by its own path.
+if (preg_match('~^/+(modules|shared)(/|$)~i', $path)) {
+    http_response_code(404);
+    header('Content-Type: text/plain; charset=UTF-8');
+    echo "404 Not Found";
+    return true;
+}
+
 // Checked against the basename with any ".html" stripped, so this catches
 // both the clean URL (/admin-dashboard) and a direct request for the file
 // itself (/admin-dashboard.html) before either ever reaches the "serve the
@@ -105,22 +133,24 @@ if (isset(PROTECTED_PAGES[$slug])) {
     }
 }
 
-// A request for a real file on disk — api/*.php, images/*, css/*, js/*,
-// or even a page's original *.html path if something still links to it
-// directly — is left entirely to the built-in server's default handling,
-// which serves static files as-is and executes .php files normally.
-$fullPath = __DIR__ . $path;
-if (file_exists($fullPath) && !is_dir($fullPath)) {
+// A request for a real file on disk — images/*, css/*, js/* — is left
+// entirely to the built-in server's default handling, which serves static
+// files as-is. The module code (modules/, shared/) is reached only through
+// the page and API URLs above and below.
+$fullPath = realpath(__DIR__ . $path);
+$codeDirs = '~^' . preg_quote(str_replace('\\', '/', __DIR__), '~') . '/(modules|shared)(/|$)~i';
+if ($fullPath !== false && is_file($fullPath) && !preg_match($codeDirs, str_replace('\\', '/', $fullPath))) {
     return false;
 }
 
-// Clean-URL page request: /foo -> foo.html on disk. Read and output the
-// static HTML directly (these pages are plain HTML with client-side JS,
-// not server-rendered PHP, so no include/execution is needed here).
-$htmlCandidate = __DIR__ . rtrim($path, '/') . '.html';
-if (is_file($htmlCandidate)) {
+// Clean-URL page request: /foo or /foo.html -> modules/<Module>/pages/foo.html.
+// Read and output the static HTML directly (these pages are plain HTML with
+// client-side JS, not server-rendered PHP, so no include/execution is needed
+// here). They are served at the site root, so their relative links to css/,
+// js/, images/ and api/ work as before.
+if (preg_match('~^/([a-z0-9-]+)(?:\.html)?/?$~', $path, $page) && ($htmlFile = moduleFile('pages', $page[1] . '.html')) !== null) {
     header('Content-Type: text/html; charset=UTF-8');
-    readfile($htmlCandidate);
+    readfile($htmlFile);
     return true;
 }
 

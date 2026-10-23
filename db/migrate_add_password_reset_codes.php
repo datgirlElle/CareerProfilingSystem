@@ -2,7 +2,7 @@
 // The emailed 6-digit codes behind "Forgot password" (api/password-reset.php). Replaces the old emailed-link
 // flow; password_reset_tokens is left in place but is no longer used. Safe to re-run.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 $pdo->exec(

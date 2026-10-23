@@ -1,7 +1,7 @@
 -- ProfilePath schema (PostgreSQL)
 --
 -- Encryption convention: columns suffixed _enc hold base64 ciphertext produced by
--- lib/Crypto.php (Modified AES-256-CBC with a key-dependent S-box). They are never
+-- modules/Encryption/lib/Crypto.php (Modified AES-256-CBC with a key-dependent S-box). They are never
 -- used in WHERE/ORDER BY/JOIN — every such column has a plaintext sibling column
 -- for anything that needs to be queried, sorted, or constrained.
 
@@ -45,7 +45,7 @@ CREATE TABLE email_verification_tokens (
 );
 
 -- Consent receipts (RA 10173): who agreed to the Terms of Use and Data Privacy Policy, which version,
--- how, and when (lib/Consent.php). No IP address or device is stored.
+-- how, and when (modules/UserManagement/lib/Consent.php). No IP address or device is stored.
 CREATE TABLE consent_records (
     id              BIGSERIAL PRIMARY KEY,
     user_id         INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -55,14 +55,14 @@ CREATE TABLE consent_records (
 );
 CREATE INDEX idx_consent_records_user ON consent_records (user_id);
 
--- Backs lib/DbSessionHandler.php — PHP sessions stored here instead of local
+-- Backs modules/Authentication/lib/DbSessionHandler.php — PHP sessions stored here instead of local
 -- disk, since Render's free web service tier wipes local disk on every
 -- restart after idling.
 CREATE TABLE sessions (
     id              VARCHAR(128) PRIMARY KEY,
     data            TEXT NOT NULL DEFAULT '',
     last_activity   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    -- whose sign-in this is (NULL before sign-in); lib/SessionEnd.php uses it to sign one person out
+    -- whose sign-in this is (NULL before sign-in); modules/Authentication/lib/SessionEnd.php uses it to sign one person out
     user_id         INT,
     -- set when the session was ended for a reason (other_device, deactivated, password_changed)
     ended_reason    VARCHAR(30)
@@ -75,7 +75,7 @@ CREATE TABLE colleges (
     name    VARCHAR(255) NOT NULL
 );
 
--- Admin-manageable section list, one strand each (see lib/Sections.php,
+-- Admin-manageable section list, one strand each (see modules/StudentManagement/lib/Sections.php,
 -- the server-side source of truth for every place a section is accepted:
 -- registration, exam scheduling, staff section-corrections). Deactivated
 -- rather than deleted when a section stops being offered, so a student
@@ -155,7 +155,7 @@ CREATE TABLE worksheets (
     student_id          INT NOT NULL REFERENCES students(user_id) ON DELETE CASCADE,
     attempt_number      INT NOT NULL,
     -- NULL when the career the student typed couldn't be linked to a program
-    -- (see lib/CareerMatcher.php).
+    -- (see modules/CareerProfiling/lib/CareerMatcher.php).
     stated_program_id   INT REFERENCES programs(id),
     stated_career       VARCHAR(120),
     electives           TEXT[] NOT NULL DEFAULT '{}',
@@ -184,7 +184,7 @@ CREATE TABLE recommendations (
     -- Match/mismatch outcome (RecommendationPipeline::finalRecommendation); NULL on results saved before it existed.
     match_status            VARCHAR(10) CHECK (match_status IN ('match', 'mismatch')),
     mismatch_reason         VARCHAR(40),
-    -- Pipeline stages (lib/RecommendationPipeline.php); NULL on results saved before they existed.
+    -- Pipeline stages (modules/ContentBasedFiltering/lib/RecommendationPipeline.php); NULL on results saved before they existed.
     cbf_program_ids         INT[],              -- Best RIASEC Match (CBF: highest cosine similarity)
     prediction_program_ids  INT[],              -- prediction model output; NULL while the model is not enabled
     final_program_ids       INT[],              -- final Best Match (CBF + prediction + worksheet); NULL until the prediction model exists
@@ -213,7 +213,7 @@ CREATE TABLE audit_log (
     detail_enc      TEXT,
     ip_address      INET,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    -- Tamper protection (lib/AuditChain.php, db/migrate_add_audit_hash_chain.php): HMAC seal of this
+    -- Tamper protection (modules/AuditLog/lib/AuditChain.php, db/migrate_add_audit_hash_chain.php): HMAC seal of this
     -- entry and of the entry before it, so a changed or removed entry breaks the chain.
     prev_hash       CHAR(64),
     row_hash        CHAR(64)
@@ -311,7 +311,7 @@ CREATE TABLE help_requests (
     resolved_at         TIMESTAMPTZ
 );
 
--- Generic sliding-window rate limiter (lib/RateLimiter.php), reused by
+-- Generic sliding-window rate limiter (shared/lib/RateLimiter.php), reused by
 -- forgot-password, RIASEC access-code verification, and any future
 -- endpoint that needs simple abuse throttling.
 CREATE TABLE rate_limit_hits (
@@ -321,7 +321,7 @@ CREATE TABLE rate_limit_hits (
 );
 CREATE INDEX idx_rate_limit_hits_key_time ON rate_limit_hits(rate_key, created_at);
 
--- Email one-time codes (lib/TwoFactor.php) for the staff password-change
+-- Email one-time codes (modules/Authentication/lib/TwoFactor.php) for the staff password-change
 -- step-up verification, gated by the 'twoFactor' security policy toggle.
 CREATE TABLE two_factor_codes (
     id          SERIAL PRIMARY KEY,
@@ -359,7 +359,7 @@ CREATE TABLE exam_schedules (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- A student's RIASEC answers in progress, saved as they go (lib/AssessmentProgress.php), and the
+-- A student's RIASEC answers in progress, saved as they go (modules/CareerProfiling/lib/AssessmentProgress.php), and the
 -- exam session that unlocked the assessment (NULL with is_retake for an approved retake). Lets a
 -- student who was signed out continue, on any PC, without the code while the session is open.
 -- answers_enc: JSON {set, answers}, encrypted (assessment data). Deleted on submit.
@@ -390,7 +390,7 @@ CREATE TABLE retake_grants (
 
 -- A student's request to retake the RIASEC assessment. A counselor or the Head of Guidance approves or declines it; an
 -- approved request lets the student retake once (api/assessment-submit.php), and the earlier result stays on record as
--- an older attempt. Only recommendations built from the latest assessment count (see lib/RetakeRequest.php).
+-- an older attempt. Only recommendations built from the latest assessment count (see modules/CareerProfiling/lib/RetakeRequest.php).
 CREATE TABLE retake_requests (
     id                          SERIAL PRIMARY KEY,
     student_id                  INT NOT NULL REFERENCES students(user_id) ON DELETE CASCADE,

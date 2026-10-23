@@ -11,10 +11,10 @@
  * program dataset; nothing is written to the database.
  */
 
-require_once __DIR__ . '/../lib/Database.php';
-require_once __DIR__ . '/../lib/CBFEngine.php';
-require_once __DIR__ . '/../lib/CBFData.php';
-require_once __DIR__ . '/../lib/RecommendationPipeline.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
+require_once __DIR__ . '/../modules/ContentBasedFiltering/lib/CBFEngine.php';
+require_once __DIR__ . '/../modules/ContentBasedFiltering/lib/CBFData.php';
+require_once __DIR__ . '/../modules/ContentBasedFiltering/lib/RecommendationPipeline.php';
 
 if (PHP_SAPI !== 'cli') {
     exit("CLI only.\n");

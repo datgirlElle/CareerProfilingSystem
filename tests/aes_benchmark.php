@@ -28,7 +28,7 @@
  * that one cipher is better: the report says which differences pass the statistical test.
  */
 
-require_once __DIR__ . '/../lib/ModifiedAES256.php';
+require_once __DIR__ . '/../modules/Encryption/lib/ModifiedAES256.php';
 
 date_default_timezone_set('Asia/Manila'); // the school's time, so the report's date matches the wall clock
 
@@ -125,7 +125,7 @@ function pfmt(float $p): string { return $p < 0.0001 ? '< 0.0001' : fmt($p, 4); 
 function popcount8(int $v): int { $c = 0; while ($v) { $c += $v & 1; $v >>= 1; } return $c; }
 function bitsDiff(string $a, string $b): int { $n = 0; for ($i = 0, $l = strlen($a); $i < $l; $i++) { $n += popcount8(ord($a[$i]) ^ ord($b[$i])); } return $n; }
 
-/** CBC with zero IV over whole blocks, the way lib/Crypto.php chains them (no padding: the data is block-aligned). */
+/** CBC with zero IV over whole blocks, the way modules/Encryption/lib/Crypto.php chains them (no padding: the data is block-aligned). */
 function cbcEnc(ModifiedAES256 $c, string $data, string $iv): string
 {
     $out = ''; $prev = $iv;

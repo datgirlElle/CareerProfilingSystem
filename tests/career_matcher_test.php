@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../lib/CareerMatcher.php';
+require_once __DIR__ . '/../modules/CareerProfiling/lib/CareerMatcher.php';
 
 $failures = 0;
 $passed = 0;

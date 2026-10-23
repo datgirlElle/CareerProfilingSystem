@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $sql = file_get_contents(__DIR__ . '/schema.sql');
 $pdo = Database::get();

@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../lib/ResultEmail.php';
+require_once __DIR__ . '/../modules/ContentBasedFiltering/lib/ResultEmail.php';
 
 $failures = 0;
 $passed = 0;

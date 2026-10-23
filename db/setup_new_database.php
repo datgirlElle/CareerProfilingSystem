@@ -17,7 +17,7 @@ if (PHP_SAPI !== 'cli') {
     exit("CLI only.\n");
 }
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 if (!envValue('APP_AES_KEY')) {
     echo "APP_AES_KEY is not set. Use the same key as the web service on Render. Stopped.\n";

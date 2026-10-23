@@ -10,7 +10,7 @@
 // will fail loudly (constraint violation) rather than silently corrupt data
 // — fix that data by hand first.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 

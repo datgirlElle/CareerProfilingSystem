@@ -1,9 +1,9 @@
 <?php
 
-require_once __DIR__ . '/../lib/Rbac.php';
-require_once __DIR__ . '/../lib/AuditLogger.php';
-require_once __DIR__ . '/../lib/Database.php';
-require_once __DIR__ . '/../lib/Crypto.php';
+require_once __DIR__ . '/../modules/Authentication/lib/Rbac.php';
+require_once __DIR__ . '/../modules/AuditLog/lib/AuditLogger.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
+require_once __DIR__ . '/../modules/Encryption/lib/Crypto.php';
 
 $failures = 0;
 $passed = 0;
@@ -129,7 +129,7 @@ echo "\n=== AuditLogger round-trip ===\n";
 
 $pdo = Database::get();
 // Inside a transaction that is rolled back, so the real audit trail (and its tamper-evident chain,
-// lib/AuditChain.php) is left exactly as it was. Deleting the test row instead would leave a gap.
+// modules/AuditLog/lib/AuditChain.php) is left exactly as it was. Deleting the test row instead would leave a gap.
 $pdo->beginTransaction();
 $marker = 'test-marker-' . bin2hex(random_bytes(4));
 AuditLogger::log(1, 'admin', 'test_action', 'test_target', 'target-123', $marker);

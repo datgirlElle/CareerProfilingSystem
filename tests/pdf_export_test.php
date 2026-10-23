@@ -1,6 +1,6 @@
 <?php
 /**
- * Audit log PDF export (lib/PdfWriter.php, lib/AuditLogPdf.php): checks the file structure, the
+ * Audit log PDF export (shared/lib/PdfWriter.php, modules/AuditLog/lib/AuditLogPdf.php): checks the file structure, the
  * text encoding and the report layout. No database needed.
  *
  *   php tests/pdf_export_test.php
@@ -8,7 +8,7 @@
  * DEVELOPMENT TEST DATA ONLY. Every name, IP address and reference below is made up to check the
  * software (IPs are from the 192.0.2.x documentation range). None of it is real audit data.
  */
-require_once __DIR__ . '/../lib/AuditLogPdf.php';
+require_once __DIR__ . '/../modules/AuditLog/lib/AuditLogPdf.php';
 
 $failures = 0;
 $passed = 0;

@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../lib/LoginDevice.php';
+require_once __DIR__ . '/../modules/Authentication/lib/LoginDevice.php';
 
 $failures = 0;
 $passed = 0;

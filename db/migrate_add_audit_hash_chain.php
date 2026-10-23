@@ -1,7 +1,7 @@
 <?php
 // Tamper protection for the audit log: adds prev_hash and row_hash to audit_log and seals every
 // existing entry, oldest first. Each seal is an HMAC of the entry and the seal before it, made with a
-// secret built from APP_AES_KEY (lib/AuditChain.php), so run this with the same .env as the app, after
+// secret built from APP_AES_KEY (modules/AuditLog/lib/AuditChain.php), so run this with the same .env as the app, after
 // the new code is deployed. Until it has run, the app writes entries without seals and "Check log"
 // says it is not set up.
 //
@@ -9,8 +9,8 @@
 // sealed ones after it (that can hide an edit). The one innocent cause is entries written during the
 // deploy; only then run it with --reseal-after-gap. Never re-run it to clear a problem "Check log" found.
 
-require_once __DIR__ . '/../lib/Database.php';
-require_once __DIR__ . '/../lib/AuditChain.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
+require_once __DIR__ . '/../modules/AuditLog/lib/AuditChain.php';
 
 $pdo = Database::get();
 $resealAfterGap = in_array('--reseal-after-gap', $argv ?? [], true);

@@ -1,6 +1,6 @@
 <?php
 /**
- * Assessment progress rules (lib/AssessmentProgress.php): which answers can be saved, and until
+ * Assessment progress rules (modules/CareerProfiling/lib/AssessmentProgress.php): which answers can be saved, and until
  * when an unlocked assessment can still be answered and submitted. No database needed (saving,
  * unlocking and submitting were checked on the local database).
  *
@@ -8,7 +8,7 @@
  *
  * DEVELOPMENT TEST DATA ONLY. The dates and answers below are made up to check the software.
  */
-require_once __DIR__ . '/../lib/AssessmentProgress.php';
+require_once __DIR__ . '/../modules/CareerProfiling/lib/AssessmentProgress.php';
 
 $failures = 0;
 $passed = 0;

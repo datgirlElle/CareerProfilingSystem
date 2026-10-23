@@ -1,12 +1,12 @@
 <?php
 /**
- * Prediction model (WEKA J48 tree reader, lib/PredictionModel.php). OUT OF SCOPE for the
+ * Prediction model (WEKA J48 tree reader, modules/ContentBasedFiltering/lib/PredictionModel.php). OUT OF SCOPE for the
  * CBF revision: these tests were moved here unchanged from tests/pipeline_test.php; the
  * prediction model code itself is not modified and not used by the recommendation.
  *
  *   php tests/prediction_model_test.php
  */
-require_once __DIR__ . '/../lib/PredictionModel.php';
+require_once __DIR__ . '/../modules/ContentBasedFiltering/lib/PredictionModel.php';
 
 $passed = 0;
 $failed = 0;

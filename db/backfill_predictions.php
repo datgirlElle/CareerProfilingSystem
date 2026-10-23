@@ -12,9 +12,9 @@
  * Safe to run again: it always writes the current model's prediction.
  */
 
-require_once __DIR__ . '/../lib/Database.php';
-require_once __DIR__ . '/../lib/CBFData.php';
-require_once __DIR__ . '/../lib/RecommendationPipeline.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
+require_once __DIR__ . '/../modules/ContentBasedFiltering/lib/CBFData.php';
+require_once __DIR__ . '/../modules/ContentBasedFiltering/lib/RecommendationPipeline.php';
 
 if (PHP_SAPI !== 'cli') {
     exit("CLI only.\n");

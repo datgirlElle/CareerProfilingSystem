@@ -6,7 +6,7 @@
  * submitted before that fix still hold the truncated value. Idempotent —
  * safe to run more than once.
  */
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 $fixed = 0;

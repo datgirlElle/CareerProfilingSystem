@@ -1,13 +1,13 @@
 <?php
 /**
- * Recommendation sources (lib/RecommendationPipeline.php): CBF, worksheet, prediction
+ * Recommendation sources (modules/ContentBasedFiltering/lib/RecommendationPipeline.php): CBF, worksheet, prediction
  * model (WEKA J48, separate); neither the Preferred Course nor the prediction changes the CBF result.
  *
  *   php tests/pipeline_test.php
  *
  * DEVELOPMENT TEST DATA ONLY: made-up profiles and course ids, not research data.
  */
-require_once __DIR__ . '/../lib/RecommendationPipeline.php';
+require_once __DIR__ . '/../modules/ContentBasedFiltering/lib/RecommendationPipeline.php';
 
 $passed = 0;
 $failed = 0;

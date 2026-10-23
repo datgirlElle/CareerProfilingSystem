@@ -5,7 +5,7 @@
 // shown on student-profile.html. See db/schema.sql's table comment for
 // the encryption rationale.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 

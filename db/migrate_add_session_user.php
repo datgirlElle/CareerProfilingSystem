@@ -1,5 +1,5 @@
 <?php
-// Adds two columns to sessions (lib/DbSessionHandler.php, lib/SessionEnd.php):
+// Adds two columns to sessions (modules/Authentication/lib/DbSessionHandler.php, modules/Authentication/lib/SessionEnd.php):
 //   user_id       whose sign-in each stored session is, so one person can be signed out everywhere:
 //                 a student who signs in on a new device (one device at a time), an account that is
 //                 turned off, a password change or reset. Before this, a password reset found the
@@ -9,7 +9,7 @@
 //
 // Existing sessions get NULL and fill in user_id on their next request. Safe to run twice.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 

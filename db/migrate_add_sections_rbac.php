@@ -5,7 +5,7 @@
 // Safe to re-run: existing rows (including any the admin has since changed)
 // are left alone.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 

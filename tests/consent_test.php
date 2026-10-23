@@ -1,7 +1,7 @@
 <?php
 
-// No database needed: checks the parts of lib/Consent.php that work without one.
-require_once __DIR__ . '/../lib/Consent.php';
+// No database needed: checks the parts of modules/UserManagement/lib/Consent.php that work without one.
+require_once __DIR__ . '/../modules/UserManagement/lib/Consent.php';
 
 $failures = 0;
 $passed = 0;
@@ -24,8 +24,8 @@ check('LABEL matches VERSION, so receipts and pages name the same policy', Conse
 check('a stored version is shown as a month and year', Consent::label('2026-08') === 'August 2026' && Consent::label('2027-01') === 'January 2027');
 check('a version that is not YYYY-MM is shown as it is', Consent::label('v2') === 'v2' && Consent::label('2026-13') === '2026-13');
 check('the policy pages say the same month as LABEL ("Last updated: ' . Consent::LABEL . '")',
-    str_contains((string) file_get_contents(__DIR__ . '/../privacy.html'), 'Last updated: ' . Consent::LABEL)
-    && str_contains((string) file_get_contents(__DIR__ . '/../terms.html'), 'Last updated: ' . Consent::LABEL));
+    str_contains((string) file_get_contents(__DIR__ . '/../shared/pages/privacy.html'), 'Last updated: ' . Consent::LABEL)
+    && str_contains((string) file_get_contents(__DIR__ . '/../shared/pages/terms.html'), 'Last updated: ' . Consent::LABEL));
 
 echo "\n=== consent receipts: how the person agreed ===\n";
 check('only the two sign-up forms are allowed', Consent::METHODS === ['registration', 'staff_signup']);

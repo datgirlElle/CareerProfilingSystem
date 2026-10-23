@@ -9,7 +9,7 @@
  *
  * In WEKA Explorer, after training J48, right-click the result -> "Save result buffer"
  * and pass that file here (only the "J48 pruned tree" block is read). The tree is
- * saved to config/prediction_model.json, which lib/PredictionModel.php runs for each
+ * saved to config/prediction_model.json, which modules/ContentBasedFiltering/lib/PredictionModel.php runs for each
  * student. Then set 'decision_tree' => ['enabled' => true] in config/cbf.php and run
  * php db/recompute_recommendations.php.
  *
@@ -18,7 +18,7 @@
  * so it can be compared with WEKA.
  */
 
-require_once __DIR__ . '/../lib/PredictionModel.php';
+require_once __DIR__ . '/../modules/ContentBasedFiltering/lib/PredictionModel.php';
 
 if (PHP_SAPI !== 'cli') {
     exit("CLI only.\n");

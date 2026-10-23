@@ -12,13 +12,13 @@
  *
  * These are starter lists for the counselor to review and edit. They also feed
  * the Career Worksheet: a career a student types is linked to the program whose
- * list (or title) it matches (lib/CareerMatcher.php), so common job names that
+ * list (or title) it matches (modules/CareerProfiling/lib/CareerMatcher.php), so common job names that
  * graduates of a program actually take are worth listing here (max 8 each).
  */
-require_once __DIR__ . '/../lib/Database.php';
-require_once __DIR__ . '/../lib/Crypto.php';
-require_once __DIR__ . '/../lib/Careers.php';
-require_once __DIR__ . '/../lib/StarterCareers.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
+require_once __DIR__ . '/../modules/Encryption/lib/Crypto.php';
+require_once __DIR__ . '/../modules/CareerDataset/lib/Careers.php';
+require_once __DIR__ . '/../modules/CareerDataset/lib/StarterCareers.php';
 
 $overwrite = in_array('--overwrite', $argv ?? [], true);
 

@@ -10,7 +10,7 @@
 // Idempotent (IF EXISTS), safe to re-run. exam_schedule_faculty is
 // dropped first since it holds the FK to faculty.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 

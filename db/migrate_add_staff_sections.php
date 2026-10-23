@@ -1,8 +1,8 @@
 <?php
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 // Which sections each guidance counselor / facilitator handles. The administrator assigns them in
-// Account Management; a staff member with none assigned sees every section (see lib/StaffScope.php).
+// Account Management; a staff member with none assigned sees every section (see modules/UserManagement/lib/StaffScope.php).
 $pdo = Database::get();
 
 $pdo->exec(

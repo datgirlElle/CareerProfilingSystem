@@ -1,13 +1,13 @@
 <?php
 /**
- * Soft sign-in lock rules (lib/LoginLock.php): how long each lock lasts, and how names with no
+ * Soft sign-in lock rules (modules/Authentication/lib/LoginLock.php): how long each lock lasts, and how names with no
  * account are kept. No database needed (counting and locking were checked on the local database).
  *
  *   php tests/login_lock_test.php
  *
  * DEVELOPMENT TEST DATA ONLY. The names below are made up to check the software.
  */
-require_once __DIR__ . '/../lib/LoginLock.php';
+require_once __DIR__ . '/../modules/Authentication/lib/LoginLock.php';
 
 $failures = 0;
 $passed = 0;

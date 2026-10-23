@@ -3,8 +3,8 @@
 //   DB_NAME=profilepath_test php -S 127.0.0.1:8099 router.php
 //   DB_NAME=profilepath_test php tests/http_security_test.php http://127.0.0.1:8099
 // Seeds synthetic users (prefix "qa_") and removes only those it created.
-require_once __DIR__ . '/../lib/Database.php';
-require_once __DIR__ . '/../lib/Crypto.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
+require_once __DIR__ . '/../modules/Encryption/lib/Crypto.php';
 if (!str_ends_with((string) envValue('DB_NAME'), '_test')) { fwrite(STDERR, "Refusing to run: DB_NAME must end in _test\n"); exit(2); }
 $base = rtrim($argv[1] ?? 'http://127.0.0.1:8099', '/');
 $pdo = Database::get();

@@ -21,7 +21,7 @@ Protocol (no test data is used for any choice):
   3. Each selected model is trained once on all of train.csv and evaluated once on test.csv.
 
 Feature encodings for the classifiers (the class is always the course):
-  top3   : x/blank for the student's 3 highest types. What lib/PredictionModel.php runs now.
+  top3   : x/blank for the student's 3 highest types. What modules/ContentBasedFiltering/lib/PredictionModel.php runs now.
            Only 20 input patterns exist, so a tree can tell apart at most 20 groups.
   rank   : each type's rank within the student (1 = highest, ties share the average rank).
            Scale-free, so it works for any instrument (0-10 counts or the web app's 10-50).

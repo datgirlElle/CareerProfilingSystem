@@ -7,8 +7,8 @@
  *   php db/view_decrypted.php <table> [limit]
  */
 
-require_once __DIR__ . '/../lib/Database.php';
-require_once __DIR__ . '/../lib/Crypto.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
+require_once __DIR__ . '/../modules/Encryption/lib/Crypto.php';
 
 $table = $argv[1] ?? null;
 $limit = (int) ($argv[2] ?? 20);

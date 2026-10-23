@@ -1,8 +1,8 @@
 <?php
 // Independent verification of RIASEC scaling and CBF cosine values.
 // Expected numbers are written out by hand (not produced by the engine under test).
-require_once __DIR__ . '/../lib/CBFEngine.php';
-require_once __DIR__ . '/../lib/QuestionBank.php';
+require_once __DIR__ . '/../modules/ContentBasedFiltering/lib/CBFEngine.php';
+require_once __DIR__ . '/../modules/CareerProfiling/lib/QuestionBank.php';
 
 $pass = 0; $fail = 0;
 function check(string $l, bool $c): void { global $pass, $fail; $c ? $pass++ : $fail++; echo ($c ? '  PASS: ' : '  FAIL: ') . $l . "\n"; }

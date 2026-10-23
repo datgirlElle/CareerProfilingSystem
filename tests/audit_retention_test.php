@@ -1,13 +1,13 @@
 <?php
 /**
- * Audit log retention rules (lib/AuditRetention.php): how many days are kept and when automatic
+ * Audit log retention rules (modules/AuditLog/lib/AuditRetention.php): how many days are kept and when automatic
  * deletion is on. No database needed (the deleting itself was checked on the local database).
  *
  *   php tests/audit_retention_test.php
  *
  * DEVELOPMENT TEST DATA ONLY. Every setting below is made up to check the software.
  */
-require_once __DIR__ . '/../lib/AuditRetention.php';
+require_once __DIR__ . '/../modules/AuditLog/lib/AuditRetention.php';
 
 $failures = 0;
 $passed = 0;

@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../lib/QuestionBank.php';
+require_once __DIR__ . '/../modules/CareerProfiling/lib/QuestionBank.php';
 
 $failures = 0;
 $passed = 0;

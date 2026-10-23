@@ -5,8 +5,8 @@
  * paraphrased and condensed per program. Safe to re-run — always
  * overwrites with the same text, matched by program title.
  */
-require_once __DIR__ . '/../lib/Database.php';
-require_once __DIR__ . '/../lib/Crypto.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
+require_once __DIR__ . '/../modules/Encryption/lib/Crypto.php';
 
 $descriptions = [
     'BA Communication' => 'Equips students with the skills to communicate effectively across a variety of settings and media, with coursework in research methods, ethics, and professional practice.',

@@ -1,13 +1,13 @@
 <?php
 /**
- * "What changed" for audit entries (lib/AuditChange.php): which fields count as changed, how values
+ * "What changed" for audit entries (modules/AuditLog/lib/AuditChange.php): which fields count as changed, how values
  * read, and that the saved form can be read back. No database needed.
  *
  *   php tests/audit_change_test.php
  *
  * DEVELOPMENT TEST DATA ONLY. Every setting, question and FAQ below is made up to check the software.
  */
-require_once __DIR__ . '/../lib/AuditChange.php';
+require_once __DIR__ . '/../modules/AuditLog/lib/AuditChange.php';
 
 $failures = 0;
 $passed = 0;

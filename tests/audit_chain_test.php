@@ -8,7 +8,7 @@
  *
  * DEVELOPMENT TEST DATA ONLY. The entry and the secret below are made up to check the software.
  */
-require_once __DIR__ . '/../lib/AuditChain.php';
+require_once __DIR__ . '/../modules/AuditLog/lib/AuditChain.php';
 
 $failures = 0;
 $passed = 0;

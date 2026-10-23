@@ -3,7 +3,7 @@
 // new announcement can start from one. The table starts with the four templates the page used to have;
 // they can be edited or deleted like any other. Safe to re-run: it only fills an empty table.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 $pdo->exec(

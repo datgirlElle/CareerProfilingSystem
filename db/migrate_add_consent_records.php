@@ -1,14 +1,14 @@
 <?php
 // Adds consent_records: one row each time a person agrees to the Terms of Use and the Data Privacy
 // Policy (RA 10173 proof of consent). Written by api/register.php (students) and
-// api/staff-register.php (staff sign-up) through lib/Consent.php, and shown to the person on
+// api/staff-register.php (staff sign-up) through modules/UserManagement/lib/Consent.php, and shown to the person on
 // Student Settings / Staff Profile.
 //
 // Stores only who, which policy version, how, and when (no IP address or device). Accounts made
 // before this table existed have no receipt; nothing is backfilled, because nobody can say when
 // (or whether) those people agreed.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 

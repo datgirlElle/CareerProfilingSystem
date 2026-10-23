@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../lib/ExamSchedule.php';
+require_once __DIR__ . '/../modules/CareerProfiling/lib/ExamSchedule.php';
 
 $failures = 0;
 $passed = 0;

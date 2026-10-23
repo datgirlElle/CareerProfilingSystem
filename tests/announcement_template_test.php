@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../lib/AnnouncementTemplate.php';
+require_once __DIR__ . '/../modules/Announcements/lib/AnnouncementTemplate.php';
 
 $failures = 0;
 $passed = 0;

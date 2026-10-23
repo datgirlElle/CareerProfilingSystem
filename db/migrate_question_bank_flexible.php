@@ -2,7 +2,7 @@
 // The question bank is no longer fixed at 10 questions per type: staff can add and remove questions, so a type's
 // order numbers can go past 10. Replaces the old "order_index BETWEEN 1 AND 10" rule with "order_index >= 1". Safe to re-run.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 $pdo->exec(<<<'SQL'

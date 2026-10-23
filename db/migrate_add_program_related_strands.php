@@ -1,6 +1,6 @@
 <?php
 // Adds programs.related_strands — the SHS strand(s) MMCL aligns each program
-// with, used as the "strand" block of the CBF feature vector (lib/CBFEngine.php).
+// with, used as the "strand" block of the CBF feature vector (modules/ContentBasedFiltering/lib/CBFEngine.php).
 //
 // Existing programs get '{}' (no strands). The engine treats an empty list as
 // "strand not specified" (an all-zero block that adds nothing to the cosine
@@ -11,7 +11,7 @@
 // codes (validated in api/programs.php against config/cbf.php), not personal
 // or free-text content.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 
