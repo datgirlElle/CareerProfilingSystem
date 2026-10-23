@@ -304,7 +304,10 @@
     let activeTab = 'needs-review';
     let currentFlag = null;
     let rowsById = {};
-    let debounceHandle = null;
+    // The tab lives in the page address (?tab=, also used by links from Monitoring); the search (a student name)
+    // stays in this tab only (PP.listState in js/ui-state.js).
+    const listState = PP.listState({ tab: 'needs-review', search: '' }, ['search']);
+    const getRows = PP.latestJson(); // a new tab click or search cancels the list still on its way
 
     function headForTab(tab) {
       if (tab === 'needs-review') return ['Student', 'Strand', 'Best RIASEC Match', 'Preferred vs RIASEC', 'Flag Reason', 'Priority', 'Action'];
@@ -350,6 +353,7 @@
     let renderedTab = null;
     async function render() {
       const q = document.getElementById('searchInput').value.trim();
+      listState.save({ tab: activeTab, search: q });
       const url = 'api/monitoring.php?tab=' + encodeURIComponent(activeTab) + (q ? '&search=' + encodeURIComponent(q) : '');
       const body = document.getElementById('tableBody');
       const cols = headForTab(activeTab).length;
@@ -361,8 +365,9 @@
       }
       let data;
       try {
-        data = await PP.fetchJson(url);
+        data = await getRows(url);
       } catch (e) {
+        if (e.cancelled) return; // a newer tab click or search replaced this one
         PP.showError(body, e.message, render, cols);
         document.getElementById('resultCount').textContent = '';
         renderedTab = null;
@@ -523,21 +528,17 @@
     document.querySelectorAll('.tab-btn').forEach(function(btn) {
       btn.addEventListener('click', function() {
         activeTab = btn.dataset.tab;
-        const url = new URL(window.location.href);
-        url.searchParams.set('tab', activeTab);
-        window.history.replaceState(null, '', url);
         render();
       });
     });
 
-    document.getElementById('searchInput').addEventListener('input', function() {
-      clearTimeout(debounceHandle);
-      debounceHandle = setTimeout(render, 300);
-    });
+    // The search waits until typing stops for 300 ms.
+    document.getElementById('searchInput').addEventListener('input', PP.debounce(render, 300));
 
-    const params = new URLSearchParams(window.location.search);
-    const requestedTab = params.get('tab');
-    if (requestedTab && TAB_META[requestedTab]) activeTab = requestedTab;
+    // Start from the tab in the page address and the search kept in this tab (Reload, Back, a link from Monitoring).
+    const saved = listState.read();
+    if (TAB_META[saved.tab]) activeTab = saved.tab;
+    document.getElementById('searchInput').value = saved.search;
 
     render();
   })();
