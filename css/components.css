@@ -555,3 +555,97 @@ button.breakdown-row.is-picked:not(:disabled):hover {
   border-radius: 3px;
   background: var(--cc);
 }
+
+/* ---- Pop-ups (PP.confirm and PP.logout in js/ui-state.js): one look on every page ---- */
+/* A short title with an x, the details, then Cancel and a button that says what happens. Navy for normal
+   actions, red only for delete, deactivate and remove. Sits inside .modal-backdrop (css/motion.css animates it). */
+.pp-dialog {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25);
+  width: 100%;
+  max-width: 400px;
+}
+.pp-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 0 24px;
+}
+.pp-dialog-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  color: #0f172a;
+}
+.pp-dialog-x {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  margin: -4px -6px 0 0;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+}
+.pp-dialog-x:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+.pp-dialog-body {
+  margin: 0;
+  padding: 8px 24px 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #334155;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.pp-dialog-foot {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 20px 24px;
+}
+.pp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+}
+.pp-btn:focus-visible,
+.pp-dialog-x:focus-visible {
+  outline: 2px solid #001c43;
+  outline-offset: 2px;
+}
+.pp-btn-secondary {
+  background: #fff;
+  border-color: #d1d5db;
+  color: #374151;
+}
+.pp-btn-secondary:hover {
+  background: #f9fafb;
+}
+.pp-btn-primary {
+  background: #0f2a6b;
+  border-color: #0f2a6b;
+  color: #fff;
+}
+.pp-btn-primary:hover,
+.pp-btn-danger:hover {
+  opacity: 0.9; /* same hover as the other buttons (hover:opacity-90) */
+}
+.pp-btn-danger {
+  background: #ed1c24;
+  border-color: #ed1c24;
+  color: #fff;
+}
