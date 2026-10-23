@@ -56,7 +56,6 @@ const PROTECTED_PAGES = [
     'student-help-center' => ['student'],
     'student-notifications' => ['student'],
     'results' => ['student'],
-    'saved-careers' => ['student'],
     'riasec-assessment' => ['student'],
     'student-settings' => ['student'],
     'worksheet-results' => ['student'],

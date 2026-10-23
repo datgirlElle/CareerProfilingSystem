@@ -104,6 +104,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user = Rbac::requireAccess('counselingNotes', 'full');
+    // Retake decisions belong to the Guidance Counselor and the Administrator only (DFD process 4.0), whatever the table says.
+    if (Rbac::isFacilitator($user)) {
+        jsonResponse(['success' => false, 'error' => 'Only the Guidance Counselor and the Administrator can decide retake requests.'], 403);
+    }
     $body = readJsonBody();
     if (($body['type'] ?? '') !== 'decide') {
         jsonResponse(['success' => false, 'error' => 'Unknown type.'], 400);

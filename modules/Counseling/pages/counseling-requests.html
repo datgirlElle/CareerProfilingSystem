@@ -183,7 +183,7 @@
   let canInvite = currentUser.role === 'admin';
   try {
     const inviteCfg = await (await fetch('api/security-config.php')).json();
-    canInvite = ((inviteCfg.rbac && inviteCfg.rbac.counselingNotes && inviteCfg.rbac.counselingNotes[currentUser.rbacRole || currentUser.role]) || 'none') === 'full';
+    canInvite = ((inviteCfg.rbac && inviteCfg.rbac.counselingNotes && inviteCfg.rbac.counselingNotes[currentUser.rbacRole || currentUser.role]) || 'none') === 'full' && (currentUser.rbacRole || currentUser.role) !== 'facilitator'; // Facilitators never invite or decide retakes (DFD process 4.0)
   } catch (e) {}
   async function sendCounselingInvite(studentId) {
     const res = await fetch('api/counseling-invite.php', {

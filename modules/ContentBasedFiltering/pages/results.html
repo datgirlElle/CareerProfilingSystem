@@ -71,9 +71,6 @@
   .pp-letter.is-shared{ background:#ecfdf5; color:#047857; border-color:#a7f3d0; }
 
 
-  .fav-btn{ transition:transform .15s; }
-  .fav-btn.just-saved{ transform:scale(1.15); }
-
   /* Visible keyboard focus for everything interactive on the page. */
   #main-content a:focus-visible, #main-content button:focus-visible, #main-content summary:focus-visible{ outline:2px solid #495e88; outline-offset:2px; border-radius:6px; }
 </style>
@@ -105,10 +102,6 @@
       <a href="results" class="flex items-center gap-3.5 h-[50px] pl-6 border-l-[3px] border-[#ed1c24] bg-[#495e88] text-[#ed1c24] text-sm">
         <svg class="w-[15px] h-[15px] shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M120-160q-33 0-56.5-23.5T40-240q0-33 23.5-56.5T120-320h10.5q4.5 0 9.5 2l182-182q-2-5-2-9.5V-520q0-33 23.5-56.5T400-600q33 0 56.5 23.5T480-520q0 2-2 20l102 102q5-2 9.5-2h21q4.5 0 9.5 2l142-142q-2-5-2-9.5V-560q0-33 23.5-56.5T840-640q33 0 56.5 23.5T920-560q0 33-23.5 56.5T840-480h-10.5q-4.5 0-9.5-2L678-340q2 5 2 9.5v10.5q0 33-23.5 56.5T600-240q-33 0-56.5-23.5T520-320v-10.5q0-4.5 2-9.5L420-442q-5 2-9.5 2H400q-2 0-20-2L198-260q2 5 2 9.5v10.5q0 33-23.5 56.5T120-160Zm40-401-25-54-54-25 54-25 25-54 25 54 54 25-54 25-25 54Zm440-39-38-82-82-38 82-38 38-82 38 82 82 38-82 38-38 82Z"/></svg>
         Career Results
-      </a>
-      <a href="saved-careers" class="flex items-center gap-3.5 h-[50px] pl-6 border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
-        <svg class="w-[15px] h-[15px] shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120v-640q0-33 23.5-56.5T280-840h400q33 0 56.5 23.5T760-760v640L480-240 200-120Zm80-122 200-86 200 86v-518H280v518Zm0-518h400-400Z"/></svg>
-        Saved Careers
       </a>
       <a href="student-settings" class="flex items-center gap-3.5 h-[50px] pl-6 border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
         <svg class="w-[15px] h-[15px] shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="m370-80-16-128q-13-5-24.5-12T307-235l-119 50L78-375l103-78q-1-7-1-13.5v-27q0-6.5 1-13.5L78-585l110-190 119 50q11-8 23-15t24-12l16-128h220l16 128q13 5 24.5 12t22.5 15l119-50 110 190-103 78q1 7 1 13.5v27q0 6.5-2 13.5l103 78-110 190-118-50q-11 8-23 15t-24 12L590-80H370Zm70-80h79l14-106q31-8 57.5-23.5T639-327l99 41 39-68-86-65q5-14 7-29.5t2-31.5q0-16-2-31.5t-7-29.5l86-65-39-68-99 42q-22-23-48.5-38.5T533-694l-13-106h-79l-14 106q-31 8-57.5 23.5T321-633l-99-41-39 68 86 64q-5 15-7 30t-2 32q0 16 2 31t7 30l-86 65 39 68 99-42q22 23 48.5 38.5T427-266l13 106Zm42-180q58 0 99-41t41-99q0-58-41-99t-99-41q-59 0-99.5 41T342-480q0 58 40.5 99t99.5 41Zm-2-140Z"/></svg>
@@ -723,69 +716,14 @@ document.addEventListener('click', function (e) {
       return '<details class="pp-more"><summary>Why this course?</summary><div class="pp-more-body flex flex-col gap-2">' + body + '</div></details>';
     }
 
-    // Saved Careers: the heart button on each Best RIASEC Match / Alternative Courses card
-    // adds or removes the course (api/saved-programs.php, shown on the Saved Careers page).
-    let savedIds = [];
-    try {
-      savedIds = ((await (await fetch('api/saved-programs.php')).json()).programIds || []).map(Number);
-    } catch (e) { savedIds = []; }
-    const HEART = '<svg viewBox="0 0 24 24" stroke-width="2" class="w-5 h-5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>';
-    function favBtnHtml(p) {
-      const saved = savedIds.indexOf(p.id) !== -1;
-      const title = String(p.title).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-      return '<button type="button" class="fav-btn w-9 h-9 rounded-full border flex items-center justify-center shrink-0 hover:opacity-80" data-id="' + p.id + '" data-title="' + title + '"' +
-        ' aria-pressed="' + saved + '" title="' + (saved ? 'Saved. Click to remove from Saved Careers' : 'Save to Saved Careers') + '"' +
-        ' aria-label="' + (saved ? 'Remove ' : 'Save ') + title + (saved ? ' from' : ' to') + ' Saved Careers"' +
-        ' style="' + (saved ? 'border-color:#fecaca;background-color:#fef2f2;color:#ed1c24;fill:#ed1c24;stroke:#ed1c24;' : 'border-color:#e0e3e5;background-color:#ffffff;color:#5e3f3c;fill:none;stroke:#5e3f3c;') + '">' +
-        HEART + '</button>';
-    }
-    // The same pop-up message as on the staff pages (js/ui-state.js).
-    function showToast(text, isError) { PP.toast(text, isError); }
-    document.getElementById('careerResultsView').addEventListener('click', async function(e) {
+    document.getElementById('careerResultsView').addEventListener('click', function(e) {
       const more = e.target.closest('.pp-chip-toggle');
       if (more) {
         const open = more.getAttribute('aria-expanded') === 'true';
         more.parentElement.querySelectorAll('.pp-chip-extra').forEach(function(c) { c.classList.toggle('hidden', open); });
         more.setAttribute('aria-expanded', String(!open));
         more.textContent = open ? '+' + more.dataset.more + ' more' : 'Show less';
-        return;
       }
-      const btn = e.target.closest('.fav-btn');
-      if (!btn || btn.disabled) return;
-      const hadFocus = document.activeElement === btn;  // disabling the button drops keyboard focus; put it back after
-      btn.disabled = true;
-      const programId = Number(btn.dataset.id);
-      const title = btn.dataset.title;
-      try {
-        const res = await fetch('api/saved-programs.php', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ programId: programId })
-        });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          savedIds = data.saved ? savedIds.concat([programId]) : savedIds.filter(function(id) { return id !== programId; });
-          // Re-render every copy of this course's heart (it can appear in more than one section).
-          const hearts = Array.prototype.slice.call(document.querySelectorAll('.fav-btn[data-id="' + programId + '"]'));
-          const focusIndex = hearts.indexOf(btn);
-          hearts.forEach(function(b) { b.outerHTML = favBtnHtml({ id: programId, title: b.dataset.title }); });
-          if (hadFocus && focusIndex !== -1) {
-            const fresh = document.querySelectorAll('.fav-btn[data-id="' + programId + '"]')[focusIndex];
-            if (fresh) fresh.focus();
-          }
-          if (data.saved) {
-            document.querySelectorAll('.fav-btn[data-id="' + programId + '"]').forEach(function(b) {
-              b.classList.add('just-saved');
-              setTimeout(function() { b.classList.remove('just-saved'); }, 200);
-            });
-          }
-          const plain = document.createElement('textarea');
-          plain.innerHTML = title;
-          showToast(data.saved ? 'Saved ' + plain.value + ' to Saved Careers' : 'Removed ' + plain.value + ' from Saved Careers');
-          return;
-        }
-      } catch (err) { /* keep the button as it was */ }
-      btn.disabled = false;
-      if (hadFocus) btn.focus();
-      showToast('Could not update Saved Careers. Please try again.', true);
     });
 
     function programCardHtml(p, opts) {
@@ -795,7 +733,6 @@ document.addEventListener('click', function (e) {
         '<div class="pp-course-top">' +
           '<span class="pp-icon" aria-hidden="true">' + collegeIconSvg(p.collegeCode, 'w-5 h-5') + '</span>' +
           '<div class="min-w-0 flex-1"><h3 class="pp-course-title">' + p.title + inactive + '</h3><p class="text-xs text-[#5e3f3c]">' + p.collegeName + '</p></div>' +
-          (opts.fav ? favBtnHtml(p) : '') +
         '</div>' +
         (opts.badge ? '<div>' + opts.badge + '</div>' : '') +
         careerChipsHtml(p) +
@@ -840,20 +777,19 @@ document.addEventListener('click', function (e) {
       tie.classList.remove('hidden');
     }
     document.getElementById('cr-bestRiasec').innerHTML = best.length
-      ? best.map(function(p) { return programCardHtml(p, { cls: 'pp-course--best', fav: true, badge: prefBadge(p) }); }).join('')
+      ? best.map(function(p) { return programCardHtml(p, { cls: 'pp-course--best', badge: prefBadge(p) }); }).join('')
       : '<div class="pp-course text-sm text-[#191c1e]">No course could be matched to your RIASEC profile. Please visit the Guidance Office for career counseling.</div>';
 
     // 4. Alternative Courses (CBF): the next-highest cosine similarity.
     const alts = recommendation.alternatives || [];
     document.getElementById('cr-alternatives').innerHTML = alts.length
-      ? alts.map(function(p) { return programCardHtml(p, { fav: true, badge: prefBadge(p) }); }).join('')
+      ? alts.map(function(p) { return programCardHtml(p, { badge: prefBadge(p) }); }).join('')
       : '<p class="text-sm text-[#5e3f3c]">No alternative courses.</p>';
 
     // 5. Prediction model (WEKA J48), only when the API includes it for students.
     const pred = recommendation.prediction;
     if (pred && pred.course) {
       document.getElementById('cr-prediction').innerHTML = programCardHtml(pred.course, {
-        fav: true,
         badge: pred.course.inBestRiasecMatch ? '<span class="pp-badge pp-badge--match">' + ICON_CHECK + 'Also in your Best RIASEC Match</span>' : prefBadge(pred.course)
       });
       document.getElementById('cr-predictionSection').classList.remove('hidden');

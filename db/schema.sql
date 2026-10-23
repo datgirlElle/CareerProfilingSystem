@@ -164,13 +164,6 @@ CREATE TABLE worksheets (
     UNIQUE (student_id, attempt_number)
 );
 
-CREATE TABLE saved_programs (
-    student_id  INT NOT NULL REFERENCES students(user_id) ON DELETE CASCADE,
-    program_id  INT NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
-    saved_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (student_id, program_id)
-);
-
 CREATE TABLE recommendations (
     id                      SERIAL PRIMARY KEY,
     student_id              INT NOT NULL REFERENCES students(user_id) ON DELETE CASCADE,
