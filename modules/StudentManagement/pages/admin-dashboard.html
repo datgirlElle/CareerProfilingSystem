@@ -36,7 +36,9 @@
   .fp-grid { display:grid; grid-template-columns:1fr; gap:20px; }
   @media (min-width:640px) { .fp-grid { grid-template-columns:1fr 1fr; gap:24px; } }
   .fp-group { display:flex; flex-direction:column; gap:14px; min-width:0; }
-  .fp-heading { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:#475569; }
+  /* Group headings: a thin line underneath marks each one as a section label, not an option. */
+  .fp-heading { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#0f2a6b;
+    padding-bottom:6px; border-bottom:1px solid #e2e8f0; }
   .fp-field { border:0; margin:0; padding:0; min-width:0; }
   .fp-label { display:block; font-size:12px; font-weight:500; color:#334155; margin-bottom:6px; padding:0; }
   .fp-options { display:flex; flex-wrap:wrap; gap:6px; }
@@ -242,13 +244,13 @@
                 <span id="filterCount" class="pp-filter-count hidden"></span>
               </button>
               <div id="filterPanel" role="dialog" aria-label="Filter students" class="hidden absolute right-0 top-[calc(100%+8px)] bg-white border border-gray-200 rounded-xl shadow-lg z-10">
-                <div class="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100">
-                  <h3 class="text-sm font-semibold text-gray-900">Filter students</h3>
-                  <button type="button" id="closeFilters" aria-label="Close filters" class="w-8 h-8 -mr-2 rounded-md flex items-center justify-center text-gray-500 hover:bg-gray-100">
+                <!-- No title: the panel opens right under the Filters button. The × is its only close button (and Escape). -->
+                <div class="flex justify-end px-3 pt-2">
+                  <button type="button" id="closeFilters" aria-label="Close filters" class="w-8 h-8 rounded-md flex items-center justify-center text-gray-500 hover:bg-gray-100">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
                   </button>
                 </div>
-                <div class="fp-grid px-5 py-4 max-h-[60vh] overflow-y-auto">
+                <div class="fp-grid px-5 pb-4 max-h-[60vh] overflow-y-auto">
                   <div class="fp-group">
                     <p class="fp-heading">Account</p>
                     <fieldset class="fp-field">
@@ -260,7 +262,7 @@
                       </div>
                     </fieldset>
                     <fieldset class="fp-field">
-                      <legend class="fp-label">Account</legend>
+                      <legend class="fp-label">Status</legend>
                       <div class="fp-options">
                         <label class="fp-option"><input type="radio" name="filterAccount" value="" checked><span>All</span></label>
                         <label class="fp-option"><input type="radio" name="filterAccount" value="active"><span>Active</span></label>
@@ -299,11 +301,7 @@
                     </fieldset>
                   </div>
                 </div>
-                <!-- No Apply button: every choice updates the list right away. Done only closes the panel. -->
-                <div class="flex items-center justify-between gap-3 px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-xl">
-                  <p id="filterMatchCount" class="text-sm text-gray-600" aria-live="polite"></p>
-                  <button type="button" id="doneFilters" class="pp-filter-btn">Done</button>
-                </div>
+                <!-- No Apply or Done button: every choice updates the list right away; ×, Escape or a click outside closes the panel. -->
               </div>
             </div>
             <button type="button" id="clearFilters" disabled class="pp-clear-filters ov-btn">
@@ -477,13 +475,15 @@
   const filterBtn = document.getElementById('filterBtn');
   const filterPanel = document.getElementById('filterPanel');
 
+  // The Filters panel stays open until its × is clicked (or Escape, for keyboard users): other menus and clicks
+  // elsewhere on the page leave it alone.
   notifBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    toggleDropdown(notifPanel, profilePanel, filterPanel);
+    toggleDropdown(notifPanel, profilePanel);
   });
   profileBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    toggleDropdown(profilePanel, notifPanel, filterPanel);
+    toggleDropdown(profilePanel, notifPanel);
   });
   function closeFilterPanel(returnFocus) {
     if (filterPanel.classList.contains('hidden')) return;
@@ -491,12 +491,14 @@
     filterBtn.setAttribute('aria-expanded', 'false');
     if (returnFocus) filterBtn.focus();
   }
+  // The Filters button only opens the panel; a second click keeps it open.
   filterBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    toggleDropdown(filterPanel, notifPanel, profilePanel);
-    const open = !filterPanel.classList.contains('hidden');
-    filterBtn.setAttribute('aria-expanded', String(open));
-    if (open) filterPanel.querySelector('input:checked').focus();
+    notifPanel.classList.add('hidden');
+    profilePanel.classList.add('hidden');
+    filterPanel.classList.remove('hidden');
+    filterBtn.setAttribute('aria-expanded', 'true');
+    filterPanel.querySelector('input:checked').focus();
   });
   document.getElementById('closeFilters').addEventListener('click', () => closeFilterPanel(true));
   filterPanel.addEventListener('keydown', (e) => {
@@ -505,7 +507,6 @@
   document.addEventListener('click', () => {
     notifPanel.classList.add('hidden');
     profilePanel.classList.add('hidden');
-    closeFilterPanel(false);
   });
 
   // Close open dropdown panels on scroll — they were anchored under their
@@ -818,7 +819,6 @@
       if (e.status === 401) { window.location.replace('staff-login'); return; }
       PP.showError(tbody, e.message, load, 10);
       pager.clear();
-      document.getElementById('filterMatchCount').textContent = '';
       if (!listOnly) {
         statIds.forEach(PP.statFailed);
         chartBoxes.forEach(function(id) { PP.chartError(id, e.message, load); });
@@ -832,7 +832,6 @@
     listState.save(state);
     pager.render(Object.assign({}, data, { shown: data.students.length }));
     pager.focus(opts.focus);
-    document.getElementById('filterMatchCount').textContent = data.total.toLocaleString() + (data.total === 1 ? ' student matches' : ' students match');
     noResults.classList.toggle('hidden', data.students.length !== 0);
     tbody.innerHTML = data.students.length
       ? data.students.map((s, i) => renderRow(s, data.startIndex + i)).join('')
@@ -1160,7 +1159,6 @@
     renderActiveFilters();
     load({ listOnly: true });
   });
-  document.getElementById('doneFilters').addEventListener('click', () => closeFilterPanel(true));
   // Clear filters resets the search and every filter and shows the first page of all students.
   clearFiltersBtn.addEventListener('click', () => {
     searchSoon.cancel();
