@@ -139,9 +139,27 @@
           <h1 class="text-2xl font-bold text-gray-900">Student Information Dashboard</h1>
           <p class="text-sm text-gray-500 mt-1">Overview of student assessments and counseling status</p>
         </div>
-        <div class="flex items-center gap-2">
-          <label for="ayFilter" class="pp-filter-label">School Year</label>
-          <select id="ayFilter" class="pp-filter-select"></select>
+        <div class="flex items-center gap-3 flex-wrap">
+          <div class="flex items-center gap-2">
+            <label for="ayFilter" class="pp-filter-label">School Year</label>
+            <select id="ayFilter" class="pp-filter-select"></select>
+          </div>
+          <div class="flex items-center gap-2">
+            <label for="filterStrand" class="pp-filter-label">Strand</label>
+            <select id="filterStrand" class="pp-filter-select">
+              <option value="">All Strands</option>
+              <option value="STEM">STEM</option>
+              <option value="ABM">ABM</option>
+              <option value="ICT">ICT</option>
+              <option value="HUMSS">HUMSS</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2">
+            <label for="filterSection" class="pp-filter-label">Section</label>
+            <select id="filterSection" class="pp-filter-select" disabled>
+              <option value="">Select a strand first</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -204,46 +222,9 @@
         <p id="breakdownNote" class="text-xs text-gray-500 mt-2"></p>
       </section>
 
-      <!-- Sections at a glance -->
-      <div id="sectionCompletionCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-8">
-        <div class="border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h2 class="text-lg font-bold text-gray-900">Student Progress by Section</h2>
-            <p class="text-xs text-gray-500 mt-1">Registered, assessed and pending students in each section.</p>
-            <div class="text-xs text-gray-600" style="display:flex;flex-wrap:wrap;align-items:center;margin-top:8px;row-gap:4px" aria-label="Chart colors">
-              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#93c5fd;display:inline-block"></span>Registered</span>
-              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#0f2a6b;display:inline-block"></span>Assessed</span>
-              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#f59e0b;display:inline-block"></span>Pending</span>
-            </div>
-          </div>
-        </div>
-        <div class="px-6 pt-4"><p id="completionSummaryLine" class="text-sm text-gray-700"></p></div>
-        <div class="p-6 pt-3"><div id="completionChartBox" style="position:relative;height:260px"><canvas id="sectionCompletionChart" aria-label="Registered, assessed and pending students by section"></canvas></div></div>
-      </div>
-      <div id="statusCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-8">
-        <div class="border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h2 class="text-lg font-bold text-gray-900">Student Status</h2>
-            <p class="text-xs text-gray-500 mt-1">Assessed, pending and not registered students.</p>
-          </div>
-          <div class="flex items-center gap-2">
-            <label for="statusSection" class="pp-filter-label">Section</label>
-            <select id="statusSection" class="pp-filter-select"></select>
-          </div>
-        </div>
-        <div class="p-6">
-          <div id="statusChartBox" style="position:relative;height:300px"><canvas id="statusChart" aria-label="Assessed, pending and not registered students"></canvas></div>
-          <p id="statusEmpty" class="hidden text-sm text-gray-500 text-center py-10">No students in this section yet.</p>
-        </div>
-        <div class="px-6 pb-6 flex flex-wrap items-center gap-2">
-          <span class="text-xs text-gray-500">Download for the section picked above:</span>
-          <button type="button" id="dlNotRegistered" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not registered (CSV)</button>
-          <button type="button" id="dlNotAssessed" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not assessed (CSV)</button>
-        </div>
-      </div>
       <!-- Data Table Section -->
       <!-- No overflow-hidden here: the Filters drop-down hangs below its button and must be able to extend past a short table. -->
-      <div class="bg-white border border-gray-200 rounded-xl shadow-sm">
+      <div class="bg-white border border-gray-200 rounded-xl shadow-sm mb-8">
 
         <div class="border-b border-gray-200 flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between px-4 sm:px-6 py-5 gap-3">
           <div>
@@ -269,24 +250,7 @@
                 </div>
                 <div class="fp-grid px-5 py-4 max-h-[60vh] overflow-y-auto">
                   <div class="fp-group">
-                    <p class="fp-heading">Class</p>
-                    <fieldset class="fp-field">
-                      <legend class="fp-label">Strand</legend>
-                      <div class="fp-options">
-                        <label class="fp-option"><input type="radio" name="filterStrand" value="" checked><span>All</span></label>
-                        <label class="fp-option"><input type="radio" name="filterStrand" value="STEM"><span>STEM</span></label>
-                        <label class="fp-option"><input type="radio" name="filterStrand" value="ABM"><span>ABM</span></label>
-                        <label class="fp-option"><input type="radio" name="filterStrand" value="ICT"><span>ICT</span></label>
-                        <label class="fp-option"><input type="radio" name="filterStrand" value="HUMSS"><span>HUMSS</span></label>
-                      </div>
-                    </fieldset>
-                    <div>
-                      <label for="filterSection" class="fp-label">Section</label>
-                      <select id="filterSection" class="pp-filter-select w-full">
-                        <option value="">All sections</option>
-                      </select>
-                    </div>
-                    <p class="fp-heading pt-2">Account</p>
+                    <p class="fp-heading">Account</p>
                     <fieldset class="fp-field">
                       <legend class="fp-label">Registration</legend>
                       <div class="fp-options">
@@ -381,6 +345,44 @@
         <!-- Filled by PP.pager: "Showing 1 to 50 of N students", Rows per page and the page buttons. -->
         <div id="studentPager"></div>
         <p class="text-xs text-red-600 hidden px-6 pb-4" id="exportError" role="alert"></p>
+      </div>
+
+      <!-- Sections at a glance -->
+      <div id="sectionCompletionCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-8">
+        <div class="border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-gray-900">Student Progress by Section</h2>
+            <p class="text-xs text-gray-500 mt-1">Registered, assessed and pending students in each section.</p>
+            <div class="text-xs text-gray-600" style="display:flex;flex-wrap:wrap;align-items:center;margin-top:8px;row-gap:4px" aria-label="Chart colors">
+              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#93c5fd;display:inline-block"></span>Registered</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#0f2a6b;display:inline-block"></span>Assessed</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#f59e0b;display:inline-block"></span>Pending</span>
+            </div>
+          </div>
+        </div>
+        <div class="px-6 pt-4"><p id="completionSummaryLine" class="text-sm text-gray-700"></p></div>
+        <div class="p-6 pt-3"><div id="completionChartBox" style="position:relative;height:260px"><canvas id="sectionCompletionChart" aria-label="Registered, assessed and pending students by section"></canvas></div></div>
+      </div>
+      <div id="statusCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-8">
+        <div class="border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-gray-900">Student Status</h2>
+            <p class="text-xs text-gray-500 mt-1">Assessed, pending and not registered students.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <label for="statusSection" class="pp-filter-label">Section</label>
+            <select id="statusSection" class="pp-filter-select"></select>
+          </div>
+        </div>
+        <div class="p-6">
+          <div id="statusChartBox" style="position:relative;height:300px"><canvas id="statusChart" aria-label="Assessed, pending and not registered students"></canvas></div>
+          <p id="statusEmpty" class="hidden text-sm text-gray-500 text-center py-10">No students in this section yet.</p>
+        </div>
+        <div class="px-6 pb-6 flex flex-wrap items-center gap-2">
+          <span class="text-xs text-gray-500">Download for the section picked above:</span>
+          <button type="button" id="dlNotRegistered" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not registered (CSV)</button>
+          <button type="button" id="dlNotAssessed" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not assessed (CSV)</button>
+        </div>
       </div>
 
     </main>
@@ -1031,19 +1033,27 @@
     load({ listOnly: true });
   }, 300);
   searchInput.addEventListener('input', function() { updateClearBtn(); searchSoon(); });
-  // The Section filter is a drop-down of the sections the Head of Guidance / counselors maintain (Account
-  // Management), read fresh each time the panel opens so a section added a moment ago is already there.
-  // With All Strands it lists every section; with one strand, just that strand's.
+  // Strand and Section sit at the top of the page, next to School Year (same as Analytics). Section depends on
+  // Strand: picking a Strand unlocks its own sections; with no Strand, Section stays disabled (a section already
+  // belongs to one strand, so there is nothing to narrow yet). sectionOptions comes from Account Management.
+  const filterStrand = document.getElementById('filterStrand');
+  const filterSection = document.getElementById('filterSection');
   let sectionOptions = []; // [{ strand, code, isActive }]
   function renderSectionFilter() {
-    const sec = document.getElementById('filterSection');
-    const strand = getChoice('filterStrand');
-    const previous = sec.value || state.section; // the saved section, before its option has been loaded
-    const list = sectionOptions.filter(function(s) { return !strand || s.strand === strand; });
-    sec.innerHTML = '<option value="">All sections</option>' + list.map(function(s) {
-      return '<option value="' + escapeHtml(s.code) + '">' + escapeHtml(s.code) + (strand ? '' : ' (' + escapeHtml(s.strand) + ')') + (s.isActive ? '' : ' (inactive)') + '</option>';
+    const strand = filterStrand.value;
+    if (!strand) {
+      filterSection.innerHTML = '<option value="">Select a strand first</option>';
+      filterSection.value = '';
+      filterSection.disabled = true;
+      return;
+    }
+    const previous = filterSection.value || state.section; // the saved section, before its option has been loaded
+    const list = sectionOptions.filter(function(s) { return s.strand === strand; });
+    filterSection.innerHTML = '<option value="">All Sections</option>' + list.map(function(s) {
+      return '<option value="' + escapeHtml(s.code) + '">' + escapeHtml(s.code) + (s.isActive ? '' : ' (inactive)') + '</option>';
     }).join('');
-    sec.value = list.some(function(s) { return s.code === previous; }) ? previous : '';
+    filterSection.value = list.some(function(s) { return s.code === previous; }) ? previous : '';
+    filterSection.disabled = false;
   }
   async function refreshSectionFilter() {
     try {
@@ -1057,14 +1067,29 @@
     } catch (e) { /* keep the list we already have */ }
     renderSectionFilter();
   }
-  document.querySelectorAll('input[name="filterStrand"]').forEach(function(r) { r.addEventListener('change', renderSectionFilter); });
-  document.getElementById('filterBtn').addEventListener('click', refreshSectionFilter);
+  // Strand and Section apply the moment they change (no Apply button).
+  filterStrand.addEventListener('change', function() {
+    renderSectionFilter();
+    state.strand = filterStrand.value;
+    state.section = filterSection.value; // renderSectionFilter() may have reset Section
+    state.page = 1;
+    renderActiveFilters();
+    load({ listOnly: true });
+  });
+  filterSection.addEventListener('change', function() {
+    state.section = filterSection.value;
+    state.page = 1;
+    renderActiveFilters();
+    load({ listOnly: true });
+  });
   refreshSectionFilter();
 
-  // Each filter: the state key it sets, its control (a radio group by name, or the Section drop-down), and its label for the chips.
+  // Each filter: the state key it sets, its control (a radio group by name, or a drop-down), and its label for the
+  // chips. Strand and Section are chip:false: they always show at the top of the page, so they never need a chip
+  // or to count toward the Filters button's badge (that badge is only for what is inside the popover).
   const FILTERS = [
-    { key: 'strand', name: 'filterStrand', label: 'Strand' },
-    { key: 'section', select: 'filterSection', label: 'Section' },
+    { key: 'strand', select: 'filterStrand', label: 'Strand', chip: false },
+    { key: 'section', select: 'filterSection', label: 'Section', chip: false },
     { key: 'registration', name: 'filterRegistration', label: 'Registration' },
     { key: 'account', name: 'filterAccount', label: 'Account' },
     { key: 'status', name: 'filterStatus', label: 'Assessment status' },
@@ -1089,7 +1114,7 @@
   }
   // The Filters button shows how many are on, and each one in use is a chip under the toolbar that removes it.
   function renderActiveFilters() {
-    const active = FILTERS.filter(function(f) { return state[f.key]; });
+    const active = FILTERS.filter(function(f) { return f.chip !== false && state[f.key]; });
     const count = document.getElementById('filterCount');
     count.textContent = active.length;
     count.classList.toggle('hidden', active.length === 0);
@@ -1116,7 +1141,6 @@
     const f = filterFor(key);
     setControl(f, '');
     state[f.key] = '';
-    if (key === 'strand') renderSectionFilter();
     state.page = 1;
     renderActiveFilters();
     load({ listOnly: true });
@@ -1171,8 +1195,6 @@
   filterBtn.addEventListener('click', () => {
     if (filterPanel.classList.contains('hidden')) return;
     FILTERS.forEach(function(f) { if (!f.select) setControl(f, state[f.key] || ''); });
-    renderSectionFilter();
-    document.getElementById('filterSection').value = state.section || '';
     fitFilterPanel();
     filterPanel.querySelector('input:checked').focus();
   });
@@ -1314,6 +1336,7 @@
 
   // Start from the filters saved in the page address (Reload, Back, a shared link).
   FILTERS.forEach(function(f) { if (!f.select) setControl(f, state[f.key] || ''); });
+  filterStrand.value = state.strand || '';
   renderSectionFilter();
   renderActiveFilters();
   await load();
