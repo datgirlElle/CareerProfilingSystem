@@ -209,7 +209,9 @@ if ($idLookup > 0) {
 $page = max(1, (int) ($_GET['page'] ?? 1));
 // ?all=1 (used by the Announcements student-picker) returns everyone
 // matching the filters in one response instead of paginating.
-$pageSize = isset($_GET['all']) ? PHP_INT_MAX : 8;
+// ?pageSize= is the Rows per page choice on Student Information (25, 50 or 100); anything else keeps 8.
+$askedPageSize = (int) ($_GET['pageSize'] ?? 0);
+$pageSize = isset($_GET['all']) ? PHP_INT_MAX : (in_array($askedPageSize, [25, 50, 100], true) ? $askedPageSize : 8);
 $search = trim((string) ($_GET['search'] ?? ''));
 $strandFilter = (string) ($_GET['strand'] ?? '');
 $sectionFilter = trim((string) ($_GET['section'] ?? ''));
@@ -227,7 +229,7 @@ $rows = $pdo->query(
      FROM students s
      JOIN users u ON u.id = s.user_id
      LEFT JOIN assessments a ON a.student_id = s.user_id AND a.is_latest = TRUE
-     ORDER BY s.registered_at DESC'
+     ORDER BY s.registered_at DESC, s.user_id DESC' // the id breaks ties, so a row never moves between pages
 )->fetchAll();
 
 // A student "availed" counseling if they've submitted a Schedule Advising request
@@ -272,7 +274,10 @@ $students = array_map(function ($r) use ($counseledIds, $mismatchIds) {
 
     return [
         'userId' => (int) $r['user_id'],
-        'name' => Crypto::dec($r['last_name_enc']) . ', ' . Crypto::dec($r['first_name_enc']),
+        // The name stays encrypted until a row is really shown, searched or downloaded ($withName below):
+        // decrypting every student on every filter click was the slow part of this endpoint.
+        '_lastEnc' => $r['last_name_enc'],
+        '_firstEnc' => $r['first_name_enc'],
         'strand' => $r['strand'],
         'gradeLevel' => $r['grade_level'],
         'section' => $r['section'],
@@ -297,16 +302,16 @@ $students = array_map(function ($r) use ($counseledIds, $mismatchIds) {
 // the real account's live data always wins over the one-time CSV snapshot.
 $currentAy = $viewAy;
 if ($currentAy !== '') {
-    $registeredSchoolIds = $allRegisteredSchoolIds;
-    $rosterStmt = $pdo->prepare('SELECT id, school_id, name_enc, strand, section, email FROM assessment_roster WHERE academic_year = ?');
+    $registeredSchoolIds = array_flip(array_map('strval', $allRegisteredSchoolIds)); // a lookup, not a scan per roster row
+    $rosterStmt = $pdo->prepare('SELECT id, school_id, name_enc, strand, section, email FROM assessment_roster WHERE academic_year = ? ORDER BY id');
     $rosterStmt->execute([$currentAy]);
     foreach ($rosterStmt->fetchAll() as $rr) {
-        if (in_array($rr['school_id'], $registeredSchoolIds, true) || !StaffScope::allows($scope, $rr['strand'], $rr['section'])) {
+        if (isset($registeredSchoolIds[(string) $rr['school_id']]) || !StaffScope::allows($scope, $rr['strand'], $rr['section'])) {
             continue;
         }
         $students[] = [
             'userId' => null,
-            'name' => Crypto::dec($rr['name_enc']),
+            '_nameEnc' => $rr['name_enc'],
             'strand' => $rr['strand'],
             'gradeLevel' => null,
             'section' => $rr['section'],
@@ -350,27 +355,21 @@ $sectionSummary = [];
 foreach ($students as $s) {
     $key = $s['strand'] . '|' . $s['section'];
     if (!isset($sectionSummary[$key])) {
+        // Counts only: no page reads names per section, so they are not sent (fewer names leave the server).
         $sectionSummary[$key] = [
             'strand' => $s['strand'], 'section' => $s['section'], 'total' => 0, 'completed' => 0, 'pending' => 0, 'notRegistered' => 0, 'mismatched' => 0,
-            // Who is in each group, so staff can see the names and not just the counts.
-            'people' => ['completed' => [], 'pending' => [], 'notRegistered' => [], 'mismatched' => []],
         ];
     }
     $sectionSummary[$key]['total']++;
-    $person = ['name' => $s['name'], 'userId' => $s['userId']]; // userId is null for a roster student with no account yet
     if ($s['status'] === 'Completed') {
         $sectionSummary[$key]['completed']++;
-        $sectionSummary[$key]['people']['completed'][] = $person;
     } elseif ($s['status'] === 'Not Registered') {
         $sectionSummary[$key]['notRegistered']++;
-        $sectionSummary[$key]['people']['notRegistered'][] = $person;
     } else {
         $sectionSummary[$key]['pending']++;
-        $sectionSummary[$key]['people']['pending'][] = $person;
     }
     if ($s['mismatched']) {
         $sectionSummary[$key]['mismatched']++;
-        $sectionSummary[$key]['people']['mismatched'][] = $person;
     }
 }
 ksort($sectionSummary);
@@ -378,17 +377,22 @@ foreach ($sectionSummary as &$sec) {
     $sec['registered'] = $sec['total'] - $sec['notRegistered'];
     // Assessed out of everyone expected in the section (registered or on the roster).
     $sec['completionRate'] = $sec['total'] > 0 ? round($sec['completed'] / $sec['total'] * 100, 1) : 0.0;
-    foreach ($sec['people'] as &$list) {
-        usort($list, fn($a, $b) => strcasecmp($a['name'], $b['name']));
-    }
-    unset($list);
 }
 unset($sec);
+
+// Decrypts a row's name the first time it is needed (shown, searched or downloaded) and drops the ciphertext.
+$withName = function (array $s): array {
+    if (!array_key_exists('name', $s)) {
+        $s['name'] = isset($s['_nameEnc'])
+            ? Crypto::dec($s['_nameEnc'])
+            : Crypto::dec($s['_lastEnc']) . ', ' . Crypto::dec($s['_firstEnc']);
+    }
+    unset($s['_nameEnc'], $s['_lastEnc'], $s['_firstEnc']);
+    return $s;
+};
+
+// Filters on plain columns first; the name search runs last, so only the rows still left get decrypted.
 $filtered = $students;
-if ($search !== '') {
-    $needle = mb_strtolower($search);
-    $filtered = array_values(array_filter($filtered, fn($s) => str_contains(mb_strtolower($s['name']), $needle)));
-}
 if ($strandFilter !== '') {
     $filtered = array_values(array_filter($filtered, fn($s) => $s['strand'] === $strandFilter));
 }
@@ -419,10 +423,15 @@ if ($assessmentFilter === 'assessed') {
 } elseif ($assessmentFilter === 'notAssessed') {
     $filtered = array_values(array_filter($filtered, fn($s) => $s['status'] !== 'Completed')); // pending or not registered
 }
+if ($search !== '') {
+    $needle = mb_strtolower($search);
+    $filtered = array_values(array_filter(array_map($withName, $filtered), fn($s) => str_contains(mb_strtolower($s['name']), $needle)));
+}
 
 // A downloadable copy of the list as filtered (every row, not just one page), for following up with
 // students who haven't registered or haven't taken the assessment.
 if ($asCsv) {
+    $filtered = array_map($withName, $filtered);
     usort($filtered, fn($a, $b) => [$a['strand'], $a['section'], $a['name']] <=> [$b['strand'], $b['section'], $b['name']]);
     // A cell that starts with = + - or @ would be run as a formula by Excel.
     $safe = fn($v) => is_string($v) && $v !== '' && strpos('=+-@', $v[0]) !== false ? "'" . $v : (string) $v;
@@ -462,6 +471,7 @@ if ($asPdf) {
     if (RateLimiter::tooMany('student-list-pdf:' . (int) $user['id'], 20, 60)) {
         jsonResponse(['error' => 'Too many downloads in the last hour. Please try again later.'], 429);
     }
+    $filtered = array_map($withName, $filtered);
     usort($filtered, fn($a, $b) => [$a['strand'], $a['section'], $a['name']] <=> [$b['strand'], $b['section'], $b['name']]);
     $labels = [
         'status' => ['Completed' => 'Completed', 'Pending' => 'Pending', 'Mismatched' => 'Mismatched', 'Not Registered' => 'Not registered'],
@@ -530,7 +540,8 @@ $totalPages = max(1, (int) ceil($total / $pageSize));
 $page = min($page, $totalPages);
 $offset = ($page - 1) * $pageSize;
 // A registered student's account email is shown to staff (it is their sign-in); a roster email is never sent to the page.
-$pageRows = array_map(function ($s) {
+$pageRows = array_map(function ($s) use ($withName) {
+    $s = $withName($s); // only the rows on this page are decrypted (all of them for ?all=1)
     $s['email'] = $s['userId'] !== null ? $s['_email'] : null;
     unset($s['_email'], $s['_schoolId']);
     return $s;

@@ -14,7 +14,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   body{ font-family:'Inter', sans-serif; }
-  select{ appearance:none; -webkit-appearance:none; }
   /* Send Analytics Report */
   .report-tick { flex:0 0 16px; height:16px; margin-top:2px; border-radius:9999px; background:#e6f3eb url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231b8a47' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M5 13l4 4L19 7'/%3E%3C/svg%3E") center/10px no-repeat; }
   #reportEmail[aria-invalid="true"] { border-color:#b91c1c; }
@@ -115,34 +114,26 @@
           <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Analytics &amp; Report</h1>
           <p class="text-sm text-slate-500 mt-1">Insights and trends based on student assessments and career profiling data.</p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 flex-wrap">
           <div class="flex items-center gap-2">
-            <label for="ayFilter" class="pp-filter-label">School year</label>
+            <label for="ayFilter" class="pp-filter-label">School Year</label>
             <select id="ayFilter" class="pp-filter-select"></select>
           </div>
-          <div class="relative">
-            <button type="button" id="filtersBtn" aria-controls="filtersPanel" class="pp-filter-btn">
-              <img src="images/analytics/icon-filter.svg" alt="" class="w-3.5 h-3">
-              <span id="filtersBtnLabel">Filters</span>
-            </button>
-            <div id="filtersPanel" class="hidden absolute left-0 top-[calc(100%+8px)] w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-4 z-20">
-              <label for="strandFilter" class="pp-filter-label block mb-1">Strand</label>
-              <select id="strandFilter" class="pp-filter-select w-full mb-3">
-                <option value="">All Strands</option>
-                <option value="STEM">STEM</option>
-                <option value="ABM">ABM</option>
-                <option value="ICT">ICT</option>
-                <option value="HUMSS">HUMSS</option>
-              </select>
-              <label for="sectionFilter" class="pp-filter-label block mb-1">Section</label>
-              <select id="sectionFilter" class="pp-filter-select w-full mb-3">
-                <option value="">All Sections</option>
-              </select>
-              <div class="flex items-center gap-2">
-                <button type="button" id="applyStrandFilter" class="flex-1 bg-[#0f2a6b] text-white text-sm font-medium rounded-md py-2 hover:opacity-90">Apply</button>
-                <button type="button" id="clearStrandFilter" class="pp-filter-btn flex-1">Clear</button>
-              </div>
-            </div>
+          <div class="flex items-center gap-2">
+            <label for="strandFilter" class="pp-filter-label">Strand</label>
+            <select id="strandFilter" class="pp-filter-select">
+              <option value="">All Strands</option>
+              <option value="STEM">STEM</option>
+              <option value="ABM">ABM</option>
+              <option value="ICT">ICT</option>
+              <option value="HUMSS">HUMSS</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2">
+            <label for="sectionFilter" class="pp-filter-label">Section</label>
+            <select id="sectionFilter" class="pp-filter-select" disabled>
+              <option value="">Select a strand first</option>
+            </select>
           </div>
         </div>
       </div>
@@ -543,33 +534,43 @@
   }, { passive: true });
   })();
 
-  const filtersBtn = document.getElementById('filtersBtn');
-  const filtersPanel = document.getElementById('filtersPanel');
-  const filtersBtnLabel = document.getElementById('filtersBtnLabel');
   const strandFilter = document.getElementById('strandFilter');
   const sectionFilter = document.getElementById('sectionFilter');
 
-  filtersBtn.addEventListener('click', (e) => { e.stopPropagation(); filtersPanel.classList.toggle('hidden'); if (!filtersPanel.classList.contains('hidden')) refreshSections(); });
-  filtersPanel.addEventListener('click', (e) => e.stopPropagation());
-  document.addEventListener('click', () => filtersPanel.classList.add('hidden'));
-
-  // Sections offered depend on the strand: one strand -> only its own
-  // sections; All Strands -> every section. The map comes from the API
-  // (modules/StudentManagement/lib/Sections.php) so there is a single source of truth.
+  // Section depends on Strand: picking a Strand unlocks its own sections; with no Strand, Section
+  // stays disabled (a section already belongs to one strand, so there is nothing to narrow yet).
+  // The map comes from the API (modules/StudentManagement/lib/Sections.php), single source of truth.
   let sectionsByStrand = null;
   function renderSectionOptions() {
     if (!sectionsByStrand) return;
     const strand = strandFilter.value;
+    if (!strand) {
+      sectionFilter.innerHTML = '<option value="">Select a strand first</option>';
+      sectionFilter.value = '';
+      sectionFilter.disabled = true;
+      return;
+    }
     const previous = sectionFilter.value;
-    const sections = strand
-      ? (sectionsByStrand[strand] || [])
-      : Array.from(new Set(Object.values(sectionsByStrand).flat()));
+    const sections = sectionsByStrand[strand] || [];
     sectionFilter.innerHTML = '<option value="">All Sections</option>' +
       sections.map(s => '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>').join('');
     sectionFilter.value = sections.includes(previous) ? previous : '';
+    sectionFilter.disabled = false;
   }
-  strandFilter.addEventListener('change', renderSectionOptions);
-  // Read the section list again each time the panel opens, so a section added a moment ago is already there.
+  // Strand and Section apply the moment they change (no Apply button).
+  strandFilter.addEventListener('change', () => {
+    renderSectionOptions();
+    state.strand = strandFilter.value;
+    state.section = sectionFilter.value; // renderSectionOptions() may have reset Section
+    listState.save(state);
+    load();
+  });
+  sectionFilter.addEventListener('change', () => {
+    state.section = sectionFilter.value;
+    listState.save(state);
+    load();
+  });
+  // Reads the section list fresh, so a section added a moment ago is already there.
   async function refreshSections() {
     try {
       const res = await fetch('api/sections.php?all=1');
@@ -581,18 +582,6 @@
       renderSectionOptions();
     } catch (e) { /* keep the list we have */ }
   }
-
-  document.getElementById('applyStrandFilter').addEventListener('click', () => {
-    filtersPanel.classList.add('hidden');
-    load(strandFilter.value, sectionFilter.value.trim());
-  });
-  document.getElementById('clearStrandFilter').addEventListener('click', () => {
-    strandFilter.value = '';
-    renderSectionOptions();
-    sectionFilter.value = '';
-    filtersPanel.classList.add('hidden');
-    load('', '');
-  });
 
   function escapeHtml(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -623,22 +612,17 @@
   let statsChartInstance = null;
   let careersChartInstance = null;
 
-  let selectedAy = '';
-  let shownStrand = '', shownSection = '';
+  // Filters live in the page address (Reload, Back, a shared link). No search box on this page.
+  const listState = PP.listState({ strand: '', section: '', academicYear: '' }, []);
+  const state = listState.read();
   const ayFilter = document.getElementById('ayFilter');
   ayFilter.addEventListener('change', function() {
-    selectedAy = ayFilter.value;
-    load(shownStrand, shownSection);
+    state.academicYear = ayFilter.value;
+    listState.save(state);
+    load();
   });
-  async function load(strand, section) {
-    section = section || '';
-    shownStrand = strand || '';
-    shownSection = section;
-    const labelParts = [];
-    if (strand) labelParts.push(strand);
-    if (section) labelParts.push(section);
-    filtersBtnLabel.textContent = labelParts.length ? 'Filters: ' + labelParts.join(', ') : 'Filters';
-    const params = new URLSearchParams({ strand: strand || '', section: section, academicYear: selectedAy });
+  async function load() {
+    const params = new URLSearchParams({ strand: state.strand, section: state.section, academicYear: state.academicYear });
     const statIds = ['metricCompletionRate', 'metricCompletionCount', 'metricCounselingRate', 'metricCounselingCount', 'metricMmclRate', 'metricMmclCount', 'metricTopStrand', 'metricStrandPercent', 'statsCompleted'];
     const chartBoxes = ['strandBox', 'riasecBox', 'sectionBox', 'statsChartBox', 'yearBox', 'topCareersBox'];
     statIds.forEach(PP.statLoading);
@@ -652,7 +636,7 @@
     } catch (e) {
       statIds.forEach(PP.statFailed);
       document.getElementById('topCareersSummary').textContent = '';
-      chartBoxes.forEach(function(id) { PP.chartError(id, e.message, function() { load(strand, section); }); });
+      chartBoxes.forEach(function(id) { PP.chartError(id, e.message, load); });
       return;
     }
     chartBoxes.forEach(PP.chartLoaded);
@@ -1025,7 +1009,11 @@
     });
   }
 
-  await load('', '');
+  // Restore the filters saved in the page address, then load once.
+  strandFilter.value = state.strand;
+  await refreshSections();
+  sectionFilter.value = state.section;
+  await load();
 })();
 </script>
 

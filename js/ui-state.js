@@ -236,11 +236,19 @@
   };
 
   // fetch + JSON that rejects on a network failure, a timeout, a non-2xx answer or a body that is not JSON.
+  // options.signal (optional) cancels the request; the timeout still applies. A cancelled request rejects with
+  // an error whose `cancelled` is true, so the caller can ignore it.
   PP.fetchJson = function (url, options, timeoutMs) {
     options = options || {};
+    var outer = options.signal || null;
     var controller = typeof AbortController === 'function' ? new AbortController() : null;
-    var timer = null;
-    if (controller && !options.signal) {
+    var timer = null, onOuterAbort = null;
+    if (controller) {
+      if (outer) {
+        onOuterAbort = function () { controller.abort(); };
+        if (outer.aborted) controller.abort();
+        else outer.addEventListener('abort', onOuterAbort);
+      }
       options = Object.assign({}, options, { signal: controller.signal });
       timer = setTimeout(function () { controller.abort(); }, timeoutMs || 25000);
     }
@@ -255,10 +263,166 @@
         return data;
       });
     }).catch(function (e) {
+      if (outer && outer.aborted) {
+        var cancelled = new Error('Cancelled');
+        cancelled.cancelled = true;
+        throw cancelled;
+      }
       if (e && e.name === 'AbortError') throw new Error('This is taking too long. Try again.');
       if (e instanceof TypeError) throw new Error(DEFAULT_ERROR);
       throw e;
-    }).finally(function () { if (timer) clearTimeout(timer); });
+    }).finally(function () {
+      if (timer) clearTimeout(timer);
+      if (onOuterAbort) outer.removeEventListener('abort', onOuterAbort);
+    });
+  };
+
+  // ---------- Lists: the same behavior on every page ----------
+  // Filters apply the moment they change (no Apply button), the server sends one page at a time, and a new
+  // request cancels the one still on its way, so a slow old answer can never replace a newer one.
+
+  // Returns a function that loads JSON like PP.fetchJson but first cancels the previous call it made.
+  // A cancelled call rejects with e.cancelled === true: return quietly in that case. .cancel() drops the
+  // call still on its way without starting a new one (for a page that can decide not to load at all,
+  // such as an invalid date range).
+  PP.latestJson = function () {
+    var current = null;
+    function run(url, options, timeoutMs) {
+      if (current) current.abort();
+      current = typeof AbortController === 'function' ? new AbortController() : null;
+      return PP.fetchJson(url, Object.assign({}, options || {}, current ? { signal: current.signal } : {}), timeoutMs);
+    }
+    run.cancel = function () { if (current) { current.abort(); current = null; } };
+    return run;
+  };
+
+  // Calls fn after the user stops typing for `ms` (default 300). .cancel() drops a call still waiting.
+  PP.debounce = function (fn, ms) {
+    var timer = null;
+    function run() {
+      var args = arguments, self = this;
+      clearTimeout(timer);
+      timer = setTimeout(function () { fn.apply(self, args); }, ms || 300);
+    }
+    run.cancel = function () { clearTimeout(timer); };
+    return run;
+  };
+
+  // Keeps a list's filters in the page address (?strand=STEM&page=2), so Reload, Back and a shared link show the
+  // same list. Only values that differ from `defaults` are written. Keys in `privateKeys` (a search, which can be
+  // a student's name) never go in the address: they are kept in this tab's sessionStorage instead, which ends
+  // with the tab.
+  PP.listState = function (defaults, privateKeys) {
+    privateKeys = privateKeys || [];
+    var storeKey = 'pp.list.' + window.location.pathname;
+    function isPrivate(k) { return privateKeys.indexOf(k) !== -1; }
+    return {
+      read: function () {
+        var out = Object.assign({}, defaults);
+        var params = new URLSearchParams(window.location.search);
+        var saved = {};
+        try { saved = JSON.parse((storage() && storage().getItem(storeKey)) || '{}') || {}; } catch (e) {}
+        Object.keys(defaults).forEach(function (k) {
+          var v = isPrivate(k) ? saved[k] : params.get(k);
+          if (v == null) return;
+          out[k] = typeof defaults[k] === 'number' ? (Number(v) || defaults[k]) : String(v);
+        });
+        return out;
+      },
+      save: function (state) {
+        var params = new URLSearchParams(window.location.search);
+        var priv = {};
+        Object.keys(defaults).forEach(function (k) {
+          if (isPrivate(k)) { if (state[k]) priv[k] = state[k]; return; }
+          if (state[k] === defaults[k] || state[k] === '' || state[k] == null) params.delete(k);
+          else params.set(k, state[k]);
+        });
+        var query = params.toString();
+        try { window.history.replaceState(window.history.state, '', window.location.pathname + (query ? '?' + query : '') + window.location.hash); } catch (e) {}
+        try { if (storage()) storage().setItem(storeKey, JSON.stringify(priv)); } catch (e) {}
+      }
+    };
+  };
+
+  // The footer under a list: "Showing 1 to 50 of 308 students", Rows per page (25, 50, 100) and page buttons.
+  // el: the footer element (it is filled here). opts: { noun: ['student', 'students'], label: 'Student list pages',
+  // pageSize: 50, emptyText: 'No students to show', onChange: function (page, pageSize, focusRole) }.
+  // The summary keeps the id "paginationSummary", so a page can still write a short message there.
+  PP.pager = function (el, opts) {
+    if (typeof el === 'string') el = document.getElementById(el);
+    opts = opts || {};
+    var sizes = [25, 50, 100];
+    var noun = opts.noun || ['item', 'items'];
+    var cur = { page: 1, pageSize: sizes.indexOf(opts.pageSize) !== -1 ? opts.pageSize : 50, totalPages: 1 };
+    el.classList.add('pp-pager-bar');
+    el.innerHTML = '<p class="pp-pager-summary" id="paginationSummary" aria-live="polite"></p>' +
+      '<div class="pp-pager-right"><label class="pp-pager-size">Rows per page <select class="pp-filter-select">' +
+      sizes.map(function (n) { return '<option value="' + n + '">' + n + '</option>'; }).join('') +
+      '</select></label><nav class="pp-pager" aria-label="' + esc(opts.label || 'Pages') + '"></nav></div>';
+    var summary = el.querySelector('.pp-pager-summary');
+    var select = el.querySelector('select');
+    var nav = el.querySelector('nav');
+    select.value = String(cur.pageSize);
+
+    function change(page, focusRole) { if (opts.onChange) opts.onChange(page, cur.pageSize, focusRole); }
+    // A new page size keeps the first row you were looking at on screen.
+    select.addEventListener('change', function () {
+      var size = Number(select.value);
+      var page = Math.floor((cur.page - 1) * cur.pageSize / size) + 1;
+      cur.pageSize = size;
+      change(page, null);
+    });
+    nav.addEventListener('click', function (e) {
+      var btn = e.target.closest('button[data-page]');
+      if (!btn || btn.disabled || Number(btn.dataset.page) === cur.page) return;
+      change(Number(btn.dataset.page), btn.dataset.role);
+    });
+
+    // First, last, and up to two pages either side of the current one, with "..." for the gaps. Hidden for one page.
+    function buttons(page, totalPages) {
+      if (totalPages <= 1) return '';
+      var html = '<button type="button" class="pp-page-btn" data-role="prev" data-page="' + (page - 1) + '" aria-label="Previous page"' + (page <= 1 ? ' disabled' : '') + '>' +
+        '<img src="images/audit/icon-page-prev.svg" alt="" class="pp-page-arrow"></button>';
+      var previous = 0;
+      for (var p = 1; p <= totalPages; p++) {
+        if (p !== 1 && p !== totalPages && Math.abs(p - page) > 2) continue;
+        if (previous && p - previous > 1) html += '<span class="pp-page-gap" aria-hidden="true">...</span>';
+        html += '<button type="button" class="pp-page-btn pp-page-num" data-role="page" data-page="' + p + '" aria-label="Page ' + p + '"' + (p === page ? ' aria-current="page"' : '') + '>' + p + '</button>';
+        previous = p;
+      }
+      html += '<button type="button" class="pp-page-btn" data-role="next" data-page="' + (page + 1) + '" aria-label="Next page"' + (page >= totalPages ? ' disabled' : '') + '>' +
+        '<img src="images/audit/icon-page-next.svg" alt="" class="pp-page-arrow"></button>';
+      return html + '<span class="pp-page-of">Page ' + page + ' of ' + totalPages + '</span>';
+    }
+
+    return {
+      // data: the list answer's { page, pageSize, total, totalPages, startIndex } and `shown` (rows on this page).
+      render: function (data) {
+        cur.page = data.page;
+        cur.totalPages = data.totalPages;
+        if (data.pageSize && sizes.indexOf(data.pageSize) !== -1) { cur.pageSize = data.pageSize; select.value = String(data.pageSize); }
+        if (!data.total) {
+          summary.textContent = opts.emptyText || 'No ' + noun[1] + ' to show';
+        } else {
+          var first = data.startIndex, last = data.startIndex + data.shown - 1;
+          summary.innerHTML = 'Showing <b>' + first.toLocaleString() + ' to ' + last.toLocaleString() + '</b> of <b>' +
+            Number(data.total).toLocaleString() + '</b> ' + (data.total === 1 ? noun[0] : noun[1]);
+        }
+        nav.innerHTML = buttons(data.page, data.totalPages);
+      },
+      loading: function () { summary.innerHTML = PP.skeleton.line('220px'); },
+      clear: function () { summary.textContent = ''; nav.innerHTML = ''; },
+      // The pager is redrawn on every page turn, which drops keyboard focus: put it back on the same kind of button.
+      focus: function (role) {
+        if (!role) return;
+        var preferred = role === 'page' ? nav.querySelector('[aria-current="page"]') : nav.querySelector('[data-role="' + role + '"]');
+        var all = [preferred].concat(Array.prototype.slice.call(nav.querySelectorAll('button')));
+        for (var i = 0; i < all.length; i++) {
+          if (all[i] && !all[i].disabled && all[i].offsetParent !== null) { all[i].focus(); return; }
+        }
+      },
+      pageSize: function () { return cur.pageSize; }
+    };
   };
 
   // A whole-page placeholder (heading, a chart and a text card) for pages that stay blank until their data arrives.

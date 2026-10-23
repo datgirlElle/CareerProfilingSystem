@@ -141,9 +141,10 @@
 
         </div>
       </div>
-      <div class="flex gap-2 mb-4" role="tablist">
-        <button type="button" role="tab" id="tabStaff" data-audience="staff" class="faq-tab px-4 py-2 rounded-md text-sm font-medium border border-slate-300">Staff FAQs</button>
-        <button type="button" role="tab" id="tabStudent" data-audience="student" class="faq-tab px-4 py-2 rounded-md text-sm font-medium border border-slate-300">Student FAQs</button>
+      <!-- Same tab buttons as Monitoring and Counseling Requests (css/components.css .pp-filter-tab); aria-pressed marks the chosen one. -->
+      <div class="flex gap-2 mb-4" role="group" aria-label="Which FAQs to show">
+        <button type="button" id="tabStaff" data-audience="staff" aria-pressed="false" class="faq-tab pp-filter-tab">Staff FAQs</button>
+        <button type="button" id="tabStudent" data-audience="student" aria-pressed="false" class="faq-tab pp-filter-tab">Student FAQs</button>
         <button type="button" id="addFaqBtn" class="hidden items-center justify-center gap-2 bg-[#ed1c24] text-white rounded-md px-4 py-2 text-sm font-medium shadow-sm hover:opacity-90" style="margin-left:auto">+ Add FAQ</button>
       </div>
 
@@ -484,13 +485,13 @@
   const faqList = document.getElementById('faqList');
   const faqMessage = document.getElementById('faqMessage');
   const addBtn = document.getElementById('addFaqBtn');
-  const TAB_ON = ['bg-[#0f2a6b]', 'text-white', 'border-[#0f2a6b]'];
-  const TAB_OFF = ['bg-white', 'text-slate-700'];
   const AUDIENCE_TEXT = {
     staff: { heading: 'Staff FAQs', sub: '' },
     student: { heading: 'Student FAQs', sub: '' }
   };
-  let audience = 'staff';
+  // The chosen tab lives in the page address (?audience=student), so Reload and Back keep it (PP.listState).
+  const listState = PP.listState({ audience: 'staff' }, []);
+  let audience = listState.read().audience === 'student' ? 'student' : 'staff';
   let faqs = [];
   let canEdit = false;
   let editingId = null;
@@ -508,10 +509,7 @@
     document.getElementById('faqSub').textContent = AUDIENCE_TEXT[audience].sub;
     document.getElementById('faqSub').classList.toggle('hidden', !AUDIENCE_TEXT[audience].sub);
     document.querySelectorAll('.faq-tab').forEach(function(tab) {
-      const on = tab.dataset.audience === audience;
-      TAB_ON.forEach(function(c) { tab.classList.toggle(c, on); });
-      TAB_OFF.forEach(function(c) { tab.classList.toggle(c, !on); });
-      tab.setAttribute('aria-selected', String(on));
+      tab.setAttribute('aria-pressed', String(tab.dataset.audience === audience));
     });
     addBtn.classList.toggle('hidden', !canEdit);
     addBtn.classList.toggle('flex', canEdit);
@@ -542,15 +540,17 @@
     }).join('');
   }
 
+  const getFaqs = PP.latestJson(); // a new tab click cancels the list still on its way
   async function loadFaqs() {
     PP.showSkeleton(faqList, '<div class="px-6 py-4">' + PP.skeleton.lines(5, 16) + '</div>');
     try {
-      const data = await PP.fetchJson('api/faqs.php?audience=' + audience);
+      const data = await getFaqs('api/faqs.php?audience=' + audience);
       faqList.removeAttribute('aria-busy');
       faqs = data.faqs || [];
       canEdit = !!data.canEdit;
       renderFaqs();
     } catch (e) {
+      if (e.cancelled) return; // a newer tab click replaced this one
       PP.showError(faqList, e.message || 'Could not load the FAQs.', loadFaqs);
     }
   }
@@ -561,7 +561,12 @@
   }
 
   document.querySelectorAll('.faq-tab').forEach(function(tab) {
-    tab.addEventListener('click', function() { audience = tab.dataset.audience; openIds = {}; loadFaqs(); });
+    tab.addEventListener('click', function() {
+      audience = tab.dataset.audience;
+      listState.save({ audience: audience });
+      openIds = {};
+      loadFaqs();
+    });
   });
 
   faqList.addEventListener('click', async function(e) {

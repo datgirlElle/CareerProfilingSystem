@@ -13,7 +13,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   body{ font-family:'Inter', sans-serif; }
-  select{ appearance:none; -webkit-appearance:none; }
 </style>
 <link rel="stylesheet" href="css/motion.css">
 </head>
@@ -206,13 +205,8 @@
           </table>
         </div>
 
-        <!-- Pagination -->
-        <div class="border-t border-slate-200 flex items-center justify-between px-6 py-4 flex-wrap gap-3">
-          <p class="text-sm text-slate-600" id="paginationSummary">
-            Showing <span class="font-medium" id="filterFrom">1</span> to <span class="font-medium" id="filterTo">10</span> of <span class="font-medium" id="filterTotal">126</span> careers
-          </p>
-          <div class="flex items-center gap-1" id="paginationBar"></div>
-        </div>
+        <!-- Filled by PP.pager: "Showing 1 to 25 of N programs", Rows per page and the page buttons. -->
+        <div id="careerPager"></div>
       </div>
 
     </main>
@@ -418,8 +412,20 @@
   const filterRiasec = document.getElementById('filterRiasec');
   const filterStatus = document.getElementById('filterStatus');
   const clearFiltersBtn = document.getElementById('clearFiltersBtn');
-  const filterFrom = document.getElementById('filterFrom');
-  const filterTo = document.getElementById('filterTo');
+
+  // Filters and the page live in the page address (Reload, Back, a shared link); the search box stays in
+  // this tab only (PP.listState in js/ui-state.js), same as every other staff list.
+  const listState = PP.listState({ search: '', department: 'All', riasec: 'All', status: 'All', page: 1, pageSize: 25 }, ['search']);
+  const state = listState.read();
+  if (![25, 50, 100].includes(state.pageSize)) state.pageSize = 25;
+  const pager = PP.pager('careerPager', {
+    noun: ['program', 'programs'], label: 'Program list pages', pageSize: state.pageSize, emptyText: 'No programs to show',
+    onChange: function (page, pageSize, focusRole) {
+      state.page = page;
+      state.pageSize = pageSize;
+      render(focusRole);
+    }
+  });
 
   function escapeHtml(str) {
     return String(str)
@@ -451,19 +457,22 @@
       </tr>`;
   }
 
-  const PAGE_SIZE = 8;
-  const state = { page: 1 };
-
   function applyFilters() {
     state.page = 1;
     render();
   }
 
-  function render() {
+  function render(focusRole) {
     const search = searchInput.value.trim().toLowerCase();
     const dept = filterDepartment.value;
     const riasec = filterRiasec.value;
     const status = filterStatus.value;
+
+    state.search = searchInput.value.trim();
+    state.department = dept;
+    state.riasec = riasec;
+    state.status = status;
+    listState.save(state);
 
     clearFiltersBtn.disabled = !search && dept === 'All' && riasec === 'All' && status === 'All';
 
@@ -475,59 +484,22 @@
       return matchesSearch && matchesDept && matchesRiasec && matchesStatus;
     });
 
-    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    const totalPages = Math.max(1, Math.ceil(filtered.length / state.pageSize));
     state.page = Math.min(state.page, totalPages);
-    const offset = (state.page - 1) * PAGE_SIZE;
-    const pageItems = filtered.slice(offset, offset + PAGE_SIZE);
+    listState.save(state);
+    const offset = (state.page - 1) * state.pageSize;
+    const pageItems = filtered.slice(offset, offset + state.pageSize);
 
     tbody.innerHTML = pageItems.length
       ? pageItems.map(renderRow).join('')
       : '<tr><td colspan="5" class="px-6 py-12 text-center text-sm text-slate-500">No programs match your filters.</td></tr>';
 
-    filterFrom.textContent = filtered.length ? String(offset + 1) : '0';
-    filterTo.textContent = String(offset + pageItems.length);
-    document.getElementById('filterTotal').textContent = String(filtered.length);
-
-    renderPagination(state.page, totalPages);
+    pager.render({
+      page: state.page, pageSize: state.pageSize, total: filtered.length, totalPages,
+      shown: pageItems.length, startIndex: filtered.length ? offset + 1 : 0
+    });
+    pager.focus(focusRole);
     bindEditButtons();
-  }
-
-  function renderPagination(page, totalPages) {
-    const bar = document.getElementById('paginationBar');
-    const btnBase = 'w-9 h-9 flex items-center justify-center rounded-md text-sm font-medium';
-    const active = 'bg-[#ed1c24] border border-[#ed1c24] text-white';
-    const inactive = 'border border-slate-300 text-slate-700 hover:bg-slate-50';
-
-    const pages = [];
-    for (let p = 1; p <= totalPages; p++) {
-      if (p === 1 || p === totalPages || Math.abs(p - page) <= 2) pages.push(p);
-    }
-    const withEllipses = [];
-    let prevPage = 0;
-    pages.forEach(p => {
-      if (prevPage && p - prevPage > 1) withEllipses.push('...');
-      withEllipses.push(p);
-      prevPage = p;
-    });
-
-    let html = '<button type="button" data-page="' + (page - 1) + '" ' + (page <= 1 ? 'disabled' : '') +
-      ' class="page-nav-btn w-9 h-9 flex items-center justify-center border border-slate-300 rounded-md hover:bg-slate-50 ' + (page <= 1 ? 'opacity-40 cursor-not-allowed' : '') + '">' +
-      '<img src="images/admin/icon-page-prev.svg" alt="Previous" class="w-1.5 h-2.5"></button>';
-    withEllipses.forEach(p => {
-      if (p === '...') {
-        html += '<span class="w-9 h-9 flex items-center justify-center text-slate-500 text-sm">...</span>';
-      } else {
-        html += '<button type="button" data-page="' + p + '" class="page-btn ' + btnBase + ' ' + (p === page ? active : inactive) + '">' + p + '</button>';
-      }
-    });
-    html += '<button type="button" data-page="' + (page + 1) + '" ' + (page >= totalPages ? 'disabled' : '') +
-      ' class="page-nav-btn w-9 h-9 flex items-center justify-center border border-slate-300 rounded-md hover:bg-slate-50 ' + (page >= totalPages ? 'opacity-40 cursor-not-allowed' : '') + '">' +
-      '<img src="images/admin/icon-page-next.svg" alt="Next" class="w-1.5 h-2.5"></button>';
-
-    bar.innerHTML = html;
-    bar.querySelectorAll('button[data-page]:not([disabled])').forEach(btn => {
-      btn.addEventListener('click', () => { state.page = Number(btn.dataset.page); render(); });
-    });
   }
 
   function bindEditButtons() {
@@ -669,7 +641,12 @@
     document.getElementById('statActive').textContent = programs.filter(p => p.status === 'Active').length;
     document.getElementById('statColleges').textContent = colleges.length;
 
-    applyFilters();
+    // Start from the filters saved in the page address (Reload, Back, a shared link).
+    searchInput.value = state.search;
+    filterDepartment.value = state.department;
+    filterRiasec.value = state.riasec;
+    filterStatus.value = state.status;
+    render();
   }
   loadData();
 })();

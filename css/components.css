@@ -23,6 +23,12 @@
 .pp-filter-select {
   padding-right: 32px;
   cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10.5' height='6' viewBox='0 0 10.5 6' fill='none'%3E%3Cpath d='M4.71094 5.78906C4.86719 5.92969 5.04688 6 5.25 6V6C5.45312 6 5.63281 5.92969 5.78906 5.78906L10.2891 1.28906C10.4297 1.13281 10.5 0.953125 10.5 0.75C10.5 0.546875 10.4297 0.367188 10.2891 0.210938C10.1328 0.0703125 9.95312 0 9.75 0C9.54688 0 9.36719 0.0703125 9.21094 0.210938L5.25 4.19531L1.28906 0.210938C1.13281 0.0703125 0.953125 0 0.75 0C0.546875 0 0.367188 0.0703125 0.210938 0.210938C0.0703125 0.367188 0 0.546875 0 0.75C0 0.953125 0.0703125 1.13281 0.210938 1.28906L4.71094 5.78906V5.78906V5.78906' fill='%2364748B'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 10.5px 6px;
 }
 .pp-filter-input::placeholder {
   color: #9ca3af;
@@ -213,8 +219,159 @@
 .pp-filter-search.hidden,
 .pp-filter-select.hidden,
 .college-badge.hidden,
-.college-legend.hidden {
+.college-legend.hidden,
+.pp-chips.hidden,
+.pp-filter-count.hidden {
   display: none;
+}
+
+/* ---- Filters in use, and the pager under a list (the same on every list page, see PP.pager in js/ui-state.js) ---- */
+/* How many filters are on, inside the Filters button. */
+.pp-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  background: #0f2a6b;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+/* The row of chips under the filter bar: one per filter in use, its x removes it. */
+.pp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.pp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 4px 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9999px;
+  background: #f8fafc;
+  font-size: 12px;
+  color: #334155;
+}
+.pp-chip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  color: #475569;
+}
+.pp-chip button:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+.pp-chip button:focus-visible {
+  outline: 2px solid #001c43;
+  outline-offset: 1px;
+}
+/* Pager: "Showing 1 to 50 of 308 students" on the left, Rows per page and the page buttons on the right. */
+.pp-pager-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
+}
+.pp-pager-summary {
+  margin: 0;
+  font-size: 14px;
+  color: #374151;
+}
+.pp-pager-summary b {
+  font-weight: 600;
+  color: #111827;
+}
+.pp-pager-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.pp-pager-size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #4b5563;
+  white-space: nowrap;
+}
+.pp-pager-size .pp-filter-select {
+  height: 36px;
+}
+.pp-pager {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.pp-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 500;
+}
+.pp-page-btn:hover:not(:disabled) {
+  background: #f9fafb;
+}
+.pp-page-btn:focus-visible {
+  outline: 2px solid #001c43;
+  outline-offset: 2px;
+}
+.pp-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.pp-page-btn[aria-current="page"],
+.pp-page-btn[aria-current="page"]:hover {
+  background: #0f2a6b;
+  border-color: #0f2a6b;
+  color: #fff;
+}
+.pp-page-arrow {
+  width: 6px;
+  height: 10px;
+}
+.pp-page-gap {
+  min-width: 36px;
+  text-align: center;
+  font-size: 14px;
+  color: #6b7280;
+}
+.pp-page-of {
+  margin-left: 8px;
+  font-size: 14px;
+  color: #4b5563;
+  white-space: nowrap;
+}
+/* On a phone keep only Previous, "Page X of Y" and Next. */
+@media (max-width: 640px) {
+  .pp-pager .pp-page-num,
+  .pp-pager .pp-page-gap {
+    display: none;
+  }
 }
 
 /* ---- Summary cards that open a breakdown (Audit Log, Student Information) ---- */

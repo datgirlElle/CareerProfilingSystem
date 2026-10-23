@@ -36,7 +36,9 @@
   .fp-grid { display:grid; grid-template-columns:1fr; gap:20px; }
   @media (min-width:640px) { .fp-grid { grid-template-columns:1fr 1fr; gap:24px; } }
   .fp-group { display:flex; flex-direction:column; gap:14px; min-width:0; }
-  .fp-heading { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:#475569; }
+  /* Group headings: a thin line underneath marks each one as a section label, not an option. */
+  .fp-heading { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#0f2a6b;
+    padding-bottom:6px; border-bottom:1px solid #e2e8f0; }
   .fp-field { border:0; margin:0; padding:0; min-width:0; }
   .fp-label { display:block; font-size:12px; font-weight:500; color:#334155; margin-bottom:6px; padding:0; }
   .fp-options { display:flex; flex-wrap:wrap; gap:6px; }
@@ -47,12 +49,6 @@
   .fp-option span:hover { background:#f1f5f9; }
   .fp-option input:checked + span { background:#0f2a6b; border-color:#0f2a6b; color:#fff; }
   .fp-option input:focus-visible + span { outline:2px solid #0f2a6b; outline-offset:2px; }
-  .fp-filter-count:not(.hidden) { display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px; padding:0 6px; border-radius:9999px;
-    background:#0f2a6b; color:#fff; font-size:11px; font-weight:600; }
-  .fp-chip { display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 4px 0 10px; border:1px solid #cbd5e1; border-radius:9999px;
-    background:#f8fafc; font-size:12px; color:#334155; }
-  .fp-chip button { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:9999px; color:#475569; }
-  .fp-chip button:hover { background:#e2e8f0; color:#0f172a; }
 </style>
 </head>
 <body class="bg-[#f9fafb]">
@@ -145,9 +141,27 @@
           <h1 class="text-2xl font-bold text-gray-900">Student Information Dashboard</h1>
           <p class="text-sm text-gray-500 mt-1">Overview of student assessments and counseling status</p>
         </div>
-        <div class="flex items-center gap-2">
-          <label for="ayFilter" class="pp-filter-label">School year</label>
-          <select id="ayFilter" class="pp-filter-select"></select>
+        <div class="flex items-center gap-3 flex-wrap">
+          <div class="flex items-center gap-2">
+            <label for="ayFilter" class="pp-filter-label">School Year</label>
+            <select id="ayFilter" class="pp-filter-select"></select>
+          </div>
+          <div class="flex items-center gap-2">
+            <label for="filterStrand" class="pp-filter-label">Strand</label>
+            <select id="filterStrand" class="pp-filter-select">
+              <option value="">All Strands</option>
+              <option value="STEM">STEM</option>
+              <option value="ABM">ABM</option>
+              <option value="ICT">ICT</option>
+              <option value="HUMSS">HUMSS</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2">
+            <label for="filterSection" class="pp-filter-label">Section</label>
+            <select id="filterSection" class="pp-filter-select" disabled>
+              <option value="">Select a strand first</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -210,46 +224,9 @@
         <p id="breakdownNote" class="text-xs text-gray-500 mt-2"></p>
       </section>
 
-      <!-- Sections at a glance -->
-      <div id="sectionCompletionCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-8">
-        <div class="border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h2 class="text-lg font-bold text-gray-900">Student Progress by Section</h2>
-            <p class="text-xs text-gray-500 mt-1">Registered, assessed and pending students in each section.</p>
-            <div class="text-xs text-gray-600" style="display:flex;flex-wrap:wrap;align-items:center;margin-top:8px;row-gap:4px" aria-label="Chart colors">
-              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#93c5fd;display:inline-block"></span>Registered</span>
-              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#0f2a6b;display:inline-block"></span>Assessed</span>
-              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#f59e0b;display:inline-block"></span>Pending</span>
-            </div>
-          </div>
-        </div>
-        <div class="px-6 pt-4"><p id="completionSummaryLine" class="text-sm text-gray-700"></p></div>
-        <div class="p-6 pt-3"><div id="completionChartBox" style="position:relative;height:260px"><canvas id="sectionCompletionChart" aria-label="Registered, assessed and pending students by section"></canvas></div></div>
-      </div>
-      <div id="statusCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-8">
-        <div class="border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h2 class="text-lg font-bold text-gray-900">Student Status</h2>
-            <p class="text-xs text-gray-500 mt-1">Assessed, pending and not registered students.</p>
-          </div>
-          <div class="flex items-center gap-2">
-            <label for="statusSection" class="pp-filter-label">Section</label>
-            <select id="statusSection" class="pp-filter-select"></select>
-          </div>
-        </div>
-        <div class="p-6">
-          <div id="statusChartBox" style="position:relative;height:300px"><canvas id="statusChart" aria-label="Assessed, pending and not registered students"></canvas></div>
-          <p id="statusEmpty" class="hidden text-sm text-gray-500 text-center py-10">No students in this section yet.</p>
-        </div>
-        <div class="px-6 pb-6 flex flex-wrap items-center gap-2">
-          <span class="text-xs text-gray-500">Download for the section picked above:</span>
-          <button type="button" id="dlNotRegistered" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not registered (CSV)</button>
-          <button type="button" id="dlNotAssessed" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not assessed (CSV)</button>
-        </div>
-      </div>
       <!-- Data Table Section -->
       <!-- No overflow-hidden here: the Filters drop-down hangs below its button and must be able to extend past a short table. -->
-      <div class="bg-white border border-gray-200 rounded-xl shadow-sm">
+      <div class="bg-white border border-gray-200 rounded-xl shadow-sm mb-8">
 
         <div class="border-b border-gray-200 flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between px-4 sm:px-6 py-5 gap-3">
           <div>
@@ -258,46 +235,24 @@
           <div class="ov-controls">
             <div class="pp-filter-search ov-search">
               <svg viewBox="0 -960 960 960" fill="#64748B" aria-hidden="true"><path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>
-              <input type="text" id="studentSearch" placeholder="Search by name..." aria-label="Search by name" class="pp-filter-input">
+              <input type="text" id="studentSearch" placeholder="Search students" aria-label="Search students by name" class="pp-filter-input">
             </div>
-            <button type="button" id="downloadListBtn" class="pp-filter-btn ov-btn" title="A PDF of every student in the list below, with the filters in use">
-              <img src="images/audit/icon-export.svg" alt="" class="w-4 h-4">
-              <span id="downloadListLabel">Export PDF</span>
-            </button>
-            <button type="button" id="emailListedBtn" class="pp-filter-btn is-navy ov-btn hidden">Email these students</button>
             <div class="relative ov-filter">
               <button type="button" id="filterBtn" aria-expanded="false" aria-controls="filterPanel" class="pp-filter-btn ov-btn">
                 <svg class="w-3.5 h-3.5" viewBox="0 -960 960 960" fill="#64748B" aria-hidden="true"><path d="M400-240v-80h160v80H400ZM240-440v-80h480v80H240ZM120-640v-80h720v80H120Z"/></svg>
                 Filters
-                <span id="filterCount" class="fp-filter-count hidden"></span>
+                <span id="filterCount" class="pp-filter-count hidden"></span>
               </button>
               <div id="filterPanel" role="dialog" aria-label="Filter students" class="hidden absolute right-0 top-[calc(100%+8px)] bg-white border border-gray-200 rounded-xl shadow-lg z-10">
-                <div class="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100">
-                  <h3 class="text-sm font-semibold text-gray-900">Filter students</h3>
-                  <button type="button" id="closeFilters" aria-label="Close filters" class="w-8 h-8 -mr-2 rounded-md flex items-center justify-center text-gray-500 hover:bg-gray-100">
+                <!-- No title: the panel opens right under the Filters button. The × is its only close button (and Escape). -->
+                <div class="flex justify-end px-3 pt-2">
+                  <button type="button" id="closeFilters" aria-label="Close filters" class="w-8 h-8 rounded-md flex items-center justify-center text-gray-500 hover:bg-gray-100">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
                   </button>
                 </div>
-                <div class="fp-grid px-5 py-4 max-h-[60vh] overflow-y-auto">
+                <div class="fp-grid px-5 pb-4 max-h-[60vh] overflow-y-auto">
                   <div class="fp-group">
-                    <p class="fp-heading">Class</p>
-                    <fieldset class="fp-field">
-                      <legend class="fp-label">Strand</legend>
-                      <div class="fp-options">
-                        <label class="fp-option"><input type="radio" name="filterStrand" value="" checked><span>All</span></label>
-                        <label class="fp-option"><input type="radio" name="filterStrand" value="STEM"><span>STEM</span></label>
-                        <label class="fp-option"><input type="radio" name="filterStrand" value="ABM"><span>ABM</span></label>
-                        <label class="fp-option"><input type="radio" name="filterStrand" value="ICT"><span>ICT</span></label>
-                        <label class="fp-option"><input type="radio" name="filterStrand" value="HUMSS"><span>HUMSS</span></label>
-                      </div>
-                    </fieldset>
-                    <div>
-                      <label for="filterSection" class="fp-label">Section</label>
-                      <select id="filterSection" class="pp-filter-select w-full">
-                        <option value="">All sections</option>
-                      </select>
-                    </div>
-                    <p class="fp-heading pt-2">Account</p>
+                    <p class="fp-heading">Account</p>
                     <fieldset class="fp-field">
                       <legend class="fp-label">Registration</legend>
                       <div class="fp-options">
@@ -307,7 +262,7 @@
                       </div>
                     </fieldset>
                     <fieldset class="fp-field">
-                      <legend class="fp-label">Account</legend>
+                      <legend class="fp-label">Status</legend>
                       <div class="fp-options">
                         <label class="fp-option"><input type="radio" name="filterAccount" value="" checked><span>All</span></label>
                         <label class="fp-option"><input type="radio" name="filterAccount" value="active"><span>Active</span></label>
@@ -346,15 +301,21 @@
                     </fieldset>
                   </div>
                 </div>
-                <div class="flex items-center justify-between gap-3 px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-xl">
-                  <button type="button" id="clearFilters" class="text-sm font-medium text-gray-600 hover:text-gray-900 px-2 py-2 -ml-2 rounded-md">Clear all</button>
-                  <button type="button" id="applyFilters" class="bg-[#0f2a6b] text-white text-sm font-medium rounded-md px-5 py-2 hover:opacity-90">Apply filters</button>
-                </div>
+                <!-- No Apply or Done button: every choice updates the list right away; ×, Escape or a click outside closes the panel. -->
               </div>
             </div>
+            <button type="button" id="clearFilters" disabled class="pp-clear-filters ov-btn">
+              <span class="pp-clear-filters-icon" aria-hidden="true"></span>
+              Clear filters
+            </button>
+            <button type="button" id="downloadListBtn" class="pp-filter-btn ov-btn" title="A PDF of every student in the list below, with the filters in use">
+              <img src="images/audit/icon-export.svg" alt="" class="w-4 h-4">
+              <span id="downloadListLabel">Export PDF</span>
+            </button>
+            <button type="button" id="emailListedBtn" class="pp-filter-btn is-navy ov-btn hidden">Email these students</button>
           </div>
         </div>
-        <div id="activeFilters" class="hidden px-4 sm:px-6 py-3 border-b border-gray-200 flex flex-wrap items-center gap-2" aria-label="Filters in use"></div>
+        <div id="activeFilters" class="pp-chips hidden" aria-label="Filters in use"></div>
         <p id="noResults" class="hidden px-6 py-6 text-sm text-gray-500 text-center">No students match your search or filters.</p>
 
         <div class="overflow-auto max-h-[60vh]" id="studentTableScroll">
@@ -379,9 +340,46 @@
           </table>
         </div>
 
-        <div class="border-t border-gray-200 px-6 py-4 flex flex-wrap items-center justify-between gap-2">
-          <p class="text-sm text-gray-500" id="paginationSummary">Loading…</p>
-          <p class="text-xs text-red-600 hidden" id="exportError" role="alert"></p>
+        <!-- Filled by PP.pager: "Showing 1 to 50 of N students", Rows per page and the page buttons. -->
+        <div id="studentPager"></div>
+        <p class="text-xs text-red-600 hidden px-6 pb-4" id="exportError" role="alert"></p>
+      </div>
+
+      <!-- Sections at a glance -->
+      <div id="sectionCompletionCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-8">
+        <div class="border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-gray-900">Student Progress by Section</h2>
+            <p class="text-xs text-gray-500 mt-1">Registered, assessed and pending students in each section.</p>
+            <div class="text-xs text-gray-600" style="display:flex;flex-wrap:wrap;align-items:center;margin-top:8px;row-gap:4px" aria-label="Chart colors">
+              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#93c5fd;display:inline-block"></span>Registered</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#0f2a6b;display:inline-block"></span>Assessed</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#f59e0b;display:inline-block"></span>Pending</span>
+            </div>
+          </div>
+        </div>
+        <div class="px-6 pt-4"><p id="completionSummaryLine" class="text-sm text-gray-700"></p></div>
+        <div class="p-6 pt-3"><div id="completionChartBox" style="position:relative;height:260px"><canvas id="sectionCompletionChart" aria-label="Registered, assessed and pending students by section"></canvas></div></div>
+      </div>
+      <div id="statusCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-8">
+        <div class="border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-gray-900">Student Status</h2>
+            <p class="text-xs text-gray-500 mt-1">Assessed, pending and not registered students.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <label for="statusSection" class="pp-filter-label">Section</label>
+            <select id="statusSection" class="pp-filter-select"></select>
+          </div>
+        </div>
+        <div class="p-6">
+          <div id="statusChartBox" style="position:relative;height:300px"><canvas id="statusChart" aria-label="Assessed, pending and not registered students"></canvas></div>
+          <p id="statusEmpty" class="hidden text-sm text-gray-500 text-center py-10">No students in this section yet.</p>
+        </div>
+        <div class="px-6 pb-6 flex flex-wrap items-center gap-2">
+          <span class="text-xs text-gray-500">Download for the section picked above:</span>
+          <button type="button" id="dlNotRegistered" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not registered (CSV)</button>
+          <button type="button" id="dlNotAssessed" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not assessed (CSV)</button>
         </div>
       </div>
 
@@ -477,13 +475,15 @@
   const filterBtn = document.getElementById('filterBtn');
   const filterPanel = document.getElementById('filterPanel');
 
+  // The Filters panel stays open until its × is clicked (or Escape, for keyboard users): other menus and clicks
+  // elsewhere on the page leave it alone.
   notifBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    toggleDropdown(notifPanel, profilePanel, filterPanel);
+    toggleDropdown(notifPanel, profilePanel);
   });
   profileBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    toggleDropdown(profilePanel, notifPanel, filterPanel);
+    toggleDropdown(profilePanel, notifPanel);
   });
   function closeFilterPanel(returnFocus) {
     if (filterPanel.classList.contains('hidden')) return;
@@ -491,12 +491,14 @@
     filterBtn.setAttribute('aria-expanded', 'false');
     if (returnFocus) filterBtn.focus();
   }
+  // The Filters button only opens the panel; a second click keeps it open.
   filterBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    toggleDropdown(filterPanel, notifPanel, profilePanel);
-    const open = !filterPanel.classList.contains('hidden');
-    filterBtn.setAttribute('aria-expanded', String(open));
-    if (open) filterPanel.querySelector('input:checked').focus();
+    notifPanel.classList.add('hidden');
+    profilePanel.classList.add('hidden');
+    filterPanel.classList.remove('hidden');
+    filterBtn.setAttribute('aria-expanded', 'true');
+    filterPanel.querySelector('input:checked').focus();
   });
   document.getElementById('closeFilters').addEventListener('click', () => closeFilterPanel(true));
   filterPanel.addEventListener('keydown', (e) => {
@@ -505,7 +507,6 @@
   document.addEventListener('click', () => {
     notifPanel.classList.add('hidden');
     profilePanel.classList.add('hidden');
-    closeFilterPanel(false);
   });
 
   // Close open dropdown panels on scroll — they were anchored under their
@@ -537,12 +538,27 @@
   const searchInput = document.getElementById('studentSearch');
   const noResults = document.getElementById('noResults');
   const tbody = document.getElementById('studentTbody');
-  const state = { search: '', strand: '', section: '', status: '', counseling: '', registration: '', assessment: '', account: '', academicYear: '' };
-  // Summary card breakdowns (see the script near the end): the card open, the last numbers, and the strand click in use
-  // ({ card, strand, before }, where before holds the filters it changed, to put back on undo).
+  // The filters and page live in the page address, so Reload and Back show the same list. The search (it can be a
+  // name) is kept in this tab only, never in the address (PP.listState in js/ui-state.js).
+  const listState = PP.listState({ search: '', strand: '', section: '', status: '', counseling: '', registration: '', assessment: '', account: '', academicYear: '', page: 1, pageSize: 50 }, ['search']);
+  const state = listState.read();
+  if (![25, 50, 100].includes(state.pageSize)) state.pageSize = 50;
+  searchInput.value = state.search;
+  const getStudents = PP.latestJson(); // a new request cancels the one still on its way
+  const pager = PP.pager('studentPager', {
+    noun: ['student', 'students'], label: 'Student list pages', pageSize: state.pageSize, emptyText: 'No students to show',
+    onChange: function(page, pageSize, focus) {
+      state.page = page;
+      state.pageSize = pageSize;
+      document.getElementById('studentTableScroll').scrollTop = 0;
+      load({ listOnly: true, focus: focus });
+    }
+  });
+  // Summary card breakdowns (see the script near the end): the card open and the last numbers. The picked strand is
+  // state.strand itself, so it shows on every card.
   let openCard = null;
   let lastSummary = null;
-  let picked = null;
+  let pickedSets = null; // { before }: what a card's strand click replaced (status, assessment), put back when it is undone
   let isPastYear = false;
   let lastTotal = 0;
   let statusSection = ''; // '' = all sections, otherwise "STRAND|SECTION"
@@ -587,7 +603,6 @@
     renderStatus(lastSectionRows);
   });
   let lastSectionRows = [];
-  let debounceHandle = null;
 
   // ---- Student progress by section: registered, assessed and still pending, each as a share of the students expected.
   let completionChart = null;
@@ -776,33 +791,55 @@
     '</tr>';
   }
 
-  async function load() {
+  // Loads one page of students (state.page) with the search and filters in use.
+  // opts.listOnly: a filter, search or page change. The cards and charts count every student in the school year (not the
+  // table's filters), so they stay as they are instead of flashing. opts.focus: the pager button to focus afterwards.
+  async function load(opts = {}) {
+    const listOnly = !!opts.listOnly && lastSummary !== null;
     const statIds = ['cardTotalStudents', 'cardCompleted', 'cardPending', 'cardMismatched'];
     const chartBoxes = ['completionChartBox', 'statusChartBox'];
+    listState.save(state);
     PP.showSkeleton(tbody, PP.skeleton.rows(10, 6));
-    document.getElementById('paginationSummary').innerHTML = PP.skeleton.line('220px');
-    statIds.forEach(PP.statLoading);
-    ['cardCompletedPct', 'cardPendingPct', 'cardMismatchedPct'].forEach(function(id) { document.getElementById(id).textContent = ''; });
-    if (!completionChart) { document.getElementById('sectionCompletionCard').classList.remove('hidden'); PP.chartLoading('completionChartBox'); }
-    if (!statusChart) { document.getElementById('statusCard').classList.remove('hidden'); PP.chartLoading('statusChartBox'); }
+    pager.loading();
+    if (!listOnly) {
+      statIds.forEach(PP.statLoading);
+      ['cardCompletedPct', 'cardPendingPct', 'cardMismatchedPct'].forEach(function(id) { document.getElementById(id).textContent = ''; });
+      if (!completionChart) { document.getElementById('sectionCompletionCard').classList.remove('hidden'); PP.chartLoading('completionChartBox'); }
+      if (!statusChart) { document.getElementById('statusCard').classList.remove('hidden'); PP.chartLoading('statusChartBox'); }
+    }
     const params = new URLSearchParams({
-      all: '1', search: state.search, strand: state.strand, section: state.section, status: state.status, counseling: state.counseling,
-      registration: state.registration, assessment: state.assessment, account: state.account, academicYear: state.academicYear,
+      page: state.page, pageSize: state.pageSize, search: state.search, strand: state.strand, section: state.section, status: state.status,
+      counseling: state.counseling, registration: state.registration, assessment: state.assessment, account: state.account, academicYear: state.academicYear,
     });
     let data;
     try {
-      data = await PP.fetchJson('api/students.php?' + params.toString());
+      data = await getStudents('api/students.php?' + params.toString());
     } catch (e) {
+      if (e.cancelled) return; // a newer request replaced this one
+      if (e.status === 401) { window.location.replace('staff-login'); return; }
       PP.showError(tbody, e.message, load, 10);
-      statIds.forEach(PP.statFailed);
-      document.getElementById('paginationSummary').textContent = '';
-      chartBoxes.forEach(function(id) { PP.chartError(id, e.message, load); });
+      pager.clear();
+      if (!listOnly) {
+        statIds.forEach(PP.statFailed);
+        chartBoxes.forEach(function(id) { PP.chartError(id, e.message, load); });
+      }
       return;
     }
     tbody.removeAttribute('aria-busy');
-    chartBoxes.forEach(PP.chartLoaded);
     isPastYear = !!data.isPastYear;
     lastTotal = data.total;
+    state.page = data.page; // the server keeps the page inside the list (a page past the end shows the last one)
+    listState.save(state);
+    pager.render(Object.assign({}, data, { shown: data.students.length }));
+    pager.focus(opts.focus);
+    noResults.classList.toggle('hidden', data.students.length !== 0);
+    tbody.innerHTML = data.students.length
+      ? data.students.map((s, i) => renderRow(s, data.startIndex + i)).join('')
+      : '';
+    renderEmailButton();
+    if (listOnly) { renderBreakdown(); return; } // a strand picked in a card breakdown may have just been changed
+
+    chartBoxes.forEach(PP.chartLoaded);
     renderYearOptions(data);
 
     document.getElementById('cardTotalStudents').textContent = data.summary.totalStudents.toLocaleString();
@@ -821,22 +858,17 @@
     lastSectionRows = secRows;
     renderStatus(secRows);
     renderCompletion(secRows);
-    noResults.classList.toggle('hidden', data.students.length !== 0);
-    tbody.innerHTML = data.students.length
-      ? data.students.map((s, i) => renderRow(s, data.startIndex + i)).join('')
-      : '';
+  }
 
-    // Staff can email everyone currently listed when the list is Pending or Mismatched students.
-    // Past school years are looked at, not acted on: no emails from them.
+  // Staff can email everyone currently listed when the list is Pending or Mismatched students.
+  // Past school years are looked at, not acted on: no emails from them.
+  function renderEmailButton() {
     const emailBtn = document.getElementById('emailListedBtn');
     const inviteMode = !isPastYear && state.registration === 'notRegistered' && !(state.status === 'Pending' || state.status === 'Mismatched');
     const showEmail = !isPastYear && (state.status === 'Pending' || state.status === 'Mismatched' || inviteMode);
     emailBtn.classList.toggle('hidden', !showEmail);
     emailBtn.classList.toggle('flex', showEmail);
     emailBtn.textContent = inviteMode ? 'Email: invite to register' : (state.status === 'Mismatched' ? 'Email: visit the Guidance Office' : 'Email: assessment reminder');
-
-    document.getElementById('paginationSummary').innerHTML =
-      'Showing <span class="font-medium text-gray-900">' + data.total.toLocaleString() + '</span> student' + (data.total === 1 ? '' : 's') + '. Scroll the table to see more.';
   }
 
   // "Email these students": a reminder to the Pending students, or a request to visit the
@@ -989,29 +1021,38 @@
   }
   ayFilter.addEventListener('change', function() {
     state.academicYear = ayFilter.value;
+    state.page = 1;
     load();
   });
 
-  searchInput.addEventListener('input', () => {
-    clearTimeout(debounceHandle);
-    debounceHandle = setTimeout(() => {
-      state.search = searchInput.value.trim();
-            load();
-    }, 300);
-  });
-  // The Section filter is a drop-down of the sections the Head of Guidance / counselors maintain (Account
-  // Management), read fresh each time the panel opens so a section added a moment ago is already there.
-  // With All Strands it lists every section; with one strand, just that strand's.
+  // The search waits until typing stops for 300 ms, then shows the first page of matches.
+  const searchSoon = PP.debounce(function() {
+    state.search = searchInput.value.trim();
+    state.page = 1;
+    load({ listOnly: true });
+  }, 300);
+  searchInput.addEventListener('input', function() { updateClearBtn(); searchSoon(); });
+  // Strand and Section sit at the top of the page, next to School Year (same as Analytics). Section depends on
+  // Strand: picking a Strand unlocks its own sections; with no Strand, Section stays disabled (a section already
+  // belongs to one strand, so there is nothing to narrow yet). sectionOptions comes from Account Management.
+  const filterStrand = document.getElementById('filterStrand');
+  const filterSection = document.getElementById('filterSection');
   let sectionOptions = []; // [{ strand, code, isActive }]
   function renderSectionFilter() {
-    const sec = document.getElementById('filterSection');
-    const strand = getChoice('filterStrand');
-    const previous = sec.value;
-    const list = sectionOptions.filter(function(s) { return !strand || s.strand === strand; });
-    sec.innerHTML = '<option value="">All sections</option>' + list.map(function(s) {
-      return '<option value="' + escapeHtml(s.code) + '">' + escapeHtml(s.code) + (strand ? '' : ' (' + escapeHtml(s.strand) + ')') + (s.isActive ? '' : ' (inactive)') + '</option>';
+    const strand = filterStrand.value;
+    if (!strand) {
+      filterSection.innerHTML = '<option value="">Select a strand first</option>';
+      filterSection.value = '';
+      filterSection.disabled = true;
+      return;
+    }
+    const previous = filterSection.value || state.section; // the saved section, before its option has been loaded
+    const list = sectionOptions.filter(function(s) { return s.strand === strand; });
+    filterSection.innerHTML = '<option value="">All Sections</option>' + list.map(function(s) {
+      return '<option value="' + escapeHtml(s.code) + '">' + escapeHtml(s.code) + (s.isActive ? '' : ' (inactive)') + '</option>';
     }).join('');
-    sec.value = list.some(function(s) { return s.code === previous; }) ? previous : '';
+    filterSection.value = list.some(function(s) { return s.code === previous; }) ? previous : '';
+    filterSection.disabled = false;
   }
   async function refreshSectionFilter() {
     try {
@@ -1025,14 +1066,32 @@
     } catch (e) { /* keep the list we already have */ }
     renderSectionFilter();
   }
-  document.querySelectorAll('input[name="filterStrand"]').forEach(function(r) { r.addEventListener('change', renderSectionFilter); });
-  document.getElementById('filterBtn').addEventListener('click', refreshSectionFilter);
+  // Strand and Section apply the moment they change (no Apply button).
+  // A change by hand is the user's own choice: a card click's "put back" memory (pickedSets) is dropped, as on the Audit Log.
+  filterStrand.addEventListener('change', function() {
+    pickedSets = null;
+    renderSectionFilter();
+    state.strand = filterStrand.value;
+    state.section = filterSection.value; // renderSectionFilter() may have reset Section
+    state.page = 1;
+    renderActiveFilters();
+    load({ listOnly: true });
+  });
+  filterSection.addEventListener('change', function() {
+    pickedSets = null;
+    state.section = filterSection.value;
+    state.page = 1;
+    renderActiveFilters();
+    load({ listOnly: true });
+  });
   refreshSectionFilter();
 
-  // Each filter: the state key it sets, its control (a radio group by name, or the Section drop-down), and its label for the chips.
+  // Each filter: the state key it sets, its control (a radio group by name, or a drop-down), and its label for the
+  // chips. Strand and Section are chip:false: they always show at the top of the page, so they never need a chip
+  // or to count toward the Filters button's badge (that badge is only for what is inside the popover).
   const FILTERS = [
-    { key: 'strand', name: 'filterStrand', label: 'Strand' },
-    { key: 'section', select: 'filterSection', label: 'Section' },
+    { key: 'strand', select: 'filterStrand', label: 'Strand', chip: false },
+    { key: 'section', select: 'filterSection', label: 'Section', chip: false },
     { key: 'registration', name: 'filterRegistration', label: 'Registration' },
     { key: 'account', name: 'filterAccount', label: 'Account' },
     { key: 'status', name: 'filterStatus', label: 'Assessment status' },
@@ -1057,104 +1116,125 @@
   }
   // The Filters button shows how many are on, and each one in use is a chip under the toolbar that removes it.
   function renderActiveFilters() {
-    const active = FILTERS.filter(function(f) { return state[f.key]; });
+    const active = FILTERS.filter(function(f) { return f.chip !== false && state[f.key]; });
     const count = document.getElementById('filterCount');
     count.textContent = active.length;
     count.classList.toggle('hidden', active.length === 0);
     filterBtn.setAttribute('aria-label', active.length ? 'Filters, ' + active.length + ' in use' : 'Filters');
     const box = document.getElementById('activeFilters');
     box.classList.toggle('hidden', active.length === 0);
-    box.classList.toggle('flex', active.length > 0);
     box.innerHTML = active.map(function(f) {
       const text = f.label + ': ' + choiceText(f, state[f.key]);
-      return '<span class="fp-chip">' + escapeHtml(text) +
+      return '<span class="pp-chip">' + escapeHtml(text) +
         '<button type="button" data-remove-filter="' + f.key + '" aria-label="Remove ' + escapeHtml(text) + '">' +
         '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg></button></span>';
-    }).join('') + (active.length > 1 ? '<button type="button" data-remove-filter="all" class="text-xs font-medium text-gray-600 hover:text-gray-900 underline underline-offset-2 px-1">Clear all</button>' : '');
+    }).join('');
+    updateClearBtn();
+  }
+  // Clear filters: grey until a filter or the search is in use, then navy (as on the Audit Log).
+  const clearFiltersBtn = document.getElementById('clearFilters');
+  function updateClearBtn() {
+    clearFiltersBtn.disabled = !(searchInput.value.trim() || FILTERS.some(function(f) { return state[f.key]; }));
   }
   document.getElementById('activeFilters').addEventListener('click', function(e) {
     const btn = e.target.closest('[data-remove-filter]');
     if (!btn) return;
     const key = btn.dataset.removeFilter;
-    FILTERS.forEach(function(f) {
-      if (key !== 'all' && f.key !== key) return;
-      setControl(f, '');
-      state[f.key] = '';
-    });
-    if (key === 'all' || key === 'strand') renderSectionFilter();
+    const f = filterFor(key);
+    setControl(f, '');
+    state[f.key] = '';
+    pickedSets = null;
+    state.page = 1;
     renderActiveFilters();
-    load();
+    load({ listOnly: true });
     // The chip just removed had focus; keep the keyboard in the same place.
     const next = document.querySelector('#activeFilters button') || filterBtn;
     next.focus();
   });
-  document.getElementById('applyFilters').addEventListener('click', () => {
+  // No Apply button: a choice in the panel updates the list at once.
+  filterPanel.addEventListener('change', function() {
     FILTERS.forEach(function(f) { state[f.key] = controlValue(f); });
+    pickedSets = null;
+    state.page = 1;
     renderActiveFilters();
-    load();
-    closeFilterPanel(true);
+    load({ listOnly: true });
   });
-  // Clear all resets the choices in the panel and shows every student again; the search box keeps its text.
-  document.getElementById('clearFilters').addEventListener('click', () => {
+  // Clear filters resets the search and every filter and shows the first page of all students.
+  clearFiltersBtn.addEventListener('click', () => {
+    searchSoon.cancel();
+    searchInput.value = '';
+    state.search = '';
     FILTERS.forEach(function(f) { setControl(f, ''); state[f.key] = ''; });
+    pickedSets = null;
+    state.page = 1;
     renderSectionFilter();
     renderActiveFilters();
-    load();
+    // The button just became disabled, which drops keyboard focus. Keep focus in the filter bar.
+    searchInput.focus();
+    load({ listOnly: true });
   });
   // The panel opens leftward from the Filters button. On a narrower screen it keeps inside the table card (so it never slides
   // under the sidebar), and below 560px it shows one column. On a phone the CSS already makes it full width.
   function fitFilterPanel() {
     filterPanel.style.width = '';
+    filterPanel.style.left = '';
+    filterPanel.style.right = '';
     filterPanel.querySelector('.fp-grid').style.gridTemplateColumns = '';
     if (window.innerWidth < 640) return;
     const card = filterBtn.closest('.rounded-xl').getBoundingClientRect();
-    const room = Math.floor(filterBtn.getBoundingClientRect().right - card.left - 16);
+    const btn = filterBtn.getBoundingClientRect();
+    const roomLeft = Math.floor(btn.right - card.left - 16);
+    const roomRight = Math.floor(card.right - btn.left - 16);
+    // Open toward the side with more room (the toolbar wraps onto its own line on narrower screens).
+    if (roomRight > roomLeft) { filterPanel.style.left = '0'; filterPanel.style.right = 'auto'; }
+    const room = Math.max(roomLeft, roomRight);
     if (room < 680) {
       filterPanel.style.width = room + 'px';
       if (room < 560) filterPanel.querySelector('.fp-grid').style.gridTemplateColumns = '1fr';
     }
   }
   window.addEventListener('resize', () => { if (!filterPanel.classList.contains('hidden')) fitFilterPanel(); });
-  // Closing without Apply leaves the table as it is, so the panel shows the filters in use the next time it opens.
+  // Opening the panel shows the filters in use (a chip or a card breakdown may have changed them while it was closed).
   filterBtn.addEventListener('click', () => {
     if (filterPanel.classList.contains('hidden')) return;
     FILTERS.forEach(function(f) { if (!f.select) setControl(f, state[f.key] || ''); });
-    renderSectionFilter();
-    document.getElementById('filterSection').value = state.section || '';
     fitFilterPanel();
     filterPanel.querySelector('input:checked').focus();
   });
 
-  // ---- Card breakdowns, as on the Audit Log: click a card to see its number split by strand; click a strand to show only
-  // those students in the table, and click it again to undo. A strand click sets the same filters as the Filters panel,
-  // so the Filters count and the chips under the toolbar show it too. One card open at a time. The numbers count every
-  // student in view, before the table's filters, like the cards themselves. Values go in with textContent.
+  // ---- Card breakdowns, same rule as the Audit Log: click a card to see its number split by strand; click a strand to
+  // show only those students in the table. The picked strand is the Strand filter itself (top of the page), so it stays
+  // picked on every card until it is cleared. On a card with its own filter (Completed, Pending, Mismatched), clicking
+  // the picked strand first narrows the table to that card's students; clicking it again clears the strand.
+  // One card open at a time. The numbers count every student in view, before the table's filters, like the cards
+  // themselves. Values go in with textContent.
   const breakdownPanel = document.getElementById('breakdownPanel');
   const breakdownTitle = document.getElementById('breakdownTitle');
   const breakdownRows = document.getElementById('breakdownRows');
   const breakdownNote = document.getElementById('breakdownNote');
-  // Each card: its title, its number per strand, its bar color (the card icon's), and what a strand click sets besides
-  // Strand. The status and assessed filters are set together, so an earlier choice cannot empty the table.
+  // Each card: its title, its number per strand, its bar color (the card icon's), what a strand click sets besides
+  // Strand, and the word for its students in the notes. The status and assessed filters are set together, so an
+  // earlier choice cannot empty the table.
   const CARDS = {
-    total: { title: 'Total students by strand', count: function(b) { return b.total; }, color: '#2563eb', sets: {} },
-    completed: { title: 'Assessments completed by strand', count: function(b) { return b.completed; }, color: '#16a34a', sets: { status: 'Completed', assessment: '' } },
-    pending: { title: 'Pending assessments by strand', count: function(b) { return b.pending; }, color: '#d97706', sets: { status: '', assessment: 'notAssessed' } },
-    mismatched: { title: 'Mismatched results by strand', count: function(b) { return b.mismatched; }, color: '#9333ea', sets: { status: 'Mismatched', assessment: '' } },
+    total: { title: 'Total students by strand', count: function(b) { return b.total; }, color: '#2563eb', sets: {}, group: '' },
+    completed: { title: 'Assessments completed by strand', count: function(b) { return b.completed; }, color: '#16a34a', sets: { status: 'Completed', assessment: '' }, group: 'completed' },
+    pending: { title: 'Pending assessments by strand', count: function(b) { return b.pending; }, color: '#d97706', sets: { status: '', assessment: 'notAssessed' }, group: 'pending' },
+    mismatched: { title: 'Mismatched results by strand', count: function(b) { return b.mismatched; }, color: '#9333ea', sets: { status: 'Mismatched', assessment: '' }, group: 'mismatched' },
   };
 
   function filterFor(key) { return FILTERS.find(function(f) { return f.key === key; }); }
-  // The click is still in use only while the filters are still what it set (the chips or the panel can change them).
-  function pickedStillOn() {
-    if (!picked) return false;
-    const sets = Object.assign({ strand: picked.strand }, CARDS[picked.card].sets);
+  // True when the table already shows this card's students (its own filters are on). Always true for Total.
+  function cardFiltersOn(card) {
+    const sets = CARDS[card].sets;
     return Object.keys(sets).every(function(k) { return state[k] === sets[k]; });
   }
   function applyFilterValues(values) {
     Object.keys(values).forEach(function(k) { state[k] = values[k]; setControl(filterFor(k), values[k]); });
     renderSectionFilter();
-    document.getElementById('filterSection').value = state.section || '';
+    state.section = filterSection.value; // a section of another strand is reset, so the table never comes back empty for it
+    state.page = 1;
     renderActiveFilters();
-    load();
+    load({ listOnly: true });
   }
   function setCardsExpanded() {
     document.querySelectorAll('.summary-card').forEach(function(card) {
@@ -1171,17 +1251,17 @@
   }
   function renderBreakdown() {
     if (openCard === null || !lastSummary || !Array.isArray(lastSummary.byStrand)) return;
-    if (!pickedStillOn()) picked = null;
     const info = CARDS[openCard];
     const groups = lastSummary.byStrand;
     const sum = groups.reduce(function(n, b) { return n + info.count(b); }, 0);
+    const exact = cardFiltersOn(openCard); // the table shows this card's students
     // The rows are rebuilt after every load; keep keyboard focus on the strand that had it.
     const focused = breakdownRows.contains(document.activeElement) ? document.activeElement.dataset.strand : null;
     breakdownTitle.textContent = info.title;
     breakdownRows.replaceChildren.apply(breakdownRows, groups.map(function(b) {
       const n = info.count(b);
       const pct = sum > 0 ? Math.round((n / sum) * 100) : 0;
-      const isPicked = !!picked && picked.card === openCard && picked.strand === b.strand;
+      const isPicked = state.strand === b.strand; // the Strand filter, so it carries over to every card
       const row = document.createElement('button');
       row.type = 'button';
       row.className = isPicked ? 'breakdown-row is-picked' : 'breakdown-row';
@@ -1196,7 +1276,7 @@
       if (isPicked) {
         const tag = document.createElement('span');
         tag.className = 'breakdown-tag';
-        tag.textContent = 'Showing';
+        tag.textContent = exact ? 'Showing' : 'Selected';
         name.appendChild(tag);
       }
       const bar = document.createElement('span');
@@ -1214,9 +1294,11 @@
       row.append(name, bar, count, share);
       return row;
     }));
-    breakdownNote.textContent = picked && picked.card === openCard
-      ? 'Showing ' + picked.strand + ' only in the table. Click it again to show all strands.'
-      : 'Click a strand to show only its students in the table.';
+    breakdownNote.textContent = !state.strand
+      ? 'Click a strand to show only its students in the table.'
+      : exact
+        ? 'Showing ' + state.strand + ' only in the table. Click it again to show all strands.'
+        : state.strand + ' is selected. Click it to show only its ' + info.group + ' students.';
     if (focused) {
       const again = breakdownRows.querySelector('[data-strand="' + CSS.escape(focused) + '"]');
       if (again && !again.disabled) again.focus();
@@ -1243,22 +1325,27 @@
   breakdownRows.addEventListener('click', function(e) {
     const row = e.target.closest('.breakdown-row');
     if (!row || row.disabled) return;
-    if (!pickedStillOn()) picked = null;
-    if (picked && picked.card === openCard && picked.strand === row.dataset.strand) {
-      // Undo: put back the filters from before the first strand click.
-      const before = picked.before;
-      picked = null;
-      applyFilterValues(before);
+    const sets = CARDS[openCard].sets;
+    if (row.dataset.strand === state.strand && cardFiltersOn(openCard)) {
+      // Already showing this card's students of this strand: clear the strand and put back what the card filters replaced.
+      const values = Object.assign({ strand: '' }, pickedSets ? pickedSets.before : {});
+      pickedSets = null;
+      applyFilterValues(values);
       return;
     }
-    const values = Object.assign({ strand: row.dataset.strand }, CARDS[openCard].sets);
-    // Keep the filters from before the first click, so undo goes all the way back.
-    const before = picked ? picked.before : {};
-    Object.keys(values).forEach(function(k) { if (!(k in before)) before[k] = state[k]; });
-    picked = { card: openCard, strand: row.dataset.strand, before: before };
-    applyFilterValues(values);
+    // Pick the strand (or keep it) and narrow to this card's students. Remember each filter's value from before the
+    // first click that changed it, so clearing goes all the way back.
+    const before = pickedSets ? pickedSets.before : {};
+    Object.keys(sets).forEach(function(k) { if (!(k in before) && state[k] !== sets[k]) before[k] = state[k]; });
+    pickedSets = Object.keys(before).length ? { before: before } : null;
+    applyFilterValues(Object.assign({ strand: row.dataset.strand }, sets));
   });
 
+  // Start from the filters saved in the page address (Reload, Back, a shared link).
+  FILTERS.forEach(function(f) { if (!f.select) setControl(f, state[f.key] || ''); });
+  filterStrand.value = state.strand || '';
+  renderSectionFilter();
+  renderActiveFilters();
   await load();
 })();
 </script>

@@ -239,20 +239,19 @@
                 <option value="oldest">Oldest first</option>
               </select>
             </div>
-            <div class="flex items-center gap-2 flex-wrap" id="annTabs" role="tablist">
-              <button type="button" role="tab" class="ann-tab" data-tab="all">All <span class="ann-tab-count" data-count="all">0</span></button>
-              <button type="button" role="tab" class="ann-tab" data-tab="published">Published <span class="ann-tab-count" data-count="published">0</span></button>
-              <button type="button" role="tab" class="ann-tab" data-tab="scheduled">Scheduled <span class="ann-tab-count" data-count="scheduled">0</span></button>
-              <button type="button" role="tab" class="ann-tab" data-tab="draft">Drafts <span class="ann-tab-count" data-count="draft">0</span></button>
+            <!-- Same tab buttons as Monitoring and Counseling Requests (css/components.css .pp-filter-tab); aria-pressed marks the chosen one. -->
+            <div class="flex items-center gap-2 flex-wrap" id="annTabs" role="group" aria-label="Which announcements to show">
+              <button type="button" aria-pressed="false" class="ann-tab pp-filter-tab" data-tab="all">All <span class="ann-tab-count" data-count="all"></span></button>
+              <button type="button" aria-pressed="false" class="ann-tab pp-filter-tab" data-tab="published">Published <span class="ann-tab-count" data-count="published"></span></button>
+              <button type="button" aria-pressed="false" class="ann-tab pp-filter-tab" data-tab="scheduled">Scheduled <span class="ann-tab-count" data-count="scheduled"></span></button>
+              <button type="button" aria-pressed="false" class="ann-tab pp-filter-tab" data-tab="draft">Drafts <span class="ann-tab-count" data-count="draft"></span></button>
             </div>
           </div>
           <div id="announcementsList" class="divide-y divide-slate-100">
             <p class="px-6 py-8 text-center text-sm text-slate-400">Loading…</p>
           </div>
-          <div class="border-t border-slate-200 px-6 py-3 flex items-center justify-between gap-3 flex-wrap">
-            <p class="text-sm text-slate-500" id="annPagerSummary">&nbsp;</p>
-            <div class="flex items-center gap-1" id="annPager"></div>
-          </div>
+          <!-- Filled by PP.pager: "Showing 1 to 25 of N announcements", Rows per page and the page buttons. -->
+          <div id="annPager"></div>
         </div>
 
       </div>
@@ -449,23 +448,29 @@
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Manila' });
   }
 
-  // ---- List: tabs, search, sort, paging (all done in the browser; the list is small) ----
-  const PAGE_SIZE = 5;
+  // ---- List: tabs, search, sort, paging (all done in the browser; the list is small, loaded once) ----
+  // Tab, sort and page live in the page address (Reload, Back); the search stays in this tab only (PP.listState).
+  const annSearch = document.getElementById('annSearch');
+  const annSort = document.getElementById('annSort');
+  const listState = PP.listState({ tab: 'all', sort: 'newest', page: 1, pageSize: 25, search: '' }, ['search']);
+  const saved = listState.read();
   let all = [];
-  let tab = 'all';
-  let page = 1;
+  let tab = ['all', 'published', 'scheduled', 'draft'].includes(saved.tab) ? saved.tab : 'all';
+  let page = saved.page;
+  let pageSize = [25, 50, 100].includes(saved.pageSize) ? saved.pageSize : 25;
+  annSearch.value = saved.search;
+  annSort.value = saved.sort === 'oldest' ? 'oldest' : 'newest';
+  const pager = PP.pager('annPager', {
+    noun: ['announcement', 'announcements'], label: 'Announcement pages', pageSize: pageSize, emptyText: 'No announcements to show',
+    onChange: function(p, size, focusRole) { page = p; pageSize = size; renderList(focusRole); }
+  });
 
-  const TAB_STYLE_ACTIVE = ['background:#001c43', 'color:#ffffff', 'border-color:#001c43'];
   function paintTabs() {
     const counts = { all: all.length, published: 0, scheduled: 0, draft: 0 };
     all.forEach(function(a) { counts[a.state]++; });
     document.querySelectorAll('.ann-tab').forEach(function(btn) {
-      const active = btn.dataset.tab === tab;
-      btn.setAttribute('aria-selected', active ? 'true' : 'false');
-      btn.style.cssText = 'display:inline-flex;align-items:center;gap:6px;border:1px solid #cbd5e1;border-radius:9999px;padding:4px 12px;font-size:12px;font-weight:500;background:#fff;color:#475569;cursor:pointer;' + (active ? TAB_STYLE_ACTIVE.join(';') : '');
-      const c = btn.querySelector('.ann-tab-count');
-      c.textContent = counts[btn.dataset.tab];
-      c.style.cssText = 'font-size:11px;border-radius:9999px;padding:0 6px;' + (active ? 'background:rgba(255,255,255,0.2)' : 'background:#f1f5f9');
+      btn.setAttribute('aria-pressed', btn.dataset.tab === tab ? 'true' : 'false');
+      btn.querySelector('.ann-tab-count').textContent = '(' + counts[btn.dataset.tab] + ')';
     });
   }
 
@@ -516,38 +521,28 @@
     '</div>';
   }
 
-  function renderList() {
+  function renderList(focusRole) {
     paintTabs();
-    const needle = document.getElementById('annSearch').value.trim().toLowerCase();
+    const needle = annSearch.value.trim().toLowerCase();
     let rows = all.filter(function(a) {
       if (tab !== 'all' && a.state !== tab) return false;
       return !needle || a.title.toLowerCase().includes(needle) || a.body.toLowerCase().includes(needle);
     });
     rows.sort(function(x, y) {
       const d = new Date(String(x.publishAt).replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00')) - new Date(String(y.publishAt).replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00'));
-      return document.getElementById('annSort').value === 'oldest' ? d : -d;
+      return annSort.value === 'oldest' ? d : -d;
     });
-    const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-    page = Math.min(page, totalPages);
-    const start = (page - 1) * PAGE_SIZE;
-    const slice = rows.slice(start, start + PAGE_SIZE);
+    const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+    page = Math.min(Math.max(1, page), totalPages);
+    listState.save({ tab: tab, sort: annSort.value, page: page, pageSize: pageSize, search: annSearch.value.trim() });
+    const start = (page - 1) * pageSize;
+    const slice = rows.slice(start, start + pageSize);
     const list = document.getElementById('announcementsList');
     list.innerHTML = slice.length
       ? slice.map(renderRow).join('')
       : '<p class="px-6 py-8 text-center text-sm text-slate-400">' + (all.length ? 'No announcements match.' : 'No announcements yet.') + '</p>';
-
-    document.getElementById('annPagerSummary').textContent = rows.length
-      ? 'Showing ' + (start + 1) + '–' + (start + slice.length) + ' of ' + rows.length + ' announcement' + (rows.length === 1 ? '' : 's')
-      : ' ';
-    const pager = document.getElementById('annPager');
-    pager.innerHTML = totalPages > 1
-      ? '<button type="button" class="pg-btn px-3 py-1.5 text-xs border border-slate-300 rounded-md ' + (page === 1 ? 'text-slate-300' : 'text-slate-600 hover:bg-slate-50') + '" data-page="' + (page - 1) + '"' + (page === 1 ? ' disabled' : '') + '>Prev</button>' +
-        Array.from({ length: totalPages }, function(_, i) {
-          const n = i + 1;
-          return '<button type="button" class="pg-btn px-3 py-1.5 text-xs border rounded-md ' + (n === page ? 'bg-[#ed1c24] text-white border-[#ed1c24]' : 'border-slate-300 text-slate-600 hover:bg-slate-50') + '" data-page="' + n + '">' + n + '</button>';
-        }).join('') +
-        '<button type="button" class="pg-btn px-3 py-1.5 text-xs border border-slate-300 rounded-md ' + (page === totalPages ? 'text-slate-300' : 'text-slate-600 hover:bg-slate-50') + '" data-page="' + (page + 1) + '"' + (page === totalPages ? ' disabled' : '') + '>Next</button>'
-      : '';
+    pager.render({ page: page, pageSize: pageSize, total: rows.length, totalPages: totalPages, shown: slice.length, startIndex: rows.length ? start + 1 : 0 });
+    pager.focus(focusRole);
   }
 
   let annLoadedOnce = false;
@@ -575,14 +570,8 @@
     page = 1;
     renderList();
   });
-  document.getElementById('annSearch').addEventListener('input', function() { page = 1; renderList(); });
-  document.getElementById('annSort').addEventListener('change', function() { page = 1; renderList(); });
-  document.getElementById('annPager').addEventListener('click', function(e) {
-    const btn = e.target.closest('.pg-btn');
-    if (!btn || btn.disabled) return;
-    page = Number(btn.dataset.page);
-    renderList();
-  });
+  annSearch.addEventListener('input', function() { page = 1; renderList(); });
+  annSort.addEventListener('change', function() { page = 1; renderList(); });
 
   document.getElementById('announcementsList').addEventListener('click', async function(e) {
     const del = e.target.closest('.delete-btn');
