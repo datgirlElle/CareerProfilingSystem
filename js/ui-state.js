@@ -282,14 +282,18 @@
   // request cancels the one still on its way, so a slow old answer can never replace a newer one.
 
   // Returns a function that loads JSON like PP.fetchJson but first cancels the previous call it made.
-  // A cancelled call rejects with e.cancelled === true: return quietly in that case.
+  // A cancelled call rejects with e.cancelled === true: return quietly in that case. .cancel() drops the
+  // call still on its way without starting a new one (for a page that can decide not to load at all,
+  // such as an invalid date range).
   PP.latestJson = function () {
     var current = null;
-    return function (url, options, timeoutMs) {
+    function run(url, options, timeoutMs) {
       if (current) current.abort();
       current = typeof AbortController === 'function' ? new AbortController() : null;
       return PP.fetchJson(url, Object.assign({}, options || {}, current ? { signal: current.signal } : {}), timeoutMs);
-    };
+    }
+    run.cancel = function () { if (current) { current.abort(); current = null; } };
+    return run;
   };
 
   // Calls fn after the user stops typing for `ms` (default 300). .cancel() drops a call still waiting.

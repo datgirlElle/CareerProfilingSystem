@@ -251,13 +251,6 @@
       opacity: 0.5;
       cursor: not-allowed;
     }
-    /* Pager: on phones keep only Prev, "Page X of Y" and Next. */
-    @media (max-width: 640px) {
-      #paginationBar .page-num,
-      #paginationBar .page-gap {
-        display: none;
-      }
-    }
   </style>
   <link rel="stylesheet" href="css/motion.css">
 </head>
@@ -534,21 +527,8 @@
             </table>
           </div>
 
-          <div class="border-t border-gray-200 flex items-center justify-between px-6 py-4 flex-wrap gap-3">
-            <p class="text-sm text-gray-700" id="paginationSummary" aria-live="polite">Loading…</p>
-            <div class="flex items-center gap-4 flex-wrap">
-              <label for="pageSizeSelect" class="flex items-center gap-2 text-sm text-gray-600">
-                Rows per page
-                <select id="pageSizeSelect"
-                  class="border border-gray-300 rounded-md px-2 py-1.5 text-sm bg-white text-gray-700">
-                  <option value="25">25</option>
-                  <option value="50" selected>50</option>
-                  <option value="100">100</option>
-                </select>
-              </label>
-              <nav id="paginationBar" class="flex items-center gap-1" aria-label="Audit log pages"></nav>
-            </div>
-          </div>
+          <!-- Filled by PP.pager: "Showing 1 to 50 of N activities", Rows per page and the page buttons. -->
+          <div id="auditPager"></div>
         </div>
 
         <!-- Retention note: says what is really kept (filled from the list answer, see renderRetention). -->
@@ -675,16 +655,25 @@
         const checkLogBtn = document.getElementById('checkLogBtn');
         const exportNote = document.getElementById('exportNote');
         const auditScroll = document.getElementById('auditScroll');
-        const paginationBar = document.getElementById('paginationBar');
-        const pageSizeSelect = document.getElementById('pageSizeSelect');
-        let loadRequestId = 0;
         let exportTotal = 0; // activities the Export button would put in the PDF (from the last load)
-        const paginationSummary = document.getElementById('paginationSummary');
 
-        // role: set by clicking a role in a card breakdown ('' = all roles).
-        const state = { page: 1, pageSize: 50, sort: 'desc', search: '', status: 'All', module: 'All', from: '', to: '', role: '' };
+        // The filters and page live in the page address (Reload, Back, a shared link); the search (it can be a
+        // name or an IP) stays in this tab only (PP.listState in js/ui-state.js). role: set by clicking a role
+        // in a card breakdown ('' = all roles).
+        const listState = PP.listState({ page: 1, pageSize: 50, sort: 'desc', search: '', status: 'All', module: 'All', from: '', to: '', role: '' }, ['search']);
+        const state = listState.read();
+        if (![25, 50, 100].includes(state.pageSize)) state.pageSize = 50;
+        const getAudit = PP.latestJson(); // a new request cancels the one still on its way
+        const pager = PP.pager('auditPager', {
+          noun: ['activity', 'activities'], label: 'Audit log pages', pageSize: state.pageSize, emptyText: 'No activities recorded yet',
+          onChange: function(page, pageSize, focus) {
+            state.page = page;
+            state.pageSize = pageSize;
+            auditScroll.scrollTop = 0;
+            load({ pageOnly: true, focus: focus });
+          }
+        });
         let modulesLoaded = false;
-        let searchDebounce = null;
         let firstDate = '';
 
         // The calendars only offer valid ranges: To cannot start before From, From cannot end after To.
@@ -741,7 +730,7 @@
             filterFrom.value > filterTo.value;
 
           if (invalidDateRange) {
-            ++loadRequestId;
+            getAudit.cancel();
             state.page = 1;
             exportBtn.disabled = true;
 
@@ -755,27 +744,25 @@
             lastSummary = null;
             closeBreakdown(false);
 
-            paginationSummary.textContent = '';
-            paginationBar.innerHTML = '';
+            pager.clear();
             exportNote.textContent = '';
             return;
           }
 
+          listState.save(state);
           PP.showSkeleton(tbody, PP.skeleton.rows(7, 8));
+          pager.loading();
           if (!opts.pageOnly) {
             ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive'].forEach(PP.statLoading);
           }
 
-          const requestId = ++loadRequestId;
           let data;
           try {
-            data = await PP.fetchJson('api/audit-log.php?' + currentQuery());
-            if (requestId !== loadRequestId) return;
+            data = await getAudit('api/audit-log.php?' + currentQuery());
           } catch (e) {
-            if (requestId !== loadRequestId) return;
+            if (e.cancelled) return; // a newer request replaced this one
             if (e.status === 401) { window.location.replace('staff-login'); return; }
-            paginationSummary.textContent = '';
-            paginationBar.innerHTML = '';
+            pager.clear();
             exportNote.textContent = '';
             if (e.status === 403) {
               tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-red-500">You do not have access to the audit log.</td></tr>';
@@ -790,6 +777,7 @@
           }
           tbody.removeAttribute('aria-busy');
           state.page = data.page;
+          listState.save(state);
 
           if (!modulesLoaded) {
             filterModule.innerHTML = '<option value="All">All Categories</option>' +
@@ -811,21 +799,12 @@
             searchInput.placeholder = 'Search name or action (use commas to combine)';
           }
           renderRows(data.rows, data.summary.filtered);
-          paginationSummary.innerHTML = countText(data.total, data.summary.filtered);
+          pager.render(Object.assign({}, data, { shown: data.rows.length, startIndex: data.total ? (data.page - 1) * data.pageSize + 1 : 0 }));
+          pager.focus(opts.focus);
           exportNote.textContent = exportText(data.total, data.summary.filtered);
           exportNote.classList.remove('text-red-600');
           exportTotal = data.total;
           exportBtn.disabled = data.total === 0;
-          renderPagination(data.page, data.totalPages);
-          if (opts.focus) focusPager(opts.focus);
-        }
-
-        // Footer count ("171 activities", "96 matching activities"). The pager already says which
-        // page you are on, so this only says how many.
-        function countText(total, filtered) {
-          if (total === 0) return filtered ? 'No matching activities' : 'No activities recorded yet';
-          return '<span class="font-semibold text-gray-900">' + Number(total).toLocaleString() + '</span> ' +
-            (filtered ? 'matching ' : '') + (total === 1 ? 'activity' : 'activities');
         }
 
         // With pages, Export could be mistaken for "this page only". It exports every matching activity.
@@ -834,69 +813,6 @@
           const what = (filtered ? 'matching ' : '') + (total === 1 ? 'activity' : 'activities');
           return total === 1 ? 'Exports 1 ' + what : 'Exports all ' + Number(total).toLocaleString() + ' ' + what;
         }
-
-        // Page buttons: first, last, and up to two pages either side of the current one, with "..."
-        // for the gaps (same pattern and look as the pager on Program Mapping Crosswalk). Hidden for a single page.
-        function renderPagination(page, totalPages) {
-          if (totalPages <= 1) {
-            paginationBar.innerHTML = '';
-            return;
-          }
-          const navClass = 'w-9 h-9 flex items-center justify-center border border-gray-300 rounded-md hover:bg-gray-50';
-          const off = ' opacity-40 cursor-not-allowed';
-          let html = '<button type="button" data-role="prev" data-page="' + (page - 1) + '" aria-label="Previous page"' +
-            (page <= 1 ? ' disabled' : '') + ' class="' + navClass + (page <= 1 ? off : '') + '">' +
-            '<img src="images/audit/icon-page-prev.svg" alt="" class="w-1.5 h-2.5"></button>';
-          let previous = 0;
-          for (let p = 1; p <= totalPages; p++) {
-            if (p !== 1 && p !== totalPages && Math.abs(p - page) > 2) continue;
-            if (previous && p - previous > 1) {
-              html += '<span class="page-gap w-9 h-9 flex items-center justify-center text-sm text-gray-500" aria-hidden="true">...</span>';
-            }
-            const current = p === page;
-            html += '<button type="button" data-role="page" data-page="' + p + '" aria-label="Page ' + p + '"' +
-              (current ? ' aria-current="page"' : '') +
-              ' class="page-num w-9 h-9 flex items-center justify-center rounded-md text-sm font-medium ' +
-              (current ? 'bg-[#ed1c24] border border-[#ed1c24] text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50') +
-              '">' + p + '</button>';
-            previous = p;
-          }
-          html += '<button type="button" data-role="next" data-page="' + (page + 1) + '" aria-label="Next page"' +
-            (page >= totalPages ? ' disabled' : '') + ' class="' + navClass + (page >= totalPages ? off : '') + '">' +
-            '<img src="images/audit/icon-page-next.svg" alt="" class="w-1.5 h-2.5"></button>';
-          html += '<span class="ml-2 text-sm text-gray-600 whitespace-nowrap">Page ' + page + ' of ' + totalPages + '</span>';
-          paginationBar.innerHTML = html;
-        }
-
-        // The pager is redrawn on every page turn, which drops keyboard focus. Put it back on the
-        // same kind of button, or the nearest visible one (page numbers are hidden on phones).
-        function focusPager(role) {
-          const preferred = role === 'page'
-            ? paginationBar.querySelector('[aria-current="page"]')
-            : paginationBar.querySelector('[data-role="' + role + '"]');
-          const target = [preferred, ...paginationBar.querySelectorAll('button')]
-            .find(b => b && !b.disabled && b.offsetParent !== null);
-          if (target) target.focus();
-        }
-
-        paginationBar.addEventListener('click', e => {
-          const btn = e.target.closest('button[data-page]');
-          if (!btn || btn.disabled) return;
-          const page = Number(btn.dataset.page);
-          if (page === state.page) return;
-          state.page = page;
-          auditScroll.scrollTop = 0;
-          load({ pageOnly: true, focus: btn.dataset.role });
-        });
-
-        // A new page size keeps the first row you were looking at on screen.
-        pageSizeSelect.addEventListener('change', () => {
-          const newSize = Number(pageSizeSelect.value);
-          state.page = Math.floor((state.page - 1) * state.pageSize / newSize) + 1;
-          state.pageSize = newSize;
-          auditScroll.scrollTop = 0;
-          load({ pageOnly: true });
-        });
 
         // A status card the Status filter rules out shows a dash and says why, instead of a
         // misleading 0 (for example "Failed 0" while the failed events are only filtered out).
@@ -1278,14 +1194,13 @@
           else if (openCard !== null) closeBreakdown(true);
         });
 
-        searchInput.addEventListener('input', () => {
-          clearTimeout(searchDebounce);
-          searchDebounce = setTimeout(() => {
-            state.search = searchInput.value.trim();
-            state.page = 1;
-            load();
-          }, 300);
-        });
+        // The search waits until typing stops for 300 ms, then shows the first page of matches.
+        const searchSoon = PP.debounce(function() {
+          state.search = searchInput.value.trim();
+          state.page = 1;
+          load();
+        }, 300);
+        searchInput.addEventListener('input', searchSoon);
         filterStatus.addEventListener('change', () => {
           state.status = filterStatus.value;
           pickedStatus = null;
@@ -1315,7 +1230,7 @@
           setDateError(bad);
 
           if (bad) {
-            ++loadRequestId;
+            getAudit.cancel();
             state.page = 1;
 
             tbody.innerHTML =
@@ -1332,8 +1247,7 @@
             lastSummary = null;
             closeBreakdown(false);
 
-            paginationSummary.textContent = '';
-            paginationBar.innerHTML = '';
+            pager.clear();
             exportNote.textContent = '';
             return;
           }
@@ -1372,7 +1286,7 @@
           el.addEventListener('change', updateClearBtn);
         });
         clearFiltersBtn.addEventListener('click', () => {
-          clearTimeout(searchDebounce);
+          searchSoon.cancel();
           searchInput.value = '';
           filterStatus.value = 'All';
           filterModule.value = 'All';
@@ -1409,17 +1323,22 @@
           if (String(window.getSelection ? window.getSelection() : '').length > 0 && !e.target.closest('.row-open-btn')) return;
           openDetails(tr);
         });
-        // A browser can restore typed filter values on reload or Back, so the first load starts from the inputs and the
-        // table matches the filters on screen. Restored dates stay visible under "Custom range..." instead of hiding
-        // behind "Any time". Called once the page has loaded: the browser restores the values late, after this script starts.
-        function readRestoredFilters() {
-          if (filterFrom.value || filterTo.value) filterRange.value = 'custom';
+        // Starts the page from the filters saved in the page address (Reload, Back, a shared link). Restored
+        // dates stay visible under "Custom range..." instead of hiding behind "Any time".
+        function applyRestoredState() {
+          searchInput.value = state.search;
+          filterStatus.value = state.status;
+          filterFrom.value = state.from;
+          filterTo.value = state.to;
+          if (state.from || state.to) filterRange.value = 'custom';
           customRange.classList.toggle('hidden', filterRange.value !== 'custom');
-          state.search = searchInput.value.trim();
-          state.status = filterStatus.value;
-          state.from = filterFrom.value;
-          state.to = filterTo.value;
-          state.pageSize = Number(pageSizeSelect.value) || 50;
+          sortAscending = state.sort === 'asc';
+          sortIcon.textContent = sortAscending ? '↑' : '↓';
+          document.getElementById('timestampHeader').setAttribute('aria-sort', sortAscending ? 'ascending' : 'descending');
+          sortTimestampBtn.setAttribute('aria-label', sortAscending
+            ? 'Timestamp, oldest first. Select to show newest first.'
+            : 'Timestamp, newest first. Select to show oldest first.');
+          showRoleChip();
           syncDateLimits();
           updateClearBtn();
         }
@@ -1508,7 +1427,7 @@
           ? Promise.resolve()
           : new Promise(resolve => window.addEventListener('load', resolve, { once: true }));
         Promise.all([fetch('api/audit-log-cleanup.php', { method: 'POST' }).catch(() => {}), pageLoaded])
-          .finally(() => { readRestoredFilters(); load(); });
+          .finally(() => { applyRestoredState(); load(); });
       })();
     })();
   </script>
