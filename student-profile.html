@@ -17,6 +17,8 @@
   .sp-profile{ padding:24px; display:flex; flex-wrap:wrap; align-items:center; gap:20px; }
   .sp-avatar{ position:relative; width:72px; height:72px; border-radius:9999px; background:#001c43; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
   .sp-avatar img{ width:26px; height:30px; }
+  .sp-avatar-face{ width:100%; height:100%; border-radius:9999px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+  .sp-avatar-face .pp-initials{ font-size:24px !important; }
   .sp-dot{ position:absolute; right:2px; bottom:2px; width:16px; height:16px; border-radius:9999px; border:3px solid #fff; background:#22c55e; }
   .sp-dot.off{ background:#9ca3af; }
   .sp-name{ font-size:24px; line-height:1.2; font-weight:700; color:#111827; }
@@ -24,7 +26,7 @@
   .sp-chip{ display:inline-flex; align-items:center; gap:6px; border:1px solid #e5e7eb; background:#f8fafc; color:#334155; font-size:12px; font-weight:500; padding:4px 12px; border-radius:9999px; white-space:nowrap; }
   .sp-id{ display:flex; align-items:center; gap:16px; min-width:0; flex:1 1 280px; }
   .sp-actions{ margin-left:auto; display:flex; flex-wrap:wrap; gap:12px; }
-  @media (max-width:639px){ .sp-profile{ padding:16px; } .sp-avatar{ width:56px; height:56px; } .sp-avatar img{ width:20px; height:23px; } .sp-dot{ width:13px; height:13px; border-width:2px; } .sp-name{ font-size:20px; } .sp-actions{ width:100%; } .sp-actions button{ flex:1 1 0; } .sp-section{ padding:16px; } }
+  @media (max-width:639px){ .sp-profile{ padding:16px; } .sp-avatar{ width:56px; height:56px; } .sp-avatar img{ width:20px; height:23px; } .sp-avatar-face .pp-initials{ font-size:20px !important; } .sp-dot{ width:13px; height:13px; border-width:2px; } .sp-name{ font-size:20px; } .sp-actions{ width:100%; } .sp-actions button{ flex:1 1 0; } .sp-section{ padding:16px; } }
   .sp-grid{ display:grid; grid-template-columns:minmax(0,1fr); gap:24px; align-items:start; margin-top:24px; }
   @media (min-width:1180px){ .sp-grid{ grid-template-columns:minmax(0,2fr) minmax(0,1fr); grid-auto-flow:row dense; } .sp-grid.solo{ grid-template-columns:minmax(0,1fr); } #recommendationCard{ grid-column:2; grid-row:span 2; } #counselingNotesCard{ grid-column:1; } }
   .sp-section{ padding:24px; display:flex; flex-direction:column; gap:20px; }
@@ -149,7 +151,7 @@
 
           <div class="sp-card sp-profile">
             <div class="sp-id">
-            <span class="sp-avatar"><img src="images/admin/icon-avatar.svg" alt=""><span id="statusDot" class="sp-dot"></span></span>
+            <span class="sp-avatar"><span id="studentAvatar" class="sp-avatar-face"><img src="images/admin/icon-avatar.svg" alt=""></span><span id="statusDot" class="sp-dot"></span></span>
             <div style="min-width:0">
               <h1 class="sp-name" id="studentName">Student Profile</h1>
               <p class="sp-meta" id="studentId">—</p>
@@ -616,6 +618,7 @@
       if (s.lockedUntil) document.getElementById('unlockAccountBtn').classList.remove('hidden');
       if (currentUser.role === 'admin' && s.status === 'Completed') document.getElementById('resetAssessmentBtn').classList.remove('hidden');
       document.getElementById('studentName').textContent = s.name;
+      PP.renderAvatar(document.getElementById('studentAvatar'), { first: s.firstName, last: s.lastName, name: s.name, size: 24 });
       document.getElementById('studentId').textContent = 'Grade ' + s.gradeLevel + ' · ' + s.strand + ' ' + s.section;
       document.getElementById('strandChip').textContent = s.strand + ' Track';
       document.getElementById('ayChip').textContent = s.academicYear ? 'AY ' + s.academicYear : 'AY —';

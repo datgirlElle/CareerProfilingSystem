@@ -327,6 +327,54 @@
     };
   };
 
+  // A student's initials from their name (Juana Tester -> JT): the first letter of the first name and of the last name,
+  // upper-cased. Extra spaces, dots and digits are skipped, middle names are ignored ("Juana Marie" + "Tester" -> JT),
+  // one name gives one letter, and no name gives '' (the caller keeps the default person icon). When only a full name
+  // is known, "Last, First" (the staff lists' format) or "First ... Last" is split from it.
+  PP.initials = function (first, last, fullName) {
+    function words(s) {
+      return String(s == null ? '' : s).trim().split(/\s+/).filter(function (w) { return /\p{L}/u.test(w); });
+    }
+    function letter(w) {
+      return (w.match(/\p{L}/u) || [''])[0].toLocaleUpperCase();
+    }
+    var f = words(first), l = words(last);
+    if (!f.length && !l.length && fullName) {
+      var parts = String(fullName).split(',');
+      if (parts.length > 1) { l = words(parts[0]); f = words(parts.slice(1).join(' ')); }
+      else { f = words(fullName); }
+    }
+    if (f.length && l.length) return letter(f[0]) + letter(l[0]);
+    var all = f.concat(l);
+    if (all.length > 1) return letter(all[0]) + letter(all[all.length - 1]);
+    return all.length ? letter(all[0]) : '';
+  };
+
+  // Fills a round avatar: the uploaded photo when there is one, else the initials in white on the avatar's own navy
+  // circle (its size and colour stay as the page set them). Returns false, leaving the element as it was, when there is
+  // neither a photo nor a name. Built with DOM nodes, so a name never becomes markup.
+  PP.renderAvatar = function (el, opts) {
+    if (!el) return false;
+    opts = opts || {};
+    if (opts.url) {
+      var img = document.createElement('img');
+      img.src = opts.url;
+      img.alt = '';
+      img.className = 'w-full h-full object-cover';
+      el.replaceChildren(img);
+      return true;
+    }
+    var text = PP.initials(opts.first, opts.last, opts.name);
+    if (!text) return false;
+    var span = document.createElement('span');
+    span.className = 'pp-initials';
+    span.setAttribute('aria-hidden', 'true'); // the name is written right beside the avatar
+    span.textContent = text;
+    span.style.cssText = 'color:#fff;font-weight:600;line-height:1;letter-spacing:0.02em;user-select:none;font-size:' + (opts.size || 13) + 'px';
+    el.replaceChildren(span);
+    return true;
+  };
+
   // Stale-while-revalidate for data that rarely changes: render(data, fromCache) runs with the saved copy at once
   // (if any), then again with the fresh copy. Resolves with the fresh data; rejects if the server could not be reached
   // and nothing was cached.

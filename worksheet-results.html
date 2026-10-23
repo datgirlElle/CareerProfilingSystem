@@ -239,9 +239,7 @@
     return;
   }
 
-    if (currentUser.avatarUrl) {
-      document.getElementById('headerAvatarWrap').innerHTML = '<img src="' + currentUser.avatarUrl + '" alt="" class="w-full h-full object-cover">';
-    }
+    PP.renderAvatar(document.getElementById('headerAvatarWrap'), { url: currentUser.avatarUrl, first: currentUser.firstName, last: currentUser.lastName });
   document.getElementById('headerName').textContent = currentUser.firstName + ' ' + currentUser.lastName;
   document.getElementById('headerSub').textContent = 'Grade ' + currentUser.gradeLevel + ' - ' + currentUser.strand;
   document.getElementById('profilePanelName').textContent = currentUser.firstName + ' ' + currentUser.lastName;
