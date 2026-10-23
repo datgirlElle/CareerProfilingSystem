@@ -64,7 +64,6 @@ $steps = [
     'migrate_add_recommendation_sets.php',
     'migrate_add_faqs.php',
     'migrate_add_roster_email.php',
-    'migrate_counselor_write_access.php',
     'migrate_add_announcement_templates.php',
     'migrate_add_password_reset_codes.php',
     'migrate_student_announcements_no_access.php',
@@ -86,7 +85,8 @@ $steps = [
     'seed_security_defaults.php',
     // Permission rows that depend on the defaults above (safe to run again).
     'migrate_add_sections_rbac.php',
-    'migrate_counselor_write_access.php',
+    // migrate_counselor_write_access.php is left out on purpose: it would raise the counselor to Full for
+    // announcements and sections, against the defaults in seed_security_defaults.php (View Only).
     'migrate_student_announcements_no_access.php',
     'migrate_add_facilitator_role.php',
     'migrate_add_staff_accounts_rbac.php',

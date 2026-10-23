@@ -11,6 +11,10 @@ require_once __DIR__ . '/../../UserManagement/lib/StaffScope.php';
 // in the student's notifications. Only staff with Full on Counseling Notes (set in the permission table) can invite.
 // The link is the one saved in Security Configuration.
 $user = Rbac::requireAccess('counselingNotes', 'full');
+// Guidance Facilitators keep the counseling notes but never send invitations (DFD process 4.0), whatever the table says.
+if (Rbac::isFacilitator($user)) {
+    jsonResponse(['success' => false, 'error' => 'Only the Guidance Counselor and the Administrator can send counseling invitations.'], 403);
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
