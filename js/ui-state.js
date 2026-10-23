@@ -606,25 +606,51 @@
     setTimeout(function () { toast.remove(); }, 5000);
   };
 
+  // The one pop-up for confirming an action (css/components.css .pp-dialog). Resolves true for the action, false
+  // for Cancel, the x or Escape. opts: { title, okLabel, danger }. title is the short question ("Delete this
+  // question?"), message the details under it, okLabel what the button does ("Delete", never "Confirm").
+  // danger: a red button for delete, deactivate and remove, with keyboard focus starting on Cancel.
+  // A click on the dark background does nothing (same rule as the Filters panel). Tab stays inside the pop-up,
+  // and focus goes back to whatever opened it.
+  var dialogSeq = 0;
+  // Keeps Tab inside a pop-up: from the last control back to the first, and the other way round.
+  function keepTabInside(e, box) {
+    var items = Array.prototype.filter.call(
+      box.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+      function (el) { return !el.disabled && el.offsetParent !== null; });
+    if (!items.length) return;
+    var first = items[0], last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    else if (!box.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+  }
+  var X_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>';
   PP.confirm = function (message, opts) {
     opts = opts || {};
     return new Promise(function (resolve) {
+      var opener = document.activeElement;
+      var id = 'ppDialog' + (++dialogSeq);
       var modal = document.createElement('div');
       modal.className = 'modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4';
-      modal.setAttribute('role', 'dialog');
-      modal.setAttribute('aria-modal', 'true');
       modal.innerHTML =
-        '<div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">' +
-          '<p class="text-sm text-gray-700" style="white-space:pre-line"></p>' +
-          '<div class="flex justify-end gap-2 pt-1">' +
-            '<button type="button" data-cancel class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>' +
-            '<button type="button" data-ok class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90' + (opts.danger ? ' btn-danger' : '') + '"></button>' +
+        '<div class="modal-card pp-dialog" role="' + (opts.danger ? 'alertdialog' : 'dialog') + '" aria-modal="true" aria-labelledby="' + id + '-t" aria-describedby="' + id + '-b">' +
+          '<div class="pp-dialog-head"><h2 class="pp-dialog-title" id="' + id + '-t"></h2>' +
+            '<button type="button" data-cancel class="pp-dialog-x" aria-label="Close">' + X_ICON + '</button></div>' +
+          '<p class="pp-dialog-body" id="' + id + '-b"></p>' +
+          '<div class="pp-dialog-foot">' +
+            '<button type="button" data-cancel class="pp-btn pp-btn-secondary">Cancel</button>' +
+            '<button type="button" data-ok class="pp-btn ' + (opts.danger ? 'pp-btn-danger btn-danger' : 'pp-btn-primary') + '"></button>' +
           '</div>' +
         '</div>';
-      modal.querySelector('p').textContent = message;
+      var title = modal.querySelector('.pp-dialog-title');
+      var body = modal.querySelector('.pp-dialog-body');
+      // Without a title (older calls), the message is the question itself and is shown as the title.
+      title.textContent = opts.title || message;
+      if (opts.title && message) body.textContent = message;
+      else { body.remove(); modal.querySelector('.pp-dialog').removeAttribute('aria-describedby'); }
       var okBtn = modal.querySelector('[data-ok]');
-      var cancelBtn = modal.querySelector('[data-cancel]');
-      okBtn.textContent = opts.okLabel || 'Confirm';
+      var cancelBtn = modal.querySelector('.pp-dialog-foot [data-cancel]');
+      okBtn.textContent = opts.okLabel || 'OK';
       document.body.appendChild(modal);
       modal.classList.remove('hidden');
       setTimeout(function () { modal.classList.add('is-open'); (opts.danger ? cancelBtn : okBtn).focus(); }, 16);
@@ -633,13 +659,72 @@
         document.removeEventListener('keydown', onKey, true);
         modal.classList.remove('is-open');
         setTimeout(function () { modal.remove(); }, 260);
+        if (opener && opener.focus && document.contains(opener)) opener.focus();
         resolve(result);
       }
-      function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); done(false); } }
+      function onKey(e) {
+        if (e.key === 'Escape') { e.stopPropagation(); done(false); return; }
+        if (e.key === 'Tab') keepTabInside(e, modal);
+      }
       document.addEventListener('keydown', onKey, true);
       okBtn.addEventListener('click', function () { done(true); });
-      cancelBtn.addEventListener('click', function () { done(false); });
-      modal.addEventListener('click', function (e) { if (e.target === modal) done(false); });
+      modal.querySelectorAll('[data-cancel]').forEach(function (b) { b.addEventListener('click', function () { done(false); }); });
+    });
+  };
+
+  // A page's own pop-up (a form) with the same behaviour as PP.confirm. el: the .modal-backdrop element, holding a
+  // .pp-dialog card with a .pp-dialog-title. Buttons marked data-dialog-close (the x, Cancel) close it, so does
+  // Escape; a click on the dark background does nothing. Tab stays inside, and focus goes back to whatever opened it.
+  // opts.onClose: runs after it closes (any way). open(focusEl): focus that element, else the first field.
+  PP.dialog = function (el, opts) {
+    if (typeof el === 'string') el = document.getElementById(el);
+    opts = opts || {};
+    var card = el.querySelector('.pp-dialog');
+    var title = el.querySelector('.pp-dialog-title');
+    if (title && !title.id) title.id = el.id + 'Title';
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-modal', 'true');
+    if (title) card.setAttribute('aria-labelledby', title.id);
+    var opener = null, openNow = false;
+    function onKey(e) {
+      if (e.key === 'Escape') { e.stopPropagation(); api.close(); return; }
+      if (e.key === 'Tab') keepTabInside(e, card);
+    }
+    var api = {
+      open: function (focusEl) {
+        opener = document.activeElement;
+        openNow = true;
+        el.classList.remove('hidden');
+        document.addEventListener('keydown', onKey, true);
+        setTimeout(function () {
+          el.classList.add('is-open');
+          var target = focusEl || card.querySelector('input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled])') ||
+            card.querySelector('.pp-dialog-foot button:not([disabled])');
+          if (target) target.focus();
+        }, 16);
+      },
+      close: function () {
+        if (!openNow) return;
+        openNow = false;
+        document.removeEventListener('keydown', onKey, true);
+        el.classList.remove('is-open');
+        setTimeout(function () { el.classList.add('hidden'); }, 260);
+        if (opener && opener.focus && document.contains(opener)) opener.focus();
+        if (opts.onClose) opts.onClose();
+      },
+      isOpen: function () { return openNow; }
+    };
+    el.querySelectorAll('[data-dialog-close]').forEach(function (b) { b.addEventListener('click', api.close); });
+    return api;
+  };
+
+  // Log out, the same on every page: asks first, then signs out and goes to the page's sign-in page.
+  // beforeSignOut (optional) runs once the user says yes, before signing out (e.g. clearing a tab-only copy).
+  PP.logout = function (signInPage, beforeSignOut) {
+    PP.confirm('You will need to sign in again to continue.', { title: 'Log out?', okLabel: 'Log out' }).then(function (ok) {
+      if (!ok) return;
+      if (beforeSignOut) beforeSignOut();
+      fetch('api/logout.php', { method: 'POST' }).finally(function () { window.location.href = signInPage; });
     });
   };
 

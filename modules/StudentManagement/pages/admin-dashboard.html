@@ -74,7 +74,7 @@
     <div class="border-t border-white/5 pt-[25px] pb-6">
       <a href="staff-login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
         <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>
-        Logout
+        Log out
       </a>
     </div>
 
@@ -396,8 +396,12 @@
 </div>
 
 <div id="inviteModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-md p-6 flex flex-col gap-4">
-    <h3 class="text-lg font-semibold text-black" id="inviteTitle">Invite to register</h3>
+  <div class="modal-card pp-dialog pp-dialog-md">
+    <div class="pp-dialog-head">
+      <h2 class="pp-dialog-title" id="inviteTitle">Invite to register</h2>
+      <button type="button" class="pp-dialog-x" data-dialog-close aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="pp-dialog-form">
     <div class="flex flex-col gap-2 text-sm text-gray-700">
       <p><span class="font-medium text-gray-900">To:</span> <span id="inviteTo"></span></p>
       <p><span class="font-medium text-gray-900">Subject:</span> Create your ProfilePath account</p>
@@ -408,20 +412,10 @@
       </div>
     </div>
     <p id="inviteError" class="hidden text-sm text-[#ed1c24]"></p>
-    <div class="flex justify-end gap-2 pt-1">
-      <button type="button" id="inviteCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
-      <button type="button" id="inviteSendBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Send invitation</button>
     </div>
-  </div>
-</div>
-
-<div id="logoutConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
-    <h3 class="text-lg font-semibold text-black">Log Out?</h3>
-    <p class="text-sm text-gray-500">Are you sure you want to log out?</p>
-    <div class="flex justify-end gap-2 pt-1">
-      <button type="button" id="logoutCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
-      <button type="button" id="logoutConfirmBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Log Out</button>
+    <div class="pp-dialog-foot">
+      <button type="button" id="inviteCancelBtn" data-dialog-close class="pp-btn pp-btn-secondary">Cancel</button>
+      <button type="button" id="inviteSendBtn" class="pp-btn pp-btn-primary">Send invitation</button>
     </div>
   </div>
 </div>
@@ -443,25 +437,7 @@
   document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
   document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
 
-  const logoutModal = document.getElementById('logoutConfirmModal');
-  function openLogoutModal(e) {
-    e.preventDefault();
-    logoutModal.classList.remove('hidden');
-    setTimeout(function() { logoutModal.classList.add('is-open'); }, 16);
-  }
-  function closeLogoutModal() {
-    logoutModal.classList.remove('is-open');
-    setTimeout(function() { logoutModal.classList.add('hidden'); }, 260);
-  }
-  function performLogout() {
-    fetch('api/logout.php', { method: 'POST' }).finally(function() {
-      window.location.href = 'staff-login';
-    });
-  }
-  document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
-  document.getElementById('logoutCancelBtn').addEventListener('click', closeLogoutModal);
-  document.getElementById('logoutConfirmBtn').addEventListener('click', performLogout);
-  logoutModal.addEventListener('click', function(e) { if (e.target.id === 'logoutConfirmModal') closeLogoutModal(); });
+  document.getElementById('sidebarLogout').addEventListener('click', function(e) { e.preventDefault(); PP.logout('staff-login'); });
 
   function toggleDropdown(panel, ...others) {
     others.forEach(p => p.classList.add('hidden'));
@@ -880,7 +856,7 @@
     }
     const kind = state.status === 'Mismatched' ? 'mismatch' : 'pending';
     const what = kind === 'mismatch' ? 'ask the listed students to visit the Guidance Office' : 'send the listed students an assessment reminder';
-    if (!(await PP.confirm('Email these students? This will ' + what + '. A student receives at most one such email per day; students without an account are skipped.'))) return;
+    if (!(await PP.confirm('This will ' + what + '. A student receives at most one such email per day; students without an account are skipped.', { title: 'Email these students?', okLabel: 'Send email' }))) return;
     const btn = this, label = btn.textContent;
     btn.disabled = true; btn.textContent = 'Sending…';
     const summary = document.getElementById('paginationSummary');
@@ -907,20 +883,16 @@
   // ---- Invite students who are on the class roster but have not registered: a pop-up shows the email, then sends it.
   const inviteModal = document.getElementById('inviteModal');
   let inviteBody = null;
-  function closeInvite() {
-    inviteModal.classList.remove('is-open');
-    setTimeout(function() { inviteModal.classList.add('hidden'); }, 260);
-  }
+  // The shared pop-up behaviour (PP.dialog in js/ui-state.js): x, Cancel and Escape close it.
+  const inviteDialog = PP.dialog(inviteModal);
+  function closeInvite() { inviteDialog.close(); }
   function openInvite(opts) {
     inviteBody = opts.body;
     document.getElementById('inviteTo').textContent = opts.to;
     document.getElementById('inviteFirst').textContent = opts.first || 'there';
     document.getElementById('inviteError').classList.add('hidden');
-    inviteModal.classList.remove('hidden');
-    setTimeout(function() { inviteModal.classList.add('is-open'); }, 16);
+    inviteDialog.open(document.getElementById('inviteSendBtn'));
   }
-  document.getElementById('inviteCancelBtn').addEventListener('click', closeInvite);
-  inviteModal.addEventListener('click', function(e) { if (e.target.id === 'inviteModal') closeInvite(); });
   document.getElementById('inviteSendBtn').addEventListener('click', async function() {
     const btn = this, errEl = document.getElementById('inviteError');
     btn.disabled = true;
@@ -962,7 +934,7 @@
     const summary = document.getElementById('paginationSummary');
     const unlockBtn = e.target.closest('.unlock-btn');
     if (unlockBtn) {
-      if (!(await PP.confirm('Unlock "' + unlockBtn.dataset.name + '"? The account was locked after too many wrong passwords. They can sign in again right away.', { okLabel: 'Unlock' }))) return;
+      if (!(await PP.confirm('The account was locked after too many wrong passwords. They can sign in again right away.', { title: 'Unlock "' + unlockBtn.dataset.name + '"?', okLabel: 'Unlock' }))) return;
       unlockBtn.disabled = true;
       try {
         const res = await fetch('api/students.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'unlock', userId: Number(unlockBtn.dataset.id) }) });
@@ -978,7 +950,7 @@
     }
     const inviteBtn = e.target.closest('.counsel-invite-btn');
     if (inviteBtn) {
-      if (!(await PP.confirm('Invite "' + inviteBtn.dataset.name + '" to a counseling session? They will be sent the CGC booking link by email and in their notifications.'))) return;
+      if (!(await PP.confirm(inviteBtn.dataset.name + ' will be sent the CGC booking link by email and in their notifications.', { title: 'Invite to a counseling session?', okLabel: 'Send invitation' }))) return;
       inviteBtn.disabled = true;
       try {
         const res = await fetch('api/counseling-invite.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studentId: Number(inviteBtn.dataset.id) }) });
@@ -996,8 +968,8 @@
     const toggleBtn = e.target.closest('.toggle-active-btn');
     if (toggleBtn) {
       const willDeactivate = toggleBtn.dataset.active === '1';
-      if (!(await PP.confirm((willDeactivate ? 'Deactivate' : 'Activate') + ' "' + toggleBtn.dataset.name + '"? ' +
-        (willDeactivate ? 'They will no longer be able to sign in. You can reactivate later.' : 'They will be able to sign in again.'), { okLabel: willDeactivate ? 'Deactivate' : 'Activate', danger: willDeactivate }))) return;
+      if (!(await PP.confirm(willDeactivate ? 'They will no longer be able to sign in. You can reactivate later.' : 'They will be able to sign in again.',
+        { title: (willDeactivate ? 'Deactivate' : 'Reactivate') + ' "' + toggleBtn.dataset.name + '"?', okLabel: willDeactivate ? 'Deactivate' : 'Reactivate', danger: willDeactivate }))) return;
       toggleBtn.disabled = true;
       try {
         const res = await fetch('api/students.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'toggleActive', userId: Number(toggleBtn.dataset.id) }) });
