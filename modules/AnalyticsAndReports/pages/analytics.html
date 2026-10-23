@@ -364,42 +364,45 @@
 
 <div id="toastContainer" class="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 pointer-events-none"></div>
 <!-- Send Analytics Report: preview of the report that would be attached -->
-<div id="reportPreviewModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="reportPreviewTitle">
-  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-3xl max-h-[90vh] flex flex-col">
-    <div class="flex items-start justify-between gap-4 px-6 pt-5 pb-4 border-b border-slate-200">
+<div id="reportPreviewModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card pp-dialog pp-dialog-xl">
+    <div class="pp-dialog-head pb-4 border-b border-slate-200">
       <div>
         <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Preview</p>
-        <h3 id="reportPreviewTitle" class="text-base font-semibold text-slate-900 mt-0.5">ProfilePath Career Profiling System: Analytics Summary Report</h3>
+        <h2 id="reportPreviewTitle" class="pp-dialog-title mt-0.5">ProfilePath Career Profiling System: Analytics Summary Report</h2>
         <p id="reportPreviewMeta" class="text-xs text-slate-500 mt-1"></p>
       </div>
-      <button type="button" data-close-dialog aria-label="Close preview" class="w-8 h-8 -mr-2 rounded-md flex items-center justify-center text-slate-500 hover:bg-slate-100 shrink-0">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
-      </button>
+      <button type="button" class="pp-dialog-x" data-dialog-close aria-label="Close preview"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <div id="reportPreviewBody" class="px-6 py-5 overflow-y-auto flex flex-col gap-6" tabindex="0" aria-label="Report contents"></div>
-    <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl">
-      <button type="button" id="reportDownloadBtn" class="inline-flex items-center gap-2 bg-[#0f2a6b] text-white rounded-md px-4 py-2 text-sm font-medium shadow-sm hover:opacity-90" title="The report shown here as a PDF file, for the school year and filters on this page.">
+    <div class="pp-dialog-foot border-t border-slate-200">
+      <button type="button" data-dialog-close class="pp-btn pp-btn-secondary">Close</button>
+      <button type="button" id="reportDownloadBtn" class="pp-btn pp-btn-primary gap-2" title="The report shown here as a PDF file, for the school year and filters on this page.">
         <svg class="w-4 h-4" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
         Export as PDF
       </button>
-      <button type="button" data-close-dialog class="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-md bg-white hover:bg-slate-50">Close</button>
     </div>
   </div>
 </div>
 
 <!-- Send Analytics Report: confirm before anything is emailed -->
-<div id="reportConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="reportConfirmTitle" aria-describedby="reportConfirmText">
-  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-md p-6 flex flex-col gap-4">
-    <h3 id="reportConfirmTitle" class="text-lg font-semibold text-slate-900">Send this report?</h3>
+<div id="reportConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card pp-dialog pp-dialog-md" aria-describedby="reportConfirmText">
+    <div class="pp-dialog-head">
+      <h2 id="reportConfirmTitle" class="pp-dialog-title">Send this report?</h2>
+      <button type="button" class="pp-dialog-x" data-dialog-close aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="pp-dialog-form">
     <dl class="rounded-lg border border-slate-200 divide-y divide-slate-200 text-sm">
       <div class="px-4 py-2.5"><dt class="text-xs text-slate-500">To</dt><dd id="reportConfirmEmail" class="font-semibold text-slate-900 break-all"></dd></div>
       <div class="px-4 py-2.5"><dt class="text-xs text-slate-500">Report</dt><dd class="text-slate-800">ProfilePath Career Profiling System: Analytics Summary Report</dd></div>
       <div class="px-4 py-2.5"><dt class="text-xs text-slate-500">Covers</dt><dd id="reportConfirmScope" class="text-slate-800"></dd></div>
     </dl>
     <p id="reportConfirmText" class="text-sm text-slate-600">A PDF report with assessment participation, career interests and the other tables in the preview, with charts, built from the latest data. Totals and percentages only, no student details.</p>
-    <div class="flex justify-end gap-2 pt-1">
-      <button type="button" data-close-dialog class="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-300 rounded-md hover:bg-slate-50">Cancel</button>
-      <button type="button" id="reportConfirmSendBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#0f2a6b] rounded-md hover:opacity-90">Confirm send</button>
+    </div>
+    <div class="pp-dialog-foot">
+      <button type="button" data-dialog-close class="pp-btn pp-btn-secondary">Cancel</button>
+      <button type="button" id="reportConfirmSendBtn" class="pp-btn pp-btn-primary">Send report</button>
     </div>
   </div>
 </div>
@@ -834,35 +837,9 @@
       statusEl.className = 'text-sm rounded-md border px-3.5 py-2.5 ' + (ok ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800');
     }
 
-    // Dialogs: Escape and the close buttons close them, Tab stays inside, and focus goes back to the button that opened them.
-    let openDialog = null, returnFocus = null;
-    function openModal(modal, focusEl, returnTo) {
-      returnFocus = returnTo || document.activeElement;
-      openDialog = modal;
-      modal.classList.remove('hidden');
-      setTimeout(function() { modal.classList.add('is-open'); (focusEl || modal.querySelector('button')).focus(); }, 16);
-    }
-    function closeModal() {
-      if (!openDialog) return;
-      const modal = openDialog;
-      openDialog = null;
-      modal.classList.remove('is-open');
-      setTimeout(function() { modal.classList.add('hidden'); }, 260);
-      if (returnFocus) returnFocus.focus();
-    }
-    [previewModal, confirmModal].forEach(function(modal) {
-      modal.addEventListener('click', function(e) { if (e.target === modal || e.target.closest('[data-close-dialog]')) closeModal(); });
-    });
-    document.addEventListener('keydown', function(e) {
-      if (!openDialog) return;
-      if (e.key === 'Escape') { e.stopPropagation(); closeModal(); return; }
-      if (e.key !== 'Tab') return;
-      const items = Array.from(openDialog.querySelectorAll('button, [tabindex="0"]')).filter(function(el) { return !el.disabled && el.offsetParent !== null; });
-      if (!items.length) return;
-      const first = items[0], last = items[items.length - 1];
-      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-    }, true);
+    // Dialogs: the shared pop-up behaviour (PP.dialog in js/ui-state.js).
+    const previewDialog = PP.dialog(previewModal);
+    const confirmDialog = PP.dialog(confirmModal);
 
     // Preview: the report as tables, built on the server from the same data as the PDF.
     const fmt = function(v) { return typeof v === 'number' ? (Number.isInteger(v) ? v.toLocaleString() : v.toFixed(1)) : v; };
@@ -886,7 +863,7 @@
       const body = document.getElementById('reportPreviewBody');
       document.getElementById('reportPreviewMeta').textContent = '';
       body.innerHTML = '<p class="text-sm text-slate-500">Preparing the preview…</p>';
-      openModal(previewModal);
+      previewDialog.open();
       try {
         const res = await fetch('api/analytics-report.php?' + reportParams());
         const data = await res.json().catch(function() { return {}; });
@@ -908,13 +885,13 @@
       if (!email) { emailInput.focus(); return; }
       document.getElementById('reportConfirmEmail').textContent = email;
       document.getElementById('reportConfirmScope').textContent = document.getElementById('reportScope').textContent;
-      openModal(confirmModal, confirmSendBtn, sendBtn);
+      confirmDialog.open(confirmSendBtn);
     });
     confirmSendBtn.addEventListener('click', async function() {
       if (sending) return;
       sending = true;
       const email = emailInput.value.trim();
-      closeModal();
+      confirmDialog.close();
       const stop = PP.busy(sendBtn, 'Sending…');
       previewBtn.disabled = true;
       let focusAfter = sendBtn; // the button was disabled while sending, which drops keyboard focus; put it back

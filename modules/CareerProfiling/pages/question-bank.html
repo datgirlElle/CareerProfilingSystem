@@ -127,13 +127,14 @@
 </div>
 
 <!-- Edit Question Modal -->
-<div id="editQuestionModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-  <div class="bg-white rounded-xl shadow-xl w-full max-w-md">
-    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-      <h2 class="text-lg font-bold text-slate-900" id="editQuestionTitle">Edit Question</h2>
-      <button type="button" class="edit-question-close-btn text-slate-400 hover:text-slate-600 text-xl leading-none" aria-label="Close">&times;</button>
+<div id="editQuestionModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card pp-dialog pp-dialog-md">
+    <div class="pp-dialog-head">
+      <h2 class="pp-dialog-title" id="editQuestionTitle">Edit question</h2>
+      <button type="button" class="pp-dialog-x" data-dialog-close aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
-    <form id="editQuestionForm" class="px-6 py-5 flex flex-col gap-4">
+    <form id="editQuestionForm">
+    <div class="pp-dialog-form">
       <input type="hidden" id="editQuestionId">
       <input type="hidden" id="editQuestionDim">
       <div class="flex flex-col gap-1">
@@ -144,10 +145,11 @@
         <input type="checkbox" id="editQuestionActive" class="accent-[#ed1c24]">
         Active (shown to students)
       </label>
-      <div class="flex items-center justify-end gap-3 pt-2">
-        <button type="button" class="edit-question-close-btn px-4 py-2 text-sm font-medium text-slate-600 rounded-md border border-slate-300 hover:bg-slate-50">Cancel</button>
-        <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Save Changes</button>
-      </div>
+    </div>
+    <div class="pp-dialog-foot">
+      <button type="button" data-dialog-close class="pp-btn pp-btn-secondary">Cancel</button>
+      <button type="submit" class="pp-btn pp-btn-primary">Save</button>
+    </div>
     </form>
   </div>
 </div>
@@ -324,29 +326,25 @@
   function openEditModal(id) {
     const q = questions.find(function(q) { return String(q.id) === String(id); });
     if (!q) return;
-    document.getElementById('editQuestionTitle').textContent = 'Edit Question';
+    document.getElementById('editQuestionTitle').textContent = 'Edit question';
     document.getElementById('editQuestionId').value = q.id;
     document.getElementById('editQuestionDim').value = q.dimension;
     document.getElementById('editQuestionText').value = q.text;
     document.getElementById('editQuestionActive').checked = q.isActive;
-    editModal.classList.remove('hidden');
+    editDialog.open();
   }
   function openAddModal(dim) {
     const label = DIMENSIONS.find(function(d) { return d.code === dim; }).label;
-    document.getElementById('editQuestionTitle').textContent = 'Add Question \u2014 ' + label;
+    document.getElementById('editQuestionTitle').textContent = 'Add a ' + label + ' question';
     document.getElementById('editQuestionId').value = '';
     document.getElementById('editQuestionDim').value = dim;
     document.getElementById('editQuestionText').value = '';
     document.getElementById('editQuestionActive').checked = true;
-    editModal.classList.remove('hidden');
-    document.getElementById('editQuestionText').focus();
+    editDialog.open();
   }
-  function closeEditModal() {
-    editModal.classList.add('hidden');
-    editForm.reset();
-  }
-  document.querySelectorAll('.edit-question-close-btn').forEach(function(btn) { btn.addEventListener('click', closeEditModal); });
-  editModal.addEventListener('click', function(e) { if (e.target === editModal) closeEditModal(); });
+  // The shared pop-up behaviour (PP.dialog in js/ui-state.js): x, Cancel and Escape close it; the form is cleared.
+  const editDialog = PP.dialog(editModal, { onClose: function() { editForm.reset(); } });
+  function closeEditModal() { editDialog.close(); }
 
   async function send(method, body) {
     const res = await fetch('api/assessment-questions.php', {

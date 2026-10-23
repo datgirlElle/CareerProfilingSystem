@@ -613,6 +613,17 @@
   // A click on the dark background does nothing (same rule as the Filters panel). Tab stays inside the pop-up,
   // and focus goes back to whatever opened it.
   var dialogSeq = 0;
+  // Keeps Tab inside a pop-up: from the last control back to the first, and the other way round.
+  function keepTabInside(e, box) {
+    var items = Array.prototype.filter.call(
+      box.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+      function (el) { return !el.disabled && el.offsetParent !== null; });
+    if (!items.length) return;
+    var first = items[0], last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    else if (!box.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+  }
   var X_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>';
   PP.confirm = function (message, opts) {
     opts = opts || {};
@@ -653,18 +664,58 @@
       }
       function onKey(e) {
         if (e.key === 'Escape') { e.stopPropagation(); done(false); return; }
-        if (e.key !== 'Tab') return;
-        // Keep Tab inside the pop-up: from the last button back to the first, and the other way round.
-        var items = modal.querySelectorAll('button');
-        var first = items[0], last = items[items.length - 1];
-        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-        else if (!modal.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+        if (e.key === 'Tab') keepTabInside(e, modal);
       }
       document.addEventListener('keydown', onKey, true);
       okBtn.addEventListener('click', function () { done(true); });
       modal.querySelectorAll('[data-cancel]').forEach(function (b) { b.addEventListener('click', function () { done(false); }); });
     });
+  };
+
+  // A page's own pop-up (a form) with the same behaviour as PP.confirm. el: the .modal-backdrop element, holding a
+  // .pp-dialog card with a .pp-dialog-title. Buttons marked data-dialog-close (the x, Cancel) close it, so does
+  // Escape; a click on the dark background does nothing. Tab stays inside, and focus goes back to whatever opened it.
+  // opts.onClose: runs after it closes (any way). open(focusEl): focus that element, else the first field.
+  PP.dialog = function (el, opts) {
+    if (typeof el === 'string') el = document.getElementById(el);
+    opts = opts || {};
+    var card = el.querySelector('.pp-dialog');
+    var title = el.querySelector('.pp-dialog-title');
+    if (title && !title.id) title.id = el.id + 'Title';
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-modal', 'true');
+    if (title) card.setAttribute('aria-labelledby', title.id);
+    var opener = null, openNow = false;
+    function onKey(e) {
+      if (e.key === 'Escape') { e.stopPropagation(); api.close(); return; }
+      if (e.key === 'Tab') keepTabInside(e, card);
+    }
+    var api = {
+      open: function (focusEl) {
+        opener = document.activeElement;
+        openNow = true;
+        el.classList.remove('hidden');
+        document.addEventListener('keydown', onKey, true);
+        setTimeout(function () {
+          el.classList.add('is-open');
+          var target = focusEl || card.querySelector('input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled])') ||
+            card.querySelector('.pp-dialog-foot button:not([disabled])');
+          if (target) target.focus();
+        }, 16);
+      },
+      close: function () {
+        if (!openNow) return;
+        openNow = false;
+        document.removeEventListener('keydown', onKey, true);
+        el.classList.remove('is-open');
+        setTimeout(function () { el.classList.add('hidden'); }, 260);
+        if (opener && opener.focus && document.contains(opener)) opener.focus();
+        if (opts.onClose) opts.onClose();
+      },
+      isOpen: function () { return openNow; }
+    };
+    el.querySelectorAll('[data-dialog-close]').forEach(function (b) { b.addEventListener('click', api.close); });
+    return api;
   };
 
   // Log out, the same on every page: asks first, then signs out and goes to the page's sign-in page.

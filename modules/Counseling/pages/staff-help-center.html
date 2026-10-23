@@ -168,8 +168,12 @@
 </div>
 
 <div id="faqModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-lg p-6 flex flex-col gap-4">
-    <h3 id="faqModalTitle" class="text-lg font-semibold text-black">Add FAQ</h3>
+  <div class="modal-card pp-dialog pp-dialog-lg">
+    <div class="pp-dialog-head">
+      <h2 id="faqModalTitle" class="pp-dialog-title">Add FAQ</h2>
+      <button type="button" class="pp-dialog-x" data-dialog-close aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="pp-dialog-form">
     <p id="faqModalAudience" class="text-xs text-gray-500"></p>
     <div>
       <label for="faqQuestion" class="block text-xs font-medium text-gray-600 mb-1">Question</label>
@@ -181,9 +185,10 @@
       <p class="text-xs text-gray-400 mt-1"><span id="faqAnswerCount">0</span> / 2000. Plain text only. Line breaks are kept.</p>
     </div>
     <p id="faqModalError" class="hidden text-xs text-[#ed1c24]" aria-live="polite"></p>
-    <div class="flex justify-end gap-2 pt-1">
-      <button type="button" id="faqCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
-      <button type="button" id="faqSaveBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Save</button>
+    </div>
+    <div class="pp-dialog-foot">
+      <button type="button" id="faqCancelBtn" data-dialog-close class="pp-btn pp-btn-secondary">Cancel</button>
+      <button type="button" id="faqSaveBtn" class="pp-btn pp-btn-primary">Save</button>
     </div>
   </div>
 </div>
@@ -579,16 +584,12 @@
     aInput.value = faq ? faq.answer : '';
     document.getElementById('faqAnswerCount').textContent = aInput.value.length;
     modalError.classList.add('hidden');
-    modal.classList.remove('hidden');
-    setTimeout(function() { modal.classList.add('is-open'); qInput.focus(); }, 16);
+    faqDialog.open(qInput);
   }
-  function closeModal() {
-    modal.classList.remove('is-open');
-    setTimeout(function() { modal.classList.add('hidden'); }, 260);
-  }
+  // The shared pop-up behaviour (PP.dialog in js/ui-state.js): x, Cancel and Escape close it.
+  const faqDialog = PP.dialog(modal);
+  function closeModal() { faqDialog.close(); }
   addBtn.addEventListener('click', function() { openModal(null); });
-  document.getElementById('faqCancelBtn').addEventListener('click', closeModal);
-  modal.addEventListener('click', function(e) { if (e.target.id === 'faqModal') closeModal(); });
   aInput.addEventListener('input', function() { document.getElementById('faqAnswerCount').textContent = aInput.value.length; });
   document.getElementById('faqSaveBtn').addEventListener('click', async function() {
     const question = qInput.value.trim(), answer = aInput.value.trim();

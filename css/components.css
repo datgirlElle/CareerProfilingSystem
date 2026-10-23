@@ -221,7 +221,9 @@
 .college-badge.hidden,
 .college-legend.hidden,
 .pp-chips.hidden,
-.pp-filter-count.hidden {
+.pp-filter-count.hidden,
+.pp-btn.hidden,
+.pp-choice.hidden {
   display: none;
 }
 
@@ -648,4 +650,83 @@ button.breakdown-row.is-picked:not(:disabled):hover {
   background: #ed1c24;
   border-color: #ed1c24;
   color: #fff;
+}
+
+/* Pop-ups with a form (PP.dialog): wider sizes and a body that scrolls when the screen is short. */
+.pp-dialog-md {
+  max-width: 480px;
+}
+.pp-dialog-lg {
+  max-width: 560px;
+}
+/* A wide reading view (the report preview): the middle scrolls, the title and buttons stay. */
+.pp-dialog-xl {
+  max-width: 768px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.pp-dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px 24px 0;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+  font-size: 14px;
+  color: #334155;
+}
+/* A grey box that says who or what the pop-up is about (e.g. the student in Review recommendation). */
+.pp-dialog-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+/* One choice of a radio group shown as a card: a title and one line saying what will happen. */
+.pp-choice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+.pp-choice + .pp-choice {
+  margin-top: 8px;
+}
+.pp-choice input {
+  margin-top: 3px;
+  accent-color: #0f2a6b;
+  flex: 0 0 auto;
+}
+.pp-choice:has(input:checked) {
+  border-color: #0f2a6b;
+  box-shadow: 0 0 0 1px #0f2a6b;
+  background: #f8fafc;
+}
+.pp-choice:has(input:focus-visible) {
+  outline: 2px solid #001c43;
+  outline-offset: 2px;
+}
+.pp-choice-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+.pp-choice-text {
+  display: block;
+  font-size: 12px;
+  color: #475569;
+}
+.pp-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
