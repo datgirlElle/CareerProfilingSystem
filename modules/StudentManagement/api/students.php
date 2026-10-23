@@ -209,7 +209,9 @@ if ($idLookup > 0) {
 $page = max(1, (int) ($_GET['page'] ?? 1));
 // ?all=1 (used by the Announcements student-picker) returns everyone
 // matching the filters in one response instead of paginating.
-$pageSize = isset($_GET['all']) ? PHP_INT_MAX : 8;
+// ?pageSize= is the Rows per page choice on Student Information (25, 50 or 100); anything else keeps 8.
+$askedPageSize = (int) ($_GET['pageSize'] ?? 0);
+$pageSize = isset($_GET['all']) ? PHP_INT_MAX : (in_array($askedPageSize, [25, 50, 100], true) ? $askedPageSize : 8);
 $search = trim((string) ($_GET['search'] ?? ''));
 $strandFilter = (string) ($_GET['strand'] ?? '');
 $sectionFilter = trim((string) ($_GET['section'] ?? ''));

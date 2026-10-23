@@ -47,12 +47,6 @@
   .fp-option span:hover { background:#f1f5f9; }
   .fp-option input:checked + span { background:#0f2a6b; border-color:#0f2a6b; color:#fff; }
   .fp-option input:focus-visible + span { outline:2px solid #0f2a6b; outline-offset:2px; }
-  .fp-filter-count:not(.hidden) { display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px; padding:0 6px; border-radius:9999px;
-    background:#0f2a6b; color:#fff; font-size:11px; font-weight:600; }
-  .fp-chip { display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 4px 0 10px; border:1px solid #cbd5e1; border-radius:9999px;
-    background:#f8fafc; font-size:12px; color:#334155; }
-  .fp-chip button { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:9999px; color:#475569; }
-  .fp-chip button:hover { background:#e2e8f0; color:#0f172a; }
 </style>
 </head>
 <body class="bg-[#f9fafb]">
@@ -146,7 +140,7 @@
           <p class="text-sm text-gray-500 mt-1">Overview of student assessments and counseling status</p>
         </div>
         <div class="flex items-center gap-2">
-          <label for="ayFilter" class="pp-filter-label">School year</label>
+          <label for="ayFilter" class="pp-filter-label">School Year</label>
           <select id="ayFilter" class="pp-filter-select"></select>
         </div>
       </div>
@@ -258,18 +252,13 @@
           <div class="ov-controls">
             <div class="pp-filter-search ov-search">
               <svg viewBox="0 -960 960 960" fill="#64748B" aria-hidden="true"><path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>
-              <input type="text" id="studentSearch" placeholder="Search by name..." aria-label="Search by name" class="pp-filter-input">
+              <input type="text" id="studentSearch" placeholder="Search students" aria-label="Search students by name" class="pp-filter-input">
             </div>
-            <button type="button" id="downloadListBtn" class="pp-filter-btn ov-btn" title="A PDF of every student in the list below, with the filters in use">
-              <img src="images/audit/icon-export.svg" alt="" class="w-4 h-4">
-              <span id="downloadListLabel">Export PDF</span>
-            </button>
-            <button type="button" id="emailListedBtn" class="pp-filter-btn is-navy ov-btn hidden">Email these students</button>
             <div class="relative ov-filter">
               <button type="button" id="filterBtn" aria-expanded="false" aria-controls="filterPanel" class="pp-filter-btn ov-btn">
                 <svg class="w-3.5 h-3.5" viewBox="0 -960 960 960" fill="#64748B" aria-hidden="true"><path d="M400-240v-80h160v80H400ZM240-440v-80h480v80H240ZM120-640v-80h720v80H120Z"/></svg>
                 Filters
-                <span id="filterCount" class="fp-filter-count hidden"></span>
+                <span id="filterCount" class="pp-filter-count hidden"></span>
               </button>
               <div id="filterPanel" role="dialog" aria-label="Filter students" class="hidden absolute right-0 top-[calc(100%+8px)] bg-white border border-gray-200 rounded-xl shadow-lg z-10">
                 <div class="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100">
@@ -346,15 +335,25 @@
                     </fieldset>
                   </div>
                 </div>
+                <!-- No Apply button: every choice updates the list right away. Done only closes the panel. -->
                 <div class="flex items-center justify-between gap-3 px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-xl">
-                  <button type="button" id="clearFilters" class="text-sm font-medium text-gray-600 hover:text-gray-900 px-2 py-2 -ml-2 rounded-md">Clear all</button>
-                  <button type="button" id="applyFilters" class="bg-[#0f2a6b] text-white text-sm font-medium rounded-md px-5 py-2 hover:opacity-90">Apply filters</button>
+                  <p id="filterMatchCount" class="text-sm text-gray-600" aria-live="polite"></p>
+                  <button type="button" id="doneFilters" class="pp-filter-btn">Done</button>
                 </div>
               </div>
             </div>
+            <button type="button" id="clearFilters" disabled class="pp-clear-filters ov-btn">
+              <span class="pp-clear-filters-icon" aria-hidden="true"></span>
+              Clear filters
+            </button>
+            <button type="button" id="downloadListBtn" class="pp-filter-btn ov-btn" title="A PDF of every student in the list below, with the filters in use">
+              <img src="images/audit/icon-export.svg" alt="" class="w-4 h-4">
+              <span id="downloadListLabel">Export PDF</span>
+            </button>
+            <button type="button" id="emailListedBtn" class="pp-filter-btn is-navy ov-btn hidden">Email these students</button>
           </div>
         </div>
-        <div id="activeFilters" class="hidden px-4 sm:px-6 py-3 border-b border-gray-200 flex flex-wrap items-center gap-2" aria-label="Filters in use"></div>
+        <div id="activeFilters" class="pp-chips hidden" aria-label="Filters in use"></div>
         <p id="noResults" class="hidden px-6 py-6 text-sm text-gray-500 text-center">No students match your search or filters.</p>
 
         <div class="overflow-auto max-h-[60vh]" id="studentTableScroll">
@@ -379,10 +378,9 @@
           </table>
         </div>
 
-        <div class="border-t border-gray-200 px-6 py-4 flex flex-wrap items-center justify-between gap-2">
-          <p class="text-sm text-gray-500" id="paginationSummary">Loading…</p>
-          <p class="text-xs text-red-600 hidden" id="exportError" role="alert"></p>
-        </div>
+        <!-- Filled by PP.pager: "Showing 1 to 50 of N students", Rows per page and the page buttons. -->
+        <div id="studentPager"></div>
+        <p class="text-xs text-red-600 hidden px-6 pb-4" id="exportError" role="alert"></p>
       </div>
 
     </main>
@@ -537,7 +535,22 @@
   const searchInput = document.getElementById('studentSearch');
   const noResults = document.getElementById('noResults');
   const tbody = document.getElementById('studentTbody');
-  const state = { search: '', strand: '', section: '', status: '', counseling: '', registration: '', assessment: '', account: '', academicYear: '' };
+  // The filters and page live in the page address, so Reload and Back show the same list. The search (it can be a
+  // name) is kept in this tab only, never in the address (PP.listState in js/ui-state.js).
+  const listState = PP.listState({ search: '', strand: '', section: '', status: '', counseling: '', registration: '', assessment: '', account: '', academicYear: '', page: 1, pageSize: 50 }, ['search']);
+  const state = listState.read();
+  if (![25, 50, 100].includes(state.pageSize)) state.pageSize = 50;
+  searchInput.value = state.search;
+  const getStudents = PP.latestJson(); // a new request cancels the one still on its way
+  const pager = PP.pager('studentPager', {
+    noun: ['student', 'students'], label: 'Student list pages', pageSize: state.pageSize, emptyText: 'No students to show',
+    onChange: function(page, pageSize, focus) {
+      state.page = page;
+      state.pageSize = pageSize;
+      document.getElementById('studentTableScroll').scrollTop = 0;
+      load({ listOnly: true, focus: focus });
+    }
+  });
   // Summary card breakdowns (see the script near the end): the card open, the last numbers, and the strand click in use
   // ({ card, strand, before }, where before holds the filters it changed, to put back on undo).
   let openCard = null;
@@ -587,7 +600,6 @@
     renderStatus(lastSectionRows);
   });
   let lastSectionRows = [];
-  let debounceHandle = null;
 
   // ---- Student progress by section: registered, assessed and still pending, each as a share of the students expected.
   let completionChart = null;
@@ -776,33 +788,57 @@
     '</tr>';
   }
 
-  async function load() {
+  // Loads one page of students (state.page) with the search and filters in use.
+  // opts.listOnly: a filter, search or page change. The cards and charts count every student in the school year (not the
+  // table's filters), so they stay as they are instead of flashing. opts.focus: the pager button to focus afterwards.
+  async function load(opts = {}) {
+    const listOnly = !!opts.listOnly && lastSummary !== null;
     const statIds = ['cardTotalStudents', 'cardCompleted', 'cardPending', 'cardMismatched'];
     const chartBoxes = ['completionChartBox', 'statusChartBox'];
+    listState.save(state);
     PP.showSkeleton(tbody, PP.skeleton.rows(10, 6));
-    document.getElementById('paginationSummary').innerHTML = PP.skeleton.line('220px');
-    statIds.forEach(PP.statLoading);
-    ['cardCompletedPct', 'cardPendingPct', 'cardMismatchedPct'].forEach(function(id) { document.getElementById(id).textContent = ''; });
-    if (!completionChart) { document.getElementById('sectionCompletionCard').classList.remove('hidden'); PP.chartLoading('completionChartBox'); }
-    if (!statusChart) { document.getElementById('statusCard').classList.remove('hidden'); PP.chartLoading('statusChartBox'); }
+    pager.loading();
+    if (!listOnly) {
+      statIds.forEach(PP.statLoading);
+      ['cardCompletedPct', 'cardPendingPct', 'cardMismatchedPct'].forEach(function(id) { document.getElementById(id).textContent = ''; });
+      if (!completionChart) { document.getElementById('sectionCompletionCard').classList.remove('hidden'); PP.chartLoading('completionChartBox'); }
+      if (!statusChart) { document.getElementById('statusCard').classList.remove('hidden'); PP.chartLoading('statusChartBox'); }
+    }
     const params = new URLSearchParams({
-      all: '1', search: state.search, strand: state.strand, section: state.section, status: state.status, counseling: state.counseling,
-      registration: state.registration, assessment: state.assessment, account: state.account, academicYear: state.academicYear,
+      page: state.page, pageSize: state.pageSize, search: state.search, strand: state.strand, section: state.section, status: state.status,
+      counseling: state.counseling, registration: state.registration, assessment: state.assessment, account: state.account, academicYear: state.academicYear,
     });
     let data;
     try {
-      data = await PP.fetchJson('api/students.php?' + params.toString());
+      data = await getStudents('api/students.php?' + params.toString());
     } catch (e) {
+      if (e.cancelled) return; // a newer request replaced this one
+      if (e.status === 401) { window.location.replace('staff-login'); return; }
       PP.showError(tbody, e.message, load, 10);
-      statIds.forEach(PP.statFailed);
-      document.getElementById('paginationSummary').textContent = '';
-      chartBoxes.forEach(function(id) { PP.chartError(id, e.message, load); });
+      pager.clear();
+      document.getElementById('filterMatchCount').textContent = '';
+      if (!listOnly) {
+        statIds.forEach(PP.statFailed);
+        chartBoxes.forEach(function(id) { PP.chartError(id, e.message, load); });
+      }
       return;
     }
     tbody.removeAttribute('aria-busy');
-    chartBoxes.forEach(PP.chartLoaded);
     isPastYear = !!data.isPastYear;
     lastTotal = data.total;
+    state.page = data.page; // the server keeps the page inside the list (a page past the end shows the last one)
+    listState.save(state);
+    pager.render(Object.assign({}, data, { shown: data.students.length }));
+    pager.focus(opts.focus);
+    document.getElementById('filterMatchCount').textContent = data.total.toLocaleString() + (data.total === 1 ? ' student matches' : ' students match');
+    noResults.classList.toggle('hidden', data.students.length !== 0);
+    tbody.innerHTML = data.students.length
+      ? data.students.map((s, i) => renderRow(s, data.startIndex + i)).join('')
+      : '';
+    renderEmailButton();
+    if (listOnly) { renderBreakdown(); return; } // a strand picked in a card breakdown may have just been changed
+
+    chartBoxes.forEach(PP.chartLoaded);
     renderYearOptions(data);
 
     document.getElementById('cardTotalStudents').textContent = data.summary.totalStudents.toLocaleString();
@@ -821,22 +857,17 @@
     lastSectionRows = secRows;
     renderStatus(secRows);
     renderCompletion(secRows);
-    noResults.classList.toggle('hidden', data.students.length !== 0);
-    tbody.innerHTML = data.students.length
-      ? data.students.map((s, i) => renderRow(s, data.startIndex + i)).join('')
-      : '';
+  }
 
-    // Staff can email everyone currently listed when the list is Pending or Mismatched students.
-    // Past school years are looked at, not acted on: no emails from them.
+  // Staff can email everyone currently listed when the list is Pending or Mismatched students.
+  // Past school years are looked at, not acted on: no emails from them.
+  function renderEmailButton() {
     const emailBtn = document.getElementById('emailListedBtn');
     const inviteMode = !isPastYear && state.registration === 'notRegistered' && !(state.status === 'Pending' || state.status === 'Mismatched');
     const showEmail = !isPastYear && (state.status === 'Pending' || state.status === 'Mismatched' || inviteMode);
     emailBtn.classList.toggle('hidden', !showEmail);
     emailBtn.classList.toggle('flex', showEmail);
     emailBtn.textContent = inviteMode ? 'Email: invite to register' : (state.status === 'Mismatched' ? 'Email: visit the Guidance Office' : 'Email: assessment reminder');
-
-    document.getElementById('paginationSummary').innerHTML =
-      'Showing <span class="font-medium text-gray-900">' + data.total.toLocaleString() + '</span> student' + (data.total === 1 ? '' : 's') + '. Scroll the table to see more.';
   }
 
   // "Email these students": a reminder to the Pending students, or a request to visit the
@@ -989,16 +1020,17 @@
   }
   ayFilter.addEventListener('change', function() {
     state.academicYear = ayFilter.value;
+    state.page = 1;
     load();
   });
 
-  searchInput.addEventListener('input', () => {
-    clearTimeout(debounceHandle);
-    debounceHandle = setTimeout(() => {
-      state.search = searchInput.value.trim();
-            load();
-    }, 300);
-  });
+  // The search waits until typing stops for 300 ms, then shows the first page of matches.
+  const searchSoon = PP.debounce(function() {
+    state.search = searchInput.value.trim();
+    state.page = 1;
+    load({ listOnly: true });
+  }, 300);
+  searchInput.addEventListener('input', function() { updateClearBtn(); searchSoon(); });
   // The Section filter is a drop-down of the sections the Head of Guidance / counselors maintain (Account
   // Management), read fresh each time the panel opens so a section added a moment ago is already there.
   // With All Strands it lists every section; with one strand, just that strand's.
@@ -1006,7 +1038,7 @@
   function renderSectionFilter() {
     const sec = document.getElementById('filterSection');
     const strand = getChoice('filterStrand');
-    const previous = sec.value;
+    const previous = sec.value || state.section; // the saved section, before its option has been loaded
     const list = sectionOptions.filter(function(s) { return !strand || s.strand === strand; });
     sec.innerHTML = '<option value="">All sections</option>' + list.map(function(s) {
       return '<option value="' + escapeHtml(s.code) + '">' + escapeHtml(s.code) + (strand ? '' : ' (' + escapeHtml(s.strand) + ')') + (s.isActive ? '' : ' (inactive)') + '</option>';
@@ -1064,58 +1096,78 @@
     filterBtn.setAttribute('aria-label', active.length ? 'Filters, ' + active.length + ' in use' : 'Filters');
     const box = document.getElementById('activeFilters');
     box.classList.toggle('hidden', active.length === 0);
-    box.classList.toggle('flex', active.length > 0);
     box.innerHTML = active.map(function(f) {
       const text = f.label + ': ' + choiceText(f, state[f.key]);
-      return '<span class="fp-chip">' + escapeHtml(text) +
+      return '<span class="pp-chip">' + escapeHtml(text) +
         '<button type="button" data-remove-filter="' + f.key + '" aria-label="Remove ' + escapeHtml(text) + '">' +
         '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg></button></span>';
-    }).join('') + (active.length > 1 ? '<button type="button" data-remove-filter="all" class="text-xs font-medium text-gray-600 hover:text-gray-900 underline underline-offset-2 px-1">Clear all</button>' : '');
+    }).join('');
+    updateClearBtn();
+  }
+  // Clear filters: grey until a filter or the search is in use, then navy (as on the Audit Log).
+  const clearFiltersBtn = document.getElementById('clearFilters');
+  function updateClearBtn() {
+    clearFiltersBtn.disabled = !(searchInput.value.trim() || FILTERS.some(function(f) { return state[f.key]; }));
   }
   document.getElementById('activeFilters').addEventListener('click', function(e) {
     const btn = e.target.closest('[data-remove-filter]');
     if (!btn) return;
     const key = btn.dataset.removeFilter;
-    FILTERS.forEach(function(f) {
-      if (key !== 'all' && f.key !== key) return;
-      setControl(f, '');
-      state[f.key] = '';
-    });
-    if (key === 'all' || key === 'strand') renderSectionFilter();
+    const f = filterFor(key);
+    setControl(f, '');
+    state[f.key] = '';
+    if (key === 'strand') renderSectionFilter();
+    state.page = 1;
     renderActiveFilters();
-    load();
+    load({ listOnly: true });
     // The chip just removed had focus; keep the keyboard in the same place.
     const next = document.querySelector('#activeFilters button') || filterBtn;
     next.focus();
   });
-  document.getElementById('applyFilters').addEventListener('click', () => {
+  // No Apply button: a choice in the panel updates the list at once (the Strand radios first narrow the Section list).
+  filterPanel.addEventListener('change', function() {
     FILTERS.forEach(function(f) { state[f.key] = controlValue(f); });
+    state.page = 1;
     renderActiveFilters();
-    load();
-    closeFilterPanel(true);
+    load({ listOnly: true });
   });
-  // Clear all resets the choices in the panel and shows every student again; the search box keeps its text.
-  document.getElementById('clearFilters').addEventListener('click', () => {
+  document.getElementById('doneFilters').addEventListener('click', () => closeFilterPanel(true));
+  // Clear filters resets the search and every filter and shows the first page of all students.
+  clearFiltersBtn.addEventListener('click', () => {
+    searchSoon.cancel();
+    searchInput.value = '';
+    state.search = '';
     FILTERS.forEach(function(f) { setControl(f, ''); state[f.key] = ''; });
+    picked = null;
+    state.page = 1;
     renderSectionFilter();
     renderActiveFilters();
-    load();
+    // The button just became disabled, which drops keyboard focus. Keep focus in the filter bar.
+    searchInput.focus();
+    load({ listOnly: true });
   });
   // The panel opens leftward from the Filters button. On a narrower screen it keeps inside the table card (so it never slides
   // under the sidebar), and below 560px it shows one column. On a phone the CSS already makes it full width.
   function fitFilterPanel() {
     filterPanel.style.width = '';
+    filterPanel.style.left = '';
+    filterPanel.style.right = '';
     filterPanel.querySelector('.fp-grid').style.gridTemplateColumns = '';
     if (window.innerWidth < 640) return;
     const card = filterBtn.closest('.rounded-xl').getBoundingClientRect();
-    const room = Math.floor(filterBtn.getBoundingClientRect().right - card.left - 16);
+    const btn = filterBtn.getBoundingClientRect();
+    const roomLeft = Math.floor(btn.right - card.left - 16);
+    const roomRight = Math.floor(card.right - btn.left - 16);
+    // Open toward the side with more room (the toolbar wraps onto its own line on narrower screens).
+    if (roomRight > roomLeft) { filterPanel.style.left = '0'; filterPanel.style.right = 'auto'; }
+    const room = Math.max(roomLeft, roomRight);
     if (room < 680) {
       filterPanel.style.width = room + 'px';
       if (room < 560) filterPanel.querySelector('.fp-grid').style.gridTemplateColumns = '1fr';
     }
   }
   window.addEventListener('resize', () => { if (!filterPanel.classList.contains('hidden')) fitFilterPanel(); });
-  // Closing without Apply leaves the table as it is, so the panel shows the filters in use the next time it opens.
+  // Opening the panel shows the filters in use (a chip or a card breakdown may have changed them while it was closed).
   filterBtn.addEventListener('click', () => {
     if (filterPanel.classList.contains('hidden')) return;
     FILTERS.forEach(function(f) { if (!f.select) setControl(f, state[f.key] || ''); });
@@ -1153,8 +1205,9 @@
     Object.keys(values).forEach(function(k) { state[k] = values[k]; setControl(filterFor(k), values[k]); });
     renderSectionFilter();
     document.getElementById('filterSection').value = state.section || '';
+    state.page = 1;
     renderActiveFilters();
-    load();
+    load({ listOnly: true });
   }
   function setCardsExpanded() {
     document.querySelectorAll('.summary-card').forEach(function(card) {
@@ -1259,6 +1312,10 @@
     applyFilterValues(values);
   });
 
+  // Start from the filters saved in the page address (Reload, Back, a shared link).
+  FILTERS.forEach(function(f) { if (!f.select) setControl(f, state[f.key] || ''); });
+  renderSectionFilter();
+  renderActiveFilters();
   await load();
 })();
 </script>
