@@ -351,7 +351,7 @@
   try {
     const inviteCfg = await (await fetch('api/security-config.php')).json();
     const levelFor = (module) => ((inviteCfg.rbac && inviteCfg.rbac[module] && inviteCfg.rbac[module][currentUser.rbacRole || currentUser.role]) || 'none');
-    canInvite = levelFor('counselingNotes') === 'full';
+    canInvite = levelFor('counselingNotes') === 'full' && (currentUser.rbacRole || currentUser.role) !== 'facilitator'; // Facilitators never invite (DFD process 4.0)
     canAct = levelFor('monitoring') === 'full';
   } catch (e) {}
   async function sendCounselingInvite(studentId) {

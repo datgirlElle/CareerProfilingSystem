@@ -103,11 +103,12 @@ try {
 
     echo "\n=== Facilitator restrictions (direct requests) ===\n";
     $f = new Client($base); $f->login('qa_facilitator', $pw, 'staff');
-    $r = $f->req('GET', "/api/counseling-notes.php?studentId=$stuA"); check('facilitator cannot view counseling notes', $r['code'] === 403, (string) $r['code']);
-    $r = $f->req('POST', '/api/counseling-notes.php', ['studentId' => $stuA, 'note' => 'facilitator write']); check('facilitator cannot create counseling notes', $r['code'] === 403, (string) $r['code']);
+    $r = $f->req('GET', "/api/counseling-notes.php?studentId=$stuA"); check('facilitator can view counseling notes (Table 5 default, owner decision 2026-10-24)', $r['code'] === 200, (string) $r['code']);
+    $r = $f->req('POST', '/api/counseling-notes.php', ['studentId' => $stuA, 'note' => 'facilitator write']); check('facilitator can create counseling notes (Table 5 default)', $r['code'] >= 200 && $r['code'] < 300, (string) $r['code']);
     $r = $f->req('GET', '/api/staff-approvals.php'); check('facilitator cannot list staff approvals', $r['code'] === 403, (string) $r['code']);
     $r = $f->req('POST', '/api/staff-approvals.php', ['id' => $counselor, 'action' => 'reject']); check('facilitator cannot reject staff', $r['code'] === 403, (string) $r['code']);
-    $r = $f->req('POST', '/api/counseling-invite.php', ['studentId' => $stuA]); check('facilitator cannot send counseling invitations', $r['code'] === 403, (string) $r['code']);
+    $r = $f->req('POST', '/api/counseling-invite.php', ['studentId' => $stuA]); check('facilitator cannot send counseling invitations (DFD process 4.0)', $r['code'] === 403, (string) $r['code']);
+    $r = $f->req('POST', '/api/retake-requests.php', ['type' => 'decide', 'id' => 0, 'decision' => 'approve']); check('facilitator cannot decide retake requests (DFD process 4.0)', $r['code'] === 403, (string) $r['code']);
     $r = $f->req('POST', '/api/roster-upload.php', '{}'); check('facilitator cannot upload rosters (view-only)', $r['code'] === 403, (string) $r['code']);
     $r = $f->req('POST', '/api/sections.php', ['type' => 'create', 'strand' => 'STEM', 'code' => 'QA-X']); check('facilitator cannot modify sections (view-only)', $r['code'] === 403, (string) $r['code']);
     $r = $f->req('POST', '/api/announcements.php', ['type' => 'create', 'title' => 'qa', 'body' => 'qa']); check('facilitator cannot post announcements under default matrix', $r['code'] === 403, (string) $r['code']);
@@ -142,6 +143,7 @@ try {
     foreach ($ids as $id) {
         $pdo->prepare("DELETE FROM counseling_notes WHERE student_id = ? OR author_id = ?")->execute([$id, $id]);
         $pdo->prepare("DELETE FROM audit_log WHERE actor_user_id = ?")->execute([$id]);
+        $pdo->prepare("DELETE FROM announcements WHERE created_by = ?")->execute([$id]); // left behind if a post was wrongly allowed
         $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$id]);
     }
 }

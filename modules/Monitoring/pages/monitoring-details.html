@@ -393,7 +393,7 @@
     let canAct = currentUser.role === 'admin';
     fetch('api/security-config.php').then(function(r) { return r.json(); }).then(function(inviteCfg) {
       const levelFor = (module) => ((inviteCfg.rbac && inviteCfg.rbac[module] && inviteCfg.rbac[module][currentUser.rbacRole || currentUser.role]) || 'none');
-      canInvite = levelFor('counselingNotes') === 'full';
+      canInvite = levelFor('counselingNotes') === 'full' && (currentUser.rbacRole || currentUser.role) !== 'facilitator'; // Facilitators never invite (DFD process 4.0)
       canAct = levelFor('monitoring') === 'full';
     }).catch(function() {});
     async function sendCounselingInvite(studentId) {
