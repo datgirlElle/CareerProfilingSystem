@@ -244,6 +244,8 @@ def paired_bootstrap(a, b, iters=2000, seed=7):
 # Short names accepted in the course column (case, spaces, dots and hyphens ignored).
 # Ambiguous abbreviations (e.g. BSMT = Medical Technology or Marine Transportation)
 # are deliberately left out; use the full name for those.
+# Short names, and misspellings found in the team's dataset and Weka model labels
+# (the same ones config/course_aliases.php maps for the web app).
 COURSE_ALIASES = {
     "BA Communication": ["BACOMM", "ABCOMM"],
     "B Multimedia Arts": ["BS Multimedia Arts", "BMMA", "BSMMA"],
@@ -253,14 +255,16 @@ COURSE_ALIASES = {
     "BS Medical Technology": ["BSMEDTECH"],
     "BS Pharmacy": ["BSPHARMA"],
     "BS Physical Therapy": ["BSPT"],
-    "BS Psychology": ["BSPSYCH"],
+    "BS Psychology": ["BSPSYCH", "BS Pyschology"],
     "BS Nursing": ["BSN"],
     "BS Accountancy": ["BSA"],
     "BS Accounting Information System": ["BSAIS"],
-    "BSBA Major in Financial Management": ["BS Business Administration Major in Financial Management", "BSBAFM"],
-    "BSBA Major in Operations Management": ["BS Business Administration Major in Operations Management", "BSBAOM"],
+    "BSBA Major in Financial Management": ["BS Business Administration Major in Financial Management", "BSBAFM",
+                                           "BS Business Administration Major in Financial Managements"],
+    "BSBA Major in Operations Management": ["BS Business Administration Major in Operations Management", "BSBAOM",
+                                            "BS Business Administration Major in Operations Managements"],
     "BSBA Major in Sustainability Management": ["BS Business Administration Major in Sustainability Management", "BSBASM"],
-    "BS Hospitality Management": ["BSHM"],
+    "BS Hospitality Management": ["BSHM", "BS Hospitality Managment"],
     "BS Tourism Management": ["BSTM"],
     "BS International Business": ["BSIB"],
     "BS Architecture": ["BSARCH"],

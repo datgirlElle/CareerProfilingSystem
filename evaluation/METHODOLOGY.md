@@ -659,3 +659,26 @@ Preferred Course and the J48 prediction are shown beside it and never change it.
 - "CBF Best Match + Alternatives, ranked by J48 probability" scored test MRR 0.192 (CV 0.263)
   and is RIASEC-aligned by construction. It is recorded as future work: the J48 import keeps
   only each leaf's course, not its class probabilities.
+
+## 16. Accuracy ceiling for the top-3 binary inputs (`accuracy_ceiling.py`)
+
+The Prediction Module's inputs allow only 20 patterns (which three of R, I, A, S, E, C are a
+student's highest). Any classifier that uses only these inputs, J48 included, gives every student
+with the same pattern the same prediction. For each pattern it can at best predict the course most
+of those students chose. So the data alone sets an upper limit on accuracy:
+
+    ceiling = (sum over patterns of the most common course's count) / students
+
+`accuracy_ceiling.py --data <file>` reports, for the course and for the college:
+
+- this ceiling, plus the same limit for "the course is among the model's top 3";
+- the pattern-majority rule under stratified 10-fold cross-validation (seeds 1-10), next to ZeroR.
+
+**Reading the ceiling:** the ceiling is measured on the same students and is therefore optimistic.
+With few students per pattern it is inflated: on random data it is far above ZeroR, while the
+cross-validated rule is not. Use it as a limit ("no model on these inputs can exceed X%"), never
+as a model result. If the ceiling is below a required accuracy (e.g. 80%), no tuning of J48 can
+meet it; only a different target or different inputs could, and that needs approval.
+
+**Running it:** run on the team's own computer; the data file stays there and is ignored by git.
+The tests use synthetic fixtures only.
