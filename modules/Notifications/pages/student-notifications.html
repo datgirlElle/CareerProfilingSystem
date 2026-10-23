@@ -162,7 +162,7 @@
       </div>
     </main>
 
-      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-500">
         <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
         <span>&middot;</span>
         <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
@@ -218,9 +218,9 @@
         '<a href="' + escapeHtml(n.link) + '" class="min-w-0 flex-1 block hover:opacity-80">' +
           '<p class="text-sm font-semibold text-[#191c1e]">' + escapeHtml(n.title || (isAnnouncement ? 'Announcement' : 'Update')) + '</p>' +
           (n.text ? '<p class="text-sm text-[#5e3f3c] mt-0.5 break-words">' + escapeHtml(n.text) + '</p>' : '') +
-          '<p class="text-xs text-gray-400 mt-1">' + timeAgo(n.ts) + '</p>' +
+          '<p class="text-xs text-gray-500 mt-1">' + timeAgo(n.ts) + '</p>' +
         '</a>' +
-        '<button type="button" class="btn-danger delete-notif shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-gray-400 hover:text-[#ed1c24] hover:bg-red-50" aria-label="Delete this notification" title="Delete">' + TRASH + '</button>' +
+        '<button type="button" class="btn-danger delete-notif shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-gray-500 hover:text-[#ed1c24] hover:bg-red-50" aria-label="Delete this notification" title="Delete">' + TRASH + '</button>' +
       '</div>';
     }
 

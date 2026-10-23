@@ -112,7 +112,7 @@
       <div id="notifFullList" class="hidden bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100"></div>
 
     </main>
-      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-500">
         <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
         <span>&middot;</span>
         <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
@@ -210,7 +210,7 @@
             '<span class="text-[11px] font-medium rounded-full px-2 py-0.5 ' + (unread ? 'bg-[#ed1c24]/10 text-[#bb0013]' : 'bg-gray-100 text-gray-500') + '">' + (unread ? 'Unread' : 'Read') + '</span>' +
           '</div>' +
           '<p class="text-sm text-gray-600 mt-0.5">' + escapeHtml(n.text) + '</p>' +
-          '<p class="text-xs text-gray-400 mt-1">' + escapeHtml(formatWhen(n.ts)) + '</p>' +
+          '<p class="text-xs text-gray-500 mt-1">' + escapeHtml(formatWhen(n.ts)) + '</p>' +
         '</div>' +
       '</a>';
     }).join('');
