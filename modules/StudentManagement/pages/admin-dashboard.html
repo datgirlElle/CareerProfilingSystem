@@ -553,11 +553,11 @@
       load({ listOnly: true, focus: focus });
     }
   });
-  // Summary card breakdowns (see the script near the end): the card open, the last numbers, and the strand click in use
-  // ({ card, strand, before }, where before holds the filters it changed, to put back on undo).
+  // Summary card breakdowns (see the script near the end): the card open and the last numbers. The picked strand is
+  // state.strand itself, so it shows on every card.
   let openCard = null;
   let lastSummary = null;
-  let picked = null;
+  let pickedSets = null; // { before }: what a card's strand click replaced (status, assessment), put back when it is undone
   let isPastYear = false;
   let lastTotal = 0;
   let statusSection = ''; // '' = all sections, otherwise "STRAND|SECTION"
@@ -1068,7 +1068,9 @@
     renderSectionFilter();
   }
   // Strand and Section apply the moment they change (no Apply button).
+  // A change by hand is the user's own choice: a card click's "put back" memory (pickedSets) is dropped, as on the Audit Log.
   filterStrand.addEventListener('change', function() {
+    pickedSets = null;
     renderSectionFilter();
     state.strand = filterStrand.value;
     state.section = filterSection.value; // renderSectionFilter() may have reset Section
@@ -1077,6 +1079,7 @@
     load({ listOnly: true });
   });
   filterSection.addEventListener('change', function() {
+    pickedSets = null;
     state.section = filterSection.value;
     state.page = 1;
     renderActiveFilters();
@@ -1141,6 +1144,7 @@
     const f = filterFor(key);
     setControl(f, '');
     state[f.key] = '';
+    pickedSets = null;
     state.page = 1;
     renderActiveFilters();
     load({ listOnly: true });
@@ -1148,9 +1152,10 @@
     const next = document.querySelector('#activeFilters button') || filterBtn;
     next.focus();
   });
-  // No Apply button: a choice in the panel updates the list at once (the Strand radios first narrow the Section list).
+  // No Apply button: a choice in the panel updates the list at once.
   filterPanel.addEventListener('change', function() {
     FILTERS.forEach(function(f) { state[f.key] = controlValue(f); });
+    pickedSets = null;
     state.page = 1;
     renderActiveFilters();
     load({ listOnly: true });
@@ -1162,7 +1167,7 @@
     searchInput.value = '';
     state.search = '';
     FILTERS.forEach(function(f) { setControl(f, ''); state[f.key] = ''; });
-    picked = null;
+    pickedSets = null;
     state.page = 1;
     renderSectionFilter();
     renderActiveFilters();
@@ -1199,34 +1204,36 @@
     filterPanel.querySelector('input:checked').focus();
   });
 
-  // ---- Card breakdowns, as on the Audit Log: click a card to see its number split by strand; click a strand to show only
-  // those students in the table, and click it again to undo. A strand click sets the same filters as the Filters panel,
-  // so the Filters count and the chips under the toolbar show it too. One card open at a time. The numbers count every
-  // student in view, before the table's filters, like the cards themselves. Values go in with textContent.
+  // ---- Card breakdowns, same rule as the Audit Log: click a card to see its number split by strand; click a strand to
+  // show only those students in the table. The picked strand is the Strand filter itself (top of the page), so it stays
+  // picked on every card until it is cleared. On a card with its own filter (Completed, Pending, Mismatched), clicking
+  // the picked strand first narrows the table to that card's students; clicking it again clears the strand.
+  // One card open at a time. The numbers count every student in view, before the table's filters, like the cards
+  // themselves. Values go in with textContent.
   const breakdownPanel = document.getElementById('breakdownPanel');
   const breakdownTitle = document.getElementById('breakdownTitle');
   const breakdownRows = document.getElementById('breakdownRows');
   const breakdownNote = document.getElementById('breakdownNote');
-  // Each card: its title, its number per strand, its bar color (the card icon's), and what a strand click sets besides
-  // Strand. The status and assessed filters are set together, so an earlier choice cannot empty the table.
+  // Each card: its title, its number per strand, its bar color (the card icon's), what a strand click sets besides
+  // Strand, and the word for its students in the notes. The status and assessed filters are set together, so an
+  // earlier choice cannot empty the table.
   const CARDS = {
-    total: { title: 'Total students by strand', count: function(b) { return b.total; }, color: '#2563eb', sets: {} },
-    completed: { title: 'Assessments completed by strand', count: function(b) { return b.completed; }, color: '#16a34a', sets: { status: 'Completed', assessment: '' } },
-    pending: { title: 'Pending assessments by strand', count: function(b) { return b.pending; }, color: '#d97706', sets: { status: '', assessment: 'notAssessed' } },
-    mismatched: { title: 'Mismatched results by strand', count: function(b) { return b.mismatched; }, color: '#9333ea', sets: { status: 'Mismatched', assessment: '' } },
+    total: { title: 'Total students by strand', count: function(b) { return b.total; }, color: '#2563eb', sets: {}, group: '' },
+    completed: { title: 'Assessments completed by strand', count: function(b) { return b.completed; }, color: '#16a34a', sets: { status: 'Completed', assessment: '' }, group: 'completed' },
+    pending: { title: 'Pending assessments by strand', count: function(b) { return b.pending; }, color: '#d97706', sets: { status: '', assessment: 'notAssessed' }, group: 'pending' },
+    mismatched: { title: 'Mismatched results by strand', count: function(b) { return b.mismatched; }, color: '#9333ea', sets: { status: 'Mismatched', assessment: '' }, group: 'mismatched' },
   };
 
   function filterFor(key) { return FILTERS.find(function(f) { return f.key === key; }); }
-  // The click is still in use only while the filters are still what it set (the chips or the panel can change them).
-  function pickedStillOn() {
-    if (!picked) return false;
-    const sets = Object.assign({ strand: picked.strand }, CARDS[picked.card].sets);
+  // True when the table already shows this card's students (its own filters are on). Always true for Total.
+  function cardFiltersOn(card) {
+    const sets = CARDS[card].sets;
     return Object.keys(sets).every(function(k) { return state[k] === sets[k]; });
   }
   function applyFilterValues(values) {
     Object.keys(values).forEach(function(k) { state[k] = values[k]; setControl(filterFor(k), values[k]); });
     renderSectionFilter();
-    document.getElementById('filterSection').value = state.section || '';
+    state.section = filterSection.value; // a section of another strand is reset, so the table never comes back empty for it
     state.page = 1;
     renderActiveFilters();
     load({ listOnly: true });
@@ -1246,17 +1253,17 @@
   }
   function renderBreakdown() {
     if (openCard === null || !lastSummary || !Array.isArray(lastSummary.byStrand)) return;
-    if (!pickedStillOn()) picked = null;
     const info = CARDS[openCard];
     const groups = lastSummary.byStrand;
     const sum = groups.reduce(function(n, b) { return n + info.count(b); }, 0);
+    const exact = cardFiltersOn(openCard); // the table shows this card's students
     // The rows are rebuilt after every load; keep keyboard focus on the strand that had it.
     const focused = breakdownRows.contains(document.activeElement) ? document.activeElement.dataset.strand : null;
     breakdownTitle.textContent = info.title;
     breakdownRows.replaceChildren.apply(breakdownRows, groups.map(function(b) {
       const n = info.count(b);
       const pct = sum > 0 ? Math.round((n / sum) * 100) : 0;
-      const isPicked = !!picked && picked.card === openCard && picked.strand === b.strand;
+      const isPicked = state.strand === b.strand; // the Strand filter, so it carries over to every card
       const row = document.createElement('button');
       row.type = 'button';
       row.className = isPicked ? 'breakdown-row is-picked' : 'breakdown-row';
@@ -1271,7 +1278,7 @@
       if (isPicked) {
         const tag = document.createElement('span');
         tag.className = 'breakdown-tag';
-        tag.textContent = 'Showing';
+        tag.textContent = exact ? 'Showing' : 'Selected';
         name.appendChild(tag);
       }
       const bar = document.createElement('span');
@@ -1289,9 +1296,11 @@
       row.append(name, bar, count, share);
       return row;
     }));
-    breakdownNote.textContent = picked && picked.card === openCard
-      ? 'Showing ' + picked.strand + ' only in the table. Click it again to show all strands.'
-      : 'Click a strand to show only its students in the table.';
+    breakdownNote.textContent = !state.strand
+      ? 'Click a strand to show only its students in the table.'
+      : exact
+        ? 'Showing ' + state.strand + ' only in the table. Click it again to show all strands.'
+        : state.strand + ' is selected. Click it to show only its ' + info.group + ' students.';
     if (focused) {
       const again = breakdownRows.querySelector('[data-strand="' + CSS.escape(focused) + '"]');
       if (again && !again.disabled) again.focus();
@@ -1318,20 +1327,20 @@
   breakdownRows.addEventListener('click', function(e) {
     const row = e.target.closest('.breakdown-row');
     if (!row || row.disabled) return;
-    if (!pickedStillOn()) picked = null;
-    if (picked && picked.card === openCard && picked.strand === row.dataset.strand) {
-      // Undo: put back the filters from before the first strand click.
-      const before = picked.before;
-      picked = null;
-      applyFilterValues(before);
+    const sets = CARDS[openCard].sets;
+    if (row.dataset.strand === state.strand && cardFiltersOn(openCard)) {
+      // Already showing this card's students of this strand: clear the strand and put back what the card filters replaced.
+      const values = Object.assign({ strand: '' }, pickedSets ? pickedSets.before : {});
+      pickedSets = null;
+      applyFilterValues(values);
       return;
     }
-    const values = Object.assign({ strand: row.dataset.strand }, CARDS[openCard].sets);
-    // Keep the filters from before the first click, so undo goes all the way back.
-    const before = picked ? picked.before : {};
-    Object.keys(values).forEach(function(k) { if (!(k in before)) before[k] = state[k]; });
-    picked = { card: openCard, strand: row.dataset.strand, before: before };
-    applyFilterValues(values);
+    // Pick the strand (or keep it) and narrow to this card's students. Remember each filter's value from before the
+    // first click that changed it, so clearing goes all the way back.
+    const before = pickedSets ? pickedSets.before : {};
+    Object.keys(sets).forEach(function(k) { if (!(k in before) && state[k] !== sets[k]) before[k] = state[k]; });
+    pickedSets = Object.keys(before).length ? { before: before } : null;
+    applyFilterValues(Object.assign({ strand: row.dataset.strand }, sets));
   });
 
   // Start from the filters saved in the page address (Reload, Back, a shared link).
