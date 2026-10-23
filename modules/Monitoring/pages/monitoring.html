@@ -201,7 +201,7 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-50" id="flaggedTableBody">
-              <tr><td colspan="7" class="px-6 py-8 text-center text-sm text-slate-400">Loading…</td></tr>
+              <tr><td colspan="7" class="px-6 py-8 text-center text-sm text-slate-500">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -213,7 +213,7 @@
 
     </main>
 
-      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-500">
         <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
         <span>&middot;</span>
         <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
@@ -335,11 +335,8 @@
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  const priorityClass = {
-    High: 'bg-red-50 border-red-100 text-[#ed1c24]',
-    Medium: 'bg-orange-50 border-orange-100 text-orange-600',
-    Low: 'bg-slate-50 border-slate-200 text-slate-600',
-  };
+  // Badge colors by meaning (PP.badge in js/ui-state.js).
+  const PRIORITY_TONE = { High: 'red', Medium: 'amber', Low: 'gray' };
   const matchClass = (matchStr) => {
     // Match / Mismatch (RecommendationPipeline): mismatch -> refer to a Guidance Counselor.
     return matchStr === 'Mismatch' ? 'text-orange-600' : matchStr === 'Match' ? 'text-green-600' : 'text-slate-500';
@@ -378,7 +375,7 @@
       '<td class="px-6 py-3 text-sm text-slate-600">' + escapeHtml(r.career) + '</td>' +
       '<td class="px-6 py-3 text-sm font-bold ' + matchClass(r.match) + '">' + escapeHtml(r.match) + '</td>' +
       '<td class="px-6 py-3 text-sm text-slate-600">' + escapeHtml(r.reason) + '</td>' +
-      '<td class="px-6 py-3"><span class="border text-xs font-bold px-2.5 py-1 rounded-md ' + (priorityClass[r.priority] || priorityClass.Low) + '">' + escapeHtml(r.priority) + '</span></td>' +
+      '<td class="px-6 py-3">' + PP.badge(r.priority, PRIORITY_TONE[r.priority] || 'gray') + '</td>' +
       '<td class="px-6 py-3"><a href="#" class="review-link flex items-center gap-1 text-sm text-blue-600 hover:underline" data-flag-id="' + r.flagId + '">Review' +
         '<img src="images/monitoring/icon-chevron-right3.svg" alt="" class="w-1.5 h-2.5"></a></td>' +
     '</tr>';
@@ -413,7 +410,7 @@
 
     flaggedTableBody.innerHTML = data.rows.length
       ? data.rows.map(renderRow).join('')
-      : '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-slate-400">No flagged recommendations right now.</td></tr>';
+      : '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-slate-500">No flagged recommendations right now.</td></tr>';
     document.getElementById('flaggedSummary').textContent =
       'Showing ' + data.rows.length + ' of ' + data.summary.needsReview + ' flagged recommendations';
 

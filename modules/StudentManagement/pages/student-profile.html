@@ -34,9 +34,6 @@
   .sp-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
   .sp-title{ display:flex; align-items:center; gap:8px; font-size:16px; font-weight:600; color:#111827; }
   .sp-title i{ width:8px; height:8px; border-radius:9999px; background:#19427b; display:inline-block; }
-  .sp-badge{ display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:600; padding:4px 12px; border-radius:9999px; border:1px solid; white-space:nowrap; }
-  .sp-badge.done{ background:#f0fdf4; border-color:#bbf7d0; color:#16a34a; }
-  .sp-badge.wait{ background:#fffbeb; border-color:#fde68a; color:#b45309; }
   .sp-tiles{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; }
   .sp-tile{ background:#f8fafc; border:1px solid #eef2f7; border-radius:10px; padding:12px 14px; min-width:0; }
   .sp-label{ font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:#6b7280; }
@@ -175,7 +172,7 @@
             <div class="sp-card sp-section">
               <div class="sp-head">
                 <h2 class="sp-title"><i></i>Assessment &amp; Academic Details</h2>
-                <span id="statusBadge" class="sp-badge wait">—</span>
+                <span id="statusBadge" class="pp-badge pp-badge-gray">—</span>
               </div>
 
               <div class="sp-tiles">
@@ -220,7 +217,7 @@
               <div class="sp-status" id="counselingBox">
                 <div class="sp-sub">
                   <p class="sp-label" id="counselingLabel" style="color:#b45309">Counseling Status</p>
-                  <span id="counselingBadge" class="sp-badge wait hidden">Pending Request</span>
+                  <span id="counselingBadge" class="pp-badge pp-badge-amber hidden">Pending Request</span>
                 </div>
                 <p class="sp-value" id="counselingField">—</p>
               </div>
@@ -239,7 +236,7 @@
             <div id="recommendationCard" class="hidden sp-card sp-section">
               <div class="sp-head" style="flex-wrap:wrap;gap:8px;">
                 <h2 class="sp-title">Recommendation</h2>
-                <span id="recStatus" class="sp-badge wait"></span>
+                <span id="recStatus" class="pp-badge pp-badge-gray"></span>
               </div>
               <div>
                 <p class="sp-label">Preferred Course</p>
@@ -310,7 +307,7 @@
       </div>
     </main>
 
-      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-500">
         <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
         <span>&middot;</span>
         <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
@@ -488,7 +485,7 @@
     const list = function(items) { return items && items.length ? items.join(', ') : 'None'; };
     const status = document.getElementById('recStatus');
     status.textContent = r.matchStatus === 'mismatch' ? 'Differs from RIASEC match' : r.matchStatus === 'match' ? 'Matches RIASEC' : 'Not compared yet';
-    status.className = 'sp-badge ' + (r.matchStatus === 'match' ? 'done' : 'wait');
+    status.className = 'pp-badge pp-badge-' + (r.matchStatus === 'match' ? 'green' : r.matchStatus === 'mismatch' ? 'amber' : 'gray');
     document.getElementById('recPreferred').textContent = r.preferredCourse
       ? withCosine(r.preferredCourse) + (r.preferredCourse.inBestRiasecMatch ? ', also a Best RIASEC Match' : ', differs from the Best RIASEC Match')
       : 'No worksheet result';
@@ -654,8 +651,9 @@
 
       document.getElementById('academicYearField').textContent = s.academicYear || 'Not set';
       const badge = document.getElementById('statusBadge');
-      badge.textContent = s.status === 'Completed' ? '✓ Completed' : s.status;
-      badge.className = 'sp-badge ' + (s.status === 'Completed' ? 'done' : 'wait');
+      // Same colors as Student Information (PP.badge in js/ui-state.js).
+      badge.textContent = s.status;
+      badge.className = 'pp-badge pp-badge-' + ({ Completed: 'green', Pending: 'amber', 'Not Registered': 'blue' }[s.status] || 'gray');
       document.getElementById('registeredField').textContent = s.registeredAt
         ? new Date(s.registeredAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
         : 'Not recorded';
