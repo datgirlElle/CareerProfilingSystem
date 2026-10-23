@@ -238,7 +238,7 @@
             <h2 class="text-base font-semibold text-slate-900"><span id="listTitle">Scheduled Sessions</span> <span id="listAyLabel" class="text-slate-400 font-normal"></span></h2>
             <div class="flex items-center gap-3">
               <div class="flex items-center gap-2">
-                <label for="ayFilter" class="pp-filter-label">School year</label>
+                <label for="ayFilter" class="pp-filter-label">School Year</label>
                 <select id="ayFilter" class="pp-filter-select"></select>
               </div>
               <button type="button" id="archiveToggle" class="text-xs font-medium text-[#19427b] hover:underline">Show archived</button>
@@ -502,9 +502,13 @@
     }
   }
 
-  let showArchived = false;
-  let selectedAy = '';
+  // The school year and the archived view live in the page address, so Reload and Back keep them (PP.listState).
+  const listState = PP.listState({ academicYear: '', archived: '' }, []);
+  const saved = listState.read();
+  let showArchived = saved.archived === '1';
+  let selectedAy = saved.academicYear;
   let viewingPast = false;
+  const getSchedules = PP.latestJson(); // a new year or archive click cancels the list still on its way
   const ayFilter = document.getElementById('ayFilter');
   ayFilter.addEventListener('change', () => { selectedAy = ayFilter.value; showArchived = false; loadSchedules(); });
   const archiveToggle = document.getElementById('archiveToggle');
@@ -512,6 +516,7 @@
 
   let listLoadedOnce = false;
   async function loadSchedules() {
+    listState.save({ academicYear: selectedAy, archived: showArchived ? '1' : '' });
     const query = new URLSearchParams();
     if (showArchived) query.set('archived', '1');
     if (selectedAy) query.set('academicYear', selectedAy);
@@ -519,8 +524,9 @@
     if (!listLoadedOnce) { statIds.forEach(PP.statLoading); PP.showSkeleton(listEl, PP.skeleton.cards(3)); }
     let data;
     try {
-      data = await PP.fetchJson('api/exam-schedules.php' + (query.toString() ? '?' + query.toString() : ''));
+      data = await getSchedules('api/exam-schedules.php' + (query.toString() ? '?' + query.toString() : ''));
     } catch (e) {
+      if (e.cancelled) return; // a newer click replaced this one
       if (!listLoadedOnce) {
         statIds.forEach(PP.statFailed);
         PP.showError(listEl, e.message, loadSchedules);
@@ -538,7 +544,7 @@
     }
     archiveToggle.classList.toggle('hidden', viewingPast);
     if (canWrite) document.getElementById('createCard').classList.toggle('hidden', viewingPast);
-    listAyLabel.textContent = data.academicYear ? '— AY ' + data.academicYear : '';
+    listAyLabel.textContent = data.academicYear ? '— School Year ' + data.academicYear : '';
     document.getElementById('listTitle').textContent = showArchived ? 'Archived Sessions' : 'Scheduled Sessions';
     archiveToggle.textContent = showArchived ? 'Back to active sessions' : 'Show archived (' + (data.archivedCount || 0) + ')';
     renderSummary(data.summary);
