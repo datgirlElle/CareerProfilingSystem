@@ -899,6 +899,8 @@
           const info = CARDS[openCard];
           const groups = lastSummary.breakdown.filter(b => info.noAccount || b.role !== 'none');
           const sum = groups.reduce((n, b) => n + info.count(b), 0);
+          // True when the table already shows this card's activities (Successful/Failed set the Status filter).
+          const exact = !info.status || state.status === info.status;
           // The rows are rebuilt after every load; keep keyboard focus on the role that had it.
           const focusedRole = breakdownRows.contains(document.activeElement) ? document.activeElement.dataset.role : null;
           breakdownTitle.textContent = info.title;
@@ -916,7 +918,7 @@
             row.setAttribute('aria-label', b.label + ': ' + n.toLocaleString() + ', ' + pct + ' percent');
             row.setAttribute('aria-describedby', 'breakdownNote');
             const name = el('span', 'breakdown-name', b.label);
-            if (picked) name.appendChild(el('span', 'breakdown-tag', 'Showing'));
+            if (picked) name.appendChild(el('span', 'breakdown-tag', exact ? 'Showing' : 'Selected'));
             row.appendChild(name);
             const bar = el('span', 'breakdown-bar');
             const fill = el('span');
@@ -935,6 +937,7 @@
           }
           if (info.people) notes.push(lastSummary.activeLastWeek ? 'People active in the last 7 days.' : 'People in these results.');
           if (state.role === '') notes.push('Click a role to show only its activities.');
+          else if (groups.some(b => b.role === state.role) && !exact) notes.push(ROLE_LABELS[state.role] + ' is selected. Click it to show only its ' + (info.status === 'Failed' ? 'failed' : 'successful') + ' activities.');
           else if (groups.some(b => b.role === state.role)) notes.push('Showing ' + ROLE_LABELS[state.role] + ' only. Click it again to show all roles.');
           // "No account" can be picked on the Total card, but the other cards have no row for it.
           else notes.push('Showing ' + ROLE_LABELS[state.role] + ' only (not listed on this card). Click the × on the Role chip to show all.');
@@ -995,15 +998,16 @@
           }
         }
         // A role row filters the table to that role; on the Successful and Failed cards it also sets
-        // the Status filter, so the table shows exactly the rows that were counted. Clicking the
-        // picked role again undoes it.
+        // the Status filter, so the table shows exactly the rows that were counted. The picked role on a
+        // card whose Status is not on yet first narrows to it; clicking it again undoes it (same rule as
+        // Student Information).
         breakdownRows.addEventListener('click', e => {
           const row = e.target.closest('.breakdown-row');
           if (!row || row.disabled) return;
-          if (row.dataset.role === state.role) {
+          const status = CARDS[openCard] ? CARDS[openCard].status : undefined;
+          if (row.dataset.role === state.role && (!status || state.status === status)) {
             clearRole();
           } else {
-            const status = CARDS[openCard] ? CARDS[openCard].status : undefined;
             state.role = row.dataset.role;
             if (status && state.status !== status) {
               // Keep the Status from before the first bar click that changed it.
