@@ -39,7 +39,7 @@
     <div class="border-t border-white/5 pt-[25px] pb-6">
       <a href="staff-login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
         <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>
-        Logout
+        Log out
       </a>
     </div>
 
@@ -200,16 +200,6 @@
 </div>
 
 <div id="toastContainer" class="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 pointer-events-none"></div>
-<div id="genericConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
-    <p id="genericConfirmMessage" class="text-sm text-gray-700"></p>
-    <div class="flex justify-end gap-2 pt-1">
-      <button type="button" id="genericConfirmCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
-      <button type="button" id="genericConfirmOkBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Confirm</button>
-    </div>
-  </div>
-</div>
-
 <div id="assignModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
   <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-md max-h-[85vh] flex flex-col">
     <div class="px-6 pt-5 pb-3">
@@ -225,17 +215,6 @@
   </div>
 </div>
 
-<div id="logoutConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
-    <h3 class="text-lg font-semibold text-black">Log Out?</h3>
-    <p class="text-sm text-gray-500">Are you sure you want to log out?</p>
-    <div class="flex justify-end gap-2 pt-1">
-      <button type="button" id="logoutCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
-      <button type="button" id="logoutConfirmBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Log Out</button>
-    </div>
-  </div>
-</div>
-
 <script>
   function showToast(message, isError) {
     const container = document.getElementById('toastContainer');
@@ -245,31 +224,6 @@
     container.appendChild(toast);
     setTimeout(function() { toast.remove(); }, 5000);
   }
-  function showConfirm(message) {
-    return new Promise(function(resolve) {
-      const modal = document.getElementById('genericConfirmModal');
-      document.getElementById('genericConfirmMessage').textContent = message;
-      modal.classList.remove('hidden');
-      setTimeout(function() { modal.classList.add('is-open'); }, 16);
-      const okBtn = document.getElementById('genericConfirmOkBtn');
-      const cancelBtn = document.getElementById('genericConfirmCancelBtn');
-      function cleanup(result) {
-        modal.classList.remove('is-open');
-        setTimeout(function() { modal.classList.add('hidden'); }, 260);
-        okBtn.removeEventListener('click', onOk);
-        cancelBtn.removeEventListener('click', onCancel);
-        modal.removeEventListener('click', onBackdrop);
-        resolve(result);
-      }
-      function onOk() { cleanup(true); }
-      function onCancel() { cleanup(false); }
-      function onBackdrop(e) { if (e.target.id === 'genericConfirmModal') cleanup(false); }
-      okBtn.addEventListener('click', onOk);
-      cancelBtn.addEventListener('click', onCancel);
-      modal.addEventListener('click', onBackdrop);
-    });
-  }
-
 (async function() {
   const sessionData = await (await fetch('api/session.php')).json();
   const currentUser = sessionData.user;
@@ -286,22 +240,7 @@
   document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
   document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
 
-  const logoutModal = document.getElementById('logoutConfirmModal');
-  function openLogoutModal(e) {
-    e.preventDefault();
-    logoutModal.classList.remove('hidden');
-    setTimeout(function() { logoutModal.classList.add('is-open'); }, 16);
-  }
-  function closeLogoutModal() {
-    logoutModal.classList.remove('is-open');
-    setTimeout(function() { logoutModal.classList.add('hidden'); }, 260);
-  }
-  document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
-  document.getElementById('logoutCancelBtn').addEventListener('click', closeLogoutModal);
-  document.getElementById('logoutConfirmBtn').addEventListener('click', function() {
-    fetch('api/logout.php', { method: 'POST' }).finally(function() { window.location.href = 'staff-login'; });
-  });
-  logoutModal.addEventListener('click', function(e) { if (e.target.id === 'logoutConfirmModal') closeLogoutModal(); });
+  document.getElementById('sidebarLogout').addEventListener('click', function(e) { e.preventDefault(); PP.logout('staff-login'); });
 
   (function() {
     const sidebar = document.getElementById('sidebar');
@@ -442,14 +381,18 @@
       if (!btn || btn.disabled) return;
       const action = btn.dataset.action;
       const name = btn.dataset.name;
+      const deactivating = btn.dataset.active === '1';
       const prompts = {
-        approve: 'Approve "' + name + '"? They will be emailed a temporary access code to create their own password. You will not see the password.',
-        resendCode: 'Email "' + name + '" a new temporary access code? Any earlier code stops working.',
-        reject: 'Reject the sign-up of "' + name + '"? They will be emailed and will not be able to sign in.',
-        toggleActive: (btn.dataset.active === '1' ? 'Deactivate' : 'Activate') + ' "' + name + '"?',
-        unlock: 'Unlock "' + name + '"? The account was locked after too many wrong passwords. They can sign in again right away.'
+        approve: { title: 'Approve "' + name + '"?', text: 'They will be emailed a temporary access code to create their own password. You will not see the password.', ok: 'Approve' },
+        resendCode: { title: 'Send "' + name + '" a new access code?', text: 'Any earlier code stops working.', ok: 'Send code' },
+        reject: { title: 'Reject the sign-up of "' + name + '"?', text: 'They will be emailed and will not be able to sign in.', ok: 'Reject', danger: true },
+        toggleActive: deactivating
+          ? { title: 'Deactivate "' + name + '"?', text: 'They will no longer be able to sign in. You can reactivate later.', ok: 'Deactivate', danger: true }
+          : { title: 'Reactivate "' + name + '"?', text: 'They will be able to sign in again.', ok: 'Reactivate' },
+        unlock: { title: 'Unlock "' + name + '"?', text: 'The account was locked after too many wrong passwords. They can sign in again right away.', ok: 'Unlock' }
       };
-      if (!(await showConfirm(prompts[action]))) return;
+      const p = prompts[action];
+      if (!(await PP.confirm(p.text, { title: p.title, okLabel: p.ok, danger: !!p.danger }))) return;
       btn.disabled = true;
       const res = await fetch('api/staff-approvals.php', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -613,7 +556,7 @@
         }
         let data = await toggle(false);
         if (data.needsConfirm) {
-          if (await showConfirm(data.error + ' Deactivate it anyway?')) {
+          if (await PP.confirm(data.error, { title: 'Deactivate this section anyway?', okLabel: 'Deactivate', danger: true })) {
             data = await toggle(true);
           } else {
             btn.disabled = false;
@@ -631,7 +574,7 @@
     });
     if (canToggle) container.querySelectorAll('.delete-section-btn').forEach(function(btn) {
       btn.addEventListener('click', async function() {
-        if (!(await showConfirm('Delete section "' + btn.dataset.code + '"? This cannot be undone. A section that already has students, roster entries or schedules cannot be deleted; deactivate it instead.'))) return;
+        if (!(await PP.confirm('This cannot be undone. A section that already has students, roster entries or schedules cannot be deleted; deactivate it instead.', { title: 'Delete section "' + btn.dataset.code + '"?', okLabel: 'Delete', danger: true }))) return;
         btn.disabled = true;
         const res = await fetch('api/sections.php', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
