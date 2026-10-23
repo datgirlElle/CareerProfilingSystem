@@ -137,7 +137,7 @@
           </table>
         </div>
         <div class="border-t border-slate-200 px-4 py-4">
-          <p id="resultCount" class="text-sm text-slate-500">Showing 25 of 25 careers</p>
+          <p id="resultCount" class="text-sm text-slate-500"></p>
         </div>
       </div>
 
@@ -260,17 +260,25 @@
 
   function render(list) {
     const tbody = document.getElementById('careersTableBody');
+    const empty = CAREERS.length ? 'No programs match your search.' : 'No students have matched to any program yet.';
     tbody.innerHTML = list.length
       ? list.map((c, i) => renderRow(c, i)).join('')
-      : '<tr><td colspan="5" class="px-5 py-12 text-center text-sm text-slate-500">No students have matched to any program yet.</td></tr>';
+      : '<tr><td colspan="5" class="px-5 py-12 text-center text-sm text-slate-500">' + empty + '</td></tr>';
     document.getElementById('resultCount').textContent = `Showing ${list.length} of ${CAREERS.length} programs`;
   }
 
-  document.getElementById('searchInput').addEventListener('input', (e) => {
-    const q = e.target.value.trim().toLowerCase();
-    const filtered = q ? CAREERS.filter(c => c.title.toLowerCase().includes(q)) : CAREERS;
-    render(filtered);
-  });
+  // The search is kept in this tab (sessionStorage, never the page address), so Reload and Back keep it
+  // (PP.listState in js/ui-state.js). It filters the list already loaded, so no request per key.
+  const listState = PP.listState({ search: '' }, ['search']);
+  const searchInput = document.getElementById('searchInput');
+  function applySearch() {
+    const typed = searchInput.value.trim();
+    listState.save({ search: typed });
+    const q = typed.toLowerCase();
+    render(q ? CAREERS.filter(c => c.title.toLowerCase().includes(q)) : CAREERS);
+  }
+  searchInput.value = listState.read().search;
+  searchInput.addEventListener('input', applySearch);
 
   (async function loadData() {
     const careersBody = document.getElementById('careersTableBody');
@@ -302,7 +310,7 @@
       })
       .sort((a, b) => b.students - a.students);
 
-    render(CAREERS);
+    applySearch(); // shows everything, or the search kept from before a Reload
   })();
 })();
 </script>
