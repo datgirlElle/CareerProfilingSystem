@@ -140,6 +140,7 @@ $actionLabels = [
     'add_counseling_note' => 'Added counseling note',
     'invite_to_counseling' => 'Invited to counseling',
     'send_counseling_link' => 'Sent counseling booking link to self',
+    'rotate_encryption_key' => 'Changed the encryption key',
     'send_counseling_link_failed' => 'Counseling booking link not sent',
     'invite_unregistered_students' => 'Invited unregistered students',
     'send_student_reminders' => 'Sent student reminders',
