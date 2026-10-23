@@ -7,9 +7,9 @@
  *
  * SYNTHETIC TEST DATA ONLY: made-up questions, answers and scores, not student records.
  */
-require_once __DIR__ . '/../lib/AssessmentVersion.php';
-require_once __DIR__ . '/../lib/RiasecProfile.php';
-require_once __DIR__ . '/../lib/RecommendationPipeline.php';
+require_once __DIR__ . '/../modules/CareerProfiling/lib/AssessmentVersion.php';
+require_once __DIR__ . '/../modules/CareerProfiling/lib/RiasecProfile.php';
+require_once __DIR__ . '/../modules/ContentBasedFiltering/lib/RecommendationPipeline.php';
 
 $passed = 0;
 $failed = 0;

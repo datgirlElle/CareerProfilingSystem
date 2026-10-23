@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../lib/OfficeHours.php';
+require_once __DIR__ . '/../modules/Counseling/lib/OfficeHours.php';
 
 $failures = 0;
 $passed = 0;

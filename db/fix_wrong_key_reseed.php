@@ -6,7 +6,7 @@
  * Clears both tables and re-runs the normal seed scripts so everything is
  * (re-)encrypted with whatever APP_AES_KEY is active when this runs.
  */
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 $pdo->exec('DELETE FROM programs');

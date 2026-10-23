@@ -3,8 +3,8 @@
 //   DB_NAME=profilepath_test php -S 127.0.0.1:8099 router.php
 //   DB_NAME=profilepath_test php tests/http_security_test.php http://127.0.0.1:8099
 // Seeds synthetic users (prefix "qa_") and removes only those it created.
-require_once __DIR__ . '/../lib/Database.php';
-require_once __DIR__ . '/../lib/Crypto.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
+require_once __DIR__ . '/../modules/Encryption/lib/Crypto.php';
 if (!str_ends_with((string) envValue('DB_NAME'), '_test')) { fwrite(STDERR, "Refusing to run: DB_NAME must end in _test\n"); exit(2); }
 $base = rtrim($argv[1] ?? 'http://127.0.0.1:8099', '/');
 $pdo = Database::get();
@@ -55,7 +55,7 @@ $pdo->prepare("INSERT INTO counseling_notes (student_id, note_enc, author_id) VA
 try {
     echo "=== Unauthenticated access ===\n";
     $c = new Client($base);
-    foreach (['students.php', 'security-config.php', 'audit-log.php', 'staff-approvals.php', 'counseling-notes.php?studentId=1', 'recommendations.php', 'analytics.php', 'monitoring.php', 'send-principal-report.php', 'announcements.php', 'sections.php?all=1', 'programs.php', 'my-account.php'] as $ep) {
+    foreach (['students.php', 'security-config.php', 'audit-log.php', 'staff-approvals.php', 'counseling-notes.php?studentId=1', 'recommendations.php', 'analytics.php', 'monitoring.php', 'announcements.php', 'sections.php?all=1', 'programs.php', 'my-account.php'] as $ep) {
         $r = $c->req('GET', "/api/$ep", null, false);
         check("GET $ep without login -> 401/403", in_array($r['code'], [401, 403], true), (string) $r['code']);
     }
@@ -79,7 +79,7 @@ try {
     check('security headers present', stripos($r['headers'], 'X-Frame-Options: DENY') !== false && stripos($r['headers'], 'Content-Security-Policy') !== false && stripos($r['headers'], 'X-Content-Type-Options: nosniff') !== false);
 
     echo "\n=== Student authorization (server side) ===\n";
-    foreach (['students.php', 'security-config.php', 'audit-log.php', 'staff-approvals.php', 'analytics.php', 'monitoring.php', 'send-principal-report.php', "counseling-notes.php?studentId=$stuB", 'staff-assignments.php'] as $ep) {
+    foreach (['students.php', 'security-config.php', 'audit-log.php', 'staff-approvals.php', 'analytics.php', 'monitoring.php', "counseling-notes.php?studentId=$stuB", 'staff-assignments.php'] as $ep) {
         $r = $c->req('GET', "/api/$ep");
         check("student GET $ep denied", in_array($r['code'], [401, 403], true), $r['code'] . ' ' . substr($r['body'], 0, 80));
     }
@@ -100,7 +100,6 @@ try {
     $r = $k->req('GET', "/api/recommendations.php?studentId=$stuB"); check('scoped counselor cannot read recommendations of an out-of-scope student', $r['code'] >= 400 || stripos($r['body'], 'qa_stu_b') === false, $r['code'] . ' ' . substr($r['body'], 0, 100));
     $r = $k->req('POST', '/api/security-config.php', ['type' => 'rbac', 'changes' => [['module' => 'career', 'role' => 'counselor', 'level' => 'full']]]); check('counselor cannot raise own permissions', $r['code'] >= 400 || ($k->json($r)['success'] ?? false) !== true, $r['code'] . ' ' . substr($r['body'], 0, 100));
     $r = $k->req('POST', '/api/security-config.php', ['type' => 'passwordPolicy', 'minLength' => 6]); check('counselor cannot change password policy', $r['code'] >= 400 || ($k->json($r)['success'] ?? false) !== true, $r['code'] . ' ' . substr($r['body'], 0, 100));
-    $r = $k->req('GET', '/api/send-principal-report.php'); check('counselor cannot read principal report', $r['code'] === 403);
 
     echo "\n=== Facilitator restrictions (direct requests) ===\n";
     $f = new Client($base); $f->login('qa_facilitator', $pw, 'staff');
@@ -113,11 +112,6 @@ try {
     $r = $f->req('POST', '/api/sections.php', ['type' => 'create', 'strand' => 'STEM', 'code' => 'QA-X']); check('facilitator cannot modify sections (view-only)', $r['code'] === 403, (string) $r['code']);
     $r = $f->req('POST', '/api/announcements.php', ['type' => 'create', 'title' => 'qa', 'body' => 'qa']); check('facilitator cannot post announcements under default matrix', $r['code'] === 403, (string) $r['code']);
 
-    $pdo->exec("INSERT INTO security_policies(key,value) VALUES('principal.email','qa.principal@example.test') ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value");
-    $r = $f->req('GET', '/api/security-config.php'); check('facilitator does not receive the Principal contact', stripos($r['body'], 'qa.principal@example.test') === false, (string) $r['code']);
-    $r = $k->req('GET', '/api/security-config.php'); check('counselor does not receive the Principal contact', stripos($r['body'], 'qa.principal@example.test') === false, (string) $r['code']);
-    $pdo->exec("DELETE FROM security_policies WHERE key='principal.email'");
-
     echo "\n=== SQL injection / XSS payloads in inputs ===\n";
     $c->login('qa_stu_a', $pw, 'student');
     $r = $c->req('POST', '/api/help-requests.php', ['subject' => '<script>alert(1)</script>', 'message' => "x' OR 1=1; DROP TABLE users;--"]);
@@ -128,13 +122,14 @@ try {
     $r = $c->req('POST', '/api/career-match.php', ['career' => "'; SELECT pg_sleep(0)--"]); check('SQLi in career input: no 500', $r['code'] < 500, (string) $r['code']);
     $r = $c->req('POST', '/api/career-match.php', ['career' => '']); check('empty career input handled', $r['code'] < 500, (string) $r['code']);
 
-    echo "\n=== Lockout (5 attempts, 15 minutes) ===\n";
+    echo "\n=== Lockout (5 attempts, soft growing lock: 1 min the first time today, modules/Authentication/lib/LoginLock.php) ===\n";
+    $pdo->exec("DELETE FROM rate_limit_hits WHERE rate_key LIKE 'login-fail:%' OR rate_key LIKE 'login-lock:%'");
     $l = new Client($base);
     for ($i = 0; $i < 5; $i++) { $l->login('qa_stu_b', 'bad' . $i); }
     $r = $l->login('qa_stu_b', $pw, 'student'); check('correct password refused while locked (423)', $r['code'] === 423, (string) $r['code']);
     $lu = $pdo->query("SELECT locked_until FROM users WHERE username='qa_stu_b'")->fetchColumn();
     $mins = round((strtotime((string) $lu) - time()) / 60);
-    check('lock duration is about 15 minutes', $mins >= 14 && $mins <= 15, "$mins min");
+    check('first lock of the day is about 1 minute', $mins >= 1 && $mins <= 2, "$mins min");
 
     echo "\n=== Logout invalidates the session ===\n";
     $x = new Client($base); $x->login('qa_stu_a', $pw, 'student');

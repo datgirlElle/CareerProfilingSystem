@@ -11,8 +11,8 @@ if (PHP_SAPI !== 'cli') {
     exit("CLI only.\n");
 }
 
-require_once __DIR__ . '/../lib/Database.php';
-require_once __DIR__ . '/../lib/Crypto.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
+require_once __DIR__ . '/../modules/Encryption/lib/Crypto.php';
 
 $pdo = Database::get();
 echo 'Database: ' . envValue('DB_NAME') . ' on ' . envValue('DB_HOST') . "\n\n";

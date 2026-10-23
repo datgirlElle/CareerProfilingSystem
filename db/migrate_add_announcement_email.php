@@ -4,7 +4,7 @@
 // time a staff member loads Announcements at or after its publish time
 // (see api/announcements.php) — never twice. Safe to re-run.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 $pdo->exec('ALTER TABLE announcements ADD COLUMN IF NOT EXISTS emailed_at TIMESTAMPTZ');

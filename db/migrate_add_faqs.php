@@ -3,7 +3,7 @@
 // written into the pages. audience 'student' shows on the student Help Center, 'staff' on the staff one.
 // The table starts with the FAQs the pages used to have. Safe to re-run: it only seeds an empty table.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 $pdo->exec(

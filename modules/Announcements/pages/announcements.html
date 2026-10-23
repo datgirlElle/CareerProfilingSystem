@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
+<title>Announcements — Career Profiling System</title>
+<link rel="icon" type="image/png" href="images/brand/favicon-64.png">
+<link rel="stylesheet" href="css/tailwind.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body{ font-family:'Inter', sans-serif; }
+</style>
+<link rel="stylesheet" href="css/motion.css">
+</head>
+<body class="bg-[#f9fafb]">
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<div class="flex min-h-screen">
+
+  <!-- Mobile sidebar backdrop -->
+  <div id="sidebarBackdrop" class="hidden fixed inset-0 bg-black/40 z-30 md:hidden"></div>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="w-[260px] shrink-0 bg-[#001c43] flex flex-col fixed inset-y-0 left-0 z-40 -translate-x-full transition-transform duration-200 md:sticky md:top-0 md:translate-x-0 h-screen">
+    <div class="sidebar-brand bg-white shrink-0">
+      <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="sidebar-brand-mmcl">
+      <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="sidebar-brand-cgc">
+    </div>
+    <div class="sidebar-app">
+      <img src="images/brand/profilepath-horizontal.png" alt="ProfilePath" width="190" height="75">
+      <p class="sidebar-app-role">Admin Dashboard</p>
+    </div>
+    <nav id="adminNav" data-active="announcements" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
+    <script src="js/admin-nav.js"></script>
+    <div class="border-t border-white/5 pt-[25px] pb-6">
+      <a href="staff-login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+        <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>
+        Logout
+      </a>
+    </div>
+
+  </aside>
+
+  <!-- Main Content -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    <!-- Top Header -->
+    <header class="bg-white border-b border-gray-200 flex items-center justify-between px-6 h-16 shrink-0 relative">
+      <button type="button" id="menuToggle" class="relative z-50 w-10 h-10 -m-2.5 flex items-center justify-center md:invisible">
+        <img src="images/admin/icon-menu.svg" alt="Menu" class="w-5 h-4">
+      </button>
+      <div class="flex items-center gap-6">
+
+        <div id="ayBadge" class="hidden sm:flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-full px-3 py-1">
+          <span class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">AY</span>
+          <span id="ayBadgeValue" class="text-xs font-semibold text-slate-700">—</span>
+        </div>
+
+        <!-- Notifications -->
+        <div class="relative">
+          <button type="button" id="notifBtn" data-shared-toggle class="relative w-5 h-5">
+            <svg class="w-full h-full" viewBox="0 -960 960 960" fill="#64748B"><path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"/></svg>
+            <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#ed1c24] text-white text-[10px] font-bold flex items-center justify-center"></span>
+          </button>
+          <div id="notifPanel" class="hidden fixed left-4 right-4 top-[76px] z-50 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+12px)] sm:w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <p class="text-sm font-semibold text-gray-900">Notifications</p>
+              <span id="notifCountLabel" class="text-xs text-gray-500">Loading…</span>
+            </div>
+            <ul id="notifList" class="max-h-80 overflow-auto divide-y divide-gray-100">
+              <li class="px-4 py-6 text-center text-sm text-gray-500">Loading…</li>
+            </ul>
+            <a href="staff-notifications" class="block text-center text-sm font-medium text-[#ed1c24] px-4 py-3 border-t border-gray-100 hover:bg-gray-50">View all notifications</a>
+          </div>
+        </div>
+
+        <!-- Profile -->
+        <div class="relative">
+          <button type="button" id="profileBtn" class="flex items-center gap-3">
+            <span id="headerAvatarWrap" class="w-9 h-9 rounded-full bg-[#001c43] flex items-center justify-center overflow-hidden shrink-0">
+              <img src="images/admin/icon-avatar.svg" alt="" class="w-3.5 h-4">
+            </span>
+            <span class="text-left">
+              <span class="block text-sm font-semibold text-gray-800" id="headerUserName">&nbsp;</span>
+              <span class="block text-xs text-gray-500" id="headerUserRole">&nbsp;</span>
+            </span>
+            <img src="images/admin/icon-chevron-down.svg" alt="" class="w-3.5 h-2">
+          </button>
+          <div id="profilePanel" class="hidden absolute right-0 top-[calc(100%+12px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
+            <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">Profile Settings</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <main id="main-content" class="flex-1 p-4 sm:p-8 overflow-auto">
+
+      <div class="mb-6">
+        <h1 class="text-2xl font-bold text-slate-900">Announcements</h1>
+        <p class="text-sm text-slate-500 mt-1">Send updates to students — everyone, or a specific list.</p>
+      </div>
+
+      <div id="readOnlyNotice" class="hidden bg-amber-50 border border-amber-100 rounded-md px-4 py-3 text-sm text-amber-800 mb-6">
+        You have view-only access to Announcements. Contact an Administrator to send one.
+      </div>
+
+      <!-- Summary cards (same style as the other pages) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+
+        <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-6 flex flex-col justify-between">
+          <div class="flex items-start gap-4">
+            <span class="w-12 h-12 rounded-lg bg-[#dbeafe] flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5 text-[#1d4ed8]" viewBox="0 -960 960 960" fill="currentColor"><path d="M720-440v-80h160v80H720Zm48 280-128-96 48-64 128 96-48 64Zm-80-480-48-64 128-96 48 64-128 96ZM200-200v-160h-40q-33 0-56.5-23.5T80-440v-80q0-33 23.5-56.5T160-600h160l200-120v480L320-360h-40v160h-80Zm240-182v-196l-98 58H160v80h182l98 58Zm120 36v-268q27 24 43.5 58.5T620-480q0 41-16.5 75.5T560-346ZM300-480Z"/></svg>
+            </span>
+            <div class="min-w-0">
+              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Published</p>
+              <p class="text-3xl font-bold text-gray-900" id="aCardPublished">—</p>
+            </div>
+          </div>
+          <p class="text-sm font-medium pt-3 pl-16" style="color:#2563eb" id="aCardPublishedSub">&nbsp;</p>
+        </div>
+
+        <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-6 flex flex-col justify-between">
+          <div class="flex items-start gap-4">
+            <span class="w-12 h-12 rounded-lg bg-[#dcfce7] flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5 text-[#15803d]" viewBox="0 -960 960 960" fill="currentColor"><path d="M40-160v-112q0-34 17.5-62.5T104-378q62-31 126-46.5T360-440q66 0 130 15.5T616-378q29 15 46.5 43.5T680-272v112H40Zm720 0v-120q0-44-24.5-84.5T666-434q51 6 96 20.5t84 35.5q36 20 55 44.5t19 53.5v120H760ZM360-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47Zm400-160q0 66-47 113t-113 47q-11 0-28-2.5t-28-5.5q27-32 41.5-71t14.5-81q0-42-14.5-81T544-792q14-5 28-6.5t28-1.5q66 0 113 47t47 113Z"/></svg>
+            </span>
+            <div class="min-w-0">
+              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Students Reached</p>
+              <p class="text-3xl font-bold text-gray-900" id="aCardReached">—</p>
+            </div>
+          </div>
+          <p class="text-sm font-medium text-emerald-700 pt-3 pl-16" id="aCardReachedSub">&nbsp;</p>
+        </div>
+
+        <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-6 flex flex-col justify-between">
+          <div class="flex items-start gap-4">
+            <span class="w-12 h-12 rounded-lg bg-[#ffedd5] flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5 text-[#c2410c]" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-80q-33 0-56.5-23.5T120-160v-560q0-33 23.5-56.5T200-800h40v-80h80v80h320v-80h80v80h40q33 0 56.5 23.5T840-720v560q0 33-23.5 56.5T760-80H200Zm0-80h560v-400H200v400Zm0-480h560v-80H200v80Zm0 0v-80 80Z"/></svg>
+            </span>
+            <div class="min-w-0">
+              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Scheduled</p>
+              <p class="text-3xl font-bold text-gray-900" id="aCardScheduled">—</p>
+            </div>
+          </div>
+          <p class="text-sm font-medium text-amber-700 pt-3 pl-16" id="aCardScheduledSub">&nbsp;</p>
+        </div>
+
+        <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-6 flex flex-col justify-between">
+          <div class="flex items-start gap-4">
+            <span class="w-12 h-12 rounded-lg bg-[#f3e8ff] flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5 text-[#7e22ce]" viewBox="0 -960 960 960" fill="currentColor"><path d="m424-296 282-282-56-56-226 226-114-114-56 56 170 170Zm56 216q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z"/></svg>
+            </span>
+            <div class="min-w-0">
+              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Average Read Rate</p>
+              <p class="text-3xl font-bold text-gray-900" id="aCardRead">—</p>
+            </div>
+          </div>
+          <p class="text-sm font-medium text-purple-700 pt-3 pl-16" id="aCardReadSub">&nbsp;</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+
+        <!-- Composer -->
+        <div id="createCard" class="lg:col-span-1 bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+          <div class="flex items-center justify-between gap-2 mb-4">
+            <h2 class="text-base font-semibold text-slate-900" id="composerTitle">New Announcement</h2>
+            <button type="button" id="cancelEditBtn" class="hidden text-xs font-medium text-[#19427b] hover:underline">Cancel editing</button>
+          </div>
+
+          <div class="mb-4">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-xs font-medium text-slate-600">Start from a template</p>
+              <button type="button" id="newTemplateBtn" class="text-xs font-semibold text-[#19427b] hover:underline">+ New template</button>
+            </div>
+            <div id="templateButtons" style="display:flex;flex-direction:column;gap:8px"><p class="text-xs text-slate-400">Loading…</p></div>
+          </div>
+          <form id="createForm" class="flex flex-col gap-4">
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-xs font-medium text-slate-600" for="annTitle">Title</label>
+                <span class="text-[11px] text-slate-400"><span id="titleCount">0</span> / 255</span>
+              </div>
+              <input type="text" id="annTitle" required maxlength="255" class="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+            </div>
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-xs font-medium text-slate-600" for="annBody">Message</label>
+                <span class="text-[11px] text-slate-400"><span id="bodyCount">0</span> / 2000</span>
+              </div>
+              <textarea id="annBody" required rows="4" maxlength="2000" class="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1" for="annPublishAt">Publish Date &amp; Time</label>
+              <input type="datetime-local" id="annPublishAt" class="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+              <p id="publishAtError" class="hidden text-xs text-[#ed1c24] mt-1"></p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-2">Audience</label>
+              <div class="flex gap-2 mb-3">
+                <label class="flex-1"><input type="radio" name="target" value="all" checked class="peer hidden"><span class="block text-center border border-slate-300 rounded-md py-2 text-sm cursor-pointer peer-checked:bg-[#ed1c24] peer-checked:text-white peer-checked:border-[#ed1c24]" id="targetAllLabel">@everyone</span></label>
+                <label class="flex-1"><input type="radio" name="target" value="specific" class="peer hidden"><span class="block text-center border border-slate-300 rounded-md py-2 text-sm cursor-pointer peer-checked:bg-[#ed1c24] peer-checked:text-white peer-checked:border-[#ed1c24]" id="targetSpecificLabel">Specific Students</span></label>
+              </div>
+              <p id="everyoneNote" class="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-md px-3 py-2 mb-1">Loading who this reaches…</p>
+              <div id="studentPicker" class="hidden">
+                <div id="selectedChips" class="flex flex-wrap gap-1.5 mb-2"></div>
+                <div class="relative">
+                  <input type="text" id="studentSearchInput" placeholder="Search by name…" autocomplete="off" class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+                  <div id="studentCheckList" class="hidden absolute left-0 right-0 top-full mt-1 z-20 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-auto divide-y divide-slate-100"></div>
+                </div>
+                <p class="text-xs text-slate-500 mt-1"><span id="selectedCount">0</span> selected</p>
+              </div>
+            </div>
+            <p id="createError" class="hidden text-sm text-[#ed1c24] bg-red-50 border border-red-100 rounded-md px-3.5 py-2.5"></p>
+            <p id="createSuccess" class="hidden text-sm text-green-700 bg-green-50 border border-green-100 rounded-md px-3.5 py-2.5"></p>
+            <div class="flex items-center gap-3">
+              <button type="submit" data-mode="send" id="sendBtn" class="flex-1 bg-[#ed1c24] text-white text-sm font-medium rounded-md px-5 py-2.5 hover:opacity-90">Send Announcement</button>
+              <button type="submit" data-mode="draft" id="draftBtn" class="border border-slate-300 text-slate-700 text-sm font-medium rounded-md px-5 py-2.5 hover:bg-slate-50">Save Draft</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- List -->
+        <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div class="border-b border-slate-200 px-6 py-4 flex flex-col gap-3">
+            <div class="flex items-center gap-3 flex-wrap">
+              <div class="relative flex-1 min-w-[180px]">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" viewBox="0 -960 960 960" fill="#64748B"><path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>
+                <input type="text" id="annSearch" placeholder="Search announcements…" aria-label="Search announcements" class="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+              </div>
+              <select id="annSort" aria-label="Sort announcements" class="border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed1c24]">
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+              </select>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap" id="annTabs" role="tablist">
+              <button type="button" role="tab" class="ann-tab" data-tab="all">All <span class="ann-tab-count" data-count="all">0</span></button>
+              <button type="button" role="tab" class="ann-tab" data-tab="published">Published <span class="ann-tab-count" data-count="published">0</span></button>
+              <button type="button" role="tab" class="ann-tab" data-tab="scheduled">Scheduled <span class="ann-tab-count" data-count="scheduled">0</span></button>
+              <button type="button" role="tab" class="ann-tab" data-tab="draft">Drafts <span class="ann-tab-count" data-count="draft">0</span></button>
+            </div>
+          </div>
+          <div id="announcementsList" class="divide-y divide-slate-100">
+            <p class="px-6 py-8 text-center text-sm text-slate-400">Loading…</p>
+          </div>
+          <div class="border-t border-slate-200 px-6 py-3 flex items-center justify-between gap-3 flex-wrap">
+            <p class="text-sm text-slate-500" id="annPagerSummary">&nbsp;</p>
+            <div class="flex items-center gap-1" id="annPager"></div>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+        <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
+        <span>&middot;</span>
+        <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
+        <span>&middot;</span>
+        <a href="accessibility" class="hover:text-gray-600 hover:underline">Accessibility</a>
+      </footer>
+  </div>
+</div>
+
+<div id="tplModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-lg p-6 flex flex-col gap-4">
+    <h3 id="tplModalTitle" class="text-lg font-semibold text-black">New template</h3>
+    <p class="text-xs text-gray-500">Write the title and message an announcement should start with. You can change them before sending.</p>
+    <div>
+      <label for="tplName" class="block text-xs font-medium text-gray-600 mb-1">Template name <span class="text-gray-400">(the button label)</span></label>
+      <input type="text" id="tplName" maxlength="80" class="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+    </div>
+    <div>
+      <label for="tplTitle" class="block text-xs font-medium text-gray-600 mb-1">Announcement title</label>
+      <input type="text" id="tplTitle" maxlength="255" class="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+    </div>
+    <div>
+      <label for="tplBody" class="block text-xs font-medium text-gray-600 mb-1">Message</label>
+      <textarea id="tplBody" rows="6" maxlength="2000" class="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></textarea>
+      <p class="text-xs text-gray-400 mt-1"><span id="tplBodyCount">0</span> / 2000. Plain text only. Line breaks are kept.</p>
+    </div>
+    <p id="tplError" class="hidden text-xs text-[#ed1c24]" aria-live="polite"></p>
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" id="tplCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+      <button type="button" id="tplSaveBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Save template</button>
+    </div>
+  </div>
+</div>
+<div id="logoutConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
+    <h3 class="text-lg font-semibold text-black">Log Out?</h3>
+    <p class="text-sm text-gray-500">Are you sure you want to log out?</p>
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" id="logoutCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+      <button type="button" id="logoutConfirmBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Log Out</button>
+    </div>
+  </div>
+</div>
+
+<div id="toastContainer" class="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 pointer-events-none"></div>
+<div id="genericConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
+    <p id="genericConfirmMessage" class="text-sm text-gray-700"></p>
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" id="genericConfirmCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+      <button type="button" id="genericConfirmOkBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showToast(message, isError) {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = 'pointer-events-auto max-w-sm px-4 py-3 rounded-lg shadow-lg text-sm font-medium whitespace-pre-wrap ' + (isError ? 'bg-[#ed1c24] text-white' : 'bg-green-600 text-white');
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(function() { toast.remove(); }, 5000);
+  }
+  function showConfirm(message) {
+    return new Promise(function(resolve) {
+      const modal = document.getElementById('genericConfirmModal');
+      document.getElementById('genericConfirmMessage').textContent = message;
+      modal.classList.remove('hidden');
+      setTimeout(function() { modal.classList.add('is-open'); }, 16);
+      const okBtn = document.getElementById('genericConfirmOkBtn');
+      const cancelBtn = document.getElementById('genericConfirmCancelBtn');
+      function cleanup(result) {
+        modal.classList.remove('is-open');
+        setTimeout(function() { modal.classList.add('hidden'); }, 260);
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        modal.removeEventListener('click', onBackdrop);
+        resolve(result);
+      }
+      function onOk() { cleanup(true); }
+      function onCancel() { cleanup(false); }
+      function onBackdrop(e) { if (e.target.id === 'genericConfirmModal') cleanup(false); }
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+      modal.addEventListener('click', onBackdrop);
+    });
+  }
+
+
+(async function() {
+  const sessionData = await (await fetch('api/session.php')).json();
+  const currentUser = sessionData.user;
+  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'counselor')) {
+    window.location.replace('staff-login');
+    return;
+  }
+
+  const headerAvatarWrap = document.getElementById('headerAvatarWrap');
+  if (currentUser.avatarUrl) {
+    headerAvatarWrap.innerHTML = `<img src="${currentUser.avatarUrl}" alt="" class="w-full h-full object-cover">`;
+  }
+  const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
+  document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
+  document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
+
+  // 'announcements' is Full for admins and Limited for counselors by default,
+  // but the real level can be changed in Security Configuration, so ask for it
+  // rather than assuming from the role. The server enforces the same rule.
+  let canWrite = false;
+  try {
+    const cfg = await (await fetch('api/security-config.php')).json();
+    canWrite = !!(cfg.rbac && cfg.rbac.announcements && cfg.rbac.announcements[currentUser.rbacRole || currentUser.role] === 'full');
+  } catch (err) { /* read-only if this check fails */ }
+  if (!canWrite) {
+    document.getElementById('createCard').classList.add('hidden');
+    document.getElementById('readOnlyNotice').classList.remove('hidden');
+  }
+
+  const logoutModal = document.getElementById('logoutConfirmModal');
+  function openLogoutModal(e) {
+    e.preventDefault();
+    logoutModal.classList.remove('hidden');
+    setTimeout(function() { logoutModal.classList.add('is-open'); }, 16);
+  }
+  function closeLogoutModal() {
+    logoutModal.classList.remove('is-open');
+    setTimeout(function() { logoutModal.classList.add('hidden'); }, 260);
+  }
+  function performLogout() {
+    fetch('api/logout.php', { method: 'POST' }).finally(function() {
+      window.location.href = 'staff-login';
+    });
+  }
+  document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
+  document.getElementById('logoutCancelBtn').addEventListener('click', closeLogoutModal);
+  document.getElementById('logoutConfirmBtn').addEventListener('click', performLogout);
+  logoutModal.addEventListener('click', function(e) { if (e.target.id === 'logoutConfirmModal') closeLogoutModal(); });
+
+  (function() {
+    const sidebar = document.getElementById('sidebar');
+    const menuToggle = document.getElementById('menuToggle');
+    const backdrop = document.getElementById('sidebarBackdrop');
+    function openSidebar() { sidebar.classList.remove('-translate-x-full'); backdrop.classList.remove('hidden'); menuToggle.classList.add('invisible'); }
+    function closeSidebar() { sidebar.classList.add('-translate-x-full'); backdrop.classList.add('hidden'); menuToggle.classList.remove('invisible'); }
+    menuToggle.addEventListener('click', () => {
+      sidebar.classList.contains('-translate-x-full') ? openSidebar() : closeSidebar();
+    });
+    backdrop.addEventListener('click', closeSidebar);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSidebar(); });
+  })();
+
+  (function() {
+    const profileBtn = document.getElementById('profileBtn');
+    const profilePanel = document.getElementById('profilePanel');
+    profileBtn.addEventListener('click', (e) => { e.stopPropagation(); profilePanel.classList.toggle('hidden'); });
+    document.addEventListener('click', () => profilePanel.classList.add('hidden'));
+    window.addEventListener('scroll', () => profilePanel.classList.add('hidden'), { passive: true });
+  })();
+
+  function escapeHtml(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  // Always render in school time (Asia/Manila), whatever the viewer's device
+  // clock is set to. Postgres may send "+08" without minutes, which some
+  // browsers can't parse, so pad it to "+08:00" first.
+  function formatDateTime(iso) {
+    const d = new Date(String(iso).replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00'));
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }) + ' ' +
+      d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila' });
+  }
+
+  // ---- Summary cards ----
+  function renderSummary(s) {
+    if (!s) return;
+    document.getElementById('aCardPublished').textContent = s.published.toLocaleString();
+    document.getElementById('aCardPublishedSub').innerHTML = s.drafts ? s.drafts + ' draft' + (s.drafts === 1 ? '' : 's') + ' saved' : '&nbsp;';
+    document.getElementById('aCardReached').textContent = s.reached.toLocaleString();
+    document.getElementById('aCardReachedSub').textContent = 'of ' + s.activeStudents.toLocaleString() + ' active student' + (s.activeStudents === 1 ? '' : 's');
+    document.getElementById('aCardScheduled').textContent = s.scheduled.toLocaleString();
+    document.getElementById('aCardScheduledSub').innerHTML = s.nextScheduledAt ? 'Next: ' + escapeHtml(formatDay(s.nextScheduledAt)) : '&nbsp;';
+    document.getElementById('aCardRead').textContent = s.avgReadPercent === null ? '0%' : s.avgReadPercent + '%';
+    document.getElementById('aCardReadSub').textContent = s.avgReadPercent === null ? 'No published announcements yet' : 'of recipients saw each one';
+  }
+  function formatDay(iso) {
+    const d = new Date(String(iso).replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00'));
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Manila' });
+  }
+
+  // ---- List: tabs, search, sort, paging (all done in the browser; the list is small) ----
+  const PAGE_SIZE = 5;
+  let all = [];
+  let tab = 'all';
+  let page = 1;
+
+  const TAB_STYLE_ACTIVE = ['background:#001c43', 'color:#ffffff', 'border-color:#001c43'];
+  function paintTabs() {
+    const counts = { all: all.length, published: 0, scheduled: 0, draft: 0 };
+    all.forEach(function(a) { counts[a.state]++; });
+    document.querySelectorAll('.ann-tab').forEach(function(btn) {
+      const active = btn.dataset.tab === tab;
+      btn.setAttribute('aria-selected', active ? 'true' : 'false');
+      btn.style.cssText = 'display:inline-flex;align-items:center;gap:6px;border:1px solid #cbd5e1;border-radius:9999px;padding:4px 12px;font-size:12px;font-weight:500;background:#fff;color:#475569;cursor:pointer;' + (active ? TAB_STYLE_ACTIVE.join(';') : '');
+      const c = btn.querySelector('.ann-tab-count');
+      c.textContent = counts[btn.dataset.tab];
+      c.style.cssText = 'font-size:11px;border-radius:9999px;padding:0 6px;' + (active ? 'background:rgba(255,255,255,0.2)' : 'background:#f1f5f9');
+    });
+  }
+
+  function chip(text, cls) {
+    return '<span class="inline-flex text-[11px] font-medium px-2.5 py-0.5 rounded-full border ' + cls + '">' + text + '</span>';
+  }
+  function stateChip(a) {
+    if (a.state === 'published') return chip('Published', 'bg-[#f0fdf4] border-[#bbf7d0] text-emerald-600');
+    if (a.state === 'scheduled') return chip('Scheduled', 'bg-amber-50 border-amber-200 text-amber-700');
+    return chip('Draft', 'bg-slate-100 border-slate-200 text-slate-600');
+  }
+  function audienceChip(a) {
+    if (a.targetType === 'all') return chip('@everyone (' + a.audienceCount.toLocaleString() + (a.rosterOnlyCount ? ' + ' + a.rosterOnlyCount.toLocaleString() + ' on roster' : '') + ')', 'bg-white border-slate-200 text-slate-600');
+    return chip(a.audienceCount ? a.audienceCount + ' student' + (a.audienceCount === 1 ? '' : 's') : 'No audience yet', 'bg-white border-slate-200 text-slate-600');
+  }
+  function remindState(a) {
+    if (a.state !== 'published' || (a.audienceCount === 0 && !a.rosterOnlyCount) || (a.readCount >= a.audienceCount && !a.rosterOnlyCount)) return null;
+    if (a.lastRemindedAt) {
+      const last = new Date(String(a.lastRemindedAt).replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00'));
+      if (Date.now() - last.getTime() < 24 * 3600 * 1000) return 'cooldown';
+    }
+    return 'ready';
+  }
+
+  function renderRow(a) {
+    const dateLine = a.state === 'draft'
+      ? 'Draft saved ' + formatDateTime(a.createdAt)
+      : (a.state === 'scheduled' ? 'Publishes ' : '') + formatDateTime(a.publishAt);
+    const readBlock = a.state === 'published'
+      ? '<div class="flex items-center gap-3">' +
+          '<div class="flex-1 h-1.5 rounded-full bg-slate-100"><div class="h-1.5 rounded-full bg-[#19427b]" style="width:' + a.readPercent + '%"></div></div>' +
+          '<span class="text-xs text-slate-500 shrink-0">' + a.readCount + ' of ' + a.audienceCount + ' read (' + a.readPercent + '%)</span>' +
+        '</div>'
+      : '';
+    const remind = canWrite ? remindState(a) : null;
+    const actions = [];
+    if (canWrite && a.editable) actions.push('<button type="button" class="edit-btn text-xs font-medium text-[#19427b] hover:underline" data-id="' + a.id + '">' + (a.state === 'draft' ? 'Edit draft' : 'Edit') + '</button>');
+    if (remind === 'ready') actions.push('<button type="button" class="remind-btn text-xs font-medium text-[#19427b] hover:underline" data-id="' + a.id + '">Remind unread</button>');
+    if (remind === 'cooldown') actions.push('<span class="text-xs text-slate-400" title="A reminder can be sent once every 24 hours">Reminder sent recently</span>');
+    if (canWrite) actions.push('<button type="button" class="btn-danger delete-btn text-xs font-medium text-[#ed1c24] hover:underline" data-id="' + a.id + '">Delete</button>');
+    return '<div class="px-6 py-4 flex flex-col gap-2">' +
+      '<div class="flex items-center gap-2 flex-wrap">' + stateChip(a) + audienceChip(a) + '</div>' +
+      '<div><h3 class="text-sm font-semibold text-slate-900">' + escapeHtml(a.title) + '</h3>' +
+      '<p class="text-xs text-slate-500 mt-0.5">' + dateLine + (a.createdByUsername ? ' &middot; by ' + escapeHtml(a.createdByUsername) : '') + '</p></div>' +
+      '<p class="text-sm text-slate-600 leading-relaxed" style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line">' + escapeHtml(a.body) + '</p>' +
+      readBlock +
+      (actions.length ? '<div class="flex items-center justify-end gap-4 pt-1">' + actions.join('') + '</div>' : '') +
+    '</div>';
+  }
+
+  function renderList() {
+    paintTabs();
+    const needle = document.getElementById('annSearch').value.trim().toLowerCase();
+    let rows = all.filter(function(a) {
+      if (tab !== 'all' && a.state !== tab) return false;
+      return !needle || a.title.toLowerCase().includes(needle) || a.body.toLowerCase().includes(needle);
+    });
+    rows.sort(function(x, y) {
+      const d = new Date(String(x.publishAt).replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00')) - new Date(String(y.publishAt).replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00'));
+      return document.getElementById('annSort').value === 'oldest' ? d : -d;
+    });
+    const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+    page = Math.min(page, totalPages);
+    const start = (page - 1) * PAGE_SIZE;
+    const slice = rows.slice(start, start + PAGE_SIZE);
+    const list = document.getElementById('announcementsList');
+    list.innerHTML = slice.length
+      ? slice.map(renderRow).join('')
+      : '<p class="px-6 py-8 text-center text-sm text-slate-400">' + (all.length ? 'No announcements match.' : 'No announcements yet.') + '</p>';
+
+    document.getElementById('annPagerSummary').textContent = rows.length
+      ? 'Showing ' + (start + 1) + '–' + (start + slice.length) + ' of ' + rows.length + ' announcement' + (rows.length === 1 ? '' : 's')
+      : ' ';
+    const pager = document.getElementById('annPager');
+    pager.innerHTML = totalPages > 1
+      ? '<button type="button" class="pg-btn px-3 py-1.5 text-xs border border-slate-300 rounded-md ' + (page === 1 ? 'text-slate-300' : 'text-slate-600 hover:bg-slate-50') + '" data-page="' + (page - 1) + '"' + (page === 1 ? ' disabled' : '') + '>Prev</button>' +
+        Array.from({ length: totalPages }, function(_, i) {
+          const n = i + 1;
+          return '<button type="button" class="pg-btn px-3 py-1.5 text-xs border rounded-md ' + (n === page ? 'bg-[#ed1c24] text-white border-[#ed1c24]' : 'border-slate-300 text-slate-600 hover:bg-slate-50') + '" data-page="' + n + '">' + n + '</button>';
+        }).join('') +
+        '<button type="button" class="pg-btn px-3 py-1.5 text-xs border border-slate-300 rounded-md ' + (page === totalPages ? 'text-slate-300' : 'text-slate-600 hover:bg-slate-50') + '" data-page="' + (page + 1) + '"' + (page === totalPages ? ' disabled' : '') + '>Next</button>'
+      : '';
+  }
+
+  let annLoadedOnce = false;
+  async function loadAnnouncements() {
+    const annList = document.getElementById('announcementsList');
+    if (!annLoadedOnce) PP.showSkeleton(annList, PP.skeleton.cards(3));
+    let data;
+    try {
+      data = await PP.fetchJson('api/announcements.php');
+    } catch (e) {
+      if (!annLoadedOnce) PP.showError(annList, e.message, loadAnnouncements);
+      return;
+    }
+    annLoadedOnce = true;
+    annList.removeAttribute('aria-busy');
+    all = data.announcements || [];
+    renderSummary(data.summary);
+    renderList();
+  }
+
+  document.getElementById('annTabs').addEventListener('click', function(e) {
+    const btn = e.target.closest('.ann-tab');
+    if (!btn) return;
+    tab = btn.dataset.tab;
+    page = 1;
+    renderList();
+  });
+  document.getElementById('annSearch').addEventListener('input', function() { page = 1; renderList(); });
+  document.getElementById('annSort').addEventListener('change', function() { page = 1; renderList(); });
+  document.getElementById('annPager').addEventListener('click', function(e) {
+    const btn = e.target.closest('.pg-btn');
+    if (!btn || btn.disabled) return;
+    page = Number(btn.dataset.page);
+    renderList();
+  });
+
+  document.getElementById('announcementsList').addEventListener('click', async function(e) {
+    const del = e.target.closest('.delete-btn');
+    const rem = e.target.closest('.remind-btn');
+    const edit = e.target.closest('.edit-btn');
+    if (del) {
+      if (!(await showConfirm('Delete this announcement? This cannot be undone.'))) return;
+      del.disabled = true;
+      await fetch('api/announcements.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'delete', id: Number(del.dataset.id) })
+      });
+      if (editingId === Number(del.dataset.id)) resetComposer();
+      await loadAnnouncements();
+    } else if (rem) {
+      const a = all.find(function(x) { return x.id === Number(rem.dataset.id); });
+      const unread = a ? a.audienceCount - a.readCount : 0;
+      const rosterOnly = a ? (a.rosterOnlyCount || 0) : 0;
+      if (!(await showConfirm('Email a reminder about "' + (a ? a.title : 'this announcement') + '" to the ' + unread + ' registered student' + (unread === 1 ? '' : 's') + ' who have not seen it' + (rosterOnly ? ' and the ' + rosterOnly + ' roster student' + (rosterOnly === 1 ? '' : 's') + ' who have not registered yet' : '') + '? You can do this once every 24 hours.'))) return;
+      rem.disabled = true;
+      const res = await fetch('api/announcements.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'remind', id: Number(rem.dataset.id) })
+      });
+      const data = await res.json();
+      showToast(data.success ? 'Reminder sent to ' + data.sent + ' student' + (data.sent === 1 ? '' : 's') + (data.failed ? ' (' + data.failed + ' could not be delivered)' : '') + '.' : (data.error || 'Could not send the reminder.'), !data.success);
+      await loadAnnouncements();
+    } else if (edit) {
+      startEdit(Number(edit.dataset.id));
+    }
+  });
+
+  if (!canWrite) {
+    await loadAnnouncements();
+    return;
+  }
+
+  // ---- Composer ----
+  const selectedStudentIds = new Set();
+  let allStudents = [];
+  let editingId = null;
+
+  const titleInput = document.getElementById('annTitle');
+  const bodyInput = document.getElementById('annBody');
+  function updateCounts() {
+    document.getElementById('titleCount').textContent = titleInput.value.length;
+    document.getElementById('bodyCount').textContent = bodyInput.value.length;
+  }
+  titleInput.addEventListener('input', updateCounts);
+  bodyInput.addEventListener('input', updateCounts);
+
+  // ---- Templates the Guidance Counselor types and keeps (api/announcement-templates.php)
+  const templateBox = document.getElementById('templateButtons');
+  let templates = [];
+  let editingTemplateId = null;
+  const tplModal = document.getElementById('tplModal');
+  const tplName = document.getElementById('tplName');
+  const tplTitle = document.getElementById('tplTitle');
+  const tplBody = document.getElementById('tplBody');
+  const tplError = document.getElementById('tplError');
+
+  function renderTemplates() {
+    if (!templates.length) {
+      templateBox.innerHTML = '<p class="text-xs text-slate-400">No templates yet. Use "+ New template" to write one.</p>';
+      return;
+    }
+    templateBox.innerHTML = templates.map(function(tp) {
+      return '<div style="display:flex;align-items:center;gap:10px">' +
+        '<button type="button" class="tpl-btn text-left border border-slate-200 rounded-md px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50" style="flex:1;min-width:0" data-id="' + tp.id + '">' + escapeHtml(tp.name) + '</button>' +
+        '<button type="button" class="tpl-edit text-xs font-semibold text-[#19427b] hover:underline" data-id="' + tp.id + '">Edit</button>' +
+        '<button type="button" class="btn-danger tpl-delete text-xs font-semibold text-[#ed1c24] hover:underline" data-id="' + tp.id + '">Delete</button>' +
+      '</div>';
+    }).join('');
+  }
+  async function loadTemplates() {
+    try {
+      templates = (await PP.fetchJson('api/announcement-templates.php')).templates || [];
+    } catch (e) {
+      templates = [];
+      PP.showError(templateBox, e.message, loadTemplates);
+      return;
+    }
+    renderTemplates();
+  }
+
+  function openTemplateModal(tp) {
+    editingTemplateId = tp ? tp.id : null;
+    document.getElementById('tplModalTitle').textContent = tp ? 'Edit template' : 'New template';
+    tplName.value = tp ? tp.name : '';
+    tplTitle.value = tp ? tp.title : '';
+    tplBody.value = tp ? tp.body : '';
+    document.getElementById('tplBodyCount').textContent = tplBody.value.length;
+    tplError.classList.add('hidden');
+    tplModal.classList.remove('hidden');
+    setTimeout(function() { tplModal.classList.add('is-open'); tplName.focus(); }, 16);
+  }
+  function closeTemplateModal() {
+    tplModal.classList.remove('is-open');
+    setTimeout(function() { tplModal.classList.add('hidden'); }, 260);
+  }
+  document.getElementById('newTemplateBtn').addEventListener('click', function() { openTemplateModal(null); });
+  document.getElementById('tplCancelBtn').addEventListener('click', closeTemplateModal);
+  tplModal.addEventListener('click', function(e) { if (e.target.id === 'tplModal') closeTemplateModal(); });
+  tplBody.addEventListener('input', function() { document.getElementById('tplBodyCount').textContent = tplBody.value.length; });
+  document.getElementById('tplSaveBtn').addEventListener('click', async function() {
+    const payload = { name: tplName.value.trim(), title: tplTitle.value.trim(), body: tplBody.value.trim() };
+    if (!payload.name || !payload.title || !payload.body) { tplError.textContent = 'Write the template name, the title and the message.'; tplError.classList.remove('hidden'); return; }
+    this.disabled = true;
+    try {
+      const res = await fetch('api/announcement-templates.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.assign({ type: editingTemplateId ? 'update' : 'create', id: editingTemplateId }, payload))
+      });
+      const data = await res.json();
+      if (!data.success) { tplError.textContent = data.error || 'Could not save the template.'; tplError.classList.remove('hidden'); return; }
+      closeTemplateModal();
+      showToast(editingTemplateId ? 'Template updated.' : 'Template saved.', false);
+      await loadTemplates();
+    } catch (e) {
+      tplError.textContent = 'Unable to reach the server. Please try again.'; tplError.classList.remove('hidden');
+    } finally {
+      this.disabled = false;
+    }
+  });
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && !tplModal.classList.contains('hidden')) closeTemplateModal(); });
+
+  templateBox.addEventListener('click', async function(e) {
+    const use = e.target.closest('.tpl-btn');
+    const edit = e.target.closest('.tpl-edit');
+    const del = e.target.closest('.tpl-delete');
+    const el = use || edit || del;
+    if (!el) return;
+    const tp = templates.find(function(x) { return x.id === Number(el.dataset.id); });
+    if (!tp) return;
+    if (use) {
+      if ((titleInput.value.trim() || bodyInput.value.trim()) && !(await showConfirm('Replace what you have typed with this template?'))) return;
+      titleInput.value = tp.title;
+      bodyInput.value = tp.body;
+      updateCounts();
+      titleInput.focus();
+    } else if (edit) {
+      openTemplateModal(tp);
+    } else if (del) {
+      if (!(await showConfirm('Delete the template "' + tp.name + '"? Announcements already sent are not affected.'))) return;
+      const res = await fetch('api/announcement-templates.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'delete', id: tp.id }) });
+      const data = await res.json();
+      showToast(data.success ? 'Template deleted.' : (data.error || 'Could not delete the template.'), !data.success);
+      await loadTemplates();
+    }
+  });
+  if (canWrite) loadTemplates();
+  // No scheduling an announcement in the past. datetime-local's own "min"
+  // stops the picker from offering an earlier value; kept fresh so the
+  // limit doesn't go stale on a form left open a while. Server enforces the
+  // same rule (see api/announcements.php) since this is client-side only.
+  const publishAtInput = document.getElementById('annPublishAt');
+  function toLocalInput(d) {
+    const x = new Date(d.getTime());
+    x.setSeconds(0, 0);
+    x.setMinutes(x.getMinutes() - x.getTimezoneOffset());
+    return x.toISOString().slice(0, 16);
+  }
+  function nowLocalForInput() { return toLocalInput(new Date()); }
+  function refreshPublishAtMin() { publishAtInput.min = nowLocalForInput(); }
+  refreshPublishAtMin();
+  publishAtInput.addEventListener('focus', refreshPublishAtMin);
+  setInterval(refreshPublishAtMin, 60000);
+
+  // "Everyone" is emailed to every registered student and to every student on this year's roster
+  // who hasn't registered yet, so say how many that is before anything is sent.
+  let audienceInfo = null;
+  const everyoneNote = document.getElementById('everyoneNote');
+  function updateEveryoneNote() {
+    const isAll = document.querySelector('input[name="target"]:checked').value === 'all';
+    everyoneNote.classList.toggle('hidden', !isAll);
+    if (!isAll) return;
+    if (!audienceInfo) { everyoneNote.textContent = 'Everyone is emailed, including students on the roster who have not registered yet.'; return; }
+    const total = audienceInfo.registered + audienceInfo.notRegistered;
+    let text = 'Everyone: ' + audienceInfo.registered + ' registered student' + (audienceInfo.registered === 1 ? '' : 's') +
+      ' and ' + audienceInfo.notRegistered + ' roster student' + (audienceInfo.notRegistered === 1 ? '' : 's') + ' who have not registered yet (emailed at the address on the roster) = ' + total + ' email' + (total === 1 ? '' : 's') + '.';
+    if (audienceInfo.notRegisteredNoEmail) {
+      text += ' ' + audienceInfo.notRegisteredNoEmail + ' roster student' + (audienceInfo.notRegisteredNoEmail === 1 ? ' has' : 's have') + ' no email on the roster and will not be reached.';
+    }
+    everyoneNote.textContent = text;
+  }
+  fetch('api/announcements.php?audience=1').then(function(r) { return r.json(); }).then(function(d) {
+    if (d && typeof d.registered === 'number') audienceInfo = d;
+    updateEveryoneNote();
+  }).catch(function() {});
+
+  function setAudience(value) {
+    document.querySelector('input[name="target"][value="' + value + '"]').checked = true;
+    document.getElementById('studentPicker').classList.toggle('hidden', value !== 'specific');
+    updateEveryoneNote();
+  }
+  document.querySelectorAll('input[name="target"]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+      document.getElementById('studentPicker').classList.toggle('hidden', radio.value !== 'specific' || !radio.checked);
+      updateEveryoneNote();
+    });
+  });
+
+  const searchInput = document.getElementById('studentSearchInput');
+  const resultsBox = document.getElementById('studentCheckList');
+  const chipsBox = document.getElementById('selectedChips');
+
+  function renderChips() {
+    chipsBox.innerHTML = Array.from(selectedStudentIds).map(function(id) {
+      const s = allStudents.find(function(x) { return x.userId === id; });
+      if (!s) return '';
+      return '<span class="inline-flex items-center gap-1 bg-slate-100 border border-slate-200 text-slate-700 text-xs rounded-full pl-2.5 pr-1.5 py-1">' +
+        escapeHtml(s.name) +
+        '<button type="button" class="chip-remove text-slate-400 hover:text-[#ed1c24] text-sm leading-none px-0.5" data-id="' + id + '" aria-label="Remove ' + escapeHtml(s.name) + '">&times;</button>' +
+      '</span>';
+    }).join('');
+    document.getElementById('selectedCount').textContent = selectedStudentIds.size;
+  }
+
+  function closeResults() { resultsBox.classList.add('hidden'); }
+
+  // Shows matches for the typed text. Students already chosen stay in the
+  // chips row, so the list only offers ones still available to add.
+  function renderStudentList(filterText) {
+    const needle = (filterText || '').trim().toLowerCase();
+    const matches = allStudents.filter(function(s) {
+      if (s.userId === null || selectedStudentIds.has(s.userId)) return false;
+      return !needle || s.name.toLowerCase().includes(needle);
+    });
+    resultsBox.innerHTML = matches.length
+      ? matches.map(function(s) {
+          return '<button type="button" class="student-option w-full text-left px-3 py-2 text-sm hover:bg-slate-50" data-id="' + s.userId + '">' +
+            escapeHtml(s.name) + ' <span class="text-xs text-slate-400">(' + escapeHtml(s.strand) + (s.section ? ' ' + escapeHtml(s.section) : '') + ')</span></button>';
+        }).join('')
+      : '<p class="text-xs text-slate-400 text-center py-4">No matching students.</p>';
+    resultsBox.classList.remove('hidden');
+  }
+
+  async function loadStudentsForPicker() {
+    const data = await (await fetch('api/students.php?all=1')).json();
+    allStudents = data.students || [];
+    renderChips();
+  }
+
+  searchInput.addEventListener('focus', function() { renderStudentList(searchInput.value); });
+  searchInput.addEventListener('click', function() { renderStudentList(searchInput.value); });
+  searchInput.addEventListener('input', function() { renderStudentList(searchInput.value); });
+  resultsBox.addEventListener('mousedown', function(e) { e.preventDefault(); });
+  resultsBox.addEventListener('click', function(e) {
+    const opt = e.target.closest('.student-option');
+    if (!opt) return;
+    const id = Number(opt.dataset.id);
+    const s = allStudents.find(function(x) { return x.userId === id; });
+    selectedStudentIds.add(id);
+    renderChips();
+    searchInput.value = s ? s.name : '';
+    closeResults();
+  });
+  chipsBox.addEventListener('click', function(e) {
+    const btn = e.target.closest('.chip-remove');
+    if (!btn) return;
+    selectedStudentIds.delete(Number(btn.dataset.id));
+    renderChips();
+  });
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('#studentPicker')) closeResults();
+  });
+
+  // ---- Editing a draft or a not-yet-emailed scheduled announcement ----
+  function resetComposer() {
+    editingId = null;
+    document.getElementById('createForm').reset();
+    selectedStudentIds.clear();
+    renderChips();
+    searchInput.value = '';
+    closeResults();
+    setAudience('all');
+    updateCounts();
+    document.getElementById('composerTitle').textContent = 'New Announcement';
+    document.getElementById('cancelEditBtn').classList.add('hidden');
+    document.getElementById('sendBtn').textContent = 'Send Announcement';
+    document.getElementById('draftBtn').textContent = 'Save Draft';
+    ['createError', 'createSuccess', 'publishAtError'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
+  }
+  function startEdit(id) {
+    const a = all.find(function(x) { return x.id === id; });
+    if (!a || !a.editable) return;
+    resetComposer();
+    editingId = id;
+    titleInput.value = a.title;
+    bodyInput.value = a.body;
+    updateCounts();
+    const when = new Date(String(a.publishAt).replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00'));
+    publishAtInput.value = when.getTime() > Date.now() ? toLocalInput(when) : '';
+    setAudience(a.targetType);
+    (a.recipientIds || []).forEach(function(sid) { selectedStudentIds.add(sid); });
+    renderChips();
+    document.getElementById('composerTitle').textContent = a.state === 'draft' ? 'Edit Draft' : 'Edit Announcement';
+    document.getElementById('cancelEditBtn').classList.remove('hidden');
+    document.getElementById('sendBtn').textContent = a.state === 'scheduled' ? 'Save & Schedule' : 'Send Announcement';
+    document.getElementById('draftBtn').textContent = a.state === 'scheduled' ? 'Move to Drafts' : 'Save Draft';
+    document.getElementById('createCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    titleInput.focus();
+  }
+  document.getElementById('cancelEditBtn').addEventListener('click', resetComposer);
+
+  document.getElementById('createForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const mode = (e.submitter && e.submitter.dataset.mode) || 'send';
+    const isDraft = mode === 'draft';
+    const errorEl = document.getElementById('createError');
+    const successEl = document.getElementById('createSuccess');
+    const dateErrorEl = document.getElementById('publishAtError');
+    errorEl.classList.add('hidden');
+    successEl.classList.add('hidden');
+    dateErrorEl.classList.add('hidden');
+
+    if (publishAtInput.value && publishAtInput.value < nowLocalForInput()) {
+      dateErrorEl.textContent = 'Publish date/time can\'t be in the past.';
+      dateErrorEl.classList.remove('hidden');
+      return;
+    }
+
+    const targetType = document.querySelector('input[name="target"]:checked').value;
+    const body = {
+      type: editingId ? 'update' : 'create',
+      id: editingId,
+      draft: isDraft,
+      title: titleInput.value.trim(),
+      body: bodyInput.value.trim(),
+      targetType: targetType,
+      publishAt: publishAtInput.value,
+      studentIds: targetType === 'specific' ? Array.from(selectedStudentIds) : [],
+    };
+
+    // Sending is not undoable: an email to everyone goes out right away, so confirm it first.
+    if (!isDraft && targetType === 'all' && !publishAtInput.value && audienceInfo) {
+      const total = audienceInfo.registered + audienceInfo.notRegistered;
+      if (!(await showConfirm('Send "' + body.title + '" now? It will be emailed to ' + total + ' student' + (total === 1 ? '' : 's') + ' (' + audienceInfo.registered + ' registered, ' + audienceInfo.notRegistered + ' not registered yet).'))) return;
+    }
+
+    const buttons = e.target.querySelectorAll('button[type="submit"]');
+    buttons.forEach(function(b) { b.disabled = true; });
+    const res = await fetch('api/announcements.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    buttons.forEach(function(b) { b.disabled = false; });
+
+    if (!data.success) {
+      errorEl.textContent = data.error || 'Failed to save the announcement.';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+
+    const scheduled = !isDraft && publishAtInput.value;
+    let message = isDraft ? 'Draft saved.' : (scheduled ? 'Announcement scheduled. It will be emailed when it is due.' : 'Announcement sent.');
+    if (data.emailed) {
+      const n = data.emailed.registered + data.emailed.notRegistered;
+      message += ' Emailed ' + n + ' student' + (n === 1 ? '' : 's') + (data.emailed.notRegistered ? ' (' + data.emailed.notRegistered + ' not registered yet)' : '') + '.';
+      if (data.emailed.failed) message += ' ' + data.emailed.failed + ' email' + (data.emailed.failed === 1 ? '' : 's') + ' could not be delivered.';
+    }
+    resetComposer();
+    successEl.textContent = message;
+    successEl.classList.remove('hidden');
+    await loadAnnouncements();
+  });
+
+  await loadStudentsForPicker();
+  await loadAnnouncements();
+})();
+</script>
+
+<script src="js/motion.js" defer></script>
+<script src="js/notifications.js" defer></script>
+<script>
+(function() {
+  var el = document.getElementById('ayBadgeValue');
+  if (!el) return;
+  fetch('api/security-config.php').then(function(r) { return r.json(); }).then(function(data) {
+    if (data && data.academicYear && data.academicYear.current) {
+      el.textContent = data.academicYear.current;
+    } else {
+      document.getElementById('ayBadge').classList.add('hidden');
+    }
+  }).catch(function() {});
+})();
+</script>
+</body>
+</html>

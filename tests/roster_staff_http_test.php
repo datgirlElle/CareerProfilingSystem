@@ -3,12 +3,12 @@
 //   DB_NAME=profilepath_test php -S 127.0.0.1:8099 router.php
 //   DB_NAME=profilepath_test php tests/roster_staff_http_test.php http://127.0.0.1:8099
 // Uses the seeded test-database admin and synthetic data only; refuses to run unless DB_NAME ends in _test.
-require_once __DIR__ . '/../lib/Database.php';
-require_once __DIR__ . '/../lib/Crypto.php';
-require_once __DIR__ . '/../lib/AcademicYear.php';
-require_once __DIR__ . '/../lib/StaffSetupCode.php';
-require_once __DIR__ . '/../lib/XlsxWriter.php';
-require_once __DIR__ . '/../lib/XlsxReader.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
+require_once __DIR__ . '/../modules/Encryption/lib/Crypto.php';
+require_once __DIR__ . '/../shared/lib/AcademicYear.php';
+require_once __DIR__ . '/../modules/Authentication/lib/StaffSetupCode.php';
+require_once __DIR__ . '/../shared/lib/XlsxWriter.php';
+require_once __DIR__ . '/../shared/lib/XlsxReader.php';
 if (!str_ends_with((string) envValue('DB_NAME'), '_test')) { fwrite(STDERR, "Refusing to run: DB_NAME must end in _test\n"); exit(2); }
 $base = rtrim($argv[1] ?? 'http://127.0.0.1:8099', '/');
 $pdo = Database::get();

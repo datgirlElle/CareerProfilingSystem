@@ -15,14 +15,14 @@ Objectives this document serves:
 ## 1. Assessment scoring
 
 Production uses the 30-question O\*NET Mini Interest Profiler item set, 5 questions per RIASEC type
-(`lib/QuestionBank.php`). Staff can change the question bank; the assessment opens only while every
+(`modules/CareerProfiling/lib/QuestionBank.php`). Staff can change the question bank; the assessment opens only while every
 type has the same number of active questions (at least 3).
 
 Keep these values distinct:
 
 | Value | What it is | Range (5 per type) | Where |
 |---|---|---|---|
-| Item response | One answer: 1 Dislike, 2 Slightly Dislike, 3 Neutral, 4 Slightly Enjoy, 5 Enjoy | 1–5 | sent by `riasec-assessment.html`, stored per question in `assessments.answers_enc` |
+| Item response | One answer: 1 Dislike, 2 Slightly Dislike, 3 Neutral, 4 Slightly Enjoy, 5 Enjoy | 1–5 | sent by `modules/CareerProfiling/pages/riasec-assessment.html`, stored per question in `assessments.answers_enc` |
 | Raw total | Sum of a type's responses | 5–25 (n to 5n for n questions) | computed in `AssessmentVersion::score()` |
 | Stored score | `QuestionBank::scaleScore`: 10 × raw ÷ n, rounded half up | 10–50 | `assessments.score_r … score_c` |
 | Student vector | Stored score ÷ 10 (mean response) | 1.0–5.0 | `CBFEngine::studentVector()` |
@@ -39,18 +39,18 @@ implemented, and historical records are not converted.
 
 ## 2. Reproducible assessments
 
-`lib/AssessmentVersion.php`, migration `db/migrate_add_assessment_versions.php`.
+`modules/CareerProfiling/lib/AssessmentVersion.php`, migration `db/migrate_add_assessment_versions.php`.
 
 - **Question sets.** A question set is an immutable snapshot of the active questions shown: id, type, exact wording and order. Its id is tied to the SHA-256 fingerprint of that snapshot, so editing, adding, hiding or reordering a question creates a new set; an existing set never changes.
 - **Snapshot storage.** The snapshot is stored encrypted (`assessment_question_sets.snapshot_enc`).
-- **What the student receives.** `api/assessment-questions.php` gives the student the set id. The session remembers which set was presented.
-- **Submission.** `api/assessment-submit.php` accepts `{questionSetId, answers: [{questionId, answer}]}`. The set must be the one presented and still be the active one. Every question must be answered once, with an integer from 1 to 5. Anything else is refused: a missing, duplicate or foreign answer, or an old page sending positional answers. Access-code and retake rules are unchanged.
+- **What the student receives.** `modules/CareerProfiling/api/assessment-questions.php` gives the student the set id. Saved progress (`modules/CareerProfiling/lib/AssessmentProgress.php`) records the question ids shown, so a student who signs in again continues the same questions.
+- **Submission.** `modules/CareerProfiling/api/assessment-submit.php` accepts `{questionSetId, answers: [{questionId, answer}]}`. The set must still be the active one: its fingerprint must match the questions active now. It is not tied to the sign-in session, so continuing from saved progress after signing in again still works. Every question must be answered once, with an integer from 1 to 5. Anything else is refused: a missing, duplicate or foreign answer, or an old page sending positional answers. Access-code and retake rules are unchanged.
 - **What each attempt stores.** Its `question_set_id`, its answers (encrypted, by question id, in the order shown) and `scoring_version` (`riasec-10-50-v1`). `AssessmentVersion::reproduce()` re-scores an attempt from storage.
 - **Legacy attempts.** Attempts saved before this change have NULL in these columns and are reported as legacy. No set or answers are invented for them; their stored scores remain usable.
 
 ## 3. Ranked interests and the ordered Holland code
 
-`lib/RiasecProfile.php` is the single implementation used by the assessment result, the results
+`modules/CareerProfiling/lib/RiasecProfile.php` is the single implementation used by the assessment result, the results
 page, the API, the dataset export and the Prediction Module's inputs.
 
 - **What it reports:** the ranking of all six scores (highest first), plus top 1, top 2, top 3 and the three-letter ordered code.
@@ -60,7 +60,7 @@ page, the API, the dataset export and the Prediction Module's inputs.
 
 ## 4. The CBF method
 
-`lib/CBFEngine.php`, `config/cbf.php`, `db/program_codes.php` (unchanged in this update).
+`modules/ContentBasedFiltering/lib/CBFEngine.php`, `config/cbf.php`, `db/program_codes.php` (unchanged in this update).
 
 - **Student vector:** the six stored scores ÷ 10.
 - **Program vectors:** binary vectors from the counselor-approved three-letter codes (1 for each letter present).
@@ -94,7 +94,7 @@ not a probability of success and not a percentage fit, and it is not shown to st
 
 ## 6. Prediction Module (Weka J48), staff only
 
-`lib/PredictionModel.php`, `config/prediction_model.json`, `tools/weka/` (see `tools/weka/README.md`).
+`modules/ContentBasedFiltering/lib/PredictionModel.php`, `config/prediction_model.json`, `tools/weka/` (see `tools/weka/README.md`).
 
 - **What it predicts:** the student's stated **intended/preferred course** (dataset column "Actual Course"). Not verified enrolment, and not an independently assessed suitable course.
 - **Inputs:** `top3-binary`, i.e. 1 for each of the three highest RIASEC scores (ties in R, I, A, S, E, C order), 0 otherwise. This allows only 20 input patterns.

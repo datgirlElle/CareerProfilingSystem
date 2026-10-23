@@ -18,7 +18,7 @@
  *     fallback: it only fires when the user actually does something.
  *  4. A proactive idle-timeout warning: tracks the same "time since last
  *     successful api/ call" the server itself uses (Auth::currentUser()'s
- *     sliding window — see lib/Auth.php), and once that crosses the
+ *     sliding window — see modules/Authentication/lib/Auth.php), and once that crosses the
  *     configured Session Timeout, shows a banner and redirects on its own,
  *     without waiting for the user to click something first.
  */

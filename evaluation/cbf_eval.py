@@ -2,7 +2,7 @@
 """
 CBF + Cosine Similarity evaluation toolkit (Python 3 standard library only).
 
-Offline research companion to the web app's recommender (lib/CBFEngine.php).
+Offline research companion to the web app's recommender (modules/ContentBasedFiltering/lib/CBFEngine.php).
 It builds the course dataset, runs the CBF on student RIASEC profiles,
 evaluates Top-N performance against ActualCourse, compares Holland-code rank
 encodings, and prepares identical train/test splits for WEKA.
@@ -19,7 +19,7 @@ encodings, and prepares identical train/test splits for WEKA.
 
 Rows whose course is "Undecided" (or another --drop value) are removed when the file is read:
 they are not a course, so neither method can recommend them. The .arff files give WEKA the
-top 3 RIASEC types as x/blank (the format lib/PredictionModel.php runs in the web app); the
+top 3 RIASEC types as x/blank (the format modules/ContentBasedFiltering/lib/PredictionModel.php runs in the web app); the
 .csv files keep the original scores, so the CBF can use the student's actual profile.
 
 LEAKAGE RULE: ActualCourse is read only by the evaluation functions. The
@@ -37,9 +37,12 @@ DIMENSIONS = ["R", "I", "A", "S", "E", "C"]  # fixed vector order
 # Encodings for a 3-letter Holland code: weight of the 1st, 2nd and 3rd letter
 # (absent letters = 0). These are ENGINEERING choices, not weights defined by
 # Holland's theory. "binary" (letter present = 1) is what the web app uses
-# (config/cbf.php); the others keep letter order and are compared in `weights`.
+# (modules/ContentBasedFiltering/lib/CBFEngine.php). "ranksum" (3, 2, 1) turns the counselors'
+# 1st/2nd/3rd order of the letters into weights; it is NOT approved (the counselors' 1-2-3 is a
+# ranking order, not weights) and is kept only as an offline comparison, like the others in `weights`.
 DEFAULT_ENCODING = "binary"
 ENCODINGS = {
+    "ranksum": (3.0, 2.0, 1.0),
     "proposed": (1.00, 0.67, 0.33),
     "binary": (1.00, 1.00, 1.00),
     "steep": (1.00, 0.50, 0.25),
@@ -131,7 +134,7 @@ def student_vector(row, scale="auto"):
     auto   : x/blank cells -> 1/0 as given; numeric scores -> top-3 binary
     top3   : numeric scores -> 1 for the 3 highest, 0 otherwise
     scores : the actual scores as given (any non-negative scale). This is the web app's
-             current CBF (lib/CBFEngine.php uses the actual profile); cosine ignores the
+             current CBF (modules/ContentBasedFiltering/lib/CBFEngine.php uses the actual profile); cosine ignores the
              unit, so totals, means or 0-10 counts on one scale all give the same ranking
     unit   : scores are already 0-1 (validated)
     raw50  : raw totals 10-50 divided by 50 (does NOT change cosine values)
@@ -330,7 +333,7 @@ def write_arff(path, rows, scale, fmt="top3"):
     StudentID is deliberately NOT an attribute.
 
     fmt="top3"    : R..C nominal {x,blank}: x = one of the student's top 3 types (the
-                    adviser's format, which lib/PredictionModel.php runs in the web app)
+                    adviser's format, which modules/ContentBasedFiltering/lib/PredictionModel.php runs in the web app)
     fmt="numeric" : R..C numeric, from student_vector(row, scale)"""
     classes = ",".join("'" + c.replace("'", "\\'") + "'" for c in COURSE_NAMES)
     with open(path, "w", encoding="utf-8") as f:
@@ -565,7 +568,7 @@ def _rank_features(vals):
 
 def predict_tree(model, row):
     """Walk an imported J48 model (config/prediction_model.json) for one student, exactly as
-    lib/PredictionModel.php does. Returns the class label, or None when no branch matches."""
+    modules/ContentBasedFiltering/lib/PredictionModel.php does. Returns the class label, or None when no branch matches."""
     features = model.get("features", "top3")
     if features == "rank":
         vals = dict(zip(DIMENSIONS, _rank_features([float(row[d]) for d in DIMENSIONS])))

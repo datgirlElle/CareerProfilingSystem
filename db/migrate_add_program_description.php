@@ -5,7 +5,7 @@
 // free-text content column (title_enc, holland_code_enc), never used in
 // WHERE/ORDER BY.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 

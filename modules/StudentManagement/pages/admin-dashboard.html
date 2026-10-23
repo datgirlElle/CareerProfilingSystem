@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<title>Admin Dashboard — Career Profiling System</title>
+<link rel="icon" type="image/png" href="images/brand/favicon-64.png">
+<link rel="stylesheet" href="css/tailwind.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body{ font-family:'Inter', sans-serif; }
+</style>
+<link rel="stylesheet" href="css/motion.css">
+<style>
+  /* Student Information and Assessment Overview header: search + buttons. On a phone they stack full width; from 640px up they sit in a
+     row and wrap onto a second line (never overlap or squeeze) when the card is narrow. */
+  .ov-controls { display:flex; flex-direction:column; gap:12px; width:100%; min-width:0; }
+  .ov-search { width:100%; }
+  .ov-btn { width:100%; white-space:nowrap; }
+  .ov-filter { width:100%; }
+  #filterPanel { left:0; right:0; width:auto; }
+  @media (min-width:640px) {
+    .ov-controls { flex-direction:row; flex-wrap:wrap; align-items:center; width:auto; max-width:100%; }
+    .ov-search { flex:1 1 220px; min-width:200px; max-width:320px; width:auto; }
+    .ov-btn { width:auto; flex:0 0 auto; }
+    .ov-filter { width:auto; flex:0 0 auto; }
+    #filterPanel { left:auto; right:0; width:680px; max-width:calc(100vw - 2rem); }
+  }
+  /* Filters panel: short lists are button groups (radio buttons underneath), so each choice is one click and
+     nothing hides in a drop-down. Two columns from 640px up, one column on a phone. */
+  .fp-grid { display:grid; grid-template-columns:1fr; gap:20px; }
+  @media (min-width:640px) { .fp-grid { grid-template-columns:1fr 1fr; gap:24px; } }
+  .fp-group { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .fp-heading { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:#475569; }
+  .fp-field { border:0; margin:0; padding:0; min-width:0; }
+  .fp-label { display:block; font-size:12px; font-weight:500; color:#334155; margin-bottom:6px; padding:0; }
+  .fp-options { display:flex; flex-wrap:wrap; gap:6px; }
+  .fp-option { position:relative; }
+  .fp-option input { position:absolute; opacity:0; width:1px; height:1px; }
+  .fp-option span { display:inline-flex; align-items:center; min-height:32px; padding:0 11px; border:1px solid #cbd5e1; border-radius:9999px;
+    font-size:13px; color:#334155; background:#fff; cursor:pointer; white-space:nowrap; transition:background-color .15s, border-color .15s, color .15s; }
+  .fp-option span:hover { background:#f1f5f9; }
+  .fp-option input:checked + span { background:#0f2a6b; border-color:#0f2a6b; color:#fff; }
+  .fp-option input:focus-visible + span { outline:2px solid #0f2a6b; outline-offset:2px; }
+  .fp-filter-count:not(.hidden) { display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px; padding:0 6px; border-radius:9999px;
+    background:#0f2a6b; color:#fff; font-size:11px; font-weight:600; }
+  .fp-chip { display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 4px 0 10px; border:1px solid #cbd5e1; border-radius:9999px;
+    background:#f8fafc; font-size:12px; color:#334155; }
+  .fp-chip button { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:9999px; color:#475569; }
+  .fp-chip button:hover { background:#e2e8f0; color:#0f172a; }
+</style>
+</head>
+<body class="bg-[#f9fafb]">
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<div class="flex min-h-screen">
+
+  <!-- Mobile sidebar backdrop -->
+  <div id="sidebarBackdrop" class="hidden fixed inset-0 bg-black/40 z-30 md:hidden"></div>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="w-[260px] shrink-0 bg-[#001c43] flex flex-col fixed inset-y-0 left-0 z-40 -translate-x-full transition-transform duration-200 md:sticky md:top-0 md:translate-x-0 h-screen">
+    <div class="sidebar-brand bg-white shrink-0">
+      <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="sidebar-brand-mmcl">
+      <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="sidebar-brand-cgc">
+    </div>
+    <div class="sidebar-app">
+      <img src="images/brand/profilepath-horizontal.png" alt="ProfilePath" width="190" height="75">
+      <p class="sidebar-app-role">Admin Dashboard</p>
+    </div>
+    <nav id="adminNav" data-active="admin-dashboard" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
+    <script src="js/admin-nav.js"></script>
+    <div class="border-t border-white/5 pt-[25px] pb-6">
+      <a href="staff-login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+        <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>
+        Logout
+      </a>
+    </div>
+
+  </aside>
+
+  <!-- Main Content -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    <!-- Top Header -->
+    <header class="bg-white border-b border-gray-200 flex items-center justify-between px-6 h-16 shrink-0 relative">
+      <button type="button" id="menuToggle" class="relative z-50 w-10 h-10 -m-2.5 flex items-center justify-center md:invisible">
+        <img src="images/admin/icon-menu.svg" alt="Menu" class="w-5 h-4">
+      </button>
+      <div class="flex items-center gap-6">
+
+        <div id="ayBadge" class="hidden sm:flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-full px-3 py-1">
+          <span class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">AY</span>
+          <span id="ayBadgeValue" class="text-xs font-semibold text-slate-700">—</span>
+        </div>
+
+        <!-- Notifications -->
+        <div class="relative">
+          <button type="button" id="notifBtn" class="relative w-5 h-5">
+            <svg class="w-full h-full" viewBox="0 -960 960 960" fill="#64748B"><path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"/></svg>
+            <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#ed1c24] text-white text-[10px] font-bold flex items-center justify-center"></span>
+          </button>
+          <div id="notifPanel" class="hidden fixed left-4 right-4 top-[76px] z-50 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+12px)] sm:w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <p class="text-sm font-semibold text-gray-900">Notifications</p>
+              <span id="notifCountLabel" class="text-xs text-gray-500">Loading…</span>
+            </div>
+            <ul id="notifList" class="max-h-80 overflow-auto divide-y divide-gray-100">
+              <li class="px-4 py-6 text-center text-sm text-gray-500">Loading…</li>
+            </ul>
+            <a href="staff-notifications" class="block text-center text-sm font-medium text-[#ed1c24] px-4 py-3 border-t border-gray-100 hover:bg-gray-50">View all notifications</a>
+          </div>
+        </div>
+
+        <!-- Profile -->
+        <div class="relative">
+          <button type="button" id="profileBtn" class="flex items-center gap-3">
+            <span id="headerAvatarWrap" class="w-9 h-9 rounded-full bg-[#001c43] flex items-center justify-center overflow-hidden shrink-0">
+              <img src="images/admin/icon-avatar.svg" alt="" class="w-3.5 h-4">
+            </span>
+            <span class="text-left">
+              <span class="block text-sm font-semibold text-gray-800" id="headerUserName">&nbsp;</span>
+              <span class="block text-xs text-gray-500" id="headerUserRole">&nbsp;</span>
+            </span>
+            <img src="images/admin/icon-chevron-down.svg" alt="" class="w-3.5 h-2">
+          </button>
+          <div id="profilePanel" class="hidden absolute right-0 top-[calc(100%+12px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
+            <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">Profile Settings</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Dashboard Content -->
+    <main id="main-content" class="flex-1 p-4 sm:p-8 overflow-auto">
+
+      <!-- Page Header -->
+      <div class="mb-8 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Student Information Dashboard</h1>
+          <p class="text-sm text-gray-500 mt-1">Overview of student assessments and counseling status</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <label for="ayFilter" class="text-xs font-medium text-gray-600">School year</label>
+          <select id="ayFilter" class="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></select>
+        </div>
+      </div>
+
+      <!-- Summary Cards: totals and shares only (the assessment is taken once a year, so there is no monthly trend) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+
+        <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-6 flex flex-col justify-between">
+          <div class="flex items-start gap-4">
+            <span class="w-12 h-12 rounded-lg bg-[#dbeafe] flex items-center justify-center shrink-0">
+              <img src="images/admin/card-icon-students.svg" alt="" class="w-5 h-5">
+            </span>
+            <div class="min-w-0">
+              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Total Students</p>
+              <p class="text-3xl font-bold text-gray-900" id="cardTotalStudents">—</p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-6 flex flex-col justify-between">
+          <div class="flex items-start gap-4">
+            <span class="w-12 h-12 rounded-lg bg-[#dcfce7] flex items-center justify-center shrink-0">
+              <img src="images/admin/card-icon-assessments.svg" alt="" class="w-4 h-5">
+            </span>
+            <div class="min-w-0">
+              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Assessments Completed</p>
+              <p class="text-3xl font-bold text-gray-900" id="cardCompleted">—</p>
+            </div>
+          </div>
+          <div class="pt-3 pl-16">
+            <span class="text-sm font-medium text-emerald-700" id="cardCompletedPct">—</span>
+          </div>
+        </div>
+        <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-6 flex flex-col justify-between">
+          <div class="flex items-start gap-4">
+            <span class="w-12 h-12 rounded-lg bg-[#ffedd5] flex items-center justify-center shrink-0">
+              <img src="images/admin/card-icon-pending.svg" alt="" class="w-5 h-5">
+            </span>
+            <div class="min-w-0">
+              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Pending Assessments</p>
+              <p class="text-3xl font-bold text-gray-900" id="cardPending">—</p>
+            </div>
+          </div>
+          <div class="pt-3 pl-16">
+            <span class="text-sm font-medium text-amber-700" id="cardPendingPct">—</span>
+          </div>
+        </div>
+        <div class="bg-white border border-gray-100 rounded-xl shadow-sm p-6 flex flex-col justify-between">
+          <div class="flex items-start gap-4">
+            <span class="w-12 h-12 rounded-lg bg-[#f3e8ff] flex items-center justify-center shrink-0">
+              <img src="images/admin/card-icon-counseling.svg" alt="" class="w-5 h-5">
+            </span>
+            <div class="min-w-0">
+              <p class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Mismatched Results</p>
+              <p class="text-3xl font-bold text-gray-900" id="cardMismatched">—</p>
+            </div>
+          </div>
+          <div class="pt-3 pl-16">
+            <span class="text-sm font-medium text-purple-700" id="cardMismatchedPct">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sections at a glance -->
+      <div id="sectionCompletionCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-8">
+        <div class="border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-gray-900">Student Progress by Section</h2>
+            <p class="text-xs text-gray-500 mt-1">Registered, assessed and pending students in each section.</p>
+            <div class="text-xs text-gray-600" style="display:flex;flex-wrap:wrap;align-items:center;margin-top:8px;row-gap:4px" aria-label="Chart colors">
+              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#93c5fd;display:inline-block"></span>Registered</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#0f2a6b;display:inline-block"></span>Assessed</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px"><span style="width:12px;height:12px;border-radius:3px;background:#f59e0b;display:inline-block"></span>Pending</span>
+            </div>
+          </div>
+        </div>
+        <div class="px-6 pt-4"><p id="completionSummaryLine" class="text-sm text-gray-700"></p></div>
+        <div class="p-6 pt-3"><div id="completionChartBox" style="position:relative;height:260px"><canvas id="sectionCompletionChart" aria-label="Registered, assessed and pending students by section"></canvas></div></div>
+      </div>
+      <div id="statusCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-8">
+        <div class="border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-gray-900">Student Status</h2>
+            <p class="text-xs text-gray-500 mt-1">Assessed, pending and not registered students.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <label for="statusSection" class="text-sm text-gray-600">Section</label>
+            <select id="statusSection" class="border border-gray-300 rounded-md px-3 py-2 text-sm"></select>
+          </div>
+        </div>
+        <div class="p-6">
+          <div id="statusChartBox" style="position:relative;height:300px"><canvas id="statusChart" aria-label="Assessed, pending and not registered students"></canvas></div>
+          <p id="statusEmpty" class="hidden text-sm text-gray-500 text-center py-10">No students in this section yet.</p>
+        </div>
+        <div class="px-6 pb-6 flex flex-wrap items-center gap-2">
+          <span class="text-xs text-gray-500">Download for the section picked above:</span>
+          <button type="button" id="dlNotRegistered" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not registered (CSV)</button>
+          <button type="button" id="dlNotAssessed" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not assessed (CSV)</button>
+        </div>
+      </div>
+      <!-- Data Table Section -->
+      <!-- No overflow-hidden here: the Filters drop-down hangs below its button and must be able to extend past a short table. -->
+      <div class="bg-white border border-gray-200 rounded-xl shadow-sm">
+
+        <div class="border-b border-gray-200 flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between px-4 sm:px-6 py-5 gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-gray-900">Student Information and Assessment Overview</h2>
+          </div>
+          <div class="ov-controls">
+            <div class="relative ov-search">
+              <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" viewBox="0 -960 960 960" fill="#64748B"><path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>
+              <input type="text" id="studentSearch" placeholder="Search by name..." aria-label="Search by name" class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+            </div>
+            <button type="button" id="downloadListBtn" class="ov-btn flex items-center justify-center gap-2 border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Download list (CSV)</button>
+            <button type="button" id="emailListedBtn" class="ov-btn hidden items-center justify-center gap-2 border border-[#0f2a6b] text-[#0f2a6b] rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-slate-50">Email these students</button>
+            <div class="relative ov-filter">
+              <button type="button" id="filterBtn" aria-expanded="false" aria-controls="filterPanel" class="ov-btn flex items-center justify-center gap-2 border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <svg class="w-3.5 h-3.5" viewBox="0 -960 960 960" fill="#64748B" aria-hidden="true"><path d="M400-240v-80h160v80H400ZM240-440v-80h480v80H240ZM120-640v-80h720v80H120Z"/></svg>
+                Filters
+                <span id="filterCount" class="fp-filter-count hidden"></span>
+              </button>
+              <div id="filterPanel" role="dialog" aria-label="Filter students" class="hidden absolute right-0 top-[calc(100%+8px)] bg-white border border-gray-200 rounded-xl shadow-lg z-10">
+                <div class="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100">
+                  <h3 class="text-sm font-semibold text-gray-900">Filter students</h3>
+                  <button type="button" id="closeFilters" aria-label="Close filters" class="w-8 h-8 -mr-2 rounded-md flex items-center justify-center text-gray-500 hover:bg-gray-100">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
+                  </button>
+                </div>
+                <div class="fp-grid px-5 py-4 max-h-[60vh] overflow-y-auto">
+                  <div class="fp-group">
+                    <p class="fp-heading">Class</p>
+                    <fieldset class="fp-field">
+                      <legend class="fp-label">Strand</legend>
+                      <div class="fp-options">
+                        <label class="fp-option"><input type="radio" name="filterStrand" value="" checked><span>All</span></label>
+                        <label class="fp-option"><input type="radio" name="filterStrand" value="STEM"><span>STEM</span></label>
+                        <label class="fp-option"><input type="radio" name="filterStrand" value="ABM"><span>ABM</span></label>
+                        <label class="fp-option"><input type="radio" name="filterStrand" value="ICT"><span>ICT</span></label>
+                        <label class="fp-option"><input type="radio" name="filterStrand" value="HUMSS"><span>HUMSS</span></label>
+                      </div>
+                    </fieldset>
+                    <div>
+                      <label for="filterSection" class="fp-label">Section</label>
+                      <select id="filterSection" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white">
+                        <option value="">All sections</option>
+                      </select>
+                    </div>
+                    <p class="fp-heading pt-2">Account</p>
+                    <fieldset class="fp-field">
+                      <legend class="fp-label">Registration</legend>
+                      <div class="fp-options">
+                        <label class="fp-option"><input type="radio" name="filterRegistration" value="" checked><span>All</span></label>
+                        <label class="fp-option"><input type="radio" name="filterRegistration" value="registered"><span>Registered</span></label>
+                        <label class="fp-option"><input type="radio" name="filterRegistration" value="notRegistered"><span>Not registered</span></label>
+                      </div>
+                    </fieldset>
+                    <fieldset class="fp-field">
+                      <legend class="fp-label">Account</legend>
+                      <div class="fp-options">
+                        <label class="fp-option"><input type="radio" name="filterAccount" value="" checked><span>All</span></label>
+                        <label class="fp-option"><input type="radio" name="filterAccount" value="active"><span>Active</span></label>
+                        <label class="fp-option"><input type="radio" name="filterAccount" value="inactive"><span>Deactivated</span></label>
+                      </div>
+                    </fieldset>
+                  </div>
+                  <div class="fp-group">
+                    <p class="fp-heading">Assessment</p>
+                    <fieldset class="fp-field">
+                      <legend class="fp-label">Assessment status</legend>
+                      <div class="fp-options">
+                        <label class="fp-option"><input type="radio" name="filterStatus" value="" checked><span>All</span></label>
+                        <label class="fp-option"><input type="radio" name="filterStatus" value="Completed"><span>Completed</span></label>
+                        <label class="fp-option"><input type="radio" name="filterStatus" value="Pending"><span>Pending</span></label>
+                        <label class="fp-option"><input type="radio" name="filterStatus" value="Mismatched"><span>Mismatched</span></label>
+                        <label class="fp-option"><input type="radio" name="filterStatus" value="Not Registered"><span>Not registered</span></label>
+                      </div>
+                    </fieldset>
+                    <fieldset class="fp-field">
+                      <legend class="fp-label">Assessed</legend>
+                      <div class="fp-options">
+                        <label class="fp-option"><input type="radio" name="filterAssessment" value="" checked><span>All</span></label>
+                        <label class="fp-option"><input type="radio" name="filterAssessment" value="assessed"><span>Assessed</span></label>
+                        <label class="fp-option"><input type="radio" name="filterAssessment" value="notAssessed"><span>Not assessed</span></label>
+                      </div>
+                    </fieldset>
+                    <p class="fp-heading pt-2">Counseling</p>
+                    <fieldset class="fp-field">
+                      <legend class="fp-label">Counseling status</legend>
+                      <div class="fp-options">
+                        <label class="fp-option"><input type="radio" name="filterCounseling" value="" checked><span>All</span></label>
+                        <label class="fp-option"><input type="radio" name="filterCounseling" value="Availed"><span>Availed</span></label>
+                        <label class="fp-option"><input type="radio" name="filterCounseling" value="Did Not Avail"><span>Did not avail</span></label>
+                      </div>
+                    </fieldset>
+                  </div>
+                </div>
+                <div class="flex items-center justify-between gap-3 px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-xl">
+                  <button type="button" id="clearFilters" class="text-sm font-medium text-gray-600 hover:text-gray-900 px-2 py-2 -ml-2 rounded-md">Clear all</button>
+                  <button type="button" id="applyFilters" class="bg-[#0f2a6b] text-white text-sm font-medium rounded-md px-5 py-2 hover:opacity-90">Apply filters</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="activeFilters" class="hidden px-4 sm:px-6 py-3 border-b border-gray-200 flex flex-wrap items-center gap-2" aria-label="Filters in use"></div>
+        <p id="noResults" class="hidden px-6 py-6 text-sm text-gray-500 text-center">No students match your search or filters.</p>
+
+        <div class="overflow-auto max-h-[60vh]" id="studentTableScroll">
+          <table class="w-full text-left border-collapse">
+            <thead class="bg-gray-50 border-b border-gray-200 sticky top-0 z-[1]">
+              <tr>
+                <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">#</th>
+                <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Name</th>
+                <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Strand</th>
+                <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Section</th>
+                <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Account</th>
+                <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Assessment Status</th>
+                <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Assessment Date</th>
+                <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Top 3 RIASEC</th>
+                <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase text-center">Counseling Status</th>
+                <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100" id="studentTbody">
+              <tr><td colspan="10" class="px-6 py-8 text-center text-sm text-gray-500">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="border-t border-gray-200 px-6 py-4">
+          <p class="text-sm text-gray-500" id="paginationSummary">Loading…</p>
+        </div>
+      </div>
+
+    </main>
+
+      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+        <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
+        <span>&middot;</span>
+        <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
+        <span>&middot;</span>
+        <a href="accessibility" class="hover:text-gray-600 hover:underline">Accessibility</a>
+      </footer>
+  </div>
+</div>
+
+<div id="inviteModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-md p-6 flex flex-col gap-4">
+    <h3 class="text-lg font-semibold text-black" id="inviteTitle">Invite to register</h3>
+    <div class="flex flex-col gap-2 text-sm text-gray-700">
+      <p><span class="font-medium text-gray-900">To:</span> <span id="inviteTo"></span></p>
+      <p><span class="font-medium text-gray-900">Subject:</span> Create your ProfilePath account</p>
+      <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-600 flex flex-col gap-2">
+        <p>Hi <span id="inviteFirst">there</span>,</p>
+        <p>The Center for Guidance and Counseling invites you to create your ProfilePath account so you can take the career assessment. Register with your Student Number and your school email, the one this message was sent to.</p>
+        <p><span class="inline-block bg-[#0f2a6b] text-white text-xs font-semibold rounded-md px-3 py-1.5">Create my account</span></p>
+      </div>
+    </div>
+    <p id="inviteError" class="hidden text-sm text-[#ed1c24]"></p>
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" id="inviteCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+      <button type="button" id="inviteSendBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Send invitation</button>
+    </div>
+  </div>
+</div>
+
+<div id="logoutConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
+    <h3 class="text-lg font-semibold text-black">Log Out?</h3>
+    <p class="text-sm text-gray-500">Are you sure you want to log out?</p>
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" id="logoutCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+      <button type="button" id="logoutConfirmBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Log Out</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(async function() {
+  const sessionData = await (await fetch('api/session.php')).json();
+  const currentUser = sessionData.user;
+  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'counselor')) {
+    window.location.replace('staff-login');
+    return;
+  }
+
+  const headerAvatarWrap = document.getElementById('headerAvatarWrap');
+  if (currentUser.avatarUrl) {
+    headerAvatarWrap.innerHTML = `<img src="${currentUser.avatarUrl}" alt="" class="w-full h-full object-cover">`;
+  }
+  const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
+  document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
+  document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
+
+  const logoutModal = document.getElementById('logoutConfirmModal');
+  function openLogoutModal(e) {
+    e.preventDefault();
+    logoutModal.classList.remove('hidden');
+    setTimeout(function() { logoutModal.classList.add('is-open'); }, 16);
+  }
+  function closeLogoutModal() {
+    logoutModal.classList.remove('is-open');
+    setTimeout(function() { logoutModal.classList.add('hidden'); }, 260);
+  }
+  function performLogout() {
+    fetch('api/logout.php', { method: 'POST' }).finally(function() {
+      window.location.href = 'staff-login';
+    });
+  }
+  document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
+  document.getElementById('logoutCancelBtn').addEventListener('click', closeLogoutModal);
+  document.getElementById('logoutConfirmBtn').addEventListener('click', performLogout);
+  logoutModal.addEventListener('click', function(e) { if (e.target.id === 'logoutConfirmModal') closeLogoutModal(); });
+
+  function toggleDropdown(panel, ...others) {
+    others.forEach(p => p.classList.add('hidden'));
+    panel.classList.toggle('hidden');
+  }
+
+  const notifBtn = document.getElementById('notifBtn');
+  const notifPanel = document.getElementById('notifPanel');
+  const profileBtn = document.getElementById('profileBtn');
+  const profilePanel = document.getElementById('profilePanel');
+  const filterBtn = document.getElementById('filterBtn');
+  const filterPanel = document.getElementById('filterPanel');
+
+  notifBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleDropdown(notifPanel, profilePanel, filterPanel);
+  });
+  profileBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleDropdown(profilePanel, notifPanel, filterPanel);
+  });
+  function closeFilterPanel(returnFocus) {
+    if (filterPanel.classList.contains('hidden')) return;
+    filterPanel.classList.add('hidden');
+    filterBtn.setAttribute('aria-expanded', 'false');
+    if (returnFocus) filterBtn.focus();
+  }
+  filterBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleDropdown(filterPanel, notifPanel, profilePanel);
+    const open = !filterPanel.classList.contains('hidden');
+    filterBtn.setAttribute('aria-expanded', String(open));
+    if (open) filterPanel.querySelector('input:checked').focus();
+  });
+  document.getElementById('closeFilters').addEventListener('click', () => closeFilterPanel(true));
+  filterPanel.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.stopPropagation(); closeFilterPanel(true); }
+  });
+  document.addEventListener('click', () => {
+    notifPanel.classList.add('hidden');
+    profilePanel.classList.add('hidden');
+    closeFilterPanel(false);
+  });
+
+  // Close open dropdown panels on scroll — they were anchored under their
+  // trigger button, and letting them sit still while the page scrolls away
+  // from that anchor looks broken, so just dismiss them instead.
+  window.addEventListener('scroll', () => {
+    document.getElementById('notifPanel')?.classList.add('hidden');
+    document.getElementById('profilePanel')?.classList.add('hidden');
+  }, { passive: true });
+  filterPanel.addEventListener('click', (e) => e.stopPropagation());
+
+  (function() {
+    const sidebar = document.getElementById('sidebar');
+    const menuToggle = document.getElementById('menuToggle');
+    const backdrop = document.getElementById('sidebarBackdrop');
+    function openSidebar() { sidebar.classList.remove('-translate-x-full'); backdrop.classList.remove('hidden'); menuToggle.classList.add('invisible'); }
+    function closeSidebar() { sidebar.classList.add('-translate-x-full'); backdrop.classList.add('hidden'); menuToggle.classList.remove('invisible'); }
+    menuToggle.addEventListener('click', () => {
+      sidebar.classList.contains('-translate-x-full') ? openSidebar() : closeSidebar();
+    });
+    backdrop.addEventListener('click', closeSidebar);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSidebar(); });
+  })();
+
+  function escapeHtml(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  const searchInput = document.getElementById('studentSearch');
+  const noResults = document.getElementById('noResults');
+  const tbody = document.getElementById('studentTbody');
+  const state = { search: '', strand: '', section: '', status: '', counseling: '', registration: '', assessment: '', account: '', academicYear: '' };
+  let isPastYear = false;
+  let lastTotal = 0;
+  let statusSection = ''; // '' = all sections, otherwise "STRAND|SECTION"
+  let statusChart = null;
+
+  // A pie of where the students stand (assessed, pending, not registered) for all sections or the chosen one.
+  function renderStatus(secRows) {
+    document.getElementById('statusCard').classList.toggle('hidden', secRows.length === 0);
+    if (statusSection && !secRows.some(function(s) { return s.strand + '|' + s.section === statusSection; })) statusSection = '';
+    const select = document.getElementById('statusSection');
+    select.innerHTML = '<option value="">All sections</option>' + secRows.map(function(s) {
+      const key = s.strand + '|' + s.section;
+      return '<option value="' + escapeHtml(key) + '"' + (key === statusSection ? ' selected' : '') + '>' + escapeHtml(s.strand) + ' ' + escapeHtml(s.section) + '</option>';
+    }).join('');
+
+    const chosen = secRows.filter(function(s) { return !statusSection || s.strand + '|' + s.section === statusSection; });
+    const sum = function(k) { return chosen.reduce(function(n, s) { return n + s[k]; }, 0); };
+    const counts = [sum('completed'), sum('pending'), sum('notRegistered')];
+    const total = counts[0] + counts[1] + counts[2];
+    if (statusChart) { statusChart.destroy(); statusChart = null; }
+    document.getElementById('statusChartBox').classList.toggle('hidden', total === 0);
+    document.getElementById('statusEmpty').classList.toggle('hidden', total !== 0);
+    if (!total) return;
+    const names = ['Assessed', 'Pending', 'Not registered'];
+    statusChart = new Chart(document.getElementById('statusChart').getContext('2d'), {
+      type: 'pie',
+      data: {
+        labels: names.map(function(n, i) { return n + ': ' + counts[i] + ' (' + Math.round(counts[i] / total * 100) + '%)'; }),
+        datasets: [{ data: counts, backgroundColor: ['#059669', '#d97706', '#3b82f6'], borderColor: '#ffffff', borderWidth: 2 }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { boxWidth: 12, padding: 14, font: { size: 13 } } },
+          tooltip: { callbacks: { label: function(ctx) { return ' ' + names[ctx.dataIndex] + ': ' + counts[ctx.dataIndex] + ' of ' + total + ' students'; } } }
+        }
+      }
+    });
+  }
+  document.getElementById('statusSection').addEventListener('change', function() {
+    statusSection = this.value;
+    renderStatus(lastSectionRows);
+  });
+  let lastSectionRows = [];
+  let debounceHandle = null;
+
+  // ---- Student progress by section: registered, assessed and still pending, each as a share of the students expected.
+  let completionChart = null;
+  function renderCompletion(secRows) {
+    const card = document.getElementById('sectionCompletionCard');
+    card.classList.toggle('hidden', secRows.length === 0);
+    if (completionChart && !secRows.length) { completionChart.destroy(); completionChart = null; }
+    if (!secRows.length) return;
+
+    const sum = function(key) { return secRows.reduce(function(n, s) { return n + (s[key] || 0); }, 0); };
+    const pendingOf = function(s) { return s.total - s.completed; }; // not assessed yet, registered or not
+    document.getElementById('completionSummaryLine').textContent =
+      sum('completed') + ' of ' + sum('total') + ' student' + (sum('total') === 1 ? '' : 's') + ' assessed; ' +
+      (sum('total') - sum('completed')) + ' pending, across ' + secRows.length + ' section' + (secRows.length === 1 ? '' : 's') + '.';
+
+    document.getElementById('completionChartBox').style.height = Math.max(260, secRows.length * 84 + 90) + 'px';
+    if (completionChart) { completionChart.destroy(); completionChart = null; }
+    const pctOfExpected = function(n, s) { return s.total > 0 ? Math.round(n / s.total * 1000) / 10 : 0; };
+    completionChart = new Chart(document.getElementById('sectionCompletionChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        // Two lines per section, so a section with nothing yet (no bar to see) still reads as "0 of 1".
+        labels: secRows.map(function(s) { return [s.strand + ' ' + s.section, s.registered + ' registered, ' + s.completed + ' assessed, ' + pendingOf(s) + ' pending of ' + s.total]; }),
+        datasets: [
+          { label: 'Registered', data: secRows.map(function(s) { return pctOfExpected(s.registered, s); }), backgroundColor: '#93c5fd', borderRadius: 3 },
+          { label: 'Assessed', data: secRows.map(function(s) { return pctOfExpected(s.completed, s); }), backgroundColor: '#0f2a6b', borderRadius: 3 },
+          { label: 'Pending', data: secRows.map(function(s) { return pctOfExpected(pendingOf(s), s); }), backgroundColor: '#f59e0b', borderRadius: 3 }
+        ]
+      },
+      options: {
+        indexAxis: 'y', maintainAspectRatio: false,
+        layout: { padding: { top: 8, right: 12 } },
+        scales: { x: { min: 0, max: 100, ticks: { callback: function(v) { return v + '%'; } } } },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: function(ctx) {
+            const s = secRows[ctx.dataIndex];
+            const count = [s.registered, s.completed, pendingOf(s)][ctx.datasetIndex];
+            const name = ['Registered', 'Assessed', 'Pending'][ctx.datasetIndex];
+            return ' ' + name + ': ' + count + ' of ' + s.total + ' (' + ctx.parsed.x + '%)';
+          } } }
+        }
+      }
+    });
+  }
+  // ---- Downloads: the list as a CSV (names, section, registered, assessed, email) for following up.
+  async function downloadCsv(extra) {
+    const params = new URLSearchParams(Object.assign({ format: 'csv' }, extra));
+    const summary = document.getElementById('paginationSummary');
+    try {
+      const res = await fetch('api/students.php?' + params.toString());
+      if (!res.ok) { summary.textContent = 'Could not download the list. Please try again.'; return; }
+      const match = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = match ? match[1] : 'students.csv';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    } catch (e) {
+      summary.textContent = 'Unable to reach the server. Please try again.';
+    }
+  }
+  document.getElementById('downloadListBtn').addEventListener('click', function() {
+    downloadCsv({ search: state.search, strand: state.strand, section: state.section, status: state.status, counseling: state.counseling, registration: state.registration, assessment: state.assessment, account: state.account, academicYear: state.academicYear });
+  });
+  function pickedSectionParams() {
+    if (!statusSection) return {};
+    const parts = statusSection.split('|');
+    return { strand: parts[0], section: parts[1] };
+  }
+  document.getElementById('dlNotRegistered').addEventListener('click', function() { downloadCsv(Object.assign({ registration: 'notRegistered', academicYear: state.academicYear }, pickedSectionParams())); });
+  document.getElementById('dlNotAssessed').addEventListener('click', function() { downloadCsv(Object.assign({ assessment: 'notAssessed', academicYear: state.academicYear }, pickedSectionParams())); });
+
+  const STATUS_STYLE = {
+    Completed: { bg: 'bg-[#f0fdf4] border-[#bbf7d0] text-emerald-500', dot: 'images/admin/dot-green.svg' },
+    Pending: { bg: 'bg-[#fff7ed] border-[#fed7aa] text-amber-500', dot: 'images/admin/dot-orange.svg' },
+    'Not Registered': { bg: 'bg-[#eff6ff] border-[#bfdbfe] text-blue-500', dot: 'images/admin/dot-blue.svg' },
+  };
+  const COUNSELING_STYLE = {
+    Availed: { bg: 'bg-[#f0fdf4] border-[#bbf7d0] text-emerald-500', dot: 'images/admin/dot-green.svg' },
+    'Did Not Avail': { bg: 'bg-[#fef2f2] border-[#fecaca] text-red-500', dot: 'images/admin/dot-red.svg' },
+  };
+
+  function badge(label, style) {
+    return '<span class="inline-flex items-center gap-1.5 whitespace-nowrap ' + style.bg + ' text-xs font-medium px-3 py-1 rounded-full">' +
+      '<img src="' + style.dot + '" alt="" class="w-3 h-3"> ' + label + '</span>';
+  }
+
+  // Shown in school time (Asia/Manila); Postgres may send "+08" without
+  // minutes, which some browsers can't parse, so pad it first.
+  function formatDate(iso) {
+    if (!iso) return '<span class="text-gray-500">Not taken yet</span>';
+    const d = new Date(String(iso).replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00'));
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' });
+  }
+
+  function renderRow(s, index) {
+    const isRosterOnly = s.userId === null;
+    const statusCell = badge(s.status, STATUS_STYLE[s.status]);
+    // A student with no account has no sign-in to show.
+    // Locked by wrong passwords (for example on exam day): shown right here with Unlock, so staff in the
+    // room see it without opening each profile.
+    const accountCell = isRosterOnly
+      ? '<span class="inline-flex items-center bg-gray-100 border border-gray-200 text-gray-500 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">No account</span>'
+      : (s.isActive && s.locked
+          ? '<span class="inline-flex items-center gap-2 whitespace-nowrap">' +
+              '<span class="inline-flex items-center bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium px-3 py-1 rounded-full">Locked</span>' +
+              '<button type="button" class="unlock-btn text-xs font-semibold text-[#0f2a6b] underline" data-id="' + s.userId + '" data-name="' + escapeHtml(s.name) + '">Unlock</button>' +
+            '</span>'
+          : s.isActive
+          ? '<span class="inline-flex items-center bg-[#f0fdf4] border border-[#bbf7d0] text-emerald-600 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">Active</span>'
+          : '<span class="inline-flex items-center bg-gray-100 border border-gray-200 text-gray-500 text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap">Deactivated</span>');
+    const counselingCell = s.counseling
+      ? badge(s.counseling, COUNSELING_STYLE[s.counseling])
+      : '<span class="text-gray-500">No request</span>';
+    const params = new URLSearchParams({ id: s.userId });
+    // A roster-only entry has no account to open a profile for — no link,
+    // just a dash, matching the other empty-data cells in this row.
+    // Three fixed slots (open profile | counseling or register invite | activate or deactivate) so the buttons line up
+    // from row to row, whichever ones a row has.
+    const BTN = 'display:inline-flex;align-items:center;justify-content:center;width:100%;height:32px;padding:0 8px;white-space:nowrap';
+    const slot = function(html) { return html || '<span></span>'; };
+    const wrap = function(a, b, c) {
+      return '<div style="display:grid;grid-template-columns:32px 150px 96px;gap:8px;align-items:center;justify-content:center">' + slot(a) + slot(b) + slot(c) + '</div>';
+    };
+    const actionCell = isRosterOnly
+      ? wrap('', s.hasEmail && !isPastYear
+          ? '<button type="button" class="invite-btn text-xs font-semibold rounded-md border text-[#0f2a6b] border-[#0f2a6b] hover:bg-slate-50" style="' + BTN + '" data-roster-id="' + s.rosterId + '" data-name="' + escapeHtml(s.name) + '">Invite to register</button>'
+          : '', '')
+      : wrap(
+          '<a href="student-profile?' + params.toString() + '" title="Open profile" class="inline-flex items-center justify-center border border-gray-200 rounded shadow-sm hover:bg-gray-50" style="width:32px;height:32px">' +
+            '<svg class="w-4 h-4" viewBox="0 -960 960 960" fill="#64748B"><path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/></svg></a>',
+          canInvite && s.isActive ? '<button type="button" class="counsel-invite-btn text-xs font-semibold rounded-md border text-[#0f2a6b] border-[#0f2a6b] hover:bg-slate-50" style="' + BTN + '" data-id="' + s.userId + '" data-name="' + escapeHtml(s.name) + '">Invite to counseling</button>' : '',
+          '<button type="button" class="toggle-active-btn text-xs font-semibold rounded-md border ' + (s.isActive ? 'btn-danger text-[#ed1c24] border-[#ed1c24] hover:bg-red-50' : 'text-emerald-600 border-emerald-300 hover:bg-emerald-50') + '" style="' + BTN + '" data-id="' + s.userId + '" data-active="' + (s.isActive ? '1' : '0') + '" data-name="' + escapeHtml(s.name) + '">' + (s.isActive ? 'Deactivate' : 'Activate') + '</button>'
+        );
+    return '<tr>' +
+      '<td class="px-6 py-4 text-sm text-gray-500">' + index + '</td>' +
+      '<td class="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">' + escapeHtml(s.name) +
+        (s.email ? '<span class="block text-xs font-normal text-gray-500">' + escapeHtml(s.email) + '</span>' : '') +
+      '</td>' +
+      '<td class="px-6 py-4 text-sm text-gray-500">' + escapeHtml(s.strand) + '</td>' +
+      '<td class="px-6 py-4 text-sm text-gray-500">' + escapeHtml(s.section) + '</td>' +
+      '<td class="px-6 py-4 whitespace-nowrap">' + accountCell + '</td>' +
+      '<td class="px-6 py-4 whitespace-nowrap">' + statusCell + '</td>' +
+      '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + formatDate(s.assessmentDate) + '</td>' +
+      '<td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">' + (s.riasec ? escapeHtml(s.riasec) : '<span class="text-gray-500">No result yet</span>') + '</td>' +
+      '<td class="px-6 py-4 text-center whitespace-nowrap" style="min-width:170px">' + counselingCell + '</td>' +
+      '<td class="px-6 py-4 text-center">' + actionCell + '</td>' +
+    '</tr>';
+  }
+
+  async function load() {
+    const statIds = ['cardTotalStudents', 'cardCompleted', 'cardPending', 'cardMismatched'];
+    const chartBoxes = ['completionChartBox', 'statusChartBox'];
+    PP.showSkeleton(tbody, PP.skeleton.rows(10, 6));
+    document.getElementById('paginationSummary').innerHTML = PP.skeleton.line('220px');
+    statIds.forEach(PP.statLoading);
+    ['cardCompletedPct', 'cardPendingPct', 'cardMismatchedPct'].forEach(function(id) { document.getElementById(id).textContent = ''; });
+    if (!completionChart) { document.getElementById('sectionCompletionCard').classList.remove('hidden'); PP.chartLoading('completionChartBox'); }
+    if (!statusChart) { document.getElementById('statusCard').classList.remove('hidden'); PP.chartLoading('statusChartBox'); }
+    const params = new URLSearchParams({
+      all: '1', search: state.search, strand: state.strand, section: state.section, status: state.status, counseling: state.counseling,
+      registration: state.registration, assessment: state.assessment, account: state.account, academicYear: state.academicYear,
+    });
+    let data;
+    try {
+      data = await PP.fetchJson('api/students.php?' + params.toString());
+    } catch (e) {
+      PP.showError(tbody, e.message, load, 10);
+      statIds.forEach(PP.statFailed);
+      document.getElementById('paginationSummary').textContent = '';
+      chartBoxes.forEach(function(id) { PP.chartError(id, e.message, load); });
+      return;
+    }
+    tbody.removeAttribute('aria-busy');
+    chartBoxes.forEach(PP.chartLoaded);
+    isPastYear = !!data.isPastYear;
+    lastTotal = data.total;
+    renderYearOptions(data);
+
+    document.getElementById('cardTotalStudents').textContent = data.summary.totalStudents.toLocaleString();
+    document.getElementById('cardCompleted').textContent = data.summary.completedCount.toLocaleString();
+    document.getElementById('cardPending').textContent = data.summary.pendingCount.toLocaleString();
+    document.getElementById('cardMismatched').textContent = data.summary.mismatchedCount.toLocaleString();
+    const pct = (n) => data.summary.totalStudents > 0 ? Math.round((n / data.summary.totalStudents) * 100) + '% of total' : '0% of total';
+    document.getElementById('cardCompletedPct').textContent = pct(data.summary.completedCount);
+    document.getElementById('cardPendingPct').textContent = pct(data.summary.pendingCount);
+    // Mismatched is a share of the students who finished the assessment.
+    document.getElementById('cardMismatchedPct').textContent = data.summary.completedCount > 0 ? Math.round((data.summary.mismatchedCount / data.summary.completedCount) * 100) + '% of completed' : '0% of completed';
+
+    const secRows = data.sections || [];
+    lastSectionRows = secRows;
+    renderStatus(secRows);
+    renderCompletion(secRows);
+    noResults.classList.toggle('hidden', data.students.length !== 0);
+    tbody.innerHTML = data.students.length
+      ? data.students.map((s, i) => renderRow(s, data.startIndex + i)).join('')
+      : '';
+
+    // Staff can email everyone currently listed when the list is Pending or Mismatched students.
+    // Past school years are looked at, not acted on: no emails from them.
+    const emailBtn = document.getElementById('emailListedBtn');
+    const inviteMode = !isPastYear && state.registration === 'notRegistered' && !(state.status === 'Pending' || state.status === 'Mismatched');
+    const showEmail = !isPastYear && (state.status === 'Pending' || state.status === 'Mismatched' || inviteMode);
+    emailBtn.classList.toggle('hidden', !showEmail);
+    emailBtn.classList.toggle('flex', showEmail);
+    emailBtn.textContent = inviteMode ? 'Email: invite to register' : (state.status === 'Mismatched' ? 'Email: visit the Guidance Office' : 'Email: assessment reminder');
+
+    document.getElementById('paginationSummary').innerHTML =
+      'Showing <span class="font-medium text-gray-900">' + data.total.toLocaleString() + '</span> student' + (data.total === 1 ? '' : 's') + '. Scroll the table to see more.';
+  }
+
+  // "Email these students": a reminder to the Pending students, or a request to visit the
+  // Guidance Office for the Mismatched ones, limited to the current strand/section filters.
+  document.getElementById('emailListedBtn').addEventListener('click', async function() {
+    if (state.registration === 'notRegistered' && !(state.status === 'Pending' || state.status === 'Mismatched')) {
+      openInvite({ to: lastTotal + ' student' + (lastTotal === 1 ? '' : 's') + ' not registered yet (those with an email on the class roster)', body: { all: true, strand: state.strand, section: state.section } });
+      return;
+    }
+    const kind = state.status === 'Mismatched' ? 'mismatch' : 'pending';
+    const what = kind === 'mismatch' ? 'ask the listed students to visit the Guidance Office' : 'send the listed students an assessment reminder';
+    if (!(await PP.confirm('Email these students? This will ' + what + '. A student receives at most one such email per day; students without an account are skipped.'))) return;
+    const btn = this, label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Sending…';
+    const summary = document.getElementById('paginationSummary');
+    try {
+      const res = await fetch('api/student-reminders.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: kind, strand: state.strand, section: state.section })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        summary.textContent = data.error || 'Could not send the emails.';
+      } else {
+        summary.textContent = 'Emailed ' + data.sent + ' of ' + data.listed + ' student' + (data.listed === 1 ? '' : 's') +
+          (data.alreadyEmailedToday ? ' (' + data.alreadyEmailedToday + ' already emailed today)' : '') +
+          (data.failed ? '. ' + data.failed + ' could not be delivered.' : '.');
+      }
+    } catch (e) {
+      summary.textContent = 'Unable to reach the server. Please try again.';
+    } finally {
+      btn.disabled = false; btn.textContent = label;
+    }
+  });
+
+  // ---- Invite students who are on the class roster but have not registered: a pop-up shows the email, then sends it.
+  const inviteModal = document.getElementById('inviteModal');
+  let inviteBody = null;
+  function closeInvite() {
+    inviteModal.classList.remove('is-open');
+    setTimeout(function() { inviteModal.classList.add('hidden'); }, 260);
+  }
+  function openInvite(opts) {
+    inviteBody = opts.body;
+    document.getElementById('inviteTo').textContent = opts.to;
+    document.getElementById('inviteFirst').textContent = opts.first || 'there';
+    document.getElementById('inviteError').classList.add('hidden');
+    inviteModal.classList.remove('hidden');
+    setTimeout(function() { inviteModal.classList.add('is-open'); }, 16);
+  }
+  document.getElementById('inviteCancelBtn').addEventListener('click', closeInvite);
+  inviteModal.addEventListener('click', function(e) { if (e.target.id === 'inviteModal') closeInvite(); });
+  document.getElementById('inviteSendBtn').addEventListener('click', async function() {
+    const btn = this, errEl = document.getElementById('inviteError');
+    btn.disabled = true;
+    try {
+      const res = await fetch('api/student-invite.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(inviteBody) });
+      const data = await res.json();
+      if (!data.success) { errEl.textContent = data.error || 'Could not send the invitation.'; errEl.classList.remove('hidden'); return; }
+      closeInvite();
+      const summary = document.getElementById('paginationSummary');
+      summary.textContent = 'Invited ' + data.sent + ' of ' + data.listed + ' student' + (data.listed === 1 ? '' : 's') +
+        (data.alreadyInvitedToday ? ' (' + data.alreadyInvitedToday + ' already invited today)' : '') +
+        (data.failed ? '. ' + data.failed + ' could not be delivered.' : '.');
+    } catch (e) {
+      errEl.textContent = 'Unable to reach the server. Please try again.';
+      errEl.classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+  tbody.addEventListener('click', function(e) {
+    const btn = e.target.closest('.invite-btn');
+    if (!btn) return;
+    const name = btn.dataset.name || '';
+    // Roster names are LASTNAME, FIRSTNAME MIDDLE.
+    const afterComma = name.indexOf(',') >= 0 ? name.slice(name.indexOf(',') + 1).trim() : name;
+    const first = (afterComma.split(/\s+/)[0] || '').toLowerCase().replace(/^./, function(c) { return c.toUpperCase(); });
+    openInvite({ to: name, first: first, body: { rosterId: Number(btn.dataset.rosterId) } });
+  });
+
+  // ---- Counseling is the Guidance Counselors' (and the Head of Guidance's): the invite button only shows for them.
+  let canInvite = currentUser.role === 'admin';
+  try {
+    const inviteCfg = await (await fetch('api/security-config.php')).json();
+    canInvite = ((inviteCfg.rbac && inviteCfg.rbac.counselingNotes && inviteCfg.rbac.counselingNotes[currentUser.rbacRole || currentUser.role]) || 'none') === 'full';
+  } catch (e) {}
+
+  // ---- Account actions on a registered student's row: invite to counseling (the CGC booking link), activate / deactivate.
+  tbody.addEventListener('click', async function(e) {
+    const summary = document.getElementById('paginationSummary');
+    const unlockBtn = e.target.closest('.unlock-btn');
+    if (unlockBtn) {
+      if (!(await PP.confirm('Unlock "' + unlockBtn.dataset.name + '"? The account was locked after too many wrong passwords. They can sign in again right away.', { okLabel: 'Unlock' }))) return;
+      unlockBtn.disabled = true;
+      try {
+        const res = await fetch('api/students.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'unlock', userId: Number(unlockBtn.dataset.id) }) });
+        const data = await res.json();
+        if (!data.success) { PP.toast(data.error || 'Could not unlock the account.', true); unlockBtn.disabled = false; return; }
+        PP.toast('Account unlocked. The student can sign in now.', false);
+        await load();
+      } catch (err) {
+        PP.toast('Unable to reach the server. Please try again.', true);
+        unlockBtn.disabled = false;
+      }
+      return;
+    }
+    const inviteBtn = e.target.closest('.counsel-invite-btn');
+    if (inviteBtn) {
+      if (!(await PP.confirm('Invite "' + inviteBtn.dataset.name + '" to a counseling session? They will be sent the CGC booking link by email and in their notifications.'))) return;
+      inviteBtn.disabled = true;
+      try {
+        const res = await fetch('api/counseling-invite.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studentId: Number(inviteBtn.dataset.id) }) });
+        const data = await res.json();
+        summary.textContent = !data.success ? (data.error || 'Could not send the invitation.')
+          : (data.emailSent ? 'Counseling invitation sent to ' + inviteBtn.dataset.name + ' by email and notification.'
+            : 'Notification sent to ' + inviteBtn.dataset.name + '. The email could not be sent' + (data.hasEmail ? '.' : ' because this student has no verified email.'));
+      } catch (err) {
+        summary.textContent = 'Unable to reach the server. Please try again.';
+      } finally {
+        inviteBtn.disabled = false;
+      }
+      return;
+    }
+    const toggleBtn = e.target.closest('.toggle-active-btn');
+    if (toggleBtn) {
+      const willDeactivate = toggleBtn.dataset.active === '1';
+      if (!(await PP.confirm((willDeactivate ? 'Deactivate' : 'Activate') + ' "' + toggleBtn.dataset.name + '"? ' +
+        (willDeactivate ? 'They will no longer be able to sign in. You can reactivate later.' : 'They will be able to sign in again.'), { okLabel: willDeactivate ? 'Deactivate' : 'Activate', danger: willDeactivate }))) return;
+      toggleBtn.disabled = true;
+      try {
+        const res = await fetch('api/students.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'toggleActive', userId: Number(toggleBtn.dataset.id) }) });
+        const data = await res.json();
+        if (!data.success) { summary.textContent = data.error || 'Failed to update the account.'; toggleBtn.disabled = false; return; }
+        await load();
+      } catch (err) {
+        summary.textContent = 'Unable to reach the server. Please try again.';
+        toggleBtn.disabled = false;
+      }
+    }
+  });
+
+  // ---- School year: the current one by default, or any past year that has data (never a future one).
+  const ayFilter = document.getElementById('ayFilter');
+  function renderYearOptions(data) {
+    const years = data.academicYears || [];
+    if (!years.length) return;
+    ayFilter.innerHTML = years.map(function(y) { return '<option value="' + escapeHtml(y) + '">' + escapeHtml(y) + '</option>'; }).join('');
+    ayFilter.value = data.academicYear;
+  }
+  ayFilter.addEventListener('change', function() {
+    state.academicYear = ayFilter.value;
+    load();
+  });
+
+  searchInput.addEventListener('input', () => {
+    clearTimeout(debounceHandle);
+    debounceHandle = setTimeout(() => {
+      state.search = searchInput.value.trim();
+            load();
+    }, 300);
+  });
+  // The Section filter is a drop-down of the sections the Head of Guidance / counselors maintain (Account
+  // Management), read fresh each time the panel opens so a section added a moment ago is already there.
+  // With All Strands it lists every section; with one strand, just that strand's.
+  let sectionOptions = []; // [{ strand, code, isActive }]
+  function renderSectionFilter() {
+    const sec = document.getElementById('filterSection');
+    const strand = getChoice('filterStrand');
+    const previous = sec.value;
+    const list = sectionOptions.filter(function(s) { return !strand || s.strand === strand; });
+    sec.innerHTML = '<option value="">All sections</option>' + list.map(function(s) {
+      return '<option value="' + escapeHtml(s.code) + '">' + escapeHtml(s.code) + (strand ? '' : ' (' + escapeHtml(s.strand) + ')') + (s.isActive ? '' : ' (inactive)') + '</option>';
+    }).join('');
+    sec.value = list.some(function(s) { return s.code === previous; }) ? previous : '';
+  }
+  async function refreshSectionFilter() {
+    try {
+      let res = await fetch('api/sections.php?all=1');
+      if (!res.ok) res = await fetch('api/sections.php'); // no access to the full list: fall back to the active ones
+      const data = await res.json();
+      sectionOptions = data.sections
+        ? data.sections
+        : Object.keys(data.sectionsByStrand || {}).flatMap(function(strand) { return data.sectionsByStrand[strand].map(function(code) { return { strand: strand, code: code, isActive: true }; }); });
+      sectionOptions.sort(function(a, b) { return a.strand.localeCompare(b.strand) || a.code.localeCompare(b.code); });
+    } catch (e) { /* keep the list we already have */ }
+    renderSectionFilter();
+  }
+  document.querySelectorAll('input[name="filterStrand"]').forEach(function(r) { r.addEventListener('change', renderSectionFilter); });
+  document.getElementById('filterBtn').addEventListener('click', refreshSectionFilter);
+  refreshSectionFilter();
+
+  // Each filter: the state key it sets, its control (a radio group by name, or the Section drop-down), and its label for the chips.
+  const FILTERS = [
+    { key: 'strand', name: 'filterStrand', label: 'Strand' },
+    { key: 'section', select: 'filterSection', label: 'Section' },
+    { key: 'registration', name: 'filterRegistration', label: 'Registration' },
+    { key: 'account', name: 'filterAccount', label: 'Account' },
+    { key: 'status', name: 'filterStatus', label: 'Assessment status' },
+    { key: 'assessment', name: 'filterAssessment', label: 'Assessed' },
+    { key: 'counseling', name: 'filterCounseling', label: 'Counseling status' }
+  ];
+  function getChoice(name) {
+    const checked = document.querySelector('input[name="' + name + '"]:checked');
+    return checked ? checked.value : '';
+  }
+  function setChoice(name, value) {
+    document.querySelectorAll('input[name="' + name + '"]').forEach(function(r) { r.checked = r.value === value; });
+  }
+  function controlValue(f) { return f.select ? document.getElementById(f.select).value : getChoice(f.name); }
+  function setControl(f, value) {
+    if (f.select) document.getElementById(f.select).value = value; else setChoice(f.name, value);
+  }
+  function choiceText(f, value) {
+    if (f.select) return value;
+    const input = document.querySelector('input[name="' + f.name + '"][value="' + CSS.escape(value) + '"]');
+    return input ? input.nextElementSibling.textContent : value;
+  }
+  // The Filters button shows how many are on, and each one in use is a chip under the toolbar that removes it.
+  function renderActiveFilters() {
+    const active = FILTERS.filter(function(f) { return state[f.key]; });
+    const count = document.getElementById('filterCount');
+    count.textContent = active.length;
+    count.classList.toggle('hidden', active.length === 0);
+    filterBtn.setAttribute('aria-label', active.length ? 'Filters, ' + active.length + ' in use' : 'Filters');
+    const box = document.getElementById('activeFilters');
+    box.classList.toggle('hidden', active.length === 0);
+    box.classList.toggle('flex', active.length > 0);
+    box.innerHTML = active.map(function(f) {
+      const text = f.label + ': ' + choiceText(f, state[f.key]);
+      return '<span class="fp-chip">' + escapeHtml(text) +
+        '<button type="button" data-remove-filter="' + f.key + '" aria-label="Remove ' + escapeHtml(text) + '">' +
+        '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg></button></span>';
+    }).join('') + (active.length > 1 ? '<button type="button" data-remove-filter="all" class="text-xs font-medium text-gray-600 hover:text-gray-900 underline underline-offset-2 px-1">Clear all</button>' : '');
+  }
+  document.getElementById('activeFilters').addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-remove-filter]');
+    if (!btn) return;
+    const key = btn.dataset.removeFilter;
+    FILTERS.forEach(function(f) {
+      if (key !== 'all' && f.key !== key) return;
+      setControl(f, '');
+      state[f.key] = '';
+    });
+    if (key === 'all' || key === 'strand') renderSectionFilter();
+    renderActiveFilters();
+    load();
+    // The chip just removed had focus; keep the keyboard in the same place.
+    const next = document.querySelector('#activeFilters button') || filterBtn;
+    next.focus();
+  });
+  document.getElementById('applyFilters').addEventListener('click', () => {
+    FILTERS.forEach(function(f) { state[f.key] = controlValue(f); });
+    renderActiveFilters();
+    load();
+    closeFilterPanel(true);
+  });
+  // Clear all resets the choices in the panel and shows every student again; the search box keeps its text.
+  document.getElementById('clearFilters').addEventListener('click', () => {
+    FILTERS.forEach(function(f) { setControl(f, ''); state[f.key] = ''; });
+    renderSectionFilter();
+    renderActiveFilters();
+    load();
+  });
+  // The panel opens leftward from the Filters button. On a narrower screen it keeps inside the table card (so it never slides
+  // under the sidebar), and below 560px it shows one column. On a phone the CSS already makes it full width.
+  function fitFilterPanel() {
+    filterPanel.style.width = '';
+    filterPanel.querySelector('.fp-grid').style.gridTemplateColumns = '';
+    if (window.innerWidth < 640) return;
+    const card = filterBtn.closest('.rounded-xl').getBoundingClientRect();
+    const room = Math.floor(filterBtn.getBoundingClientRect().right - card.left - 16);
+    if (room < 680) {
+      filterPanel.style.width = room + 'px';
+      if (room < 560) filterPanel.querySelector('.fp-grid').style.gridTemplateColumns = '1fr';
+    }
+  }
+  window.addEventListener('resize', () => { if (!filterPanel.classList.contains('hidden')) fitFilterPanel(); });
+  // Closing without Apply leaves the table as it is, so the panel shows the filters in use the next time it opens.
+  filterBtn.addEventListener('click', () => {
+    if (filterPanel.classList.contains('hidden')) return;
+    FILTERS.forEach(function(f) { if (!f.select) setControl(f, state[f.key] || ''); });
+    renderSectionFilter();
+    document.getElementById('filterSection').value = state.section || '';
+    fitFilterPanel();
+    filterPanel.querySelector('input:checked').focus();
+  });
+
+  await load();
+})();
+</script>
+
+<script src="js/motion.js" defer></script>
+<script src="js/notifications.js" defer></script>
+<script>
+(function() {
+  var el = document.getElementById('ayBadgeValue');
+  if (!el) return;
+  fetch('api/security-config.php').then(function(r) { return r.json(); }).then(function(data) {
+    if (data && data.academicYear && data.academicYear.current) {
+      el.textContent = data.academicYear.current;
+    } else {
+      document.getElementById('ayBadge').classList.add('hidden');
+    }
+  }).catch(function() {});
+})();
+</script>
+</body>
+</html>

@@ -10,7 +10,7 @@
  *
  * The student account must have a submitted Career Worksheet (a saved recommendation).
  */
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 if (!str_ends_with((string) envValue('DB_NAME'), '_test')) {
     fwrite(STDERR, "Refusing to run: DB_NAME must end in _test\n");
     exit(2);

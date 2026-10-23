@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../lib/RosterCsv.php';
+require_once __DIR__ . '/../modules/StudentManagement/lib/RosterCsv.php';
 
 $failures = 0;
 $passed = 0;

@@ -1,7 +1,7 @@
 <?php
 
-require_once __DIR__ . '/../lib/StaffEmail.php';
-require_once __DIR__ . '/../lib/StaffName.php';
+require_once __DIR__ . '/../modules/UserManagement/lib/StaffEmail.php';
+require_once __DIR__ . '/../modules/UserManagement/lib/StaffName.php';
 
 $failures = 0;
 $passed = 0;

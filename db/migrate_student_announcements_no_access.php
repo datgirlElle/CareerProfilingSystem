@@ -2,7 +2,7 @@
 // The Announcements permission is about sending announcements, so the student role has no access to it
 // (students still read the announcements sent to them). Safe to re-run.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $n = Database::get()->exec(
     "UPDATE security_rbac SET access_level = 'none', updated_at = NOW()

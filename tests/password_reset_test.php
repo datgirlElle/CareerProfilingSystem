@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../lib/PasswordReset.php';
+require_once __DIR__ . '/../modules/Authentication/lib/PasswordReset.php';
 
 $failures = 0;
 $passed = 0;

@@ -1,7 +1,7 @@
 <?php
 
-require_once __DIR__ . '/lib/Auth.php';
-require_once __DIR__ . '/lib/SecurityHeaders.php';
+require_once __DIR__ . '/modules/Authentication/lib/Auth.php';
+require_once __DIR__ . '/shared/lib/SecurityHeaders.php';
 
 SecurityHeaders::send();
 

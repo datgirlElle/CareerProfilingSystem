@@ -1,10 +1,10 @@
 <?php
 // Guidance Counselors (not the old admin-only rule) post announcements, set the assessment
-// schedule and manage sections; Guidance Facilitators stay view-only in code (lib/Rbac.php).
+// schedule and manage sections; Guidance Facilitators stay view-only in code (modules/Authentication/lib/Rbac.php).
 // This raises the counselor row of those three modules to 'full' so the matrix matches.
 // Safe to re-run.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 $n = $pdo->exec(

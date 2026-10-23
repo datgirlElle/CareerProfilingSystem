@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 
@@ -15,7 +15,7 @@ $pdo->exec(
 );
 $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_sections_strand_code ON sections (strand, LOWER(code))");
 
-// Seed with the sections that were previously hardcoded in lib/Sections.php,
+// Seed with the sections that were previously hardcoded in modules/StudentManagement/lib/Sections.php,
 // so this migration doesn't remove any section currently in use.
 $existing = [
     ['STEM', 'S1114'],

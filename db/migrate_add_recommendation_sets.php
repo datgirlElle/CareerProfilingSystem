@@ -1,5 +1,5 @@
 <?php
-// Stores each stage of the recommendation pipeline (lib/RecommendationPipeline.php)
+// Stores each stage of the recommendation pipeline (modules/ContentBasedFiltering/lib/RecommendationPipeline.php)
 // with every saved recommendation:
 //   cbf_program_ids         Best RIASEC Match (CBF: highest cosine similarity)
 //   prediction_program_ids  prediction model output (NULL while the model is not enabled)
@@ -8,7 +8,7 @@
 // Existing rows stay NULL until db/recompute_recommendations.php is run.
 // Safe to run more than once.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 $pdo->exec("ALTER TABLE recommendations ADD COLUMN IF NOT EXISTS cbf_program_ids INT[]");

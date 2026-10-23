@@ -1,12 +1,12 @@
 <?php
 /**
- * Mismatch (lib/Mismatch.php): the Preferred Course compared with the Best RIASEC Match.
+ * Mismatch (modules/ContentBasedFiltering/lib/Mismatch.php): the Preferred Course compared with the Best RIASEC Match.
  *
  *   php tests/mismatch_test.php
  *
  * DEVELOPMENT TEST DATA ONLY.
  */
-require_once __DIR__ . '/../lib/Mismatch.php';
+require_once __DIR__ . '/../modules/ContentBasedFiltering/lib/Mismatch.php';
 
 $passed = 0;
 $failures = 0;

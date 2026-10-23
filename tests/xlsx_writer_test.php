@@ -1,7 +1,7 @@
 <?php
 
-require_once __DIR__ . '/../lib/XlsxWriter.php';
-require_once __DIR__ . '/../lib/XlsxReader.php';
+require_once __DIR__ . '/../shared/lib/XlsxWriter.php';
+require_once __DIR__ . '/../shared/lib/XlsxReader.php';
 
 $failures = 0;
 $passed = 0;

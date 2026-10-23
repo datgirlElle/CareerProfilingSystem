@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 // Existing students (registered before this feature existed) have no real

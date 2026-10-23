@@ -17,7 +17,7 @@ if (PHP_SAPI !== 'cli') {
     exit("CLI only.\n");
 }
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 if (!envValue('APP_AES_KEY')) {
     echo "APP_AES_KEY is not set. Use the same key as the web service on Render. Stopped.\n";
@@ -73,6 +73,9 @@ $steps = [
     'migrate_add_facilitator_role.php',
     'migrate_add_staff_accounts_rbac.php',
     'migrate_add_retake_requests.php',
+    'migrate_add_assessment_progress.php',
+    'migrate_add_consent_records.php',
+    'migrate_add_session_user.php',
     'migrate_add_assessment_versions.php',
     // Reference data.
     'seed_colleges.php',
@@ -90,6 +93,8 @@ $steps = [
     'migrate_add_staff_accounts_rbac.php',
     // Last: the default admin account.
     'seed_admin.php',
+    // The audit log's tamper seal over everything written so far.
+    'migrate_add_audit_hash_chain.php',
 ];
 
 foreach ($steps as $i => $step) {

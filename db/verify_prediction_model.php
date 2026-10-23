@@ -12,7 +12,7 @@
  * Weka's own command line, independent of tools/weka/ExportJ48Lookup.java. See tools/weka/README.md.
  */
 
-require_once __DIR__ . '/../lib/PredictionModel.php';
+require_once __DIR__ . '/../modules/ContentBasedFiltering/lib/PredictionModel.php';
 
 if (PHP_SAPI !== 'cli') {
     exit("CLI only.\n");

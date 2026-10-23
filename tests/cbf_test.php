@@ -1,14 +1,14 @@
 <?php
 /**
- * CBF (lib/CBFEngine.php): controlled development tests of the cosine-similarity math.
+ * CBF (modules/ContentBasedFiltering/lib/CBFEngine.php): controlled development tests of the cosine-similarity math.
  *
  *   php tests/cbf_test.php
  *
  * DEVELOPMENT TEST DATA ONLY. Every student profile below is a made-up input used to
  * check the software. None of it is research data, and nothing here measures accuracy.
  */
-require_once __DIR__ . '/../lib/CBFEngine.php';
-require_once __DIR__ . '/../lib/CBFData.php';
+require_once __DIR__ . '/../modules/ContentBasedFiltering/lib/CBFEngine.php';
+require_once __DIR__ . '/../modules/ContentBasedFiltering/lib/CBFData.php';
 
 $passed = 0;
 $failures = 0;

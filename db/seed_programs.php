@@ -1,6 +1,6 @@
 <?php
-require_once __DIR__ . '/../lib/Database.php';
-require_once __DIR__ . '/../lib/Crypto.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
+require_once __DIR__ . '/../modules/Encryption/lib/Crypto.php';
 
 // [college, title, original code (crosswalk), final code (validator, Aug 7 2026)]
 $programs = require __DIR__ . '/program_codes.php';

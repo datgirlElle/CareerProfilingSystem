@@ -1,6 +1,6 @@
 <?php
 // Robustness checks for Crypto (CBC + PKCS#7 over ModifiedAES256). A pass here is NOT a proof of cryptographic strength.
-require_once __DIR__ . '/../lib/Crypto.php';
+require_once __DIR__ . '/../modules/Encryption/lib/Crypto.php';
 $pass = 0; $fail = 0; $info = [];
 function check(string $l, bool $c): void { global $pass, $fail; $c ? $pass++ : $fail++; echo ($c ? '  PASS: ' : '  FAIL: ') . $l . "\n"; }
 function throws(callable $f): bool { try { $f(); return false; } catch (Throwable $e) { return true; } }
@@ -28,7 +28,7 @@ check('tampered ciphertext is always detected (authenticated encryption)', $sile
 // Wrong key
 $ct = Crypto::enc('secret');
 $tmp = sys_get_temp_dir() . '/pp_wrongkey_' . getmypid() . '.php';
-$lib = str_replace(chr(92), '/', realpath(__DIR__ . '/../lib/Crypto.php'));
+$lib = str_replace(chr(92), '/', realpath(__DIR__ . '/../modules/Encryption/lib/Crypto.php'));
 $k = base64_encode(random_bytes(32));
 file_put_contents($tmp, "<?php \$_ENV['APP_AES_KEY'] = '$k'; require '$lib'; try { echo Crypto::dec('$ct') === 'secret' ? 'DECRYPTED' : 'GARBAGE'; } catch (Throwable \$e) { echo 'ERROR'; }");
 $out = shell_exec('php ' . escapeshellarg($tmp)); unlink($tmp);

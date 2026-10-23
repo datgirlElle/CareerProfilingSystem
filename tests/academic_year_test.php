@@ -1,7 +1,7 @@
 <?php
 
-require_once __DIR__ . '/../lib/AcademicYear.php';
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/AcademicYear.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $failures = 0;
 $passed = 0;

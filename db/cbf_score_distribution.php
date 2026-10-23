@@ -15,8 +15,8 @@
  * Reads only; changes nothing.
  */
 
-require_once __DIR__ . '/../lib/Database.php';
-require_once __DIR__ . '/../lib/CBFData.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
+require_once __DIR__ . '/../modules/ContentBasedFiltering/lib/CBFData.php';
 
 if (PHP_SAPI !== 'cli') {
     exit("CLI only.\n");

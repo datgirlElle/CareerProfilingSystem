@@ -2,7 +2,7 @@
 // Adds notification_dismissals — which live-computed notifications a student
 // has deleted. Safe to re-run.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 $pdo->exec(

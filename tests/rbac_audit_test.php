@@ -1,9 +1,9 @@
 <?php
 
-require_once __DIR__ . '/../lib/Rbac.php';
-require_once __DIR__ . '/../lib/AuditLogger.php';
-require_once __DIR__ . '/../lib/Database.php';
-require_once __DIR__ . '/../lib/Crypto.php';
+require_once __DIR__ . '/../modules/Authentication/lib/Rbac.php';
+require_once __DIR__ . '/../modules/AuditLog/lib/AuditLogger.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
+require_once __DIR__ . '/../modules/Encryption/lib/Crypto.php';
 
 $failures = 0;
 $passed = 0;
@@ -55,21 +55,22 @@ check('a student is still not cut off from other modules (Recommendations stays 
 echo "\n=== Guidance Facilitators have a column of their own ===\n";
 $facilitator = [
     'career' => 'limited', 'rac' => 'full', 'recommendations' => 'full', 'counselor' => 'full', 'monitoring' => 'full',
-    'announcements' => 'limited', 'examinations' => 'full', 'counselingNotes' => 'none', 'sections' => 'limited', 'staffAccounts' => 'none',
+    // counselingNotes is left out: the administrator sets it in the table (Full by default for a new database).
+    'announcements' => 'limited', 'examinations' => 'full', 'sections' => 'limited', 'staffAccounts' => 'none',
 ];
 foreach ($facilitator as $module => $level) {
     check("$module/facilitator == $level", Rbac::accessLevel($module, 'facilitator') === $level);
 }
 check('the matrix has four columns', Rbac::ROLES === ['admin', 'counselor', 'facilitator', 'student']);
-check('facilitator defaults follow the counselor, capped on sections, notes and staff accounts',
+check('facilitator defaults follow the counselor, capped on sections and staff accounts (counseling notes: same as the counselor)',
     Rbac::facilitatorDefault('sections', 'full') === 'limited' && Rbac::facilitatorDefault('sections', 'none') === 'none'
-    && Rbac::facilitatorDefault('counselingNotes', 'full') === 'none' && Rbac::facilitatorDefault('staffAccounts', 'limited') === 'none'
+    && Rbac::facilitatorDefault('counselingNotes', 'full') === 'full' && Rbac::facilitatorDefault('staffAccounts', 'limited') === 'none'
     && Rbac::facilitatorDefault('announcements', 'full') === 'full' && Rbac::facilitatorDefault('career', 'limited') === 'limited');
 $pdoFac = Database::get();
 $pdoFac->beginTransaction();
 $pdoFac->exec("DELETE FROM security_rbac WHERE role = 'facilitator'");
 check('with no facilitator rows (an older database) the level is derived from the counselor: sections View Only', Rbac::accessLevel('sections', 'facilitator') === 'limited');
-check('...and counseling notes No Access', Rbac::accessLevel('counselingNotes', 'facilitator') === 'none');
+check('...and counseling notes as the counselor has them', Rbac::accessLevel('counselingNotes', 'facilitator') === Rbac::accessLevel('counselingNotes', 'counselor'));
 check('...and announcements as the counselor has them', Rbac::accessLevel('announcements', 'facilitator') === Rbac::accessLevel('announcements', 'counselor'));
 $pdoFac->rollBack();
 check('the Facilitator column can be changed independently of the counselor', (function () use ($pdoFac) {
@@ -104,8 +105,7 @@ check('the administrator can set the counselor and facilitator columns to any le
     Rbac::editableLevels('admin', 'career', 'counselor', $matrix) === ['full', 'limited', 'none'] && Rbac::editableLevels('admin', 'sections', 'facilitator', $matrix) === ['full', 'limited', 'none']);
 check('nobody can change the administrator column', Rbac::editableLevels('admin', 'career', 'admin', $matrix) === [] && Rbac::editableLevels('counselor', 'career', 'admin', $matrix) === []);
 check('nobody can change the student column', Rbac::editableLevels('admin', 'career', 'student', $matrix) === [] && Rbac::editableLevels('counselor', 'staffAccounts', 'student', $matrix) === []);
-check('a counselor can set the facilitator column', Rbac::editableLevels('counselor', 'announcements', 'facilitator', $matrix) === ['full', 'limited', 'none']);
-check('a counselor cannot go above the level they hold (career: they have View Only)', Rbac::editableLevels('counselor', 'career', 'facilitator', $matrix) === ['limited', 'none']);
+check('only the administrator changes permissions: a counselor cannot set the facilitator column', Rbac::editableLevels('counselor', 'announcements', 'facilitator', $matrix) === [] && Rbac::editableLevels('counselor', 'career', 'facilitator', $matrix) === []);
 check('a counselor cannot change their own column', Rbac::editableLevels('counselor', 'announcements', 'counselor', $matrix) === []);
 check('a counselor cannot change the account modules for anyone', Rbac::editableLevels('counselor', 'staffAccounts', 'facilitator', $matrix) === [] && Rbac::editableLevels('counselor', 'counselor', 'facilitator', $matrix) === []);
 check('a facilitator and a student change nothing', Rbac::editableLevels('facilitator', 'career', 'facilitator', $matrix) === [] && Rbac::editableLevels('student', 'career', 'counselor', $matrix) === []);
@@ -128,6 +128,9 @@ $pdoStu->rollBack();
 echo "\n=== AuditLogger round-trip ===\n";
 
 $pdo = Database::get();
+// Inside a transaction that is rolled back, so the real audit trail (and its tamper-evident chain,
+// modules/AuditLog/lib/AuditChain.php) is left exactly as it was. Deleting the test row instead would leave a gap.
+$pdo->beginTransaction();
 $marker = 'test-marker-' . bin2hex(random_bytes(4));
 AuditLogger::log(1, 'admin', 'test_action', 'test_target', 'target-123', $marker);
 
@@ -142,9 +145,8 @@ if ($row) {
     check('target_type stored correctly', $row['target_type'] === 'test_target');
     check('detail_enc decrypts to the original marker', Crypto::dec($row['detail_enc']) === $marker);
     check('detail_enc is not the plaintext marker (actually encrypted)', $row['detail_enc'] !== $marker);
-    // clean up the test row so it doesn't pollute the real audit trail
-    $pdo->prepare('DELETE FROM audit_log WHERE id = ?')->execute([$row['id']]);
 }
+$pdo->rollBack();
 
 echo "\n=== Summary: $passed passed, $failures failed ===\n";
 exit($failures > 0 ? 1 : 0);

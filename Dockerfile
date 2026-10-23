@@ -15,6 +15,7 @@ ENV PORT=8000
 EXPOSE 8000
 
 # Same PHP built-in server used for local dev all along. router.php lets
-# pages be reached without their ".html" extension (e.g. /announcements)
-# while api/*.php, images, css, and js are all served exactly as before.
+# pages be reached without their ".html" extension (e.g. /announcements),
+# finds each page and api/*.php endpoint in its module folder (modules/, shared/),
+# and serves images, css, and js exactly as before.
 CMD ["sh", "-c", "php -S 0.0.0.0:${PORT} -t /var/www/html /var/www/html/router.php"]

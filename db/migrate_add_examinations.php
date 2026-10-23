@@ -16,7 +16,7 @@
 // here with status='granted' and completed_attempt_number IS NULL is what
 // api/assessment-submit.php checks before allowing attempt_number > 1.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 

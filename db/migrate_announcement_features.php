@@ -6,7 +6,7 @@
 //                                   (limits it to one reminder per 24 hours).
 //   announcement_reads              which student saw which announcement, and when. Drives "% read".
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 

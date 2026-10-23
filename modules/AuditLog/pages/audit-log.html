@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="js/csrf.js"></script>
+  <script src="js/ui-state.js"></script>
+  <title>Audit Log — Career Profiling System</title>
+  <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
+  <link rel="stylesheet" href="css/tailwind.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    /* Clear filters: gray while no filter is on, sidebar navy (#001c43) once any filter is on. Never hidden. */
+    .clear-filters-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid #e5e7eb;
+      background: #f9fafb;
+      color: #9ca3af;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 14px;
+      line-height: 20px;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: not-allowed;
+      transition: background-color var(--dur-button) var(--ease-standard),
+                  border-color var(--dur-button) var(--ease-standard),
+                  color var(--dur-button) var(--ease-standard),
+                  transform var(--dur-button) var(--ease-standard),
+                  filter var(--dur-button) var(--ease-standard);
+    }
+    .clear-filters-btn:not(:disabled) {
+      border-color: #001c43;
+      background: #eef2f8;
+      color: #001c43;
+      cursor: pointer;
+    }
+    .clear-filters-btn:not(:disabled):hover {
+      background: #e1e8f3;
+    }
+    .clear-filters-btn:focus-visible {
+      outline: 2px solid #001c43;
+      outline-offset: 2px;
+    }
+    /* Date range error: floats under From and To (in the gap above the cards) so the filter row never shifts. */
+    .date-range-msg {
+      position: absolute;
+      left: 0;
+      top: 100%;
+      margin-top: 4px;
+      white-space: nowrap;
+    }
+    #filterFrom[aria-invalid="true"],
+    #filterTo[aria-invalid="true"] {
+      border-color: #dc2626;
+      box-shadow: 0 0 0 1px #dc2626;
+    }
+    /* Summary cards open a breakdown by role: a pointer, a light hover, a navy ring when open. */
+    .summary-card {
+      cursor: pointer;
+      transition: border-color var(--dur-button) var(--ease-standard), box-shadow var(--dur-button) var(--ease-standard);
+    }
+    .summary-card:hover {
+      border-color: #cbd5e1;
+    }
+    .summary-card:focus-visible {
+      outline: 2px solid #001c43;
+      outline-offset: 2px;
+    }
+    .summary-card[aria-expanded="true"] {
+      border-color: #001c43;
+      box-shadow: 0 0 0 1px #001c43;
+    }
+    .summary-card[aria-disabled="true"] {
+      cursor: default;
+    }
+    /* Breakdown rows: role, bar, count, percent. Each row filters the table to that role. */
+    .breakdown-row {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr) 52px 44px;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 6px;
+      text-align: left;
+      font-size: 14px;
+      color: #374151;
+    }
+    button.breakdown-row:not(:disabled):hover {
+      background: #f8fafc;
+      transform: none;   /* motion.css lifts buttons on hover; rows in a list should not jump */
+      filter: none;
+    }
+    .breakdown-row:focus-visible {
+      outline: 2px solid #001c43;
+      outline-offset: 1px;
+    }
+    /* A role with nothing to show: not clickable, but its 0 stays readable. */
+    .breakdown-row:disabled,
+    .breakdown-row:disabled .breakdown-count {
+      color: #6b7280;
+      cursor: default;
+    }
+    /* The picked role: navy outline and a "Showing" tag, in the role chip's colors. The other
+       roles keep their numbers. */
+    .breakdown-row.is-picked,
+    button.breakdown-row.is-picked:not(:disabled):hover {
+      background: #eef2f8;
+      box-shadow: inset 0 0 0 1px #001c43;
+    }
+    .breakdown-name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .breakdown-tag {
+      padding: 1px 8px;
+      border-radius: 999px;
+      background: #001c43;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .breakdown-bar {
+      height: 8px;
+      border-radius: 999px;
+      background: #eef2f7;
+      overflow: hidden;
+    }
+    .breakdown-bar > span {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+    }
+    .breakdown-count {
+      text-align: right;
+      font-weight: 600;
+      color: #111827;
+    }
+    .breakdown-pct {
+      text-align: right;
+      font-size: 12px;
+      color: #6b7280;
+    }
+    @media (max-width: 640px) {
+      .breakdown-row {
+        grid-template-columns: minmax(0, 1fr) 44px 40px;
+        row-gap: 4px;
+      }
+      .breakdown-bar {
+        grid-column: 1 / -1;
+        grid-row: 2;
+      }
+    }
+    /* Role filter chip in the table toolbar. */
+    .role-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 6px 4px 12px;
+      border: 1px solid #001c43;
+      border-radius: 999px;
+      background: #eef2f8;
+      font-size: 13px;
+      color: #001c43;
+    }
+    .role-chip.hidden {
+      display: none;
+    }
+    .role-chip button {
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      font-size: 16px;
+      line-height: 1;
+    }
+    .role-chip button:focus-visible {
+      outline: 2px solid #001c43;
+      outline-offset: 1px;
+    }
+    /* A status card the Status filter rules out: stays in place, greyed, and its value shows a dash. */
+    .summary-card-muted {
+      background: #f9fafb;
+      border-color: #f3f4f6;
+    }
+    .summary-card-muted > span:first-child {
+      background: #f3f4f6;
+      border-color: #e5e7eb;
+    }
+    .summary-card-muted > span:first-child img {
+      filter: grayscale(1);
+      opacity: 0.5;
+    }
+    .summary-card-muted .text-3xl {
+      color: #9ca3af;
+    }
+    /* Label kept for screen readers only (the filter row has no visible labels; each control says what it is). */
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    /* "Blocked" badge (account lockout): orange, so it reads as a failure but not a plain wrong password. */
+    .badge-blocked {
+      background: #ffedd5;
+      color: #c2410c;
+    }
+    /* Details open right under their row and show only what the row does not: the details, and the
+       activity number, exact time and target. */
+    tr.row-selected td {
+      background: #eff6ff;
+    }
+    tr.detail-row > td {
+      padding: 0;
+      background: #f8fafc;
+      box-shadow: inset 3px 0 0 #001c43;
+    }
+    /* Stays in view while the wide table scrolls sideways; its width is set to the visible area. */
+    .detail-box {
+      position: sticky;
+      left: 0;
+      box-sizing: border-box;
+      max-width: 100%;
+      padding: 16px 24px 14px;
+    }
+    .detail-heading {
+      margin-bottom: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #6b7280;
+    }
+    .detail-text {
+      font-size: 14px;
+      color: #111827;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .detail-text.is-note {
+      color: #6b7280;
+      font-style: italic;
+    }
+    /* "What changed": old value red and crossed out, new value green, one field per block. */
+    .change-summary {
+      margin-bottom: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #111827;
+    }
+    .change {
+      margin-top: 10px;
+      max-width: 760px;
+    }
+    .change-field {
+      margin-bottom: 3px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #374151;
+    }
+    .change-old,
+    .change-new {
+      display: flex;
+      gap: 8px;
+      padding: 4px 10px;
+      font-size: 14px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .change-old {
+      border-radius: 6px 6px 0 0;
+      background: #fef2f2;
+      color: #991b1b;
+    }
+    .change-new {
+      border-radius: 0 0 6px 6px;
+      background: #f0fdf4;
+      color: #166534;
+    }
+    .change-new ins {
+      text-decoration: none;
+    }
+    .change-sign {
+      flex-shrink: 0;
+      font-weight: 700;
+    }
+    .detail-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px 18px;
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px solid #e5e7eb;
+      font-size: 12px;
+      color: #6b7280;
+    }
+    .detail-meta:first-child {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: 0;
+    }
+    .detail-meta strong {
+      font-weight: 500;
+      color: #374151;
+    }
+    .detail-close {
+      margin-left: auto;
+      padding: 4px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      background: #fff;
+      font-size: 12px;
+      color: #374151;
+    }
+    .detail-close:focus-visible {
+      outline: 2px solid #001c43;
+      outline-offset: 2px;
+    }
+    tr[data-id] {
+      cursor: pointer;
+    }
+    /* Timestamp button: looks like the text it was, underlined on hover, visible keyboard focus. */
+    .row-open-btn {
+      text-align: left;
+    }
+    button.row-open-btn:not(:disabled):hover {
+      text-decoration: underline;
+      transform: none;   /* motion.css lifts buttons on hover; a timestamp should not jump */
+      filter: none;
+    }
+    .row-open-btn:focus-visible {
+      outline: 2px solid #001c43;
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+    /* Long names are cut with "..."; the full name is in the tooltip and in the row's details. */
+    .cell-name {
+      display: inline-block;
+      max-width: 200px;
+      vertical-align: bottom;
+    }
+    /* Failed rows: thin red bar on the left so failures stand out while scrolling. */
+    .row-failed td:first-child {
+      box-shadow: inset 3px 0 0 #dc2626;
+    }
+    .check-result {
+      padding: 10px 16px;
+      font-size: 14px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .check-result.is-ok {
+      background: var(--color-green-50);
+      color: var(--color-green-700);
+    }
+    .check-result.is-bad {
+      background: var(--color-red-50);
+      color: var(--color-red-700);
+    }
+    .check-result.is-note {
+      background: var(--color-gray-50);
+      color: #374151;
+    }
+    /* motion.css gives disabled buttons no visual change, so show it here (no results, bad date range). */
+    #checkLogBtn:disabled,
+    #exportBtn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    /* Pager: on phones keep only Prev, "Page X of Y" and Next. */
+    @media (max-width: 640px) {
+      #paginationBar .page-num,
+      #paginationBar .page-gap {
+        display: none;
+      }
+    }
+    /* Same funnel icon as the Clear Filters button on Career Dataset, drawn in the button's text color. */
+    .clear-filters-icon {
+      width: 16px;
+      height: 14px;
+      flex-shrink: 0;
+      background-color: currentColor;
+      -webkit-mask: url('images/admin/icon-clear-filters.svg') no-repeat center / contain;
+      mask: url('images/admin/icon-clear-filters.svg') no-repeat center / contain;
+    }
+  </style>
+  <link rel="stylesheet" href="css/motion.css">
+</head>
+
+<body class="bg-[#f9fafb]">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div class="flex min-h-screen">
+
+    <!-- Mobile sidebar backdrop -->
+    <div id="sidebarBackdrop" class="hidden fixed inset-0 bg-black/40 z-30 md:hidden"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar"
+      class="w-[260px] shrink-0 bg-[#001c43] flex flex-col fixed inset-y-0 left-0 z-40 -translate-x-full transition-transform duration-200 md:sticky md:top-0 md:translate-x-0 h-screen">
+      <div class="sidebar-brand bg-white shrink-0">
+        <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="sidebar-brand-mmcl">
+        <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="sidebar-brand-cgc">
+      </div>
+      <div class="sidebar-app">
+        <img src="images/brand/profilepath-horizontal.png" alt="ProfilePath" width="190" height="75">
+        <p class="sidebar-app-role">Admin Dashboard</p>
+      </div>
+      <nav id="adminNav" data-active="audit-log" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
+      <script src="js/admin-nav.js"></script>
+      <div class="border-t border-white/5 pt-[25px] pb-6">
+        <a href="staff-login" id="sidebarLogout"
+          class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+          <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor">
+            <path
+              d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z" />
+          </svg>
+          Logout
+        </a>
+      </div>
+
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col min-w-0">
+
+      <!-- Top Header -->
+      <header class="bg-white border-b border-gray-200 flex items-center justify-between px-6 h-16 shrink-0 relative">
+        <button type="button" id="menuToggle"
+          class="relative z-50 w-10 h-10 -m-2.5 flex items-center justify-center md:invisible">
+          <img src="images/admin/icon-menu.svg" alt="Menu" class="w-5 h-4">
+        </button>
+        <div class="flex items-center gap-6">
+
+          <div id="ayBadge"
+            class="hidden sm:flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-full px-3 py-1">
+            <span class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">AY</span>
+            <span id="ayBadgeValue" class="text-xs font-semibold text-slate-700">—</span>
+          </div>
+
+          <!-- Notifications -->
+          <div class="relative">
+            <button type="button" id="notifBtn" class="relative w-5 h-5">
+              <svg class="w-full h-full" viewBox="0 -960 960 960" fill="#64748B">
+                <path
+                  d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z" />
+              </svg>
+              <span id="notifBadge"
+                class="hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#ed1c24] text-white text-[10px] font-bold flex items-center justify-center"></span>
+            </button>
+            <div id="notifPanel"
+              class="hidden fixed left-4 right-4 top-[76px] z-50 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+12px)] sm:w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+              <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                <p class="text-sm font-semibold text-gray-900">Notifications</p>
+                <span id="notifCountLabel" class="text-xs text-gray-500">Loading…</span>
+              </div>
+              <ul id="notifList" class="max-h-80 overflow-auto divide-y divide-gray-100">
+                <li class="px-4 py-6 text-center text-sm text-gray-500">Loading…</li>
+              </ul>
+              <a href="staff-notifications"
+                class="block text-center text-sm font-medium text-[#ed1c24] px-4 py-3 border-t border-gray-100 hover:bg-gray-50">View
+                all notifications</a>
+            </div>
+          </div>
+
+          <!-- Profile -->
+          <div class="relative">
+            <button type="button" id="profileBtn" class="flex items-center gap-3">
+              <span id="headerAvatarWrap"
+                class="w-9 h-9 rounded-full bg-[#001c43] flex items-center justify-center overflow-hidden shrink-0">
+                <img src="images/admin/icon-avatar.svg" alt="" class="w-3.5 h-4">
+              </span>
+              <span class="text-left">
+                <span class="block text-sm font-semibold text-gray-800" id="headerUserName">&nbsp;</span>
+                <span class="block text-xs text-gray-500" id="headerUserRole">&nbsp;</span>
+              </span>
+              <img src="images/admin/icon-chevron-down.svg" alt="" class="w-3.5 h-2">
+            </button>
+            <div id="profilePanel"
+              class="hidden absolute right-0 top-[calc(100%+12px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
+              <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">Profile
+                Settings</a>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Page Content -->
+      <main id="main-content" class="flex-1 p-4 sm:p-8 overflow-auto">
+
+        <!-- Page Header -->
+        <div class="flex items-center justify-between flex-wrap gap-4 mb-6">
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">Audit Log</h1>
+            <p class="text-sm text-gray-500 mt-1">Track system activities and changes for security and compliance.</p>
+          </div>
+          <div class="flex items-center gap-3 flex-wrap">
+            <div>
+              <label for="filterRange" class="visually-hidden">Date range</label>
+              <select id="filterRange" autocomplete="off"
+                class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
+                <option value="all">Any time</option>
+                <option value="today">Today</option>
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="custom">Custom range...</option>
+              </select>
+            </div>
+            <!-- From and To show only for "Custom range...". -->
+            <div id="customRange" class="relative hidden">
+              <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
+                  <label for="filterFrom" class="text-sm text-gray-600">From</label>
+                  <input type="date" id="filterFrom" aria-describedby="dateRangeMessage"
+                    class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
+                </div>
+                <div class="flex items-center gap-2">
+                  <label for="filterTo" class="text-sm text-gray-600">To</label>
+                  <input type="date" id="filterTo" aria-describedby="dateRangeMessage"
+                    class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
+                </div>
+              </div>
+              <p id="dateRangeMessage" role="alert" class="hidden text-xs text-red-600 date-range-msg"></p>
+            </div>
+            <div>
+              <label for="filterStatus" class="visually-hidden">Status</label>
+              <select id="filterStatus"
+                class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
+                <option value="All">All Status</option>
+                <option value="Success">Success</option>
+                <option value="Failed">Failed</option>
+              </select>
+            </div>
+            <div>
+              <label for="filterModule" class="visually-hidden">Category</label>
+              <select id="filterModule"
+                class="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-700">
+                <option value="All">All Categories</option>
+              </select>
+            </div>
+            <button type="button" id="clearFiltersBtn" disabled class="clear-filters-btn">
+              <span class="clear-filters-icon" aria-hidden="true"></span>
+              Clear filters
+            </button>
+          </div>
+        </div>
+
+        <!-- Summary Cards: each opens a breakdown by role in #breakdownPanel (see the script). -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+
+          <button type="button" id="cardTotal" data-card="total" aria-expanded="false" aria-controls="breakdownPanel"
+            class="summary-card text-left w-full bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
+            <span class="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+              <img src="images/audit/card-icon-total.svg" alt="" class="w-6 h-6">
+            </span>
+            <span class="block">
+              <span class="block text-xs font-semibold tracking-wide text-gray-500 uppercase">Total Activities</span>
+              <span class="block text-3xl font-bold text-gray-900" id="summaryTotal">—</span>
+              <span class="block text-xs mt-1 text-gray-500" id="summaryTotalNote">All logged actions</span>
+            </span>
+          </button>
+
+          <button type="button" id="cardSuccess" data-card="successful" aria-expanded="false" aria-controls="breakdownPanel"
+            class="summary-card text-left w-full bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
+            <span
+              class="w-[50px] h-[50px] rounded-lg bg-green-50 border border-green-100 flex items-center justify-center shrink-0">
+              <img src="images/audit/card-icon-success.svg" alt="" class="w-6 h-6">
+            </span>
+            <span class="block">
+              <span class="block text-xs font-semibold tracking-wide text-gray-500 uppercase">Successful</span>
+              <span class="block text-3xl font-bold text-gray-900" id="summarySuccess">—</span>
+              <span class="block text-xs mt-1"><span class="text-green-600 font-medium" id="summarySuccessPct">—</span> <span
+                  class="text-gray-500" id="summarySuccessNote">of total</span></span>
+            </span>
+          </button>
+
+          <button type="button" id="cardFailed" data-card="failed" aria-expanded="false" aria-controls="breakdownPanel"
+            class="summary-card text-left w-full bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
+            <span
+              class="w-[50px] h-[50px] rounded-lg bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
+              <img src="images/audit/card-icon-failed.svg" alt="" class="w-6 h-6">
+            </span>
+            <span class="block">
+              <span class="block text-xs font-semibold tracking-wide text-gray-500 uppercase">Failed</span>
+              <span class="block text-3xl font-bold text-gray-900" id="summaryFailed">—</span>
+              <span class="block text-xs mt-1"><span class="text-red-600 font-medium" id="summaryFailedPct">—</span> <span
+                  class="text-gray-500" id="summaryFailedNote">of total</span></span>
+            </span>
+          </button>
+
+          <button type="button" id="cardActive" data-card="people" aria-expanded="false" aria-controls="breakdownPanel"
+            class="summary-card text-left w-full bg-white border border-gray-100 rounded-xl shadow-sm p-[21px] flex items-start gap-4">
+            <span class="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
+              <img src="images/audit/card-icon-users.svg" alt="" class="w-6 h-6">
+            </span>
+            <span class="block">
+              <span class="block text-xs font-semibold tracking-wide text-gray-500 uppercase">Users Active</span>
+              <span class="block text-3xl font-bold text-gray-900" id="summaryActive">—</span>
+              <span class="block text-xs mt-1 text-gray-500" id="summaryActiveNote">last 7 days</span>
+            </span>
+          </button>
+        </div>
+
+        <!-- Breakdown of the selected card by role (opened by clicking a card). -->
+        <section id="breakdownPanel" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm px-5 py-4 mb-6"
+          aria-labelledby="breakdownTitle">
+          <div class="flex items-center justify-between gap-3 mb-2">
+            <h2 id="breakdownTitle" class="text-sm font-semibold text-gray-900"></h2>
+            <button type="button" id="breakdownClose" class="detail-close">Close</button>
+          </div>
+          <div id="breakdownRows"></div>
+          <p id="breakdownNote" class="text-xs text-gray-500 mt-2"></p>
+        </section>
+
+        <!-- Data Table Section -->
+        <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+
+          <div class="border-b border-gray-200 flex items-center justify-between px-4 py-4 flex-wrap gap-3">
+            <div class="relative flex-1 max-w-[448px]">
+              <img src="images/audit/icon-search.svg" alt="" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4">
+              <input type="text" id="searchInput" placeholder="Search name, action, IP (use commas to combine)" aria-label="Search activities"
+                class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+            </div>
+            <!-- Shown while a role from a card breakdown filters the table. Its x undoes that click. -->
+            <span id="roleChip" class="role-chip hidden">
+              <span id="roleChipLabel"></span>
+              <button type="button" id="roleChipClear" aria-label="Remove the role filter">&times;</button>
+            </span>
+            <div class="flex items-center gap-3">
+              <!-- Administrators only (shown from the list answer): checks the log's seals. -->
+              <button type="button" id="checkLogBtn"
+                class="hidden bg-white border border-gray-300 rounded-md px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm">Check log</button>
+              <span id="exportNote" class="text-xs text-gray-500"></span>
+              <button type="button" id="exportBtn" aria-describedby="exportNote"
+                class="flex items-center gap-2 bg-white border border-gray-300 rounded-md px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm">
+                <img src="images/audit/icon-export.svg" alt="" class="w-4 h-4">
+                <span id="exportLabel">Export PDF</span>
+              </button>
+            </div>
+          </div>
+          <!-- Result of "Check log": green when intact, red when a problem was found, grey otherwise. -->
+          <p id="checkLogResult" class="hidden check-result" role="status"></p>
+
+          <div class="overflow-auto max-h-[65vh]" id="auditScroll">
+            <table class="w-full text-left border-collapse min-w-[1200px]">
+              <caption class="visually-hidden">Audit log activities. Select a row's time to see its details.</caption>
+              <thead class="bg-gray-50 border-b border-gray-200 sticky top-0 z-[1]">
+                <tr>
+                  <!-- aria-sort and the button's label tell screen readers the current order (newest first by default). -->
+                  <th id="timestampHeader" aria-sort="descending" class="px-6 py-3 text-xs font-semibold text-gray-500">
+                    <button type="button" id="sortTimestampBtn" aria-label="Timestamp, newest first. Select to show oldest first."
+                      class="flex items-center gap-1.5">Timestamp <span id="sortIcon" class="text-gray-500" aria-hidden="true">↓</span></button>
+                  </th>
+                  <th class="px-6 py-3 text-xs font-semibold text-gray-500">Name</th>
+                  <th class="px-6 py-3 text-xs font-semibold text-gray-500">Role</th>
+                  <th class="px-6 py-3 text-xs font-semibold text-gray-500">Action</th>
+                  <th class="px-6 py-3 text-xs font-semibold text-gray-500">Category</th>
+                  <th id="ipHeader" class="px-6 py-3 text-xs font-semibold text-gray-500">IP Address</th>
+                  <th class="px-6 py-3 text-xs font-semibold text-gray-500">Status</th>
+                </tr>
+              </thead>
+              <tbody id="auditTableBody" class="divide-y divide-gray-100">
+                <tr>
+                  <td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">Loading audit log…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="border-t border-gray-200 flex items-center justify-between px-6 py-4 flex-wrap gap-3">
+            <p class="text-sm text-gray-700" id="paginationSummary" aria-live="polite">Loading…</p>
+            <div class="flex items-center gap-4 flex-wrap">
+              <label for="pageSizeSelect" class="flex items-center gap-2 text-sm text-gray-600">
+                Rows per page
+                <select id="pageSizeSelect"
+                  class="border border-gray-300 rounded-md px-2 py-1.5 text-sm bg-white text-gray-700">
+                  <option value="25">25</option>
+                  <option value="50" selected>50</option>
+                  <option value="100">100</option>
+                </select>
+              </label>
+              <nav id="paginationBar" class="flex items-center gap-1" aria-label="Audit log pages"></nav>
+            </div>
+          </div>
+        </div>
+
+        <!-- Retention note: says what is really kept (filled from the list answer, see renderRetention). -->
+        <div id="retentionBox" class="hidden bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-start gap-3 mt-6">
+          <img src="images/audit/icon-info.svg" alt="" class="w-5 h-5 shrink-0">
+          <p class="text-sm text-blue-800"><span id="retentionText"></span>
+            <a id="retentionLink" href="security-configuration" class="hidden font-medium underline">Change this in Security Configuration.</a></p>
+        </div>
+
+      </main>
+
+      <footer
+        class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+        <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
+        <span>&middot;</span>
+        <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
+        <span>&middot;</span>
+        <a href="accessibility" class="hover:text-gray-600 hover:underline">Accessibility</a>
+      </footer>
+    </div>
+  </div>
+
+  <div id="logoutConfirmModal"
+    class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
+      <h3 class="text-lg font-semibold text-black">Log Out?</h3>
+      <p class="text-sm text-gray-500">Are you sure you want to log out?</p>
+      <div class="flex justify-end gap-2 pt-1">
+        <button type="button" id="logoutCancelBtn"
+          class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+        <button type="button" id="logoutConfirmBtn"
+          class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Log Out</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (async function () {
+      const sessionData = await (await fetch('api/session.php')).json();
+      const currentUser = sessionData.user;
+      if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'counselor')) {
+        window.location.replace('staff-login');
+        return;
+      }
+
+      const headerAvatarWrap = document.getElementById('headerAvatarWrap');
+      if (currentUser.avatarUrl) {
+        headerAvatarWrap.innerHTML = `<img src="${currentUser.avatarUrl}" alt="" class="w-full h-full object-cover">`;
+      }
+      const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
+      document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
+      document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
+
+      const logoutModal = document.getElementById('logoutConfirmModal');
+      function openLogoutModal(e) {
+        e.preventDefault();
+        logoutModal.classList.remove('hidden');
+        setTimeout(function () { logoutModal.classList.add('is-open'); }, 16);
+      }
+      function closeLogoutModal() {
+        logoutModal.classList.remove('is-open');
+        setTimeout(function () { logoutModal.classList.add('hidden'); }, 260);
+      }
+      function performLogout() {
+        fetch('api/logout.php', { method: 'POST' }).finally(function () {
+          window.location.href = 'staff-login';
+        });
+      }
+      document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
+      document.getElementById('logoutCancelBtn').addEventListener('click', closeLogoutModal);
+      document.getElementById('logoutConfirmBtn').addEventListener('click', performLogout);
+      logoutModal.addEventListener('click', function (e) { if (e.target.id === 'logoutConfirmModal') closeLogoutModal(); });
+
+      (function () {
+        const sidebar = document.getElementById('sidebar');
+        const menuToggle = document.getElementById('menuToggle');
+        const backdrop = document.getElementById('sidebarBackdrop');
+        function openSidebar() { sidebar.classList.remove('-translate-x-full'); backdrop.classList.remove('hidden'); menuToggle.classList.add('invisible'); }
+        function closeSidebar() { sidebar.classList.add('-translate-x-full'); backdrop.classList.add('hidden'); menuToggle.classList.remove('invisible'); }
+        menuToggle.addEventListener('click', () => {
+          sidebar.classList.contains('-translate-x-full') ? openSidebar() : closeSidebar();
+        });
+        backdrop.addEventListener('click', closeSidebar);
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSidebar(); });
+      })();
+
+      (function () {
+        const notifBtn = document.getElementById('notifBtn');
+        const notifPanel = document.getElementById('notifPanel');
+        const profileBtn = document.getElementById('profileBtn');
+        const profilePanel = document.getElementById('profilePanel');
+        function toggleDropdown(panel, ...others) {
+          others.forEach(p => p.classList.add('hidden'));
+          panel.classList.toggle('hidden');
+        }
+        notifBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleDropdown(notifPanel, profilePanel); });
+        profileBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleDropdown(profilePanel, notifPanel); });
+        document.addEventListener('click', () => {
+          notifPanel.classList.add('hidden');
+          profilePanel.classList.add('hidden');
+        });
+
+        // Close open dropdown panels on scroll — they were anchored under their
+        // trigger button, and letting them sit still while the page scrolls away
+        // from that anchor looks broken, so just dismiss them instead.
+        window.addEventListener('scroll', () => {
+          document.getElementById('notifPanel')?.classList.add('hidden');
+          document.getElementById('profilePanel')?.classList.add('hidden');
+        }, { passive: true });
+      })();
+
+      (function () {
+        const tbody = document.getElementById('auditTableBody');
+        const searchInput = document.getElementById('searchInput');
+        const filterFrom = document.getElementById('filterFrom');
+        const filterTo = document.getElementById('filterTo');
+        const filterRange = document.getElementById('filterRange');
+        const customRange = document.getElementById('customRange');
+        const filterStatus = document.getElementById('filterStatus');
+        const filterModule = document.getElementById('filterModule');
+        const sortTimestampBtn = document.getElementById('sortTimestampBtn');
+        const sortIcon = document.getElementById('sortIcon');
+        const exportBtn = document.getElementById('exportBtn');
+        const checkLogBtn = document.getElementById('checkLogBtn');
+        const exportNote = document.getElementById('exportNote');
+        const auditScroll = document.getElementById('auditScroll');
+        const paginationBar = document.getElementById('paginationBar');
+        const pageSizeSelect = document.getElementById('pageSizeSelect');
+        let loadRequestId = 0;
+        let exportTotal = 0; // activities the Export button would put in the PDF (from the last load)
+        const paginationSummary = document.getElementById('paginationSummary');
+
+        // role: set by clicking a role in a card breakdown ('' = all roles).
+        const state = { page: 1, pageSize: 50, sort: 'desc', search: '', status: 'All', module: 'All', from: '', to: '', role: '' };
+        let modulesLoaded = false;
+        let searchDebounce = null;
+        let firstDate = '';
+
+        // The calendars only offer valid ranges: To cannot start before From, From cannot end after To.
+        // Typed dates can still be out of order, so the change handler below keeps its error message.
+        function syncDateLimits() {
+          filterFrom.min = firstDate;
+          filterFrom.max = filterTo.value || todayStr();
+          filterTo.min = filterFrom.value || firstDate;
+          filterTo.max = todayStr();
+        }
+
+        const CATEGORY_LABEL = { user: 'User Accounts', faq: 'FAQ', security_policies: 'Security Policies', security_rbac: 'Access Permissions' };
+        function categoryLabel(m) {
+          return CATEGORY_LABEL[m] || String(m).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        }
+        function dateStr(d) {
+          return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+        function todayStr() {
+          return dateStr(new Date());
+        }
+        function daysAgoStr(n) {
+          const d = new Date();
+          d.setDate(d.getDate() - n);
+          return dateStr(d);
+        }
+
+        function escapeHtml(str) {
+          return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function currentQuery(extra) {
+          const params = new URLSearchParams(Object.assign({
+            page: state.page,
+            pageSize: state.pageSize,
+            sort: state.sort,
+            status: state.status,
+            module: state.module,
+            from: state.from,
+            to: state.to,
+            search: state.search,
+            role: state.role,
+          }, extra || {}));
+          return params.toString();
+        }
+
+        // Loads one page of logs (state.page). Filter, search and sort handlers set state.page = 1 first.
+        // opts.pageOnly: a page turn or page size change, so the summary cards are left as they are.
+        // opts.focus: which pager button to focus after the pager is redrawn ('prev', 'next' or 'page').
+        async function load(opts = {}) {
+          const invalidDateRange =
+            filterFrom.value &&
+            filterTo.value &&
+            filterFrom.value > filterTo.value;
+
+          if (invalidDateRange) {
+            ++loadRequestId;
+            state.page = 1;
+            exportBtn.disabled = true;
+
+            tbody.innerHTML =
+              '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-red-600">Fix the date range to see results.</td></tr>';
+
+            ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive',
+              'summarySuccessPct', 'summaryFailedPct'].forEach(id => {
+                document.getElementById(id).textContent = '—';
+              });
+            lastSummary = null;
+            closeBreakdown(false);
+
+            paginationSummary.textContent = '';
+            paginationBar.innerHTML = '';
+            exportNote.textContent = '';
+            return;
+          }
+
+          PP.showSkeleton(tbody, PP.skeleton.rows(7, 8));
+          if (!opts.pageOnly) {
+            ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive'].forEach(PP.statLoading);
+          }
+
+          const requestId = ++loadRequestId;
+          let data;
+          try {
+            data = await PP.fetchJson('api/audit-log.php?' + currentQuery());
+            if (requestId !== loadRequestId) return;
+          } catch (e) {
+            if (requestId !== loadRequestId) return;
+            if (e.status === 401) { window.location.replace('staff-login'); return; }
+            paginationSummary.textContent = '';
+            paginationBar.innerHTML = '';
+            exportNote.textContent = '';
+            if (e.status === 403) {
+              tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-red-500">You do not have access to the audit log.</td></tr>';
+              return;
+            }
+            if (!opts.pageOnly) {
+              ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive'].forEach(PP.statFailed);
+              closeBreakdown(false);
+            }
+            PP.showError(tbody, e.message, function () { load(opts); }, 7);
+            return;
+          }
+          tbody.removeAttribute('aria-busy');
+          state.page = data.page;
+
+          if (!modulesLoaded) {
+            filterModule.innerHTML = '<option value="All">All Categories</option>' +
+              data.modules.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(categoryLabel(m))}</option>`).join('');
+            filterModule.value = state.module;
+            firstDate = data.firstDate || '';
+            syncDateLimits();
+            modulesLoaded = true;
+          }
+
+          renderSummary(data.summary);
+          renderRetention(data.retention);
+          checkLogBtn.classList.toggle('hidden', !data.canCheckLog);
+          // Only the administrator sees full IP addresses (and can search by them); other staff see the network part.
+          if (data.ipMasked) {
+            const ipHeader = document.getElementById('ipHeader');
+            ipHeader.textContent = 'IP Address (partial)';
+            ipHeader.title = 'Full addresses are shown only to the administrator.';
+            searchInput.placeholder = 'Search name or action (use commas to combine)';
+          }
+          renderRows(data.rows, data.summary.filtered);
+          paginationSummary.innerHTML = countText(data.total, data.summary.filtered);
+          exportNote.textContent = exportText(data.total, data.summary.filtered);
+          exportNote.classList.remove('text-red-600');
+          exportTotal = data.total;
+          exportBtn.disabled = data.total === 0;
+          renderPagination(data.page, data.totalPages);
+          if (opts.focus) focusPager(opts.focus);
+        }
+
+        // Footer count ("171 activities", "96 matching activities"). The pager already says which
+        // page you are on, so this only says how many.
+        function countText(total, filtered) {
+          if (total === 0) return filtered ? 'No matching activities' : 'No activities recorded yet';
+          return '<span class="font-semibold text-gray-900">' + Number(total).toLocaleString() + '</span> ' +
+            (filtered ? 'matching ' : '') + (total === 1 ? 'activity' : 'activities');
+        }
+
+        // With pages, Export could be mistaken for "this page only". It exports every matching activity.
+        function exportText(total, filtered) {
+          if (total === 0) return 'Nothing to export';
+          const what = (filtered ? 'matching ' : '') + (total === 1 ? 'activity' : 'activities');
+          return total === 1 ? 'Exports 1 ' + what : 'Exports all ' + Number(total).toLocaleString() + ' ' + what;
+        }
+
+        // Page buttons: first, last, and up to two pages either side of the current one, with "..."
+        // for the gaps (same pattern and look as the pager on Career Dataset). Hidden for a single page.
+        function renderPagination(page, totalPages) {
+          if (totalPages <= 1) {
+            paginationBar.innerHTML = '';
+            return;
+          }
+          const navClass = 'w-9 h-9 flex items-center justify-center border border-gray-300 rounded-md hover:bg-gray-50';
+          const off = ' opacity-40 cursor-not-allowed';
+          let html = '<button type="button" data-role="prev" data-page="' + (page - 1) + '" aria-label="Previous page"' +
+            (page <= 1 ? ' disabled' : '') + ' class="' + navClass + (page <= 1 ? off : '') + '">' +
+            '<img src="images/audit/icon-page-prev.svg" alt="" class="w-1.5 h-2.5"></button>';
+          let previous = 0;
+          for (let p = 1; p <= totalPages; p++) {
+            if (p !== 1 && p !== totalPages && Math.abs(p - page) > 2) continue;
+            if (previous && p - previous > 1) {
+              html += '<span class="page-gap w-9 h-9 flex items-center justify-center text-sm text-gray-500" aria-hidden="true">...</span>';
+            }
+            const current = p === page;
+            html += '<button type="button" data-role="page" data-page="' + p + '" aria-label="Page ' + p + '"' +
+              (current ? ' aria-current="page"' : '') +
+              ' class="page-num w-9 h-9 flex items-center justify-center rounded-md text-sm font-medium ' +
+              (current ? 'bg-[#ed1c24] border border-[#ed1c24] text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50') +
+              '">' + p + '</button>';
+            previous = p;
+          }
+          html += '<button type="button" data-role="next" data-page="' + (page + 1) + '" aria-label="Next page"' +
+            (page >= totalPages ? ' disabled' : '') + ' class="' + navClass + (page >= totalPages ? off : '') + '">' +
+            '<img src="images/audit/icon-page-next.svg" alt="" class="w-1.5 h-2.5"></button>';
+          html += '<span class="ml-2 text-sm text-gray-600 whitespace-nowrap">Page ' + page + ' of ' + totalPages + '</span>';
+          paginationBar.innerHTML = html;
+        }
+
+        // The pager is redrawn on every page turn, which drops keyboard focus. Put it back on the
+        // same kind of button, or the nearest visible one (page numbers are hidden on phones).
+        function focusPager(role) {
+          const preferred = role === 'page'
+            ? paginationBar.querySelector('[aria-current="page"]')
+            : paginationBar.querySelector('[data-role="' + role + '"]');
+          const target = [preferred, ...paginationBar.querySelectorAll('button')]
+            .find(b => b && !b.disabled && b.offsetParent !== null);
+          if (target) target.focus();
+        }
+
+        paginationBar.addEventListener('click', e => {
+          const btn = e.target.closest('button[data-page]');
+          if (!btn || btn.disabled) return;
+          const page = Number(btn.dataset.page);
+          if (page === state.page) return;
+          state.page = page;
+          auditScroll.scrollTop = 0;
+          load({ pageOnly: true, focus: btn.dataset.role });
+        });
+
+        // A new page size keeps the first row you were looking at on screen.
+        pageSizeSelect.addEventListener('change', () => {
+          const newSize = Number(pageSizeSelect.value);
+          state.page = Math.floor((state.page - 1) * state.pageSize / newSize) + 1;
+          state.pageSize = newSize;
+          auditScroll.scrollTop = 0;
+          load({ pageOnly: true });
+        });
+
+        // A status card the Status filter rules out shows a dash and says why, instead of a
+        // misleading 0 (for example "Failed 0" while the failed events are only filtered out).
+        function renderStatusCard(key, count, total, excluded) {
+          const pct = total > 0 ? ((count / total) * 100).toFixed(1) + '%' : '—';
+          const card = document.getElementById('card' + key);
+          card.classList.toggle('summary-card-muted', excluded);
+          // A greyed-out card has nothing to break down, so it cannot be opened.
+          card.setAttribute('aria-disabled', excluded ? 'true' : 'false');
+          card.tabIndex = excluded ? -1 : 0;
+          if (excluded && openCard === card.dataset.card) closeBreakdown(false);
+          document.getElementById('summary' + key).textContent = excluded ? '—' : count.toLocaleString();
+          document.getElementById('summary' + key + 'Pct').textContent = excluded ? '' : pct;
+          document.getElementById('summary' + key + 'Note').textContent = excluded ? 'Excluded by Status filter' : 'of total';
+        }
+
+        function renderSummary(summary) {
+          document.getElementById('summaryTotal').textContent = summary.total.toLocaleString();
+          document.getElementById('summaryActive').textContent = summary.usersActive.toLocaleString();
+          renderStatusCard('Success', summary.successful, summary.total, state.status === 'Failed');
+          renderStatusCard('Failed', summary.failed, summary.total, state.status === 'Success');
+          // The cards follow the table's filters. The notes say so, so a filtered number is never
+          // mistaken for the whole log.
+          document.getElementById('summaryTotalNote').textContent = summary.filtered
+            ? 'of ' + summary.overallTotal.toLocaleString() + ' activities'
+            : 'All logged actions';
+          document.getElementById('summaryActiveNote').textContent = summary.activeLastWeek ? 'last 7 days' : 'in these results';
+          lastSummary = summary;
+          renderBreakdown();
+        }
+
+        // The note under the table says what is really kept: deletion of old entries is off unless an
+        // administrator turned it on in Security Configuration (only they get the link).
+        function renderRetention(r) {
+          if (!r) return;
+          const days = r.days.toLocaleString() + ' days';
+          document.getElementById('retentionText').textContent = r.autoDelete
+            ? 'Entries older than ' + days + ' are deleted automatically, once a day when this page is opened.'
+            : 'All entries are kept: automatic deletion is off. When an administrator turns it on, entries older than ' + days + ' are deleted.';
+          document.getElementById('retentionLink').classList.toggle('hidden', !r.canChange);
+          document.getElementById('retentionBox').classList.remove('hidden');
+        }
+
+        // Card breakdowns: click a card to see its number split by role; click a role to show only its
+        // rows (an exact role filter, shown as a chip above the table), and click it again to show all.
+        // One card open at a time. The numbers come with every load and follow every filter except the
+        // picked role, so the other roles keep their numbers. Values go in with textContent.
+        const breakdownPanel = document.getElementById('breakdownPanel');
+        const breakdownTitle = document.getElementById('breakdownTitle');
+        const breakdownRows = document.getElementById('breakdownRows');
+        const breakdownNote = document.getElementById('breakdownNote');
+        const roleChip = document.getElementById('roleChip');
+        const roleChipLabel = document.getElementById('roleChipLabel');
+        const roleChipClear = document.getElementById('roleChipClear');
+        const ROLE_LABELS = { admin: 'Administrator', counselor: 'Guidance Counselor', facilitator: 'Guidance Facilitator', student: 'Student', none: 'No account' };
+        // Bar colors match each card's icon. Only the Total card lists "No account" (sign-ins with an
+        // unknown username, system actions).
+        const CARDS = {
+          total: { title: 'Total activities by role', count: b => b.total, color: '#2563eb', noAccount: true },
+          successful: { title: 'Successful activities by role', count: b => b.successful, color: '#16a34a', status: 'Success' },
+          failed: { title: 'Failed activities by role', count: b => b.failed, color: '#dc2626', status: 'Failed' },
+          people: { title: 'Active people by role', count: b => b.people, color: '#7c3aed', people: true },
+        };
+        let openCard = null;
+        let lastSummary = null;
+
+        function setCardsExpanded() {
+          document.querySelectorAll('.summary-card').forEach(card => {
+            card.setAttribute('aria-expanded', card.dataset.card === openCard ? 'true' : 'false');
+          });
+        }
+
+        function closeBreakdown(focusCard) {
+          if (openCard === null) return;
+          const card = document.querySelector('.summary-card[data-card="' + openCard + '"]');
+          openCard = null;
+          breakdownPanel.classList.add('hidden');
+          setCardsExpanded();
+          if (focusCard && card) card.focus();
+        }
+
+        function renderBreakdown() {
+          if (openCard === null || !lastSummary || !Array.isArray(lastSummary.breakdown)) return;
+          const info = CARDS[openCard];
+          const groups = lastSummary.breakdown.filter(b => info.noAccount || b.role !== 'none');
+          const sum = groups.reduce((n, b) => n + info.count(b), 0);
+          // The rows are rebuilt after every load; keep keyboard focus on the role that had it.
+          const focusedRole = breakdownRows.contains(document.activeElement) ? document.activeElement.dataset.role : null;
+          breakdownTitle.textContent = info.title;
+          breakdownRows.replaceChildren(...groups.map(b => {
+            const n = info.count(b);
+            const pct = sum > 0 ? Math.round((n / sum) * 100) : 0;
+            const picked = b.role === state.role;
+            const row = el('button', picked ? 'breakdown-row is-picked' : 'breakdown-row');
+            row.type = 'button';
+            row.dataset.role = b.role;
+            // A role with nothing to show cannot be picked; the picked one can always be clicked again.
+            row.disabled = n === 0 && !picked;
+            // The name stays the same: aria-pressed says if it is picked, the note says what a click does.
+            row.setAttribute('aria-pressed', picked ? 'true' : 'false');
+            row.setAttribute('aria-label', b.label + ': ' + n.toLocaleString() + ', ' + pct + ' percent');
+            row.setAttribute('aria-describedby', 'breakdownNote');
+            const name = el('span', 'breakdown-name', b.label);
+            if (picked) name.appendChild(el('span', 'breakdown-tag', 'Showing'));
+            row.appendChild(name);
+            const bar = el('span', 'breakdown-bar');
+            const fill = el('span');
+            fill.style.width = pct + '%';
+            fill.style.background = info.color;
+            bar.appendChild(fill);
+            row.appendChild(bar);
+            row.appendChild(el('span', 'breakdown-count', n.toLocaleString()));
+            row.appendChild(el('span', 'breakdown-pct', pct + '%'));
+            return row;
+          }));
+          const notes = [];
+          if (openCard === 'failed') {
+            const blocked = groups.reduce((n, b) => n + b.blocked, 0);
+            if (blocked > 0) notes.push('Includes ' + blocked.toLocaleString() + ' blocked.');
+          }
+          if (info.people) notes.push(lastSummary.activeLastWeek ? 'People active in the last 7 days.' : 'People in these results.');
+          if (state.role === '') notes.push('Click a role to show only its activities.');
+          else if (groups.some(b => b.role === state.role)) notes.push('Showing ' + ROLE_LABELS[state.role] + ' only. Click it again to show all roles.');
+          // "No account" can be picked on the Total card, but the other cards have no row for it.
+          else notes.push('Showing ' + ROLE_LABELS[state.role] + ' only (not listed on this card). Click the × on the Role chip to show all.');
+          breakdownNote.textContent = notes.join(' ');
+          if (focusedRole) {
+            const again = breakdownRows.querySelector('[data-role="' + focusedRole + '"]');
+            if (again && !again.disabled) again.focus();
+            else if (state.role !== '') roleChipClear.focus();
+            else document.querySelector('.summary-card[data-card="' + openCard + '"]').focus();
+          }
+        }
+
+        function toggleCard(card) {
+          if (card.getAttribute('aria-disabled') === 'true') return;
+          if (openCard === card.dataset.card) {
+            closeBreakdown(false);
+            return;
+          }
+          openCard = card.dataset.card;
+          setCardsExpanded();
+          breakdownPanel.classList.remove('hidden');
+          renderBreakdown();
+          // When the cards are stacked (phones, tablets), the panel sits below all four; bring it into view.
+          if (window.matchMedia('(max-width: 1023px)').matches) {
+            const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            breakdownPanel.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+          }
+        }
+        // The cards are real buttons, so Enter and Space already click them.
+        document.querySelectorAll('.summary-card').forEach(card => {
+          card.addEventListener('click', () => toggleCard(card));
+        });
+        document.getElementById('breakdownClose').addEventListener('click', () => closeBreakdown(true));
+
+        // The Status a bar click on the Successful or Failed card set, and the Status before it, so
+        // removing the role can put Status back: { set: 'Success', before: 'All' }. null when no bar
+        // click changed Status, or once Status was changed by hand (then it is the user's own choice).
+        let pickedStatus = null;
+
+        function showRoleChip() {
+          roleChip.classList.toggle('hidden', state.role === '');
+          const role = el('strong', '', ROLE_LABELS[state.role] || '');
+          if (pickedStatus) {
+            roleChipLabel.replaceChildren(role, ' · ' + (pickedStatus.set === 'Success' ? 'Successful' : 'Failed'));
+            roleChipClear.setAttribute('aria-label', 'Remove the role filter and the status it set');
+          } else {
+            roleChipLabel.replaceChildren('Role: ', role);
+            roleChipClear.setAttribute('aria-label', 'Remove the role filter');
+          }
+        }
+        // Undoes the bar click: removes the role, and puts Status back if the click changed it.
+        function clearRole() {
+          state.role = '';
+          if (pickedStatus) {
+            state.status = pickedStatus.before;
+            filterStatus.value = pickedStatus.before;
+            pickedStatus = null;
+          }
+        }
+        // A role row filters the table to that role; on the Successful and Failed cards it also sets
+        // the Status filter, so the table shows exactly the rows that were counted. Clicking the
+        // picked role again undoes it.
+        breakdownRows.addEventListener('click', e => {
+          const row = e.target.closest('.breakdown-row');
+          if (!row || row.disabled) return;
+          if (row.dataset.role === state.role) {
+            clearRole();
+          } else {
+            const status = CARDS[openCard] ? CARDS[openCard].status : undefined;
+            state.role = row.dataset.role;
+            if (status && state.status !== status) {
+              // Keep the Status from before the first bar click that changed it.
+              pickedStatus = { set: status, before: pickedStatus ? pickedStatus.before : state.status };
+              state.status = status;
+              filterStatus.value = status;
+            }
+          }
+          state.page = 1;
+          showRoleChip();
+          updateClearBtn();
+          load();
+        });
+        roleChipClear.addEventListener('click', () => {
+          clearRole();
+          state.page = 1;
+          showRoleChip();
+          updateClearBtn();
+          searchInput.focus();
+          load();
+        });
+
+        function renderRows(rows, filtered) {
+          if (rows.length === 0) {
+            // With filters on, the way out (Clear filters) sits right under the message.
+            tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">' +
+              (filtered
+                ? 'No activities match your filters.' +
+                  '<div class="mt-3"><button type="button" data-action="clear-filters" class="clear-filters-btn">' +
+                  '<span class="clear-filters-icon" aria-hidden="true"></span>Clear filters</button></div>'
+                : 'No activities recorded yet.') + '</td></tr>';
+            return;
+          }
+          // New rows replace any open details.
+          detailOpenId = null;
+          ++detailRequestId;
+          tbody.innerHTML = rows.map(function (r) {
+            // Blocked (an account lockout) is a kind of Failed: its own badge, the same red row bar.
+            const failed = r.status === 'Failed' || r.status === 'Blocked';
+            const id = Number(r.id);
+            // The timestamp is a button so keyboard users can open the row's details; a click anywhere
+            // on the row opens them too. Long names are cut with "...", the full name is in the tooltip
+            // and in the details.
+            return '<tr data-id="' + id + '"' + (failed ? ' class="row-failed"' : '') + '>' +
+              '<td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap"><button type="button" class="row-open-btn" aria-expanded="false"' +
+              ' aria-label="Details of the activity at ' + escapeHtml(r.timestamp) + '">' + escapeHtml(r.timestamp) + '</button></td>' +
+              '<td class="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap"><span class="cell-name truncate" title="' +
+              escapeHtml(r.user) + '">' + escapeHtml(r.user) + '</span></td>' +
+              '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(r.role) + '</td>' +
+              '<td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">' + escapeHtml(r.action) + '</td>' +
+              '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(categoryLabel(r.module)) + '</td>' +
+              '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(r.ip) + '</td>' +
+              '<td class="px-6 py-4">' + statusBadge(r.status) + '</td>' +
+              '</tr>';
+          }).join('');
+        }
+
+        // Fixed HTML per status (the status is only compared, never inserted), for the table and the details.
+        function statusBadge(status) {
+          if (status === 'Blocked') return '<span class="badge-blocked text-xs font-medium px-2.5 py-1 rounded-full">Blocked</span>';
+          if (status === 'Failed') return '<span class="bg-red-100 text-red-700 text-xs font-medium px-2.5 py-1 rounded-full">Failed</span>';
+          return '<span class="bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">Success</span>';
+        }
+
+        // Details open in a row right under the clicked one and show only what the row does not: the
+        // details, and the activity number, exact time and target.
+        // One at a time; a second click on the row, the Close button or Esc closes them. Values go in
+        // with textContent (statusBadge() is fixed HTML).
+        let detailOpenId = null;
+        let detailRequestId = 0;
+
+        function el(tag, className, text) {
+          const node = document.createElement(tag);
+          if (className) node.className = className;
+          if (text !== undefined) node.textContent = text;
+          return node;
+        }
+
+        function closeDetails(focusRow) {
+          if (detailOpenId === null) return;
+          const tr = tbody.querySelector('tr[data-id="' + detailOpenId + '"]');
+          const detailRow = document.getElementById('activity-details-' + detailOpenId);
+          if (detailRow) detailRow.remove();
+          if (tr) {
+            tr.classList.remove('row-selected');
+            const btn = tr.querySelector('.row-open-btn');
+            btn.setAttribute('aria-expanded', 'false');
+            if (focusRow) btn.focus();
+          }
+          detailOpenId = null;
+          ++detailRequestId;
+        }
+
+        async function openDetails(tr) {
+          const id = Number(tr.dataset.id);
+          const wasOpen = detailOpenId === id;
+          closeDetails(false);
+          if (wasOpen) return;
+          detailOpenId = id;
+          const btn = tr.querySelector('.row-open-btn');
+          tr.classList.add('row-selected');
+          btn.setAttribute('aria-expanded', 'true');
+          const detailRow = el('tr', 'detail-row');
+          detailRow.id = 'activity-details-' + id;
+          btn.setAttribute('aria-controls', detailRow.id);
+          const cell = el('td');
+          cell.colSpan = 7;
+          const box = el('div', 'detail-box', 'Loading…');
+          box.setAttribute('aria-live', 'polite');
+          box.style.width = auditScroll.clientWidth + 'px';  // the visible part of the wide table
+          cell.appendChild(box);
+          detailRow.appendChild(cell);
+          tr.after(detailRow);
+
+          const requestId = ++detailRequestId;
+          let d;
+          try {
+            d = await PP.fetchJson('api/audit-log.php?id=' + encodeURIComponent(id));
+          } catch (e) {
+            if (requestId !== detailRequestId) return;
+            if (e.status === 401) { window.location.replace('staff-login'); return; }
+            box.textContent = e.status === 404 ? 'This activity was not found.' : 'Could not load the details. Please try again.';
+            return;
+          }
+          if (requestId !== detailRequestId) return;
+
+          // Nothing saved and nothing hidden: no empty Details box, only the bottom line.
+          const parts = [];
+          const changes = Array.isArray(d.changes) ? d.changes : [];
+          if (changes.length) {
+            // An edit: what it was (d.detail), then each changed field, old value red and crossed out,
+            // new value green. Screen readers hear "Before:" and "After:".
+            const what = el('section');
+            what.appendChild(el('h3', 'detail-heading', 'What changed'));
+            if (d.detail) what.appendChild(el('p', 'change-summary', d.detail));
+            changes.forEach(c => {
+              const item = el('div', 'change');
+              item.appendChild(el('div', 'change-field', c.field));
+              [['change-old', 'Before: ', '-', 'del', c.before], ['change-new', 'After: ', '+', 'ins', c.after]].forEach(([cls, spoken, sign, tag, value]) => {
+                const line = el('div', cls);
+                line.appendChild(el('span', 'visually-hidden', spoken));
+                const mark = el('span', 'change-sign', sign);
+                mark.setAttribute('aria-hidden', 'true');
+                line.appendChild(mark);
+                line.appendChild(el(tag, '', value));
+                item.appendChild(line);
+              });
+              what.appendChild(item);
+            });
+            parts.push(what);
+          } else if (d.detail || d.detailNote) {
+            const main = el('section');
+            main.appendChild(el('h3', 'detail-heading', 'Details'));
+            main.appendChild(d.detail ? el('p', 'detail-text', d.detail) : el('p', 'detail-text is-note', d.detailNote));
+            parts.push(main);
+          }
+
+          const meta = el('div', 'detail-meta');
+          const fact = (label, value) => {
+            const part = el('span', '', label + ' ');
+            part.appendChild(el('strong', '', value));
+            meta.appendChild(part);
+          };
+          fact('Activity', '#' + d.id);
+          fact('Exact time', d.timestamp);
+          if (d.target) fact(d.targetLabel || 'About', d.target);
+          // The table cuts long names with "..."; give the full one here when it was cut.
+          const nameCell = tr.querySelector('.cell-name');
+          if (nameCell && nameCell.scrollWidth > nameCell.clientWidth) fact('Full name', d.name);
+          const close = el('button', 'detail-close', 'Close');
+          close.type = 'button';
+          close.addEventListener('click', () => closeDetails(true));
+          meta.appendChild(close);
+
+          parts.push(meta);
+          box.replaceChildren(...parts);
+        }
+
+        // Keep open details as wide as the visible part of the table.
+        window.addEventListener('resize', () => {
+          const box = document.querySelector('#activity-details-' + detailOpenId + ' .detail-box');
+          if (box) box.style.width = auditScroll.clientWidth + 'px';
+        });
+        // Esc closes the open row details first, then an open card breakdown.
+        document.addEventListener('keydown', e => {
+          if (e.key !== 'Escape') return;
+          if (detailOpenId !== null) closeDetails(true);
+          else if (openCard !== null) closeBreakdown(true);
+        });
+
+        searchInput.addEventListener('input', () => {
+          clearTimeout(searchDebounce);
+          searchDebounce = setTimeout(() => {
+            state.search = searchInput.value.trim();
+            state.page = 1;
+            load();
+          }, 300);
+        });
+        filterStatus.addEventListener('change', () => {
+          state.status = filterStatus.value;
+          pickedStatus = null;
+          showRoleChip();
+          state.page = 1;
+          load();
+        });
+        filterModule.addEventListener('change', () => {
+          state.module = filterModule.value;
+          state.page = 1;
+          load();
+        });
+        const dateMsg = document.getElementById('dateRangeMessage');
+        // Date range error: short message under the dates, red borders, and no export.
+        function setDateError(bad) {
+          dateMsg.textContent = bad ? 'From date must be on or before To date.' : '';
+          dateMsg.classList.toggle('hidden', !bad);
+          filterFrom.setAttribute('aria-invalid', bad ? 'true' : 'false');
+          filterTo.setAttribute('aria-invalid', bad ? 'true' : 'false');
+          exportBtn.disabled = !!bad;
+        }
+        [filterFrom, filterTo].forEach(el => el.addEventListener('change', () => {
+          syncDateLimits();
+          const bad = filterFrom.value && filterTo.value &&
+            filterFrom.value > filterTo.value;
+
+          setDateError(bad);
+
+          if (bad) {
+            ++loadRequestId;
+            state.page = 1;
+
+            tbody.innerHTML =
+              '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-red-600">Fix the date range to see results.</td></tr>';
+
+            ['summaryTotal', 'summarySuccess', 'summaryFailed', 'summaryActive']
+              .forEach(id => {
+                document.getElementById(id).textContent = '—';
+              });
+
+            ['summarySuccessPct', 'summaryFailedPct'].forEach(id => {
+              document.getElementById(id).textContent = '—';
+            });
+            lastSummary = null;
+            closeBreakdown(false);
+
+            paginationSummary.textContent = '';
+            paginationBar.innerHTML = '';
+            exportNote.textContent = '';
+            return;
+          }
+          state.from = filterFrom.value;
+          state.to = filterTo.value;
+          state.page = 1;
+          load();
+        }));
+        // Range menu: a preset fills From and To (days back from today, today included).
+        // "Custom range..." only shows From and To, keeping the current dates to adjust.
+        const RANGE_DAYS_BACK = { today: 0, '7': 6, '30': 29 };
+        filterRange.addEventListener('change', () => {
+          const range = filterRange.value;
+          customRange.classList.toggle('hidden', range !== 'custom');
+          if (range === 'custom') return;
+          filterFrom.value = range === 'all' ? '' : daysAgoStr(RANGE_DAYS_BACK[range]);
+          filterTo.value = range === 'all' ? '' : todayStr();
+          syncDateLimits();
+          setDateError(false);
+          state.from = filterFrom.value;
+          state.to = filterTo.value;
+          state.page = 1;
+          load();
+        });
+        // Clear filters: enabled (navy) while any filter or the search box is set, disabled (gray) otherwise.
+        const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+        function updateClearBtn() {
+          clearFiltersBtn.disabled = !(
+            filterRange.value !== 'all' || filterFrom.value || filterTo.value ||
+            filterStatus.value !== 'All' || filterModule.value !== 'All' ||
+            searchInput.value.trim() !== '' || state.role !== ''
+          );
+        }
+        [searchInput, filterRange, filterStatus, filterModule, filterFrom, filterTo].forEach(el => {
+          el.addEventListener('input', updateClearBtn);
+          el.addEventListener('change', updateClearBtn);
+        });
+        clearFiltersBtn.addEventListener('click', () => {
+          clearTimeout(searchDebounce);
+          searchInput.value = '';
+          filterStatus.value = 'All';
+          filterModule.value = 'All';
+          filterRange.value = 'all';
+          customRange.classList.add('hidden');
+          filterFrom.value = '';
+          filterTo.value = '';
+          syncDateLimits();
+          state.search = '';
+          state.status = 'All';
+          state.module = 'All';
+          state.from = '';
+          state.to = '';
+          state.role = '';
+          pickedStatus = null;
+          state.page = 1;
+          showRoleChip();
+          setDateError(false);
+          updateClearBtn();
+          // The button just became disabled, which drops keyboard focus. Keep focus in the filter row.
+          filterRange.focus();
+          load();
+        });
+        // Clicks in the table: the Clear filters button inside an empty result does the same as the one
+        // in the header; a click on a row (or Enter on its timestamp button) opens or closes its details.
+        tbody.addEventListener('click', e => {
+          if (e.target.closest('[data-action="clear-filters"]')) {
+            clearFiltersBtn.click();
+            return;
+          }
+          const tr = e.target.closest('tr[data-id]');
+          if (!tr) return;
+          // Selecting text in a row (to copy an IP, say) should not open the panel.
+          if (String(window.getSelection ? window.getSelection() : '').length > 0 && !e.target.closest('.row-open-btn')) return;
+          openDetails(tr);
+        });
+        // A browser can restore typed filter values on reload or Back, so the first load starts from the inputs and the
+        // table matches the filters on screen. Restored dates stay visible under "Custom range..." instead of hiding
+        // behind "Any time". Called once the page has loaded: the browser restores the values late, after this script starts.
+        function readRestoredFilters() {
+          if (filterFrom.value || filterTo.value) filterRange.value = 'custom';
+          customRange.classList.toggle('hidden', filterRange.value !== 'custom');
+          state.search = searchInput.value.trim();
+          state.status = filterStatus.value;
+          state.from = filterFrom.value;
+          state.to = filterTo.value;
+          state.pageSize = Number(pageSizeSelect.value) || 50;
+          syncDateLimits();
+          updateClearBtn();
+        }
+
+        let sortAscending = false;
+        sortTimestampBtn.addEventListener('click', () => {
+          sortAscending = !sortAscending;
+          state.sort = sortAscending ? 'asc' : 'desc';
+          sortIcon.textContent = sortAscending ? '↑' : '↓';
+          document.getElementById('timestampHeader').setAttribute('aria-sort', sortAscending ? 'ascending' : 'descending');
+          sortTimestampBtn.setAttribute('aria-label', sortAscending
+            ? 'Timestamp, oldest first. Select to show newest first.'
+            : 'Timestamp, newest first. Select to show oldest first.');
+          state.page = 1;
+          load();
+        });
+
+        // The PDF is fetched (not opened as a link) so a refusal, like too many exports or too many
+        // rows, shows beside the button instead of raw JSON. Same download pattern as analytics.html.
+        const exportLabel = document.getElementById('exportLabel');
+        function showExportError(message) {
+          exportNote.textContent = message;
+          exportNote.classList.add('text-red-600');
+        }
+        exportBtn.addEventListener('click', async () => {
+          exportBtn.disabled = true;
+          exportLabel.textContent = 'Preparing…';
+          try {
+            const res = await fetch('api/audit-log.php?' + currentQuery({ export: 1 }));
+            if (res.status === 401) { window.location.replace('staff-login'); return; }
+            if (!res.ok) {
+              let message = 'Could not export the PDF. Please try again.';
+              try { message = (await res.json()).error || message; } catch (e) {}
+              showExportError(message);
+              return;
+            }
+            const match = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '');
+            const url = URL.createObjectURL(await res.blob());
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = match ? match[1] : 'audit-log.pdf';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          } catch (e) {
+            showExportError('Unable to reach the server. Please try again.');
+          } finally {
+            exportLabel.textContent = 'Export PDF';
+            // The filters may have changed while the PDF was being made.
+            exportBtn.disabled = exportTotal === 0 || filterFrom.getAttribute('aria-invalid') === 'true';
+          }
+        });
+
+        // "Check log" (administrators): the server checks every entry's seal and link and records the
+        // check, then the table reloads so that entry shows. kind: ok | bad (problem found) | note.
+        const checkLogResult = document.getElementById('checkLogResult');
+        function showCheckResult(text, kind) {
+          checkLogResult.textContent = text;
+          checkLogResult.className = 'check-result is-' + kind;
+        }
+        checkLogBtn.addEventListener('click', async () => {
+          checkLogBtn.disabled = true;
+          checkLogBtn.textContent = 'Checking…';
+          try {
+            const res = await fetch('api/audit-log-verify.php', { method: 'POST' });
+            if (res.status === 401) { window.location.replace('staff-login'); return; }
+            const data = await res.json().catch(() => ({}));
+            if (data.success) {
+              showCheckResult(data.message, data.intact ? 'ok' : 'bad');
+              load();
+            } else {
+              showCheckResult(data.error || 'The check could not finish. Please try again.', 'note');
+            }
+          } catch (e) {
+            showCheckResult('Unable to reach the server. Please try again.', 'note');
+          } finally {
+            checkLogBtn.disabled = false;
+            checkLogBtn.textContent = 'Check log';
+          }
+        });
+
+        // Runs today's cleanup of old entries first (only when it is turned on, at most once a day), so the
+        // table never shows entries that are about to go. The table loads even if that call fails.
+        const pageLoaded = document.readyState === 'complete'
+          ? Promise.resolve()
+          : new Promise(resolve => window.addEventListener('load', resolve, { once: true }));
+        Promise.all([fetch('api/audit-log-cleanup.php', { method: 'POST' }).catch(() => {}), pageLoaded])
+          .finally(() => { readRestoredFilters(); load(); });
+      })();
+    })();
+  </script>
+
+  <script src="js/motion.js" defer></script>
+  <script src="js/notifications.js" defer></script>
+  <script>
+    (function () {
+      var el = document.getElementById('ayBadgeValue');
+      if (!el) return;
+      fetch('api/security-config.php').then(function (r) { return r.json(); }).then(function (data) {
+        if (data && data.academicYear && data.academicYear.current) {
+          el.textContent = data.academicYear.current;
+        } else {
+          document.getElementById('ayBadge').classList.add('hidden');
+        }
+      }).catch(function () { });
+    })();
+  </script>
+</body>
+
+</html>

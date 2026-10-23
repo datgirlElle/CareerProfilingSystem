@@ -21,7 +21,7 @@ Protocol (no test data is used for any choice):
   3. Each selected model is trained once on all of train.csv and evaluated once on test.csv.
 
 Feature encodings for the classifiers (the class is always the course):
-  top3   : x/blank for the student's 3 highest types. What lib/PredictionModel.php runs now.
+  top3   : x/blank for the student's 3 highest types. What modules/ContentBasedFiltering/lib/PredictionModel.php runs now.
            Only 20 input patterns exist, so a tree can tell apart at most 20 groups.
   rank   : each type's rank within the student (1 = highest, ties share the average rank).
            Scale-free, so it works for any instrument (0-10 counts or the web app's 10-50).
@@ -354,9 +354,9 @@ def main():
 
     # CBF variants, scored on train (no fitting; only the variant is chosen here).
     scales = (["scores"] if "scores" in encs else []) + ["top3"]
-    cbf_variants = [(sc, enc) for sc in scales for enc in ("binary", "proposed", "steep", "flat")]
+    cbf_variants = [(sc, enc) for sc in scales for enc in ("ranksum", "binary", "proposed", "steep", "flat")]
     cbf_train = {v: evaluate([cbf_scores(r, *v) for r in train], y_train, k) for v in cbf_variants}
-    current_cbf = (scales[0], "binary")  # what the web app does
+    current_cbf = (scales[0], "binary")  # what the web app does (rank-sum 3-2-1 is a comparison only; not approved)
     best_cbf = max(cbf_variants, key=lambda v: cbf_train[v]["MRR"])
 
     # Best deployable classifier (chosen on CV MRR only).
@@ -483,7 +483,7 @@ def main():
             out.append(f"\nThe hybrid weight chosen on train is w = {hybrid_w:.0f}: combining the two did not improve the "
                        f"cross-validated MRR, so the simpler {'CBF' if hybrid_w == 1 else 'classifier'} should be kept.")
     out.append("\nNotes: Top1/Hit/MRR/NDCG are tie-aware expected values (CBF ties are common: the 32 programs "
-               "have only 11 distinct binary course vectors). With one relevant course per student, MAP = MRR, "
+               "have only 11 distinct binary course vectors, 22 with the rank-sum weights, which are not used). With one relevant course per student, MAP = MRR, "
                f"Recall@{k} = Hit@{k} and Precision@{k} = Hit@{k}/{k}. macroF1/kappa use each method's single top "
                "course (CBF ties broken by catalogue order). 'scores' features are a reference only: the web app "
                "can use them only if the dataset came from the same instrument and scale.")

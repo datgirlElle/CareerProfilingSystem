@@ -11,8 +11,8 @@
 // Programs not in the list (e.g. added later by an admin) are left untouched.
 // Safe to run more than once.
 
-require_once __DIR__ . '/../lib/Database.php';
-require_once __DIR__ . '/../lib/Crypto.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
+require_once __DIR__ . '/../modules/Encryption/lib/Crypto.php';
 
 $pdo = Database::get();
 $pdo->exec('ALTER TABLE programs ADD COLUMN IF NOT EXISTS original_holland_code_enc TEXT');

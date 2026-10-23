@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../lib/BookingLink.php';
+require_once __DIR__ . '/../modules/Counseling/lib/BookingLink.php';
 
 $failures = 0;
 $passed = 0;

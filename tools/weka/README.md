@@ -25,7 +25,7 @@ Business, BS Business Analytics with AI): the model gives them no prediction and
 The inputs always have exactly three 1s, so there are only **20 possible inputs**.
 `ExportJ48Lookup` loads the `.model` file with Weka, checks its header, and records Weka's own
 `classifyInstance()` and `distributionForInstance()` for each of the 20 inputs (class set to
-missing) in `config/prediction_model.json`. PHP (`lib/PredictionModel.php`) then:
+missing) in `config/prediction_model.json`. PHP (`modules/ContentBasedFiltering/lib/PredictionModel.php`) then:
 
 1. checks the six raw scores against the assessment's rules (whole numbers, 10–50); a missing or
    invalid score is rejected, never replaced by 0;
@@ -87,7 +87,7 @@ says the Prediction Module is unavailable, and the content-based results are sho
 
 ## API (staff only)
 
-`GET api/recommendations.php?studentId=<id>` with a staff session returns `predictionDetail`:
+`GET modules/ContentBasedFiltering/api/recommendations.php?studentId=<id>` with a staff session returns `predictionDetail`:
 
 ```json
 {

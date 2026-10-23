@@ -2,7 +2,7 @@
 // Retake by request: students ask, a counselor or the Head of Guidance approves, the earlier result stays as history.
 // Safe to re-run.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 $pdo->exec(

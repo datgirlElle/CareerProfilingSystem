@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
+<title>Analytics &amp; Report — Career Profiling System</title>
+<link rel="icon" type="image/png" href="images/brand/favicon-64.png">
+<link rel="stylesheet" href="css/tailwind.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body{ font-family:'Inter', sans-serif; }
+  select{ appearance:none; -webkit-appearance:none; }
+  /* Send Analytics Report */
+  .report-tick { flex:0 0 16px; height:16px; margin-top:2px; border-radius:9999px; background:#e6f3eb url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231b8a47' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M5 13l4 4L19 7'/%3E%3C/svg%3E") center/10px no-repeat; }
+  #reportEmail[aria-invalid="true"] { border-color:#b91c1c; }
+  .rp-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .rp-table th { text-align:left; font-weight:600; color:#334155; background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:8px 10px; }
+  .rp-table td { color:#1e293b; border-bottom:1px solid #f1f5f9; padding:7px 10px; vertical-align:top; }
+  .rp-table .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+</style>
+<link rel="stylesheet" href="css/motion.css">
+</head>
+<body class="bg-[#f9fafb]">
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<div class="flex min-h-screen">
+
+  <!-- Mobile sidebar backdrop -->
+  <div id="sidebarBackdrop" class="hidden fixed inset-0 bg-black/40 z-30 md:hidden"></div>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="w-[260px] shrink-0 bg-[#001c43] flex flex-col fixed inset-y-0 left-0 z-40 -translate-x-full transition-transform duration-200 md:sticky md:top-0 md:translate-x-0 h-screen">
+    <div class="sidebar-brand bg-white shrink-0">
+      <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="sidebar-brand-mmcl">
+      <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="sidebar-brand-cgc">
+    </div>
+    <div class="sidebar-app">
+      <img src="images/brand/profilepath-horizontal.png" alt="ProfilePath" width="190" height="75">
+      <p class="sidebar-app-role">Admin Dashboard</p>
+    </div>
+    <nav id="adminNav" data-active="analytics" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
+    <script src="js/admin-nav.js"></script>
+    <div class="border-t border-white/5 pt-[25px] pb-6">
+      <a href="staff-login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+        <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>
+        Logout
+      </a>
+    </div>
+
+  </aside>
+
+  <!-- Main Content -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    <!-- Top Header -->
+    <header class="bg-white border-b border-gray-200 flex items-center justify-between px-6 h-16 shrink-0 relative">
+      <button type="button" id="menuToggle" class="relative z-50 w-10 h-10 -m-2.5 flex items-center justify-center md:invisible">
+        <img src="images/admin/icon-menu.svg" alt="Menu" class="w-5 h-4">
+      </button>
+      <div class="flex items-center gap-6">
+
+        <div id="ayBadge" class="hidden sm:flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-full px-3 py-1">
+          <span class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">AY</span>
+          <span id="ayBadgeValue" class="text-xs font-semibold text-slate-700">—</span>
+        </div>
+
+        <!-- Notifications -->
+        <div class="relative">
+          <button type="button" id="notifBtn" class="relative w-5 h-5">
+            <svg class="w-full h-full" viewBox="0 -960 960 960" fill="#64748B"><path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"/></svg>
+            <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#ed1c24] text-white text-[10px] font-bold flex items-center justify-center"></span>
+          </button>
+          <div id="notifPanel" class="hidden fixed left-4 right-4 top-[76px] z-50 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+12px)] sm:w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <p class="text-sm font-semibold text-gray-900">Notifications</p>
+              <span id="notifCountLabel" class="text-xs text-gray-500">Loading…</span>
+            </div>
+            <ul id="notifList" class="max-h-80 overflow-auto divide-y divide-gray-100">
+              <li class="px-4 py-6 text-center text-sm text-gray-500">Loading…</li>
+            </ul>
+            <a href="staff-notifications" class="block text-center text-sm font-medium text-[#ed1c24] px-4 py-3 border-t border-gray-100 hover:bg-gray-50">View all notifications</a>
+          </div>
+        </div>
+
+        <!-- Profile -->
+        <div class="relative">
+          <button type="button" id="profileBtn" class="flex items-center gap-3">
+            <span id="headerAvatarWrap" class="w-9 h-9 rounded-full bg-[#001c43] flex items-center justify-center overflow-hidden shrink-0">
+              <img src="images/admin/icon-avatar.svg" alt="" class="w-3.5 h-4">
+            </span>
+            <span class="text-left">
+              <span class="block text-sm font-semibold text-gray-800" id="headerUserName">&nbsp;</span>
+              <span class="block text-xs text-gray-500" id="headerUserRole">&nbsp;</span>
+            </span>
+            <img src="images/admin/icon-chevron-down.svg" alt="" class="w-3.5 h-2">
+          </button>
+          <div id="profilePanel" class="hidden absolute right-0 top-[calc(100%+12px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
+            <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">Profile Settings</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <main id="main-content" class="flex-1 p-4 sm:p-8 overflow-auto">
+
+      <!-- Page Header -->
+      <div class="flex items-start justify-between flex-wrap gap-4 mb-8">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Analytics &amp; Report</h1>
+          <p class="text-sm text-slate-500 mt-1">Insights and trends based on student assessments and career profiling data.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2">
+            <label for="ayFilter" class="text-xs font-medium text-slate-600">School year</label>
+            <select id="ayFilter" class="border border-slate-300 rounded-md px-3 py-2.5 text-sm text-slate-700 bg-white shadow-sm"></select>
+          </div>
+          <div class="relative">
+            <button type="button" id="filtersBtn" class="flex items-center gap-2 bg-white border border-slate-300 rounded-md px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+              <img src="images/analytics/icon-filter.svg" alt="" class="w-3.5 h-3">
+              <span id="filtersBtnLabel">Filters</span>
+            </button>
+            <div id="filtersPanel" class="hidden absolute left-0 top-[calc(100%+8px)] w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-4 z-20">
+              <label class="block text-xs font-medium text-slate-600 mb-1">Strand</label>
+              <select id="strandFilter" class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm mb-3">
+                <option value="">All Strands</option>
+                <option value="STEM">STEM</option>
+                <option value="ABM">ABM</option>
+                <option value="ICT">ICT</option>
+                <option value="HUMSS">HUMSS</option>
+              </select>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Section</label>
+              <select id="sectionFilter" class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm mb-3">
+                <option value="">All Sections</option>
+              </select>
+              <div class="flex items-center gap-2">
+                <button type="button" id="applyStrandFilter" class="flex-1 bg-[#ed1c24] text-white text-sm font-medium rounded-md py-2 hover:opacity-90">Apply</button>
+                <button type="button" id="clearStrandFilter" class="flex-1 border border-slate-300 text-slate-700 text-sm font-medium rounded-md py-2 hover:bg-slate-50">Clear</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metric Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+
+        <div class="card-hover bg-white border border-slate-200 rounded-xl shadow-sm p-[21px] relative flex flex-col justify-between">
+          <div class="absolute top-4 right-4 group">
+            <img src="images/analytics/icon-info.svg" alt="What is Assessment Completion Rate?" class="w-4 h-4 cursor-help">
+            <div class="pointer-events-none absolute right-0 top-6 z-20 w-56 rounded-lg bg-[#001c43] text-white text-xs leading-relaxed p-3 shadow-lg opacity-0 invisible scale-95 origin-top-right transition-all duration-150 group-hover:opacity-100 group-hover:visible group-hover:scale-100">
+              Share of expected students (from the uploaded roster) who have completed the RIASEC career assessment at least once.
+            </div>
+          </div>
+          <div>
+            <div class="flex gap-4 items-start mb-4">
+              <span class="w-12 h-12 rounded-lg bg-[#eef3fc] flex items-center justify-center shrink-0">
+                <img src="images/analytics/card-icon-assessment.svg" alt="" class="w-4 h-5">
+              </span>
+              <div>
+                <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase leading-tight">Assessment<br>Completion Rate</p>
+                <p id="metricCompletionRate" class="text-[30px] font-bold text-[#19427b] leading-tight mt-1">—</p>
+              </div>
+            </div>
+            <p class="text-sm mb-4"><span id="metricCompletionCount" class="font-semibold text-[#19427b]">—</span> <span class="text-slate-500" id="metricCompletionOf">of total students</span></p>
+            <div class="w-full h-1.5 rounded-full bg-slate-100">
+              <div id="metricCompletionBar" class="h-1.5 rounded-full bg-[#19427b]" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-hover bg-white border border-slate-200 rounded-xl shadow-sm p-[21px] relative flex flex-col justify-between">
+          <div class="absolute top-4 right-4 group">
+            <img src="images/analytics/icon-info.svg" alt="What is Career Electives Worksheet Completion Rate?" class="w-4 h-4 cursor-help">
+            <div class="pointer-events-none absolute right-0 top-6 z-20 w-56 rounded-lg bg-[#001c43] text-white text-xs leading-relaxed p-3 shadow-lg opacity-0 invisible scale-95 origin-top-right transition-all duration-150 group-hover:opacity-100 group-hover:visible group-hover:scale-100">
+              Share of all registered students who have filled out their Career Electives Worksheet (their Preferred Course and electives).
+            </div>
+          </div>
+          <div>
+            <div class="flex gap-4 items-start mb-4">
+              <span class="w-12 h-12 rounded-lg bg-[#e6f3eb] flex items-center justify-center shrink-0">
+                <img src="images/analytics/card-icon-counseling.svg" alt="" class="w-6 h-5">
+              </span>
+              <div>
+                <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase leading-tight">Career Electives Worksheet<br>Completion Rate</p>
+                <p id="metricCounselingRate" class="text-[30px] font-bold text-[#1b8a47] leading-tight mt-1">—</p>
+              </div>
+            </div>
+            <p class="text-sm mb-4"><span id="metricCounselingCount" class="font-semibold text-[#1b8a47]">—</span> <span class="text-slate-500" id="metricCounselingOf">of total students</span></p>
+            <div class="w-full h-1.5 rounded-full bg-slate-100">
+              <div id="metricCounselingBar" class="h-1.5 rounded-full bg-[#1b8a47]" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-hover bg-white border border-slate-200 rounded-xl shadow-sm p-[21px] relative flex flex-col justify-between">
+          <div class="absolute top-4 right-4 group">
+            <img src="images/analytics/icon-info.svg" alt="What is the High-Confidence Match Rate?" class="w-4 h-4 cursor-help">
+            <div class="pointer-events-none absolute right-0 top-6 z-20 w-56 rounded-lg bg-[#001c43] text-white text-xs leading-relaxed p-3 shadow-lg opacity-0 invisible scale-95 origin-top-right transition-all duration-150 group-hover:opacity-100 group-hover:visible group-hover:scale-100">
+              Share of expected students whose highest cosine similarity (CBF) is at or above the confidence threshold (the same Cosine Similarity level that flags a student on Monitoring, 0.50 by default). It is a share of students, not an average score.
+            </div>
+          </div>
+          <div>
+            <div class="flex gap-4 items-start mb-4">
+              <span class="w-12 h-12 rounded-lg bg-[#fbece1] flex items-center justify-center shrink-0">
+                <img src="images/analytics/card-icon-institution.svg" alt="" class="w-5 h-5">
+              </span>
+              <div>
+                <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase leading-tight">High-Confidence<br>Match Rate</p>
+                <p id="metricMmclRate" class="text-[30px] font-bold text-[#db7020] leading-tight mt-1">—</p>
+              </div>
+            </div>
+            <p class="text-sm mb-4"><span id="metricMmclCount" class="font-semibold text-[#db7020]">—</span> <span class="text-slate-500" id="metricMmclOf">of total students</span></p>
+            <div class="w-full h-1.5 rounded-full bg-slate-100">
+              <div id="metricMmclBar" class="h-1.5 rounded-full bg-[#db7020]" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-hover bg-white border border-slate-200 rounded-xl shadow-sm p-[21px] relative">
+          <div class="absolute top-4 right-4 group">
+            <img src="images/analytics/icon-info.svg" alt="What is Top Strand?" class="w-4 h-4 cursor-help">
+            <div class="pointer-events-none absolute right-0 top-6 z-20 w-56 rounded-lg bg-[#001c43] text-white text-xs leading-relaxed p-3 shadow-lg opacity-0 invisible scale-95 origin-top-right transition-all duration-150 group-hover:opacity-100 group-hover:visible group-hover:scale-100">
+              The academic strand with the highest number of registered students, out of all students in the system.
+            </div>
+          </div>
+          <div class="flex gap-4 items-start mb-2">
+            <span class="w-12 h-12 rounded-lg bg-[#eee8f7] flex items-center justify-center shrink-0">
+              <img src="images/analytics/card-icon-strand.svg" alt="" class="w-6 h-4">
+            </span>
+            <div>
+              <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase leading-tight">Top Strand</p>
+              <p id="metricTopStrand" class="text-[30px] font-bold text-[#673ab7] leading-tight mt-1">—</p>
+            </div>
+          </div>
+          <p class="text-sm"><span id="metricStrandPercent" class="font-semibold text-[#673ab7]">—</span> <span class="text-slate-500">of total students</span></p>
+          <p class="text-xs text-slate-400">(<span id="metricStrandCount">0</span> students)</p>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex flex-col">
+          <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-4">Students by Strand</p>
+          <!-- Fills whatever height the card gets from its neighbour (the RIASEC card is taller), so no blank space is left under the pie -->
+          <div id="strandBox" style="position:relative;flex:1 1 auto;min-height:240px"><canvas id="strandChart"></canvas></div>
+          <div class="border-t border-slate-100 pt-4 mt-4">
+            <p class="text-sm text-slate-500">Total Students: <span id="strandChartTotal">0</span></p>
+          </div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+          <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-4">Average RIASEC Dimension Scores</p>
+          <div id="riasecBox" style="position:relative"><canvas id="riasecChart" height="220"></canvas></div>
+          <div class="border-t border-slate-100 pt-4 mt-4 text-center">
+            <p class="text-sm text-slate-500">Scores range from 0 to 50</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section breakdown + Assessment Statistics -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+          <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-4">Students by Section</p>
+          <div id="sectionBox" style="position:relative"><canvas id="sectionChart" height="220"></canvas></div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+          <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-1">Overall Assessment</p>
+          <p class="text-xs text-slate-500 mb-4">Share of all students who have taken the RIASEC assessment, for Academic Year <span id="statsAy">—</span>.</p>
+          <div class="mb-3">
+            <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Completed Assessments</p>
+            <p id="statsCompleted" class="text-3xl font-bold text-[#1b8a47]">—</p>
+          </div>
+          <div id="statsChartBox" style="position:relative;height:220px"><canvas id="statsChart"></canvas></div>
+          <p id="statsChartEmpty" class="hidden text-sm text-slate-400 text-center py-6">No students are expected yet.</p>
+        </div>
+      </div>
+
+      <!-- Assessment Completion by Academic Year -->
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 mb-6">
+        <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-4">Assessment Completion by Academic Year</p>
+        <div id="yearBox" style="position:relative"><canvas id="yearChart" height="180"></canvas></div>
+        <p id="yearChartEmpty" class="hidden text-sm text-slate-400 text-center py-6">No Academic Year data yet.</p>      </div>
+
+      <!-- Recommended Careers Table -->
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="border-b border-slate-200 px-5 py-5">
+          <p class="text-[11px] font-semibold tracking-wide text-slate-800 uppercase">Top 5 Programs Most Similar to Students' RIASEC Profiles (CBF, Institution-Wide)</p>
+        </div>
+        <div class="px-5 py-5">
+          <div id="topCareersBox" style="position:relative;height:280px">
+            <canvas id="topCareersChart" aria-label="Top 5 recommended programs by number of students matched"></canvas>
+          </div>
+          <p id="topCareersEmpty" class="hidden px-5 py-8 text-center text-sm text-slate-500">No recommendations computed yet.</p>
+        </div>
+        <div class="border-t border-slate-200 flex items-center justify-between px-4 py-4">
+          <p class="text-sm text-slate-500" id="topCareersSummary">Loading…</p>
+          <a href="all-recommended-careers" class="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-[#ed1c24]">
+            View all careers
+            <img src="images/analytics/icon-chevron-right.svg" alt="" class="w-1.5 h-2.5">
+          </a>
+        </div>
+      </div>
+
+      <!-- Send Analytics Report (administrator and Guidance Counselors): emails the Analytics Report as a PDF (api/analytics-report.php) -->
+      <section id="sendReportCard" class="hidden bg-white border border-slate-200 rounded-xl shadow-sm mt-6" aria-labelledby="sendReportTitle">
+        <div class="border-b border-slate-200 px-5 py-5 flex items-start gap-4">
+          <span class="w-10 h-10 rounded-lg bg-[#eef3fc] flex items-center justify-center shrink-0" aria-hidden="true">
+            <svg class="w-5 h-5" viewBox="0 -960 960 960" fill="#19427b"><path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h640q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160H160Zm320-280L160-640v400h640v-400L480-440Zm0-80 320-200H160l320 200ZM160-640v-80 480-400Z"/></svg>
+          </span>
+          <div>
+            <h2 id="sendReportTitle" class="text-base font-semibold text-slate-900">Send Analytics Report</h2>
+            <p class="text-sm text-slate-500 mt-0.5">Generate and send a summary of the current ProfilePath analytics to the school principal or another authorized school official.</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 p-5">
+          <form id="sendReportForm" class="lg:col-span-3 flex flex-col gap-4" novalidate>
+            <div>
+              <label for="reportEmail" class="block text-sm font-medium text-slate-700 mb-1.5">Recipient email address</label>
+              <input type="email" id="reportEmail" name="reportEmail" autocomplete="email" maxlength="254" spellcheck="false" autocapitalize="none"
+                placeholder="principal@school.edu.ph" aria-describedby="reportEmailHint reportEmailError"
+                class="w-full max-w-md border border-slate-300 rounded-md px-3.5 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2a6b] focus:border-transparent">
+              <p id="reportEmailHint" class="text-xs text-slate-500 mt-1.5">Type the address yourself. The recipient does not need a ProfilePath account.</p>
+              <p id="reportEmailError" class="hidden text-xs font-medium text-red-700 mt-1.5" role="alert"></p>
+            </div>
+            <div class="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3">
+              <p class="text-xs font-medium text-slate-500">Report covers</p>
+              <p id="reportScope" class="text-sm font-semibold text-slate-800 mt-0.5">—</p>
+              <p class="text-xs text-slate-500 mt-1">The school year and filters chosen at the top of this page. The latest data is used when the report is sent.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <button type="button" id="previewReportBtn" class="inline-flex items-center gap-2 bg-white border border-slate-300 rounded-md px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+                <svg class="w-4 h-4" viewBox="0 -960 960 960" fill="#475569" aria-hidden="true"><path d="M480-320q75 0 127.5-52.5T660-500q0-75-52.5-127.5T480-680q-75 0-127.5 52.5T300-500q0 75 52.5 127.5T480-320Zm0-72q-45 0-76.5-31.5T372-500q0-45 31.5-76.5T480-608q45 0 76.5 31.5T588-500q0 45-31.5 76.5T480-392Zm0 192q-146 0-266-81.5T40-500q54-137 174-218.5T480-800q146 0 266 81.5T920-500q-54 137-174 218.5T480-200Z"/></svg>
+                Preview report
+              </button>
+              <button type="submit" id="sendReportBtn" class="inline-flex items-center gap-2 bg-[#0f2a6b] text-white rounded-md px-5 py-2.5 text-sm font-medium shadow-sm hover:opacity-90">
+                <svg class="w-4 h-4" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M120-160v-640l760 320-760 320Zm80-120 474-200-474-200v140l240 60-240 60v140Zm0 0v-400 400Z"/></svg>
+                Send report
+              </button>
+            </div>
+            <p id="sendReportStatus" class="hidden text-sm rounded-md border px-3.5 py-2.5" role="status" aria-live="polite"></p>
+          </form>
+          <div class="lg:col-span-2 lg:border-l lg:border-slate-200 lg:pl-6">
+            <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase mb-3">What the report includes</p>
+            <ul class="flex flex-col gap-2.5 text-sm text-slate-700">
+              <li class="flex gap-2.5"><span class="report-tick" aria-hidden="true"></span>Assessment participation: students expected, registered, completed and not yet completed</li>
+              <li class="flex gap-2.5"><span class="report-tick" aria-hidden="true"></span>Career Electives Worksheet completion and high-confidence program matches</li>
+              <li class="flex gap-2.5"><span class="report-tick" aria-hidden="true"></span>Assessment completion by section</li>
+              <li class="flex gap-2.5"><span class="report-tick" aria-hidden="true"></span>Career interests: average RIASEC scores and the top 5 programs</li>
+              <li class="flex gap-2.5"><span class="report-tick" aria-hidden="true"></span>Registered students by strand and completion by academic year</li>
+            </ul>
+            <p class="text-xs text-slate-500 mt-4">Sent as a PDF report attached to the email, with charts and tables. Totals and percentages only: no student names, Student Numbers or assessment answers.</p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+        <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
+        <span>&middot;</span>
+        <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
+        <span>&middot;</span>
+        <a href="accessibility" class="hover:text-gray-600 hover:underline">Accessibility</a>
+      </footer>
+  </div>
+</div>
+
+<div id="logoutConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
+    <h3 class="text-lg font-semibold text-black">Log Out?</h3>
+    <p class="text-sm text-gray-500">Are you sure you want to log out?</p>
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" id="logoutCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+      <button type="button" id="logoutConfirmBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Log Out</button>
+    </div>
+  </div>
+</div>
+
+<div id="toastContainer" class="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 pointer-events-none"></div>
+<div id="genericConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
+    <p id="genericConfirmMessage" class="text-sm text-gray-700"></p>
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" id="genericConfirmCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+      <button type="button" id="genericConfirmOkBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Send Analytics Report: preview of the report that would be attached -->
+<div id="reportPreviewModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="reportPreviewTitle">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-3xl max-h-[90vh] flex flex-col">
+    <div class="flex items-start justify-between gap-4 px-6 pt-5 pb-4 border-b border-slate-200">
+      <div>
+        <p class="text-[11px] font-semibold tracking-wide text-slate-500 uppercase">Preview</p>
+        <h3 id="reportPreviewTitle" class="text-base font-semibold text-slate-900 mt-0.5">ProfilePath Career Profiling System: Analytics Summary Report</h3>
+        <p id="reportPreviewMeta" class="text-xs text-slate-500 mt-1"></p>
+      </div>
+      <button type="button" data-close-dialog aria-label="Close preview" class="w-8 h-8 -mr-2 rounded-md flex items-center justify-center text-slate-500 hover:bg-slate-100 shrink-0">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div id="reportPreviewBody" class="px-6 py-5 overflow-y-auto flex flex-col gap-6" tabindex="0" aria-label="Report contents"></div>
+    <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl">
+      <button type="button" id="reportDownloadBtn" class="inline-flex items-center gap-2 bg-[#0f2a6b] text-white rounded-md px-4 py-2 text-sm font-medium shadow-sm hover:opacity-90" title="The report shown here as a PDF file, for the school year and filters on this page.">
+        <svg class="w-4 h-4" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
+        Export as PDF
+      </button>
+      <button type="button" data-close-dialog class="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-md bg-white hover:bg-slate-50">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Send Analytics Report: confirm before anything is emailed -->
+<div id="reportConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="reportConfirmTitle" aria-describedby="reportConfirmText">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-md p-6 flex flex-col gap-4">
+    <h3 id="reportConfirmTitle" class="text-lg font-semibold text-slate-900">Send this report?</h3>
+    <dl class="rounded-lg border border-slate-200 divide-y divide-slate-200 text-sm">
+      <div class="px-4 py-2.5"><dt class="text-xs text-slate-500">To</dt><dd id="reportConfirmEmail" class="font-semibold text-slate-900 break-all"></dd></div>
+      <div class="px-4 py-2.5"><dt class="text-xs text-slate-500">Report</dt><dd class="text-slate-800">ProfilePath Career Profiling System: Analytics Summary Report</dd></div>
+      <div class="px-4 py-2.5"><dt class="text-xs text-slate-500">Covers</dt><dd id="reportConfirmScope" class="text-slate-800"></dd></div>
+    </dl>
+    <p id="reportConfirmText" class="text-sm text-slate-600">A PDF report with assessment participation, career interests and the other tables in the preview, with charts, built from the latest data. Totals and percentages only, no student details.</p>
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" data-close-dialog class="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-300 rounded-md hover:bg-slate-50">Cancel</button>
+      <button type="button" id="reportConfirmSendBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#0f2a6b] rounded-md hover:opacity-90">Confirm send</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showToast(message, isError) {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = 'pointer-events-auto max-w-sm px-4 py-3 rounded-lg shadow-lg text-sm font-medium whitespace-pre-wrap ' + (isError ? 'bg-[#ed1c24] text-white' : 'bg-green-600 text-white');
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(function() { toast.remove(); }, 5000);
+  }
+  function showConfirm(message) {
+    return new Promise(function(resolve) {
+      const modal = document.getElementById('genericConfirmModal');
+      document.getElementById('genericConfirmMessage').textContent = message;
+      modal.classList.remove('hidden');
+      setTimeout(function() { modal.classList.add('is-open'); }, 16);
+      const okBtn = document.getElementById('genericConfirmOkBtn');
+      const cancelBtn = document.getElementById('genericConfirmCancelBtn');
+      function cleanup(result) {
+        modal.classList.remove('is-open');
+        setTimeout(function() { modal.classList.add('hidden'); }, 260);
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        modal.removeEventListener('click', onBackdrop);
+        resolve(result);
+      }
+      function onOk() { cleanup(true); }
+      function onCancel() { cleanup(false); }
+      function onBackdrop(e) { if (e.target.id === 'genericConfirmModal') cleanup(false); }
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+      modal.addEventListener('click', onBackdrop);
+    });
+  }
+
+
+(async function() {
+  const sessionData = await (await fetch('api/session.php')).json();
+  const currentUser = sessionData.user;
+  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'counselor')) {
+    window.location.replace('staff-login');
+    return;
+  }
+
+  const headerAvatarWrap = document.getElementById('headerAvatarWrap');
+  if (currentUser.avatarUrl) {
+    headerAvatarWrap.innerHTML = `<img src="${currentUser.avatarUrl}" alt="" class="w-full h-full object-cover">`;
+  }
+  const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
+  document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
+  document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
+
+  const logoutModal = document.getElementById('logoutConfirmModal');
+  function openLogoutModal(e) {
+    e.preventDefault();
+    logoutModal.classList.remove('hidden');
+    setTimeout(function() { logoutModal.classList.add('is-open'); }, 16);
+  }
+  function closeLogoutModal() {
+    logoutModal.classList.remove('is-open');
+    setTimeout(function() { logoutModal.classList.add('hidden'); }, 260);
+  }
+  function performLogout() {
+    fetch('api/logout.php', { method: 'POST' }).finally(function() {
+      window.location.href = 'staff-login';
+    });
+  }
+  document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
+  document.getElementById('logoutCancelBtn').addEventListener('click', closeLogoutModal);
+  document.getElementById('logoutConfirmBtn').addEventListener('click', performLogout);
+  logoutModal.addEventListener('click', function(e) { if (e.target.id === 'logoutConfirmModal') closeLogoutModal(); });
+
+  (function() {
+    const sidebar = document.getElementById('sidebar');
+    const menuToggle = document.getElementById('menuToggle');
+    const backdrop = document.getElementById('sidebarBackdrop');
+    function openSidebar() { sidebar.classList.remove('-translate-x-full'); backdrop.classList.remove('hidden'); menuToggle.classList.add('invisible'); }
+    function closeSidebar() { sidebar.classList.add('-translate-x-full'); backdrop.classList.add('hidden'); menuToggle.classList.remove('invisible'); }
+    menuToggle.addEventListener('click', () => {
+      sidebar.classList.contains('-translate-x-full') ? openSidebar() : closeSidebar();
+    });
+    backdrop.addEventListener('click', closeSidebar);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSidebar(); });
+  })();
+
+  (function() {
+    const notifBtn = document.getElementById('notifBtn');
+    const notifPanel = document.getElementById('notifPanel');
+    const profileBtn = document.getElementById('profileBtn');
+    const profilePanel = document.getElementById('profilePanel');
+    function toggleDropdown(panel, ...others) {
+      others.forEach(p => p.classList.add('hidden'));
+      panel.classList.toggle('hidden');
+    }
+    notifBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleDropdown(notifPanel, profilePanel); });
+    profileBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleDropdown(profilePanel, notifPanel); });
+    document.addEventListener('click', () => {
+      notifPanel.classList.add('hidden');
+      profilePanel.classList.add('hidden');
+    });
+
+  // Close open dropdown panels on scroll — they were anchored under their
+  // trigger button, and letting them sit still while the page scrolls away
+  // from that anchor looks broken, so just dismiss them instead.
+  window.addEventListener('scroll', () => {
+    document.getElementById('notifPanel')?.classList.add('hidden');
+    document.getElementById('profilePanel')?.classList.add('hidden');
+  }, { passive: true });
+  })();
+
+  const filtersBtn = document.getElementById('filtersBtn');
+  const filtersPanel = document.getElementById('filtersPanel');
+  const filtersBtnLabel = document.getElementById('filtersBtnLabel');
+  const strandFilter = document.getElementById('strandFilter');
+  const sectionFilter = document.getElementById('sectionFilter');
+
+  filtersBtn.addEventListener('click', (e) => { e.stopPropagation(); filtersPanel.classList.toggle('hidden'); if (!filtersPanel.classList.contains('hidden')) refreshSections(); });
+  filtersPanel.addEventListener('click', (e) => e.stopPropagation());
+  document.addEventListener('click', () => filtersPanel.classList.add('hidden'));
+
+  // Sections offered depend on the strand: one strand -> only its own
+  // sections; All Strands -> every section. The map comes from the API
+  // (modules/StudentManagement/lib/Sections.php) so there is a single source of truth.
+  let sectionsByStrand = null;
+  function renderSectionOptions() {
+    if (!sectionsByStrand) return;
+    const strand = strandFilter.value;
+    const previous = sectionFilter.value;
+    const sections = strand
+      ? (sectionsByStrand[strand] || [])
+      : Array.from(new Set(Object.values(sectionsByStrand).flat()));
+    sectionFilter.innerHTML = '<option value="">All Sections</option>' +
+      sections.map(s => '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>').join('');
+    sectionFilter.value = sections.includes(previous) ? previous : '';
+  }
+  strandFilter.addEventListener('change', renderSectionOptions);
+  // Read the section list again each time the panel opens, so a section added a moment ago is already there.
+  async function refreshSections() {
+    try {
+      const res = await fetch('api/sections.php?all=1');
+      if (!res.ok) return;
+      const map = { STEM: [], ABM: [], ICT: [], HUMSS: [] };
+      (await res.json()).sections.forEach(s => { (map[s.strand] = map[s.strand] || []).push(s.code); });
+      Object.keys(map).forEach(k => map[k].sort());
+      sectionsByStrand = map;
+      renderSectionOptions();
+    } catch (e) { /* keep the list we have */ }
+  }
+
+  document.getElementById('applyStrandFilter').addEventListener('click', () => {
+    filtersPanel.classList.add('hidden');
+    load(strandFilter.value, sectionFilter.value.trim());
+  });
+  document.getElementById('clearStrandFilter').addEventListener('click', () => {
+    strandFilter.value = '';
+    renderSectionOptions();
+    sectionFilter.value = '';
+    filtersPanel.classList.add('hidden');
+    load('', '');
+  });
+
+  function escapeHtml(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // One colour per strand; each section takes its strand's colour (lighter for
+  // later sections of the same strand) so the two charts read together.
+  const STRAND_COLORS = { STEM: '#19427b', ABM: '#db7020', ICT: '#1b8a47', HUMSS: '#673ab7' };
+  function sectionColor(section, sectionsByStrand) {
+    for (const strand of Object.keys(sectionsByStrand || {})) {
+      const idx = sectionsByStrand[strand].indexOf(section);
+      if (idx !== -1) {
+        const hex = STRAND_COLORS[strand] || '#64748b';
+        const alpha = [1, 0.7, 0.5, 0.35][idx] || 0.35;
+        const n = parseInt(hex.slice(1), 16);
+        return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + alpha + ')';
+      }
+    }
+    return '#64748b';
+  }
+
+  let strandChartInstance = null;
+  let riasecChartInstance = null;
+  Chart.defaults.font.size = 14; // charts were too small to read
+  Chart.defaults.color = '#334155';
+  let sectionChartInstance = null;
+  let yearChartInstance = null;
+  let statsChartInstance = null;
+  let careersChartInstance = null;
+
+  let selectedAy = '';
+  let shownStrand = '', shownSection = '';
+  const ayFilter = document.getElementById('ayFilter');
+  ayFilter.addEventListener('change', function() {
+    selectedAy = ayFilter.value;
+    load(shownStrand, shownSection);
+  });
+  async function load(strand, section) {
+    section = section || '';
+    shownStrand = strand || '';
+    shownSection = section;
+    const labelParts = [];
+    if (strand) labelParts.push(strand);
+    if (section) labelParts.push(section);
+    filtersBtnLabel.textContent = labelParts.length ? 'Filters: ' + labelParts.join(', ') : 'Filters';
+    const params = new URLSearchParams({ strand: strand || '', section: section, academicYear: selectedAy });
+    const statIds = ['metricCompletionRate', 'metricCompletionCount', 'metricCounselingRate', 'metricCounselingCount', 'metricMmclRate', 'metricMmclCount', 'metricTopStrand', 'metricStrandPercent', 'statsCompleted'];
+    const chartBoxes = ['strandBox', 'riasecBox', 'sectionBox', 'statsChartBox', 'yearBox', 'topCareersBox'];
+    statIds.forEach(PP.statLoading);
+    document.getElementById('topCareersSummary').innerHTML = PP.skeleton.line('260px');
+    ['statsChartBox', 'topCareersBox'].forEach(function(id) { document.getElementById(id).classList.remove('hidden'); });
+    ['statsChartEmpty', 'topCareersEmpty'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
+    chartBoxes.forEach(PP.chartLoading);
+    let data;
+    try {
+      data = await PP.fetchJson('api/analytics.php?' + params.toString());
+    } catch (e) {
+      statIds.forEach(PP.statFailed);
+      document.getElementById('topCareersSummary').textContent = '';
+      chartBoxes.forEach(function(id) { PP.chartError(id, e.message, function() { load(strand, section); }); });
+      return;
+    }
+    chartBoxes.forEach(PP.chartLoaded);
+    // School year drop-down: the current year plus any past year that has data (never a future one).
+    if (data.academicYears && data.academicYears.length) {
+      ayFilter.innerHTML = data.academicYears.map(function(y) { return '<option value="' + escapeHtml(y) + '">' + escapeHtml(y) + '</option>'; }).join('');
+      ayFilter.value = data.academicYear;
+    }
+    updateExportLink(data);
+    if (!sectionsByStrand && data.sectionsByStrand) {
+      sectionsByStrand = data.sectionsByStrand;
+      renderSectionOptions();
+    }
+
+    document.getElementById('metricCompletionRate').textContent = data.completion.rate + '%';
+    document.getElementById('metricCompletionCount').textContent = data.completion.count;
+    document.getElementById('metricCompletionOf').textContent = 'of ' + data.completion.total + ' total students';
+    document.getElementById('metricCompletionBar').style.width = data.completion.rate + '%';
+
+    document.getElementById('metricCounselingRate').textContent = data.worksheet.rate + '%';
+    document.getElementById('metricCounselingCount').textContent = data.worksheet.count;
+    document.getElementById('metricCounselingOf').textContent = 'of ' + data.worksheet.total + ' total students';
+    document.getElementById('metricCounselingBar').style.width = data.worksheet.rate + '%';
+
+    document.getElementById('metricMmclRate').textContent = data.confidence.rate + '%';
+    document.getElementById('metricMmclCount').textContent = data.confidence.count;
+    document.getElementById('metricMmclOf').textContent = 'of ' + data.confidence.total + ' total students';
+    document.getElementById('metricMmclBar').style.width = data.confidence.rate + '%';
+
+    if (data.topStrand) {
+      document.getElementById('metricTopStrand').textContent = data.topStrand.strand;
+      document.getElementById('metricStrandPercent').textContent = data.topStrand.percent + '%';
+      document.getElementById('metricStrandCount').textContent = data.topStrand.count;
+    } else {
+      PP.statFailed('metricTopStrand');
+      PP.statFailed('metricStrandPercent');
+    }
+
+    document.getElementById('strandChartTotal').textContent = data.totalStudents;
+    if (strandChartInstance) strandChartInstance.destroy();
+    // Four parts of one whole -> a pie: each slice is that strand's share of the
+    // students shown. The share is in the legend text, so it reads without hovering.
+    const strandTotal = data.strandDistribution.reduce((sum, s) => sum + s.count, 0);
+    const strandShare = (n) => strandTotal > 0 ? Math.round(n / strandTotal * 100) : 0;
+    strandChartInstance = new Chart(document.getElementById('strandChart').getContext('2d'), {
+      type: 'pie',
+      data: {
+        labels: data.strandDistribution.map(s => s.strand + ' — ' + s.count + ' (' + strandShare(s.count) + '%)'),
+        datasets: [{ data: data.strandDistribution.map(s => s.count), backgroundColor: data.strandDistribution.map(s => STRAND_COLORS[s.strand] || '#64748b'), borderColor: '#ffffff', borderWidth: 2 }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { boxWidth: 12, padding: 14 } },
+          tooltip: { callbacks: { label: (ctx) => ' ' + ctx.parsed + ' students (' + strandShare(ctx.parsed) + '%)' } }
+        }
+      }
+    });
+
+    const RIASEC_LABELS = ['Realistic', 'Investigative', 'Artistic', 'Social', 'Enterprising', 'Conventional'];
+    const RIASEC_KEYS = ['R', 'I', 'A', 'S', 'E', 'C'];
+    if (riasecChartInstance) riasecChartInstance.destroy();
+    riasecChartInstance = new Chart(document.getElementById('riasecChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: RIASEC_LABELS,
+        datasets: [{ data: RIASEC_KEYS.map(k => data.riasecAverages[k]), backgroundColor: '#db7020', borderRadius: 4 }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, max: 50 } }
+      }
+    });
+
+    // Ranked counts of categories -> horizontal bars, so long program names stay readable.
+    document.getElementById('topCareersEmpty').classList.toggle('hidden', data.topCareers.length > 0);
+    document.getElementById('topCareersChart').parentElement.classList.toggle('hidden', data.topCareers.length === 0);
+    if (careersChartInstance) careersChartInstance.destroy();
+    if (data.topCareers.length) {
+      const shorten = (t) => t.length > 34 ? t.slice(0, 33) + '…' : t;
+      careersChartInstance = new Chart(document.getElementById('topCareersChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: data.topCareers.map((c, i) => (i + 1) + '. ' + shorten(c.title)),
+          datasets: [{ data: data.topCareers.map(c => c.count), backgroundColor: '#19427b', borderRadius: 4, barThickness: 28 }]
+        },
+        options: {
+          indexAxis: 'y',
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: {
+              title: (items) => data.topCareers[items[0].dataIndex].title,
+              label: (ctx) => ' ' + ctx.parsed.x + ' students (' + data.topCareers[ctx.dataIndex].percent + '% of recommendations)'
+            } }
+          },
+          scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+      });
+    }
+    document.getElementById('topCareersSummary').textContent =
+      'Showing top ' + data.topCareers.length + ' of ' + data.confidence.total + ' students with a computed recommendation';
+
+    if (sectionChartInstance) sectionChartInstance.destroy();
+    sectionChartInstance = new Chart(document.getElementById('sectionChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: data.sectionDistribution.map(s => s.section),
+        datasets: [{ data: data.sectionDistribution.map(s => s.count), backgroundColor: data.sectionDistribution.map(s => sectionColor(s.section, data.sectionsByStrand)), borderRadius: 4 }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+      }
+    });
+
+    const stats = data.assessmentStats;
+    document.getElementById('statsAy').textContent = stats.academicYear || 'not set';
+    document.getElementById('statsCompleted').textContent = stats.completedCount.toLocaleString();
+
+    // Overall: everyone expected this year, split into taken / not yet taken.
+    const expectedAll = Math.max(stats.expectedCount || 0, stats.completedCount || 0);
+    const takenAll = stats.completedCount || 0;
+    const notTakenAll = Math.max(0, expectedAll - takenAll);
+    const pctOf = (n, whole) => whole > 0 ? Math.round(n / whole * 100) : 0;
+    document.getElementById('statsCompleted').textContent = takenAll.toLocaleString() + ' of ' + expectedAll.toLocaleString() + ' (' + pctOf(takenAll, expectedAll) + '%)';
+    document.getElementById('statsChartEmpty').classList.toggle('hidden', expectedAll > 0);
+    document.getElementById('statsChartBox').classList.toggle('hidden', expectedAll === 0);
+    if (statsChartInstance) statsChartInstance.destroy();
+    if (expectedAll > 0) {
+      statsChartInstance = new Chart(document.getElementById('statsChart').getContext('2d'), {
+        type: 'pie',
+        data: {
+          labels: ['Completed — ' + takenAll + ' (' + pctOf(takenAll, expectedAll) + '%)', 'Not yet completed — ' + notTakenAll + ' (' + pctOf(notTakenAll, expectedAll) + '%)'],
+          datasets: [{ data: [takenAll, notTakenAll], backgroundColor: ['#1b8a47', '#cbd5e1'], borderColor: '#ffffff', borderWidth: 2 }]
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { boxWidth: 12, padding: 12, font: { size: 13 } } },
+            tooltip: { callbacks: { label: (ctx) => ' ' + ctx.parsed + ' students (' + pctOf(ctx.parsed, expectedAll) + '%)' } }
+          }
+        }
+      });
+    }
+
+    const byYear = data.completionByYear || [];
+    document.getElementById('yearChartEmpty').classList.toggle('hidden', byYear.length > 0);    document.getElementById('yearChart').classList.toggle('hidden', byYear.length === 0);
+    if (yearChartInstance) yearChartInstance.destroy();
+    if (byYear.length) {
+      // A rate that changes from one academic year to the next -> a line.
+      yearChartInstance = new Chart(document.getElementById('yearChart').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: byYear.map(y => y.academicYear),
+          datasets: [{
+            label: 'Completion Rate',
+            data: byYear.map(y => y.rate),
+            borderColor: '#1b8a47',
+            backgroundColor: 'rgba(27,138,71,0.12)',
+            fill: true,
+            tension: 0.25,
+            borderWidth: 3,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: '#1b8a47',
+          }]
+        },
+        options: {
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (ctx) => {
+              const y = byYear[ctx.dataIndex];
+              return y.completed + ' of ' + y.total + ' students (' + y.rate + '%)';
+            } } }
+          },
+          // offset keeps a lone first point centred instead of jammed against the axis
+          scales: { x: { offset: true }, y: { beginAtZero: true, max: 100, ticks: { callback: (v) => v + '%' } } }
+        }
+      });
+    }
+  }
+
+  // "Export as PDF" in the report preview: the Analytics Report (api/analytics-report.php, modules/AnalyticsAndReports/lib/AnalyticsReportPdf.php),
+  // the same file the Send Analytics Report section emails, for the school year and filters shown on this page.
+  // PP.busy disables the button while the PDF is made, so a second click cannot start a second export.
+  let lastExportFilter = { strand: '', section: '', academicYear: '' };
+  async function downloadReport(btn) {
+    if (btn.disabled) return;
+    const stop = PP.busy(btn, 'Preparing PDF…');
+    try {
+      const res = await fetch('api/analytics-report.php?' + new URLSearchParams(Object.assign({ format: 'pdf' }, lastExportFilter)).toString());
+      const isPdf = (res.headers.get('Content-Type') || '').includes('application/pdf');
+      if (!res.ok || !isPdf) {
+        let message = 'The PDF report could not be made. Please try again.';
+        try { message = (await res.json()).error || message; } catch (e) {}
+        showToast(message, true);
+        return;
+      }
+      const match = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url; a.download = match ? match[1] : 'ProfilePath_Analytics_Report.pdf';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+      showToast('Analytics Report exported as PDF: ' + a.download, false);
+    } catch (e) {
+      showToast('Unable to reach the server, so the PDF was not made. Please try again.', true);
+    } finally {
+      stop();
+    }
+  }
+
+  function updateExportLink(data) {
+    lastExportFilter = { strand: data.strand || '', section: data.section || '', academicYear: data.academicYear || '' };
+    const who = [data.strand, data.section].filter(Boolean).join(' ') || 'All strands and sections';
+    document.getElementById('reportScope').textContent = who + ', Academic Year ' + (data.academicYear || 'not set');
+  }
+
+  // ---- Send Analytics Report: the administrator and Guidance Counselors, not Guidance Facilitators
+  // (api/analytics-report.php checks this again). The report follows the filters on this page (lastExportFilter).
+  if (['admin', 'counselor'].includes(currentUser.rbacRole || currentUser.role)) {
+    const card = document.getElementById('sendReportCard');
+    const form = document.getElementById('sendReportForm');
+    const emailInput = document.getElementById('reportEmail');
+    const emailError = document.getElementById('reportEmailError');
+    const statusEl = document.getElementById('sendReportStatus');
+    const sendBtn = document.getElementById('sendReportBtn');
+    const previewBtn = document.getElementById('previewReportBtn');
+    const previewModal = document.getElementById('reportPreviewModal');
+    const confirmModal = document.getElementById('reportConfirmModal');
+    const confirmSendBtn = document.getElementById('reportConfirmSendBtn');
+    card.classList.remove('hidden');
+    let sending = false;
+
+    function reportParams(extra) {
+      return new URLSearchParams(Object.assign({}, lastExportFilter, extra || {})).toString();
+    }
+    // Same rule as the server: trimmed, not empty, at most 254 characters, name@domain.tld.
+    function checkEmail() {
+      const value = emailInput.value.trim();
+      emailInput.value = value;
+      let message = '';
+      if (value === '') message = 'Enter the recipient\'s email address.';
+      else if (value.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) message = 'Enter a valid email address, like name@school.edu.ph.';
+      showEmailError(message);
+      return message === '' ? value : null;
+    }
+    function showEmailError(message) {
+      emailError.textContent = message;
+      emailError.classList.toggle('hidden', !message);
+      emailInput.setAttribute('aria-invalid', message ? 'true' : 'false');
+    }
+    emailInput.addEventListener('input', function() { if (emailInput.getAttribute('aria-invalid') === 'true') showEmailError(''); });
+    function showStatus(text, ok) {
+      statusEl.textContent = text;
+      statusEl.className = 'text-sm rounded-md border px-3.5 py-2.5 ' + (ok ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800');
+    }
+
+    // Dialogs: Escape and the close buttons close them, Tab stays inside, and focus goes back to the button that opened them.
+    let openDialog = null, returnFocus = null;
+    function openModal(modal, focusEl, returnTo) {
+      returnFocus = returnTo || document.activeElement;
+      openDialog = modal;
+      modal.classList.remove('hidden');
+      setTimeout(function() { modal.classList.add('is-open'); (focusEl || modal.querySelector('button')).focus(); }, 16);
+    }
+    function closeModal() {
+      if (!openDialog) return;
+      const modal = openDialog;
+      openDialog = null;
+      modal.classList.remove('is-open');
+      setTimeout(function() { modal.classList.add('hidden'); }, 260);
+      if (returnFocus) returnFocus.focus();
+    }
+    [previewModal, confirmModal].forEach(function(modal) {
+      modal.addEventListener('click', function(e) { if (e.target === modal || e.target.closest('[data-close-dialog]')) closeModal(); });
+    });
+    document.addEventListener('keydown', function(e) {
+      if (!openDialog) return;
+      if (e.key === 'Escape') { e.stopPropagation(); closeModal(); return; }
+      if (e.key !== 'Tab') return;
+      const items = Array.from(openDialog.querySelectorAll('button, [tabindex="0"]')).filter(function(el) { return !el.disabled && el.offsetParent !== null; });
+      if (!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }, true);
+
+    // Preview: the report as tables, built on the server from the same data as the PDF.
+    const fmt = function(v) { return typeof v === 'number' ? (Number.isInteger(v) ? v.toLocaleString() : v.toFixed(1)) : v; };
+    function renderPreview(report) {
+      document.getElementById('reportPreviewMeta').textContent = report.scope + ' · Generated ' + report.generatedAt;
+      document.getElementById('reportPreviewBody').innerHTML = report.sections.map(function(s) {
+        const numeric = s.rows.length ? s.rows[0].map(function(v) { return typeof v === 'number'; }) : [];
+        return '<section><h4 class="text-sm font-semibold text-slate-900 mb-2">' + escapeHtml(s.title) + '</h4>' +
+          (s.rows.length
+            ? '<div class="overflow-x-auto border border-slate-200 rounded-lg"><table class="rp-table"><thead><tr>' +
+                s.columns.map(function(c, i) { return '<th scope="col"' + (numeric[i] ? ' class="num"' : '') + '>' + escapeHtml(c) + '</th>'; }).join('') +
+              '</tr></thead><tbody>' +
+                s.rows.map(function(r) { return '<tr>' + r.map(function(v, i) { return '<td' + (numeric[i] ? ' class="num"' : '') + '>' + escapeHtml(fmt(v)) + '</td>'; }).join('') + '</tr>'; }).join('') +
+              '</tbody></table></div>'
+            : '') +
+          (s.note ? '<p class="text-xs text-slate-500 mt-2">' + escapeHtml(s.note) + '</p>' : '') +
+          '</section>';
+      }).join('');
+    }
+    previewBtn.addEventListener('click', async function() {
+      const body = document.getElementById('reportPreviewBody');
+      document.getElementById('reportPreviewMeta').textContent = '';
+      body.innerHTML = '<p class="text-sm text-slate-500">Preparing the preview…</p>';
+      openModal(previewModal);
+      try {
+        const res = await fetch('api/analytics-report.php?' + reportParams());
+        const data = await res.json().catch(function() { return {}; });
+        if (!res.ok || !data.success) throw new Error(data.error || 'The preview could not be made. Please try again.');
+        renderPreview(data);
+      } catch (e) {
+        body.innerHTML = '<p class="text-sm text-red-700" role="alert">' + escapeHtml(e.message && e.message !== 'Failed to fetch' ? e.message : 'Unable to reach the server. Please try again.') + '</p>';
+      }
+    });
+    // The exact PDF that would be attached, to check before sending.
+    document.getElementById('reportDownloadBtn').addEventListener('click', function() { downloadReport(this); });
+
+    // Send: check the address, confirm in a dialog, then send once. The result shown is the server's answer.
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (sending) return;
+      statusEl.classList.add('hidden');
+      const email = checkEmail();
+      if (!email) { emailInput.focus(); return; }
+      document.getElementById('reportConfirmEmail').textContent = email;
+      document.getElementById('reportConfirmScope').textContent = document.getElementById('reportScope').textContent;
+      openModal(confirmModal, confirmSendBtn, sendBtn);
+    });
+    confirmSendBtn.addEventListener('click', async function() {
+      if (sending) return;
+      sending = true;
+      const email = emailInput.value.trim();
+      closeModal();
+      const stop = PP.busy(sendBtn, 'Sending…');
+      previewBtn.disabled = true;
+      let focusAfter = sendBtn; // the button was disabled while sending, which drops keyboard focus; put it back
+      try {
+        const res = await fetch('api/analytics-report.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(Object.assign({ email: email }, lastExportFilter))
+        });
+        const data = await res.json().catch(function() { return {}; });
+        if (res.ok && data.success) {
+          showStatus(data.message, true);
+          showToast(data.message, false);
+        } else if (data.field === 'email') {
+          showEmailError(data.error);
+          focusAfter = emailInput;
+        } else {
+          showStatus(data.error || 'The report could not be sent. Please try again.', false);
+        }
+      } catch (e) {
+        showStatus('Unable to reach the server, so the report was not sent. Please try again.', false);
+      } finally {
+        stop();
+        previewBtn.disabled = false;
+        sending = false;
+        focusAfter.focus();
+      }
+    });
+  }
+
+  await load('', '');
+})();
+</script>
+
+<script src="js/motion.js" defer></script>
+<script src="js/notifications.js" defer></script>
+<script>
+(function() {
+  var el = document.getElementById('ayBadgeValue');
+  if (!el) return;
+  fetch('api/security-config.php').then(function(r) { return r.json(); }).then(function(data) {
+    if (data && data.academicYear && data.academicYear.current) {
+      el.textContent = data.academicYear.current;
+    } else {
+      document.getElementById('ayBadge').classList.add('hidden');
+    }
+  }).catch(function() {});
+})();
+</script>
+</body>
+</html>

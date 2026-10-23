@@ -5,7 +5,7 @@
 // programs and worksheets keep working: a program with no careers listed falls
 // back to its own title wherever a career is needed.
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 

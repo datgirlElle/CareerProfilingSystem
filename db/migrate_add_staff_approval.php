@@ -8,7 +8,7 @@
 //   users.full_name        Staff display name shown to the admin when approving
 //       (students keep their encrypted name in the students table).
 
-require_once __DIR__ . '/../lib/Database.php';
+require_once __DIR__ . '/../shared/lib/Database.php';
 
 $pdo = Database::get();
 

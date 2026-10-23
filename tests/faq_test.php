@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../lib/Faq.php';
+require_once __DIR__ . '/../modules/Counseling/lib/Faq.php';
 
 $failures = 0;
 $passed = 0;

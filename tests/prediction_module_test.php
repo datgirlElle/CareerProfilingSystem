@@ -10,7 +10,7 @@
  * command-line output for the 20 possible inputs (see tools/weka/README.md). Score values below
  * are made-up test inputs, not student records.
  */
-require_once __DIR__ . '/../lib/RecommendationPipeline.php';
+require_once __DIR__ . '/../modules/ContentBasedFiltering/lib/RecommendationPipeline.php';
 
 $passed = 0;
 $failed = 0;

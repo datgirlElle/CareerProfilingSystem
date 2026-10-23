@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
+<title>Student Profile — Career Profiling System</title>
+<link rel="icon" type="image/png" href="images/brand/favicon-64.png">
+<link rel="stylesheet" href="css/tailwind.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body{ font-family:'Inter', sans-serif; }
+  .sp-wrap{ max-width:72rem; margin:0 auto; }
+  .sp-card{ background:#fff; border:1px solid #e5e7eb; border-radius:12px; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+  .sp-profile{ padding:24px; display:flex; flex-wrap:wrap; align-items:center; gap:20px; }
+  .sp-avatar{ position:relative; width:72px; height:72px; border-radius:9999px; background:#001c43; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .sp-avatar img{ width:26px; height:30px; }
+  .sp-avatar-face{ width:100%; height:100%; border-radius:9999px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+  .sp-avatar-face .pp-initials{ font-size:24px !important; }
+  .sp-dot{ position:absolute; right:2px; bottom:2px; width:16px; height:16px; border-radius:9999px; border:3px solid #fff; background:#22c55e; }
+  .sp-dot.off{ background:#9ca3af; }
+  .sp-name{ font-size:24px; line-height:1.2; font-weight:700; color:#111827; }
+  .sp-meta{ font-size:14px; color:#6b7280; margin-top:2px; }
+  .sp-chip{ display:inline-flex; align-items:center; gap:6px; border:1px solid #e5e7eb; background:#f8fafc; color:#334155; font-size:12px; font-weight:500; padding:4px 12px; border-radius:9999px; white-space:nowrap; }
+  .sp-id{ display:flex; align-items:center; gap:16px; min-width:0; flex:1 1 280px; }
+  .sp-actions{ margin-left:auto; display:flex; flex-wrap:wrap; gap:12px; }
+  @media (max-width:639px){ .sp-profile{ padding:16px; } .sp-avatar{ width:56px; height:56px; } .sp-avatar img{ width:20px; height:23px; } .sp-avatar-face .pp-initials{ font-size:20px !important; } .sp-dot{ width:13px; height:13px; border-width:2px; } .sp-name{ font-size:20px; } .sp-actions{ width:100%; } .sp-actions button{ flex:1 1 0; } .sp-section{ padding:16px; } }
+  .sp-grid{ display:grid; grid-template-columns:minmax(0,1fr); gap:24px; align-items:start; margin-top:24px; }
+  @media (min-width:1180px){ .sp-grid{ grid-template-columns:minmax(0,2fr) minmax(0,1fr); grid-auto-flow:row dense; } .sp-grid.solo{ grid-template-columns:minmax(0,1fr); } #recommendationCard{ grid-column:2; grid-row:span 2; } #counselingNotesCard{ grid-column:1; } }
+  .sp-section{ padding:24px; display:flex; flex-direction:column; gap:20px; }
+  .sp-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .sp-title{ display:flex; align-items:center; gap:8px; font-size:16px; font-weight:600; color:#111827; }
+  .sp-title i{ width:8px; height:8px; border-radius:9999px; background:#19427b; display:inline-block; }
+  .sp-badge{ display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:600; padding:4px 12px; border-radius:9999px; border:1px solid; white-space:nowrap; }
+  .sp-badge.done{ background:#f0fdf4; border-color:#bbf7d0; color:#16a34a; }
+  .sp-badge.wait{ background:#fffbeb; border-color:#fde68a; color:#b45309; }
+  .sp-tiles{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; }
+  .sp-tile{ background:#f8fafc; border:1px solid #eef2f7; border-radius:10px; padding:12px 14px; min-width:0; }
+  .sp-label{ font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:#6b7280; }
+  .sp-value{ font-size:15px; font-weight:600; color:#111827; margin-top:4px; overflow-wrap:anywhere; }
+  .sp-edit{ font-size:11px; font-weight:600; color:#19427b; background:#e8eefb; border-radius:9999px; padding:2px 10px; }
+  .sp-edit:hover{ background:#dbe5f8; }
+  .sp-sub{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .sp-aside{ font-size:12px; color:#6b7280; }
+  .sp-theme{ display:inline-flex; align-items:center; gap:8px; border:1px solid #e5e7eb; background:#fff; font-size:13px; font-weight:500; color:#334155; padding:6px 14px; border-radius:9999px; }
+  .sp-theme i{ width:8px; height:8px; border-radius:9999px; display:inline-block; }
+  .sp-scores{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+  @media (min-width:640px){ .sp-scores{ grid-template-columns:repeat(6,minmax(0,1fr)); } }
+  .sp-score{ border:1px solid #e5e7eb; border-radius:8px; padding:8px 4px; text-align:center; }
+  .sp-score b{ display:block; font-size:15px; color:#111827; }
+  .sp-score span{ font-size:10px; font-weight:600; letter-spacing:.05em; color:#6b7280; text-transform:uppercase; }
+  .sp-status{ border:1px solid #fde68a; background:#fffbeb; border-radius:10px; padding:16px; }
+  .sp-status.ok{ border-color:#bbf7d0; background:#f0fdf4; }
+  .sp-status.na{ border-color:#e5e7eb; background:#f8fafc; }
+  .sp-status .sp-value{ font-size:17px; }
+  .sp-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-top:1px solid #f1f5f9; }
+  .sp-row:first-of-type{ border-top:0; }
+  .sp-codes{ font-size:13px; font-weight:600; color:#19427b; }
+  .sp-advisor{ font-size:11px; font-weight:600; color:#6b7280; background:#f1f5f9; border-radius:9999px; padding:3px 10px; }
+</style>
+<link rel="stylesheet" href="css/motion.css">
+</head>
+<body class="bg-[#f9fafb]">
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<div class="flex min-h-screen">
+
+  <!-- Mobile sidebar backdrop -->
+  <div id="sidebarBackdrop" class="hidden fixed inset-0 bg-black/40 z-30 md:hidden"></div>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="w-[260px] shrink-0 bg-[#001c43] flex flex-col fixed inset-y-0 left-0 z-40 -translate-x-full transition-transform duration-200 md:sticky md:top-0 md:translate-x-0 h-screen">
+    <div class="sidebar-brand bg-white shrink-0">
+      <img src="images/MMCL-logo.webp" alt="Mapúa Malayan Colleges Laguna" class="sidebar-brand-mmcl">
+      <img src="images/login/cgc-logo-title.png" alt="Center for Guidance and Counseling" class="sidebar-brand-cgc">
+    </div>
+    <div class="sidebar-app">
+      <img src="images/brand/profilepath-horizontal.png" alt="ProfilePath" width="190" height="75">
+      <p class="sidebar-app-role">Admin Dashboard</p>
+    </div>
+    <nav id="adminNav" data-active="admin-dashboard" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
+    <script src="js/admin-nav.js"></script>
+    <div class="border-t border-white/5 pt-[25px] pb-6">
+      <a href="staff-login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
+        <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>
+        Logout
+      </a>
+    </div>
+
+  </aside>
+
+  <!-- Main Content -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    <!-- Top Header -->
+    <header class="bg-white border-b border-gray-200 flex items-center justify-between px-6 h-16 shrink-0 relative">
+      <button type="button" id="menuToggle" class="relative z-50 w-10 h-10 -m-2.5 flex items-center justify-center md:invisible">
+        <img src="images/admin/icon-menu.svg" alt="Menu" class="w-5 h-4">
+      </button>
+      <div class="flex items-center gap-6">
+
+        <div id="ayBadge" class="hidden sm:flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-full px-3 py-1">
+          <span class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">AY</span>
+          <span id="ayBadgeValue" class="text-xs font-semibold text-slate-700">—</span>
+        </div>
+
+        <!-- Notifications -->
+        <div class="relative">
+          <button type="button" id="notifBtn" class="relative w-5 h-5">
+            <svg class="w-full h-full" viewBox="0 -960 960 960" fill="#64748B"><path d="M160-200v-80h80v-280q0-83 50-147.5T420-792v-28q0-25 17.5-42.5T480-880q25 0 42.5 17.5T540-820v28q80 20 130 84.5T720-560v280h80v80H160Zm320-300Zm0 420q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-280h320v-280q0-66-47-113t-113-47q-66 0-113 47t-47 113v280Z"/></svg>
+            <span id="notifBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#ed1c24] text-white text-[10px] font-bold flex items-center justify-center"></span>
+          </button>
+          <div id="notifPanel" class="hidden fixed left-4 right-4 top-[76px] z-50 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+12px)] sm:w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <p class="text-sm font-semibold text-gray-900">Notifications</p>
+              <span id="notifCountLabel" class="text-xs text-gray-500">Loading…</span>
+            </div>
+            <ul id="notifList" class="max-h-80 overflow-auto divide-y divide-gray-100">
+              <li class="px-4 py-6 text-center text-sm text-gray-500">Loading…</li>
+            </ul>
+            <a href="staff-notifications" class="block text-center text-sm font-medium text-[#ed1c24] px-4 py-3 border-t border-gray-100 hover:bg-gray-50">View all notifications</a>
+          </div>
+        </div>
+
+        <!-- Profile -->
+        <div class="relative">
+          <button type="button" id="profileBtn" class="flex items-center gap-3">
+            <span id="headerAvatarWrap" class="w-9 h-9 rounded-full bg-[#001c43] flex items-center justify-center overflow-hidden shrink-0">
+              <img src="images/admin/icon-avatar.svg" alt="" class="w-3.5 h-4">
+            </span>
+            <span class="text-left">
+              <span class="block text-sm font-semibold text-gray-800" id="headerUserName">&nbsp;</span>
+              <span class="block text-xs text-gray-500" id="headerUserRole">&nbsp;</span>
+            </span>
+            <img src="images/admin/icon-chevron-down.svg" alt="" class="w-3.5 h-2">
+          </button>
+          <div id="profilePanel" class="hidden absolute right-0 top-[calc(100%+12px)] w-56 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20">
+            <a href="staff-profile" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50">Profile Settings</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <main id="main-content" class="flex-1 p-4 sm:p-8 overflow-auto">
+      <div class="sp-wrap">
+
+        <div id="detailsGrid">
+
+          <div class="sp-card sp-profile">
+            <div class="sp-id">
+            <span class="sp-avatar"><span id="studentAvatar" class="sp-avatar-face"><img src="images/admin/icon-avatar.svg" alt=""></span><span id="statusDot" class="sp-dot"></span></span>
+            <div style="min-width:0">
+              <h1 class="sp-name" id="studentName">Student Profile</h1>
+              <p class="sp-meta" id="studentId">—</p>
+              <div class="flex flex-wrap gap-2 mt-3">
+                <span class="sp-chip" id="strandChip">—</span>
+                <span class="sp-chip" id="ayChip">—</span>
+              </div>
+            </div>
+            </div>
+            <div class="sp-actions">
+              <!-- Shown only while the account is locked by wrong passwords (filled in from the student record). -->
+              <button type="button" id="unlockAccountBtn" class="hidden shrink-0 border border-[#19427b] text-[#19427b] rounded-md px-4 py-2 text-sm font-medium hover:bg-slate-50">Unlock Account</button>
+              <button type="button" id="resetAssessmentBtn" class="hidden shrink-0 border border-gray-300 text-gray-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-50">Reset Assessment</button>
+              <button type="button" id="toggleActiveBtn" class="hidden shrink-0 border rounded-md px-4 py-2 text-sm font-medium"></button>
+            </div>
+          </div>
+
+          <div class="sp-grid" id="profileGrid">
+
+            <div class="sp-card sp-section">
+              <div class="sp-head">
+                <h2 class="sp-title"><i></i>Assessment &amp; Academic Details</h2>
+                <span id="statusBadge" class="sp-badge wait">—</span>
+              </div>
+
+              <div class="sp-tiles">
+                <div class="sp-tile">
+                  <p class="sp-label">Grade Level</p>
+                  <p class="sp-value" id="gradeLevelField">—</p>
+                </div>
+                <div class="sp-tile">
+                  <p class="sp-label">Strand</p>
+                  <p class="sp-value" id="strandField">—</p>
+                </div>
+                <div class="sp-tile">
+                  <div class="sp-sub">
+                    <p class="sp-label">Section</p>
+                    <button type="button" id="editSectionBtn" class="hidden sp-edit">Edit</button>
+                  </div>
+                  <p class="sp-value" id="sectionField">—</p>
+                  <div id="sectionEditor" class="hidden flex-col gap-2 mt-2">
+                    <select id="sectionSelect" aria-label="Section" class="w-full border border-gray-300 rounded-md px-2 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></select>
+                    <p id="sectionError" class="hidden text-xs text-[#ed1c24]"></p>
+                    <div class="flex gap-2">
+                      <button type="button" id="saveSectionBtn" class="bg-[#ed1c24] text-white text-xs font-semibold rounded-md px-3 py-1.5 hover:opacity-90">Save</button>
+                      <button type="button" id="cancelSectionBtn" class="border border-gray-300 text-gray-600 text-xs font-medium rounded-md px-3 py-1.5 hover:bg-gray-50">Cancel</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="sp-tile">
+                  <p class="sp-label">Academic Year</p>
+                  <p class="sp-value" id="academicYearField">—</p>
+                </div>
+              </div>
+
+              <div>
+                <div class="sp-sub">
+                  <p class="sp-label">Top 3 RIASEC Themes</p>
+                  <span class="sp-aside" id="dominantLabel">Dominant Profile</span>
+                </div>
+                <div id="riasecThemes" class="flex flex-wrap gap-2 mt-3"></div>
+              </div>
+
+
+              <div class="sp-status" id="counselingBox">
+                <div class="sp-sub">
+                  <p class="sp-label" id="counselingLabel" style="color:#b45309">Counseling Status</p>
+                  <span id="counselingBadge" class="sp-badge wait hidden">Pending Request</span>
+                </div>
+                <p class="sp-value" id="counselingField">—</p>
+              </div>
+
+              <div class="sp-row">
+                <p class="sp-label">Registered Date</p>
+                <p class="sp-value" style="margin-top:0" id="registeredField">—</p>
+              </div>
+
+
+              <a href="admin-dashboard" class="border border-gray-300 text-gray-700 text-sm font-medium rounded-md px-5 py-2.5 hover:bg-gray-50 text-center">&larr; Back to Dashboard</a>
+            </div>
+
+            <!-- Recommendation (modules/ContentBasedFiltering/lib/RecommendationPipeline.php): what the student sees, plus each
+                 recommendation source for counselors/researchers. Never shown to students. -->
+            <div id="recommendationCard" class="hidden sp-card sp-section">
+              <div class="sp-head" style="flex-wrap:wrap;gap:8px;">
+                <h2 class="sp-title">Recommendation</h2>
+                <span id="recStatus" class="sp-badge wait"></span>
+              </div>
+              <div>
+                <p class="sp-label">Student's RIASEC Code</p>
+                <p id="recCode" class="text-sm text-gray-800 mt-1">—</p>
+              </div>
+              <div>
+                <p class="sp-label">Preferred Course</p>
+                <p id="recPreferred" class="text-sm text-gray-800 mt-1"></p>
+              </div>
+              <div>
+                <p class="sp-label">Best RIASEC Match</p>
+                <p id="recBest" class="text-sm text-gray-800 mt-1"></p>
+              </div>
+              <div>
+                <p class="sp-label">Alternatives</p>
+                <p id="recAlternatives" class="text-sm text-gray-800 mt-1"></p>
+              </div>
+              <div>
+                <p class="sp-label">WEKA Prediction</p>
+                <p id="recPrediction" class="text-sm text-gray-800 mt-1">—</p>
+                <ol id="recPredTop3" class="hidden text-sm text-gray-800 mt-2 list-decimal pl-5 space-y-0.5"></ol>
+                <p class="text-xs text-gray-500 mt-1">Predicts the intended course of past students with the same top 3 types (J48). Probabilities are shares of those past students, not suitability scores.</p>
+                <details id="recPredDetails" class="hidden mt-2">
+                  <summary class="text-xs font-medium text-gray-600 cursor-pointer">All course probabilities</summary>
+                  <p id="recPredInputs" class="text-xs text-gray-500 mt-2"></p>
+                  <table class="text-xs mt-2 w-full"><tbody id="recPredDist"></tbody></table>
+                  <p id="recPredModel" class="text-xs text-gray-500 mt-2"></p>
+                </details>
+              </div>
+              <details class="border-t border-gray-100 pt-3">
+                <summary class="text-xs font-medium text-gray-600 cursor-pointer">About these results</summary>
+                <dl class="mt-3 grid text-sm" style="grid-template-columns:auto 1fr;column-gap:16px;row-gap:6px;">
+                  <dt class="text-gray-500">Best Match, Alternatives</dt><dd class="text-gray-800">RIASEC fit (CBF, cosine similarity)</dd>
+                  <dt class="text-gray-500">Preferred Course</dt><dd class="text-gray-800">Student's choice (Career Worksheet)</dd>
+                  <dt class="text-gray-500">WEKA Prediction</dt><dd class="text-gray-800" id="recModelVersion">Past students' choice (J48)</dd>
+                </dl>
+                <p class="text-xs text-gray-500 mt-2">Each source is separate; none changes another.</p>
+              </details>
+            </div>
+
+            <div id="counselingNotesCard" class="hidden sp-card sp-section">
+              <div class="sp-head">
+                <h2 class="sp-title">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                  Counseling Notes
+                </h2>
+                <span class="sp-advisor">Advisor Only</span>
+              </div>
+              <div id="counselingNoteComposer" class="hidden flex-col gap-3">
+                <textarea id="counselingNoteInput" rows="4" maxlength="2000" placeholder="Add a note about this student — session summary, follow-up item, etc." class="w-full border border-gray-300 rounded-md px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></textarea>
+                <div class="flex items-center justify-between gap-3">
+                  <p id="counselingNoteError" class="hidden text-xs text-[#ed1c24]"></p>
+                  <button type="button" id="addCounselingNoteBtn" class="ml-auto shrink-0 bg-[#ed1c24] text-white text-sm font-medium rounded-md px-4 py-2 hover:opacity-90">+ Add Note</button>
+                </div>
+              </div>
+              <div id="counselingNotesList" class="flex flex-col gap-3 border-t border-gray-100 pt-4"></div>
+              <p id="counselingNotesEmpty" class="hidden text-sm text-gray-500">No counseling notes yet.</p>
+            </div>
+
+          </div>
+        </div>
+
+        <p id="notFoundState" class="hidden text-sm text-gray-500 bg-white border border-gray-200 rounded-xl shadow-sm p-8 text-center">Student not found.</p>
+
+        <div id="toggleActiveModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
+            <h3 class="text-lg font-semibold text-black" id="toggleActiveModalTitle">Deactivate Account?</h3>
+            <p class="text-sm text-gray-500" id="toggleActiveModalBody">This student will no longer be able to sign in. You can reactivate the account at any time.</p>
+            <p id="toggleActiveModalError" class="hidden text-sm text-[#ed1c24]"></p>
+            <div class="flex justify-end gap-2 pt-1">
+              <button type="button" id="toggleActiveCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+              <button type="button" id="toggleActiveConfirmBtn" class="px-4 py-2 text-sm font-medium text-white rounded-md hover:opacity-90"></button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+        <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
+        <span>&middot;</span>
+        <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
+        <span>&middot;</span>
+        <a href="accessibility" class="hover:text-gray-600 hover:underline">Accessibility</a>
+      </footer>
+  </div>
+</div>
+
+<div id="logoutConfirmModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card bg-white rounded-xl shadow-lg w-full max-w-sm p-6 flex flex-col gap-4">
+    <h3 class="text-lg font-semibold text-black">Log Out?</h3>
+    <p class="text-sm text-gray-500">Are you sure you want to log out?</p>
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" id="logoutCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+      <button type="button" id="logoutConfirmBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#ed1c24] rounded-md hover:opacity-90">Log Out</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(async function() {
+  const sessionData = await (await fetch('api/session.php')).json();
+  const currentUser = sessionData.user;
+  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'counselor')) {
+    window.location.replace('staff-login');
+    return;
+  }
+
+  const headerAvatarWrap = document.getElementById('headerAvatarWrap');
+  if (currentUser.avatarUrl) {
+    headerAvatarWrap.innerHTML = `<img src="${currentUser.avatarUrl}" alt="" class="w-full h-full object-cover">`;
+  }
+  const roleLabels = { admin: 'Administrator', counselor: 'Guidance Counselor' };
+  document.getElementById('headerUserName').textContent = currentUser.displayName || currentUser.username;
+  document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
+
+  const logoutModal = document.getElementById('logoutConfirmModal');
+  function openLogoutModal(e) {
+    e.preventDefault();
+    logoutModal.classList.remove('hidden');
+    setTimeout(function() { logoutModal.classList.add('is-open'); }, 16);
+  }
+  function closeLogoutModal() {
+    logoutModal.classList.remove('is-open');
+    setTimeout(function() { logoutModal.classList.add('hidden'); }, 260);
+  }
+  function performLogout() {
+    fetch('api/logout.php', { method: 'POST' }).finally(function() {
+      window.location.href = 'staff-login';
+    });
+  }
+  document.getElementById('sidebarLogout').addEventListener('click', openLogoutModal);
+  document.getElementById('logoutCancelBtn').addEventListener('click', closeLogoutModal);
+  document.getElementById('logoutConfirmBtn').addEventListener('click', performLogout);
+  logoutModal.addEventListener('click', function(e) { if (e.target.id === 'logoutConfirmModal') closeLogoutModal(); });
+
+  (function() {
+    const sidebar = document.getElementById('sidebar');
+    const menuToggle = document.getElementById('menuToggle');
+    const backdrop = document.getElementById('sidebarBackdrop');
+    function openSidebar() { sidebar.classList.remove('-translate-x-full'); backdrop.classList.remove('hidden'); menuToggle.classList.add('invisible'); }
+    function closeSidebar() { sidebar.classList.add('-translate-x-full'); backdrop.classList.add('hidden'); menuToggle.classList.remove('invisible'); }
+    menuToggle.addEventListener('click', () => {
+      sidebar.classList.contains('-translate-x-full') ? openSidebar() : closeSidebar();
+    });
+    backdrop.addEventListener('click', closeSidebar);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSidebar(); });
+  })();
+
+  // Deactivate/Activate account — declared before the student lookup
+  // below (which sets the button's initial label/state), for the same
+  // reason the Counseling Notes block right after this one is.
+  let toggleActiveUserId = null;
+  let toggleActiveCurrent = true;
+  function renderToggleActiveButton(isActive) {
+    toggleActiveCurrent = isActive;
+    const btn = document.getElementById('toggleActiveBtn');
+    btn.classList.remove('hidden');
+    if (isActive) {
+      btn.textContent = 'Deactivate Account';
+      btn.className = 'btn-danger shrink-0 border border-[#ed1c24] text-[#ed1c24] rounded-md px-4 py-2 text-sm font-medium hover:bg-red-50';
+    } else {
+      btn.textContent = 'Activate Account';
+      btn.className = 'shrink-0 border border-green-600 text-green-700 rounded-md px-4 py-2 text-sm font-medium hover:bg-green-50';
+    }
+  }
+  const toggleActiveModal = document.getElementById('toggleActiveModal');
+  function openToggleActiveModal() {
+    const willDeactivate = toggleActiveCurrent;
+    document.getElementById('toggleActiveModalError').classList.add('hidden');
+    document.getElementById('toggleActiveModalTitle').textContent = willDeactivate ? 'Deactivate Account?' : 'Activate Account?';
+    document.getElementById('toggleActiveModalBody').textContent = willDeactivate
+      ? 'This student will no longer be able to sign in. You can reactivate the account at any time.'
+      : 'This restores the student\'s ability to sign in.';
+    const confirmBtn = document.getElementById('toggleActiveConfirmBtn');
+    confirmBtn.textContent = willDeactivate ? 'Deactivate' : 'Activate';
+    confirmBtn.className = 'px-4 py-2 text-sm font-medium text-white rounded-md hover:opacity-90 ' + (willDeactivate ? 'bg-[#ed1c24]' : 'bg-green-600');
+    toggleActiveModal.classList.remove('hidden');
+    setTimeout(function() { toggleActiveModal.classList.add('is-open'); }, 16);
+  }
+  function closeToggleActiveModal() {
+    toggleActiveModal.classList.remove('is-open');
+    setTimeout(function() { toggleActiveModal.classList.add('hidden'); }, 260);
+  }
+  document.getElementById('toggleActiveBtn').addEventListener('click', openToggleActiveModal);
+  document.getElementById('toggleActiveCancelBtn').addEventListener('click', closeToggleActiveModal);
+  toggleActiveModal.addEventListener('click', function(e) { if (e.target.id === 'toggleActiveModal') closeToggleActiveModal(); });
+  document.getElementById('toggleActiveConfirmBtn').addEventListener('click', async function() {
+    const btn = this;
+    btn.disabled = true;
+    const res = await fetch('api/students.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'toggleActive', userId: toggleActiveUserId })
+    });
+    const data = await res.json();
+    btn.disabled = false;
+    if (!data.success) {
+      const errEl = document.getElementById('toggleActiveModalError');
+      errEl.textContent = data.error || 'Failed to update account status.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    renderToggleActiveButton(data.isActive);
+    closeToggleActiveModal();
+  });
+
+  // Locked by too many wrong passwords (for example a classmate typing this Student Number): staff
+  // who can see the student unlock it, so they can sign in right away instead of waiting.
+  document.getElementById('unlockAccountBtn').addEventListener('click', async function() {
+    if (!(await PP.confirm('Unlock this student\'s account?\n\nIt was locked after too many wrong passwords. The student can sign in again right away.', { okLabel: 'Unlock' }))) return;
+    const btn = this;
+    btn.disabled = true;
+    try {
+      const res = await fetch('api/students.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'unlock', userId: toggleActiveUserId })
+      });
+      const data = await res.json();
+      if (!data.success) { PP.toast(data.error || 'Could not unlock the account.', true); btn.disabled = false; return; }
+      btn.classList.add('hidden');
+      btn.disabled = false;
+      PP.toast('Account unlocked. The student can sign in now.', false);
+    } catch (e) {
+      PP.toast('Unable to reach the server. Please try again.', true);
+      btn.disabled = false;
+    }
+  });
+
+  // Admin only: delete a student's answers so they can retake the assessment (rare, and only when
+  // the Guidance Office allows it). Shown only for a student who has finished it.
+  document.getElementById('resetAssessmentBtn').addEventListener('click', async function() {
+    if (!(await PP.confirm('Delete this student\'s answers?\n\nThis removes their RIASEC assessment, Career Worksheet and recommendations so they can take the assessment again once a session is open. It cannot be undone.', { okLabel: 'Delete answers', danger: true }))) return;
+    const btn = this;
+    btn.disabled = true;
+    try {
+      const res = await fetch('api/students.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'resetAssessment', userId: toggleActiveUserId })
+      });
+      const data = await res.json();
+      if (!data.success) { PP.toast(data.error || 'Could not reset the assessment.', true); btn.disabled = false; return; }
+      window.location.reload();
+    } catch (e) {
+      PP.toast('Unable to reach the server. Please try again.', true);
+      btn.disabled = false;
+    }
+  });
+  // Counseling Notes — gated by the 'counselingNotes' RBAC module
+  // (Security Configuration). Loading the list only needs 'limited';
+  // adding a note needs 'full' — rather than pre-checking which level the
+  // current user has, the composer is always shown to anyone who can see
+  // this page at all (admin/counselor), and a 'limited' counselor simply
+  // gets the server's 403 back as an inline error if they try to add one,
+  // matching how the rest of the app surfaces RBAC restrictions. Declared
+  // here, before the student lookup below calls loadCounselingNotes(),
+  // since that call happens well before this script reaches its bottom.
+  let counselingNotesStudentId = null;
+  function renderCounselingNotes(notes) {
+    const list = document.getElementById('counselingNotesList');
+    const empty = document.getElementById('counselingNotesEmpty');
+    if (!notes.length) {
+      list.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+    list.innerHTML = notes.map(function(n) {
+      const date = new Date(n.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const safeNote = n.note.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return '<div class="border border-gray-200 rounded-md px-3.5 py-2.5">' +
+        '<p class="text-xs text-gray-500 mb-1">' + date + ' &middot; ' + String(n.author).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</p>' +
+        '<p class="text-sm text-gray-800 whitespace-pre-wrap">' + safeNote + '</p>' +
+      '</div>';
+    }).join('');
+  }
+  async function loadRecommendation(studentId) {
+    const res = await fetch('api/recommendations.php?studentId=' + studentId);
+    if (!res.ok) return;  // no access to recommendations for this role
+    const r = await res.json();
+    if (!r.hasRecommendation) return;
+    const withCosine = function(p) {
+      return p.title + (p.hollandCode ? ' (' + p.hollandCode + ')' : ''); // approved program code; no cosine values
+    };
+    // Ordered code from the shared implementation (modules/CareerProfiling/lib/RiasecProfile.php), with what limits it.
+    const prof = r.riasecProfile || { valid: false };
+    document.getElementById('recCode').textContent = !prof.valid ? 'Not available' + (prof.reason ? ': ' + prof.reason : '')
+      : prof.code + (prof.allMinimum ? ' · All answers "Dislike": profile does not separate interests'
+        : prof.flat ? ' · All six scores equal: profile does not separate interests'
+        : prof.codeProvisional ? ' · Provisional: tied scores (' + prof.ties.map(function(t) { return t.letters.join('='); }).join(', ') + ') ordered R,I,A,S,E,C by convention'
+        : '');
+    const list = function(items) { return items && items.length ? items.join(', ') : 'None'; };
+    const status = document.getElementById('recStatus');
+    // The badge carries the Preferred Course status, so the Preferred Course line shows only the course.
+    status.textContent = r.mismatchReason === 'no_worksheet' ? 'No worksheet'
+      : r.matchStatus === 'mismatch' ? 'Preferred differs from RIASEC' : r.matchStatus === 'match' ? 'Preferred matches RIASEC' : '—';
+    status.className = 'sp-badge ' + (r.matchStatus === 'match' ? 'done' : 'wait');
+    document.getElementById('recPreferred').textContent = r.preferredCourse ? withCosine(r.preferredCourse) : 'None';
+    document.getElementById('recBest').textContent = list(r.bestRiasecMatch.map(withCosine)) +
+      (r.bestRiasecMatch.length > 1 ? ' · ' + r.bestRiasecMatch.length + ' tied' : '') + (r.needsRecompute ? ' · Outdated: run recompute' : '');
+    document.getElementById('recAlternatives').textContent = list(r.alternatives.map(withCosine));
+    // Prediction Module (modules/ContentBasedFiltering/api/recommendations.php predictionDetail): staff only, separate from the CBF.
+    const pd = r.predictionDetail || { status: 'unavailable', reason: 'Not available.' };
+    const where = function(c) {
+      return c.inBestRiasecMatch ? ' · In Best Match' : c.inAlternatives ? ' · In Alternatives' : ' · Outside RIASEC matches';
+    };
+    const courseName = function(c) { return c.title || (c.label + ' (not in the program list)'); };
+    const prob = function(p) { return p.toFixed(3); };
+    const predEl = document.getElementById('recPrediction');
+    if (pd.status === 'available') {
+      predEl.textContent = courseName(pd.predicted) + where(pd.predicted) + (pd.savedPredictionDiffers ? ' · Saved result is from an older model: run recompute' : '');
+      const top3 = document.getElementById('recPredTop3');
+      top3.innerHTML = '';
+      pd.top3.forEach(function(c) {
+        const li = document.createElement('li');
+        li.textContent = courseName(c) + ', probability ' + prob(c.probability) + (c.tied ? ' (tied)' : '');
+        top3.appendChild(li);
+      });
+      top3.classList.remove('hidden');
+      document.getElementById('recPredInputs').textContent = 'Inputs (1 = one of the top 3 types): ' +
+        Object.keys(pd.inputs).map(function(k) { return k + ' ' + pd.inputs[k]; }).join(', ');
+      const dist = document.getElementById('recPredDist');
+      dist.innerHTML = '';
+      pd.distribution.slice().sort(function(a, b) { return b.probability - a.probability; }).forEach(function(c) {
+        const tr = document.createElement('tr');
+        const name = document.createElement('td'); name.textContent = courseName(c);
+        const val = document.createElement('td'); val.textContent = prob(c.probability); val.style.textAlign = 'right';
+        tr.appendChild(name); tr.appendChild(val); dist.appendChild(tr);
+      });
+      const unknown = function(v) { return v === null || v === undefined || v === '' ? 'unknown' : v; };
+      document.getElementById('recPredModel').textContent = 'Model: ' + unknown(pd.model.version) + ' · ' + pd.model.classifier +
+        ' · Weka ' + pd.model.wekaVersion + ' · ' + pd.model.classes + ' classes. Inputs: ' + unknown(pd.model.featureEncoding) +
+        '. Target: ' + unknown(pd.model.targetDefinition) + '. Training records: ' + unknown(pd.model.trainingRecords) +
+        ' (data version: ' + unknown(pd.model.trainingDataVersion) + '). Evaluation: ' + unknown(pd.model.evaluationProtocol) +
+        '. Equal probabilities are listed in the model\'s class order.';
+      document.getElementById('recPredDetails').classList.remove('hidden');
+      document.getElementById('recModelVersion').textContent = "Past students' intended course (" + (pd.model.version || 'J48') + ')';
+    } else {
+      // Unavailable: say why; the RIASEC recommendations above are unaffected.
+      predEl.textContent = 'Unavailable: ' + (pd.reason || 'the Prediction Module could not run.');
+    }
+    document.getElementById('recommendationCard').classList.remove('hidden');
+  }
+
+  async function loadCounselingNotes(studentId) {
+    counselingNotesStudentId = studentId;
+    let data;
+    try {
+      data = await PP.fetchJson('api/counseling-notes.php?studentId=' + studentId);
+    } catch (e) {
+      if (e.status === undefined) {
+        // Could not reach the server: keep the card and offer a retry instead of hiding it.
+        document.getElementById('counselingNotesCard').classList.remove('hidden');
+        PP.showError(document.getElementById('counselingNotesList'), e.message, function() { loadCounselingNotes(studentId); });
+        return;
+      }
+      // No access to this module at all — don't show a broken empty card.
+      document.getElementById('counselingNotesCard').classList.add('hidden');
+      document.getElementById('profileGrid').classList.add('solo');
+      return;
+    }
+    document.getElementById('counselingNotesCard').classList.remove('hidden');
+    document.getElementById('counselingNoteComposer').classList.remove('hidden');
+    document.getElementById('counselingNoteComposer').classList.add('flex');
+    renderCounselingNotes(data.notes || []);
+  }
+  document.getElementById('addCounselingNoteBtn').addEventListener('click', async () => {
+    const input = document.getElementById('counselingNoteInput');
+    const errorEl = document.getElementById('counselingNoteError');
+    const btn = document.getElementById('addCounselingNoteBtn');
+    const note = input.value.trim();
+    errorEl.classList.add('hidden');
+    if (!note) {
+      errorEl.textContent = 'Enter a note first.';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    btn.disabled = true;
+    const res = await fetch('api/counseling-notes.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ studentId: counselingNotesStudentId, note })
+    });
+    const data = await res.json();
+    btn.disabled = false;
+    if (!data.success) {
+      errorEl.textContent = data.error || 'Failed to add note.';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    input.value = '';
+    await loadCounselingNotes(counselingNotesStudentId);
+  });
+
+  const params = new URLSearchParams(window.location.search);
+  const studentUserId = params.get('id') || '';
+
+  if (!/^\d+$/.test(studentUserId)) {
+    document.getElementById('detailsGrid').classList.add('hidden');
+    document.getElementById('notFoundState').classList.remove('hidden');
+  } else {
+    const nameSkeleton = '<span class="sk" style="display:inline-block;width:220px;height:1em"></span>';
+    PP.showSkeleton(document.getElementById('studentName'), nameSkeleton);
+    PP.showSkeleton(document.getElementById('studentId'), '<span class="sk" style="display:inline-block;width:150px;height:.9em"></span>');
+    let data = null, loadError = null;
+    try {
+      data = await PP.fetchJson('api/students.php?id=' + encodeURIComponent(studentUserId));
+    } catch (e) {
+      loadError = e;
+    }
+    if (loadError && loadError.status === undefined) {
+      // The server could not be reached (not "this student does not exist"): say so, with a retry.
+      document.getElementById('detailsGrid').classList.add('hidden');
+      const nf = document.getElementById('notFoundState');
+      nf.classList.remove('hidden');
+      PP.showError(nf, loadError.message, function() { window.location.reload(); });
+    } else if (loadError || !data.student) {
+      document.getElementById('detailsGrid').classList.add('hidden');
+      document.getElementById('notFoundState').classList.remove('hidden');
+    } else {
+      document.getElementById('studentName').removeAttribute('aria-busy');
+      document.getElementById('studentId').removeAttribute('aria-busy');
+      const s = data.student;
+      toggleActiveUserId = s.userId;
+      renderToggleActiveButton(s.isActive);
+      if (s.lockedUntil) document.getElementById('unlockAccountBtn').classList.remove('hidden');
+      if (currentUser.role === 'admin' && s.status === 'Completed') document.getElementById('resetAssessmentBtn').classList.remove('hidden');
+      document.getElementById('studentName').textContent = s.name;
+      PP.renderAvatar(document.getElementById('studentAvatar'), { first: s.firstName, last: s.lastName, name: s.name, size: 24 });
+      document.getElementById('studentId').textContent = 'Grade ' + s.gradeLevel + ' · ' + s.strand + ' ' + s.section;
+      document.getElementById('strandChip').textContent = s.strand + ' Track';
+      document.getElementById('ayChip').textContent = s.academicYear ? 'AY ' + s.academicYear : 'AY —';
+      document.getElementById('statusDot').classList.toggle('off', !s.isActive);
+      document.getElementById('gradeLevelField').textContent = 'Grade ' + s.gradeLevel;
+      document.getElementById('strandField').textContent = s.strand;
+      document.getElementById('sectionField').textContent = s.section;
+
+      // Staff can correct the section after registration; only sections that
+      // belong to this student's strand are offered (server re-checks).
+      const sectionField = document.getElementById('sectionField');
+      const sectionEditor = document.getElementById('sectionEditor');
+      const sectionSelect = document.getElementById('sectionSelect');
+      const sectionError = document.getElementById('sectionError');
+      const editSectionBtn = document.getElementById('editSectionBtn');
+      const saveSectionBtn = document.getElementById('saveSectionBtn');
+      function closeSectionEditor() {
+        sectionEditor.classList.add('hidden');
+        sectionEditor.classList.remove('flex');
+        sectionField.classList.remove('hidden');
+        editSectionBtn.classList.remove('hidden');
+        sectionError.classList.add('hidden');
+      }
+      editSectionBtn.classList.remove('hidden');
+      editSectionBtn.addEventListener('click', function() {
+        sectionSelect.innerHTML = '<option value="">Select section</option>' +
+          (s.allowedSections || []).map(function(sec) {
+            return '<option value="' + sec + '"' + (sec === s.section ? ' selected' : '') + '>' + sec + '</option>';
+          }).join('');
+        sectionField.classList.add('hidden');
+        editSectionBtn.classList.add('hidden');
+        sectionEditor.classList.remove('hidden');
+        sectionEditor.classList.add('flex');
+        sectionSelect.focus();
+      });
+      document.getElementById('cancelSectionBtn').addEventListener('click', closeSectionEditor);
+      saveSectionBtn.addEventListener('click', async function() {
+        if (!sectionSelect.value) {
+          sectionError.textContent = 'Choose a section.';
+          sectionError.classList.remove('hidden');
+          return;
+        }
+        saveSectionBtn.disabled = true;
+        const saveRes = await fetch('api/students.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'updateSection', userId: s.userId, section: sectionSelect.value })
+        });
+        const saveData = await saveRes.json();
+        saveSectionBtn.disabled = false;
+        if (!saveData.success) {
+          sectionError.textContent = saveData.error || 'Failed to update section.';
+          sectionError.classList.remove('hidden');
+          return;
+        }
+        s.section = saveData.section;
+        sectionField.textContent = saveData.section;
+        document.getElementById('studentId').textContent = 'Grade ' + s.gradeLevel + ' · ' + s.strand + ' ' + saveData.section;
+        closeSectionEditor();
+      });
+
+      document.getElementById('academicYearField').textContent = s.academicYear || 'Not set';
+      const badge = document.getElementById('statusBadge');
+      badge.textContent = s.status === 'Completed' ? '✓ Completed' : s.status;
+      badge.className = 'sp-badge ' + (s.status === 'Completed' ? 'done' : 'wait');
+      document.getElementById('registeredField').textContent = s.registeredAt
+        ? new Date(s.registeredAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+        : 'Not recorded';
+
+      // Top 3 themes: the API sends letters or full names; show the name with the colour of its type.
+      const types = {
+        R: { name: 'Realistic', color: '#f97316' }, I: { name: 'Investigative', color: '#06b6d4' }, A: { name: 'Artistic', color: '#f59e0b' },
+        S: { name: 'Social', color: '#22c55e' }, E: { name: 'Enterprising', color: '#ec4899' }, C: { name: 'Conventional', color: '#3b82f6' }
+      };
+      const letterOf = function(x) {
+        x = String(x).trim();
+        if (types[x.toUpperCase()] && x.length === 1) return x.toUpperCase();
+        return Object.keys(types).find(function(k) { return types[k].name.toLowerCase() === x.toLowerCase(); }) || '';
+      };
+      const topLetters = (s.riasec || '').split(',').map(letterOf).filter(Boolean);
+      const themes = document.getElementById('riasecThemes');
+      themes.innerHTML = topLetters.length
+        ? topLetters.map(function(l) { return '<span class="sp-theme"><i style="background:' + types[l].color + '"></i>' + types[l].name + '</span>'; }).join('')
+        : '<p class="text-sm text-gray-500">Not available — assessment not yet completed.</p>';
+      document.getElementById('dominantLabel').classList.toggle('hidden', !topLetters.length);
+
+
+      // Counseling status: amber until the student has asked for advising, green once they have.
+      const counselingBox = document.getElementById('counselingBox');
+      const counselingText = s.counseling || 'Not applicable';
+      document.getElementById('counselingField').textContent = counselingText;
+      counselingBox.className = 'sp-status' + (counselingText === 'Availed' ? ' ok' : (s.counseling ? '' : ' na'));
+      document.getElementById('counselingLabel').style.color = counselingText === 'Availed' ? '#15803d' : (s.counseling ? '#b45309' : '#6b7280');
+      document.getElementById('counselingBadge').classList.toggle('hidden', !s.openRequest);
+
+      loadRecommendation(s.userId);
+      loadCounselingNotes(s.userId);
+    }
+  }
+
+  const notifBtn = document.getElementById('notifBtn');
+  const notifPanel = document.getElementById('notifPanel');
+  const profileBtn = document.getElementById('profileBtn');
+  const profilePanel = document.getElementById('profilePanel');
+  function toggleDropdown(panel, ...others) {
+    others.forEach(p => p.classList.add('hidden'));
+    panel.classList.toggle('hidden');
+  }
+  notifBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleDropdown(notifPanel, profilePanel); });
+  profileBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleDropdown(profilePanel, notifPanel); });
+  document.addEventListener('click', () => {
+    notifPanel.classList.add('hidden');
+    profilePanel.classList.add('hidden');
+  });
+
+  // Close open dropdown panels on scroll — they were anchored under their
+  // trigger button, and letting them sit still while the page scrolls away
+  // from that anchor looks broken, so just dismiss them instead.
+  window.addEventListener('scroll', () => {
+    document.getElementById('notifPanel')?.classList.add('hidden');
+    document.getElementById('profilePanel')?.classList.add('hidden');
+  }, { passive: true });
+})();
+</script>
+
+<script src="js/motion.js" defer></script>
+<script src="js/notifications.js" defer></script>
+<script>
+(function() {
+  var el = document.getElementById('ayBadgeValue');
+  if (!el) return;
+  fetch('api/security-config.php').then(function(r) { return r.json(); }).then(function(data) {
+    if (data && data.academicYear && data.academicYear.current) {
+      el.textContent = data.academicYear.current;
+    } else {
+      document.getElementById('ayBadge').classList.add('hidden');
+    }
+  }).catch(function() {});
+})();
+</script>
+</body>
+</html>
