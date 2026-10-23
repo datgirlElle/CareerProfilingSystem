@@ -305,7 +305,7 @@
         </div>
       </div>
 
-      <!-- Send Analytics Report (administrator only): emails the Analytics Summary Report as an Excel file (api/analytics-report.php) -->
+      <!-- Send Analytics Report (administrator and Guidance Counselors): emails the Analytics Report as a PDF (api/analytics-report.php) -->
       <section id="sendReportCard" class="hidden bg-white border border-slate-200 rounded-xl shadow-sm mt-6" aria-labelledby="sendReportTitle">
         <div class="border-b border-slate-200 px-5 py-5 flex items-start gap-4">
           <span class="w-10 h-10 rounded-lg bg-[#eef3fc] flex items-center justify-center shrink-0" aria-hidden="true">
@@ -352,8 +352,7 @@
               <li class="flex gap-2.5"><span class="report-tick" aria-hidden="true"></span>Career interests: average RIASEC scores and the top 5 programs</li>
               <li class="flex gap-2.5"><span class="report-tick" aria-hidden="true"></span>Registered students by strand and completion by academic year</li>
             </ul>
-            <p class="text-xs text-slate-500 mt-4">Sent as an Excel file (.xlsx) attached to the email. Totals and percentages only: no student names, Student Numbers or assessment answers.</p>
-            <p class="text-xs text-slate-500 mt-2">The file is protected against editing. Its edit password is emailed to you, not to the recipient.</p>
+            <p class="text-xs text-slate-500 mt-4">Sent as a PDF report attached to the email, with charts and tables. Totals and percentages only: no student names, Student Numbers or assessment answers.</p>
           </div>
         </div>
       </section>
@@ -407,9 +406,9 @@
     </div>
     <div id="reportPreviewBody" class="px-6 py-5 overflow-y-auto flex flex-col gap-6" tabindex="0" aria-label="Report contents"></div>
     <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl">
-      <button type="button" id="reportDownloadBtn" class="inline-flex items-center gap-2 text-sm font-medium text-[#0f2a6b] hover:underline">
+      <button type="button" id="reportDownloadBtn" class="inline-flex items-center gap-2 bg-[#0f2a6b] text-white rounded-md px-4 py-2 text-sm font-medium shadow-sm hover:opacity-90" title="The report shown here as a PDF file, for the school year and filters on this page.">
         <svg class="w-4 h-4" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
-        Download the Excel file
+        Export as PDF
       </button>
       <button type="button" data-close-dialog class="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-md bg-white hover:bg-slate-50">Close</button>
     </div>
@@ -425,7 +424,7 @@
       <div class="px-4 py-2.5"><dt class="text-xs text-slate-500">Report</dt><dd class="text-slate-800">ProfilePath Career Profiling System: Analytics Summary Report</dd></div>
       <div class="px-4 py-2.5"><dt class="text-xs text-slate-500">Covers</dt><dd id="reportConfirmScope" class="text-slate-800"></dd></div>
     </dl>
-    <p id="reportConfirmText" class="text-sm text-slate-600">An Excel file with assessment participation, career interests and the other tables in the preview, built from the latest data. Totals and percentages only, no student details. The file is protected against editing; its edit password is emailed to you.</p>
+    <p id="reportConfirmText" class="text-sm text-slate-600">A PDF report with assessment participation, career interests and the other tables in the preview, with charts, built from the latest data. Totals and percentages only, no student details.</p>
     <div class="flex justify-end gap-2 pt-1">
       <button type="button" data-close-dialog class="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-300 rounded-md hover:bg-slate-50">Cancel</button>
       <button type="button" id="reportConfirmSendBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#0f2a6b] rounded-md hover:opacity-90">Confirm send</button>
@@ -835,15 +834,18 @@
     }
   }
 
-  // "Download the Excel file" in the report preview: the Analytics Summary Report (api/analytics-report.php), the same
-  // file the Send Analytics Report section emails, for the school year and filters shown on this page.
+  // "Export as PDF" in the report preview: the Analytics Report (api/analytics-report.php, lib/AnalyticsReportPdf.php),
+  // the same file the Send Analytics Report section emails, for the school year and filters shown on this page.
+  // PP.busy disables the button while the PDF is made, so a second click cannot start a second export.
   let lastExportFilter = { strand: '', section: '', academicYear: '' };
   async function downloadReport(btn) {
-    const stop = PP.busy(btn, 'Preparing…');
+    if (btn.disabled) return;
+    const stop = PP.busy(btn, 'Preparing PDF…');
     try {
-      const res = await fetch('api/analytics-report.php?' + new URLSearchParams(Object.assign({ format: 'xlsx' }, lastExportFilter)).toString());
-      if (!res.ok) {
-        let message = 'Could not make the Excel report. Please try again.';
+      const res = await fetch('api/analytics-report.php?' + new URLSearchParams(Object.assign({ format: 'pdf' }, lastExportFilter)).toString());
+      const isPdf = (res.headers.get('Content-Type') || '').includes('application/pdf');
+      if (!res.ok || !isPdf) {
+        let message = 'The PDF report could not be made. Please try again.';
         try { message = (await res.json()).error || message; } catch (e) {}
         showToast(message, true);
         return;
@@ -851,17 +853,12 @@
       const match = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '');
       const url = URL.createObjectURL(await res.blob());
       const a = document.createElement('a');
-      a.href = url; a.download = match ? match[1] : 'ProfilePath-Analytics-Summary-Report.xlsx';
+      a.href = url; a.download = match ? match[1] : 'ProfilePath_Analytics_Report.pdf';
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
-      // The file is protected against editing; its password was emailed to whoever downloaded it.
-      const to = res.headers.get('X-Password-Emailed-To');
-      const localPassword = res.headers.get('X-Edit-Password'); // only when no email service is set up (local testing)
-      showToast(localPassword
-        ? 'Report downloaded. The email could not be sent here, so the edit password is: ' + localPassword
-        : 'Report downloaded. The password to edit it was emailed to ' + (to || 'you') + '.', false);
+      showToast('Analytics Report exported as PDF: ' + a.download, false);
     } catch (e) {
-      showToast('Unable to reach the server. Please try again.', true);
+      showToast('Unable to reach the server, so the PDF was not made. Please try again.', true);
     } finally {
       stop();
     }
@@ -943,7 +940,7 @@
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }, true);
 
-    // Preview: the report as tables, built on the server from the same data as the Excel file.
+    // Preview: the report as tables, built on the server from the same data as the PDF.
     const fmt = function(v) { return typeof v === 'number' ? (Number.isInteger(v) ? v.toLocaleString() : v.toFixed(1)) : v; };
     function renderPreview(report) {
       document.getElementById('reportPreviewMeta').textContent = report.scope + ' · Generated ' + report.generatedAt;
@@ -975,7 +972,7 @@
         body.innerHTML = '<p class="text-sm text-red-700" role="alert">' + escapeHtml(e.message && e.message !== 'Failed to fetch' ? e.message : 'Unable to reach the server. Please try again.') + '</p>';
       }
     });
-    // The exact file that would be attached, to open in Excel before sending.
+    // The exact PDF that would be attached, to check before sending.
     document.getElementById('reportDownloadBtn').addEventListener('click', function() { downloadReport(this); });
 
     // Send: check the address, confirm in a dialog, then send once. The result shown is the server's answer.

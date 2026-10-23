@@ -148,6 +148,8 @@ $actionLabels = [
     // Reports and exports
     'export_analytics_xlsx' => 'Exported analytics report',
     'export_analytics_xlsx_failed' => 'Analytics export failed',
+    'export_analytics_pdf' => 'Exported analytics report (PDF)',
+    'export_analytics_pdf_failed' => 'Analytics PDF export failed',
     'send_analytics_report' => 'Sent analytics report',
     'send_analytics_report_failed' => 'Analytics report not sent',
     'export_audit_log' => 'Exported audit log',
