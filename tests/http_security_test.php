@@ -122,13 +122,14 @@ try {
     $r = $c->req('POST', '/api/career-match.php', ['career' => "'; SELECT pg_sleep(0)--"]); check('SQLi in career input: no 500', $r['code'] < 500, (string) $r['code']);
     $r = $c->req('POST', '/api/career-match.php', ['career' => '']); check('empty career input handled', $r['code'] < 500, (string) $r['code']);
 
-    echo "\n=== Lockout (5 attempts, 15 minutes) ===\n";
+    echo "\n=== Lockout (5 attempts, soft growing lock: 1 min the first time today, modules/Authentication/lib/LoginLock.php) ===\n";
+    $pdo->exec("DELETE FROM rate_limit_hits WHERE rate_key LIKE 'login-fail:%' OR rate_key LIKE 'login-lock:%'");
     $l = new Client($base);
     for ($i = 0; $i < 5; $i++) { $l->login('qa_stu_b', 'bad' . $i); }
     $r = $l->login('qa_stu_b', $pw, 'student'); check('correct password refused while locked (423)', $r['code'] === 423, (string) $r['code']);
     $lu = $pdo->query("SELECT locked_until FROM users WHERE username='qa_stu_b'")->fetchColumn();
     $mins = round((strtotime((string) $lu) - time()) / 60);
-    check('lock duration is about 15 minutes', $mins >= 14 && $mins <= 15, "$mins min");
+    check('first lock of the day is about 1 minute', $mins >= 1 && $mins <= 2, "$mins min");
 
     echo "\n=== Logout invalidates the session ===\n";
     $x = new Client($base); $x->login('qa_stu_a', $pw, 'student');

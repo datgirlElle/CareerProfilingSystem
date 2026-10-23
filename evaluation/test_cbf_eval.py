@@ -16,10 +16,11 @@ def student(sid, vec, actual="BS Architecture"):
 
 
 class Vectors(unittest.TestCase):
-    def test_default_is_binary_like_the_web_app(self):
-        self.assertEqual(m.DEFAULT_ENCODING, "binary")
-        self.assertEqual(m.holland_to_vector("IRC"), [1.0, 1.0, 0.0, 0.0, 0.0, 1.0])
-        self.assertEqual(m.holland_to_vector("AES"), [0.0, 0.0, 1.0, 1.0, 1.0, 0.0])
+    def test_default_is_ranksum_like_the_web_app(self):
+        self.assertEqual(m.DEFAULT_ENCODING, "ranksum")
+        self.assertEqual(m.holland_to_vector("IRC"), [2.0, 3.0, 0.0, 0.0, 0.0, 1.0])
+        self.assertEqual(m.holland_to_vector("RIC"), [3.0, 2.0, 0.0, 0.0, 0.0, 1.0])
+        self.assertEqual(m.holland_to_vector("AES"), [0.0, 0.0, 3.0, 1.0, 2.0, 0.0])
 
     def test_proposed_encoding_examples(self):
         p = m.ENCODINGS["proposed"]
@@ -168,8 +169,8 @@ class AdviserCsvFormat(unittest.TestCase):
 class Evaluation(unittest.TestCase):
     def test_metrics_relationships(self):
         cv = m.course_vectors(m.ENCODINGS["proposed"])
-        rows = [student("1", m.holland_to_vector("ARI"), "BS Architecture"),   # rank 1
-                student("2", m.holland_to_vector("ARI"), "BS Nursing")]        # far down
+        rows = [student("1", m.holland_to_vector("ARI", m.ENCODINGS["proposed"]), "BS Architecture"),   # rank 1
+                student("2", m.holland_to_vector("ARI", m.ENCODINGS["proposed"]), "BS Nursing")]        # far down
         res = m.evaluate(rows, cv, 3, "unit")
         self.assertAlmostEqual(res["HitRate@3"], 0.5)
         self.assertAlmostEqual(res["Recall@3"], res["HitRate@3"])
@@ -215,7 +216,7 @@ class Evaluation(unittest.TestCase):
         row = {"StudentID": "1", "R": "4", "I": "5", "A": "1", "S": "1", "E": "2", "C": "4"}
         self.assertEqual(m.student_vector(row, "scores"), [4.0, 5.0, 1.0, 1.0, 2.0, 4.0])
         # Same ranking as the web app: IRC course cosine 0.946 (13 / (sqrt(63) * sqrt(3))).
-        self.assertAlmostEqual(m.cosine(m.student_vector(row, "scores"), m.holland_to_vector("IRC")), 13 / (math.sqrt(63) * math.sqrt(3)))
+        self.assertAlmostEqual(m.cosine(m.student_vector(row, "scores"), m.holland_to_vector("IRC", m.ENCODINGS["binary"])), 13 / (math.sqrt(63) * math.sqrt(3)))
 
     def test_top3_arff_uses_x_blank(self):
         with tempfile.TemporaryDirectory() as d:
