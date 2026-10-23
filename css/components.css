@@ -23,6 +23,12 @@
 .pp-filter-select {
   padding-right: 32px;
   cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10.5' height='6' viewBox='0 0 10.5 6' fill='none'%3E%3Cpath d='M4.71094 5.78906C4.86719 5.92969 5.04688 6 5.25 6V6C5.45312 6 5.63281 5.92969 5.78906 5.78906L10.2891 1.28906C10.4297 1.13281 10.5 0.953125 10.5 0.75C10.5 0.546875 10.4297 0.367188 10.2891 0.210938C10.1328 0.0703125 9.95312 0 9.75 0C9.54688 0 9.36719 0.0703125 9.21094 0.210938L5.25 4.19531L1.28906 0.210938C1.13281 0.0703125 0.953125 0 0.75 0C0.546875 0 0.367188 0.0703125 0.210938 0.210938C0.0703125 0.367188 0 0.546875 0 0.75C0 0.953125 0.0703125 1.13281 0.210938 1.28906L4.71094 5.78906V5.78906V5.78906' fill='%2364748B'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 10.5px 6px;
 }
 .pp-filter-input::placeholder {
   color: #9ca3af;
