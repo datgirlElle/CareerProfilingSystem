@@ -28,20 +28,51 @@ import weka.core.converters.ConverterUtils.DataSource;
  * classifyInstance() result and its full distributionForInstance(). Nothing is recomputed
  * outside Weka.
  *
- *   java -cp "weka.jar:export-j48.jar" ExportJ48Lookup <model> <out.json> <version> [header.arff]
+ *   java -cp "weka.jar:export-j48.jar" ExportJ48Lookup <model> <out.json> <version> --encoding top3-binary
+ *        [--header train.arff] [--training-records N] [--training-data "name/version"]
+ *        [--evaluation "protocol"]
  *   (Windows: use ; instead of : in -cp)
  *
- * header.arff is needed only when the .model file has no training header (models saved from
- * the Explorer include it; models saved with the command-line -d option do not).
+ * --encoding must be declared and must be top3-binary: the only encoding this lookup can serve
+ * (1 = one of the student's three highest RIASEC scores, 0 = not). A raw-score model has the same
+ * header (six numeric attributes), so the tree is also checked: every split must lie in [0, 1),
+ * as binary inputs give; a split such as "C <= 12" stops the export.
+ * --header is needed only when the .model file has no training header (models saved from the
+ * Explorer include it). The training and evaluation options record what the team declares; the
+ * .model file itself does not contain them, and anything not given is exported as unknown (null).
  */
 public class ExportJ48Lookup {
     static final String[] DIMS = {"R", "I", "A", "S", "E", "C"};
 
     public static void main(String[] args) throws Exception {
-        if (args.length < 3) {
-            System.err.println("Usage: ExportJ48Lookup <model> <out.json> <version> [header.arff]");
+        List<String> positional = new ArrayList<>();
+        java.util.Map<String, String> opt = new java.util.HashMap<>();
+        for (int i = 0; i < args.length; i++) {
+            if (args[i].startsWith("--")) {
+                if (i + 1 >= args.length) {
+                    fail("Missing value for " + args[i]);
+                }
+                opt.put(args[i], args[++i]);
+            } else {
+                positional.add(args[i]);
+            }
+        }
+        if (positional.size() < 3) {
+            System.err.println("Usage: ExportJ48Lookup <model> <out.json> <version> --encoding top3-binary [--header train.arff]"
+                + " [--training-records N] [--training-data name] [--evaluation protocol]");
             System.exit(2);
         }
+        if (positional.size() > 3) {
+            opt.putIfAbsent("--header", positional.get(3));   // older form: header as 4th argument
+        }
+        String encoding = opt.get("--encoding");
+        if (encoding == null) {
+            fail("Declare the feature encoding the model was trained on: --encoding top3-binary");
+        }
+        if (!encoding.equals("top3-binary")) {
+            fail("This export serves only --encoding top3-binary (found '" + encoding + "'). A model trained on raw scores cannot be served by the 20-input lookup.");
+        }
+        args = positional.toArray(new String[0]);
         File modelFile = new File(args[0]);
         Object[] objects = SerializationHelper.readAll(modelFile.getPath());
         if (objects.length == 0 || !(objects[0] instanceof Classifier)) {
@@ -51,10 +82,10 @@ public class ExportJ48Lookup {
         Instances header = null;
         if (objects.length > 1 && objects[1] instanceof Instances) {
             header = new Instances((Instances) objects[1], 0);
-        } else if (args.length > 3) {
-            header = new Instances(new DataSource(args[3]).getDataSet(), 0);
+        } else if (opt.containsKey("--header")) {
+            header = new Instances(new DataSource(opt.get("--header")).getDataSet(), 0);
         } else {
-            fail("The model has no training header. Pass the training .arff as the 4th argument.");
+            fail("The model has no training header. Pass the training .arff with --header.");
         }
         if (header.classIndex() < 0) {
             header.setClassIndex(header.numAttributes() - 1);
@@ -78,6 +109,19 @@ public class ExportJ48Lookup {
         }
         if (header.classIndex() != 6 || !header.classAttribute().isNominal()) {
             fail("The class must be the 7th attribute and nominal (index " + header.classIndex() + ")");
+        }
+
+        // ---- the tree must fit 0/1 inputs: every numeric split in [0, 1) ----
+        java.util.regex.Pattern split = java.util.regex.Pattern.compile("^[|\\s]*([A-Za-z]+)\\s*(<=|>=|<|>)\\s*(-?[0-9.]+(?:[Ee][-+]?[0-9]+)?)");
+        for (String line : classifier.toString().split("\\r?\\n")) {
+            java.util.regex.Matcher m = split.matcher(line);
+            if (m.find()) {
+                double t = Double.parseDouble(m.group(3));
+                if (t < 0 || t >= 1) {
+                    fail("The tree splits at '" + line.trim() + "'. Top-three binary inputs are 0 or 1, so every split must be in [0, 1). "
+                        + "This looks like a model trained on raw scores; it cannot be served by the 20-input lookup.");
+                }
+            }
         }
 
         Attribute cls = header.classAttribute();
@@ -146,6 +190,16 @@ public class ExportJ48Lookup {
             out.println("  \"relation\": " + json(header.relationName()) + ",");
             out.println("  \"attributes\": [" + attrJson + "],");
             out.println("  \"attribute_type\": \"numeric\",");
+            out.println("  \"feature_encoding\": \"top3-binary\",");
+            out.println("  \"feature_encoding_description\": \"1 = one of the student's three highest RIASEC scores, 0 = not; equal scores taken in R, I, A, S, E, C order (project rule); exactly three 1s\",");
+            out.println("  \"target_definition\": \"The student's stated intended/preferred course (dataset column '" + jsonInner(header.classAttribute().name())
+                + "'); not verified enrolment and not an independently assessed suitable course\",");
+            out.println("  \"training\": {\"records\": " + (opt.containsKey("--training-records") ? String.valueOf(Integer.parseInt(opt.get("--training-records"))) : "null")
+                + ", \"data_version\": " + (opt.containsKey("--training-data") ? json(opt.get("--training-data")) : "null")
+                + ", \"source\": \"declared at export; not stored in the .model file\"},");
+            out.println("  \"evaluation\": {\"protocol\": " + (opt.containsKey("--evaluation") ? json(opt.get("--evaluation")) : "null")
+                + ", \"source\": \"declared at export; not stored in the .model file\"},");
+            out.println("  \"exporter_version\": 2,");
             out.println("  \"class_attribute\": " + json(cls.name()) + ",");
             out.println("  \"class_index\": " + header.classIndex() + ",");
             out.println("  \"class_labels\": [" + labelJson + "],");
@@ -175,6 +229,11 @@ public class ExportJ48Lookup {
             hex.append(String.format("%02x", b));
         }
         return hex.toString();
+    }
+
+    static String jsonInner(String s) {
+        String q = json(s);
+        return q.substring(1, q.length() - 1);
     }
 
     static String json(String s) {

@@ -176,3 +176,6 @@ recommendation. The model (`models/ProfilePath_J48_Binary.model`) is exported to
 `config/prediction_model.json` with Weka's own predictions and probabilities, so the server needs no
 Java. See `tools/weka/README.md` for the export, the check against Weka, and the API.
 
+Scoring, reproducible assessments, ordered codes and ties, the CBF method and its limits, what each
+evaluation shows and the manuscript alignment are documented in `docs/methodology-notes.md`.
+

@@ -54,7 +54,7 @@ Windows Command Prompt (paths for a Weka 3.9.6 install in `D:\Weka\Weka-3-9-6`):
 set WEKA=D:\Weka\Weka-3-9-6\weka.jar
 
 :: 1. Export Weka's predictions for all 20 inputs
-java -cp "%WEKA%;tools\weka\export-j48.jar" ExportJ48Lookup models\ProfilePath_J48_Binary.model config\prediction_model.json "ProfilePath J48 Binary (J48 -C 0.1 -M 10, 296 records)"
+java -cp "%WEKA%;tools\weka\export-j48.jar" ExportJ48Lookup models\ProfilePath_J48_Binary.model config\prediction_model.json "ProfilePath J48 Binary (J48 -C 0.1 -M 10, 296 records)" --encoding top3-binary --training-records 296 --evaluation "10-fold cross-validation (development results; run seeds not yet confirmed)"
 
 :: 2. Check the application against Weka's own command line
 php db\verify_prediction_model.php --write-arff profiles20.arff
@@ -65,9 +65,17 @@ php db\verify_prediction_model.php weka_predictions.csv
 php db\recompute_recommendations.php
 ```
 
+`--encoding top3-binary` is required: it declares that the model was trained on the 0/1
+top-three inputs. The export also refuses a tree whose splits do not fit 0/1 inputs (a model
+trained on raw scores splits at values such as `C <= 12`), and the application refuses such a
+file at run time (`PredictionModel::validateLookup`). `--training-records`, `--training-data` and
+`--evaluation` record what the team declares; the .model file does not contain them, and anything
+left out is shown to staff as "unknown". Raw-score models (e.g. exploratory experiments) cannot be
+deployed through this lookup.
+
 If `java` is not found, use the `java.exe` inside Weka's own folder (`dir /s /b D:\Weka\Weka-3-9-6\java.exe`).
 On macOS/Linux use `:` instead of `;` in `-cp`. If the model was saved without its training
-header, add the training `.arff` as a 4th argument to step 1.
+header, add `--header train.arff` to step 1.
 
 `export-j48.jar` is built from `ExportJ48Lookup.java` for Java 8+:
 `javac --release 8 -cp weka.jar ExportJ48Lookup.java && jar cf export-j48.jar ExportJ48Lookup.class`.

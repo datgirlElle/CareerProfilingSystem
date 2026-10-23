@@ -260,7 +260,7 @@
           </a>
           <div>
             <h1 class="text-[28px] font-bold text-[#001a40] tracking-tight">Career Results</h1>
-            <p class="text-sm text-[#5e3f3c] mt-1">MMCL courses that fit your RIASEC interests.</p>
+            <p class="text-sm text-[#5e3f3c] mt-1">Programs to explore based on your interests.</p>
           </div>
         </div>
 
@@ -272,7 +272,7 @@
           </div>
           <div class="pp-profile">
             <div>
-              <p class="pp-label mb-3">Top 3 Interest Areas</p>
+              <p class="pp-label mb-3">Your Ranked Interests</p>
               <div id="cr-topTypes" class="pp-top3"></div>
             </div>
             <div>
@@ -280,13 +280,46 @@
               <div id="cr-allScores" class="pp-bars"></div>
             </div>
           </div>
+          <p id="cr-codeNote" class="hidden pp-note mt-4"></p>
           <details class="pp-more mt-4 pt-4 border-t border-[#e0e3e5]">
             <summary>What do my interest areas mean?</summary>
             <div id="cr-typeInfo" class="pp-more-body flex flex-col gap-2"></div>
           </details>
         </section>
 
-        <!-- 2. Preferred Course: what the student selected (Career Worksheet). -->
+        <!-- Guidance note when the profile does not separate interests (flat, all-minimum). -->
+        <div id="cr-profileNotice" class="hidden pp-note flex flex-col gap-2" role="note"></div>
+
+        <!-- 2. Best RIASEC Match: CBF only (RIASEC profile + approved program codes + cosine similarity). -->
+        <section class="pp-section" aria-labelledby="crBestHeading">
+          <div class="pp-sechead">
+            <h2 id="crBestHeading" class="pp-h2">Best RIASEC Match</h2>
+            <p class="pp-sub">Programs to explore based on your interests</p>
+          </div>
+          <details class="pp-more mb-4">
+            <summary>How is this worked out?</summary>
+            <div class="pp-more-body flex flex-col gap-2">
+              <p>We compare your six RIASEC scores with each program's RIASEC code, approved by the Guidance Office.
+              The programs whose code is closest to your pattern of interests appear here. Your preferred course does not change this list.</p>
+              <p>A program's code is compared by which three interest areas it includes, not by their order. Programs with the same
+              three letters in any order (for example IRC, RIC and ICR) are therefore equally close to you and are listed together.</p>
+              <p>These are programs to explore with your counselor. They do not decide admission or predict how well you will do.</p>
+            </div>
+          </details>
+          <p id="cr-tieNote" class="hidden pp-note"></p>
+          <div id="cr-bestRiasec" class="pp-grid"></div>
+        </section>
+
+        <!-- 3. Alternative Courses: the next most similar programs (CBF only). -->
+        <section class="pp-section" aria-labelledby="crAltHeading">
+          <div class="pp-sechead">
+            <h2 id="crAltHeading" class="pp-h2">Alternative Courses</h2>
+            <p class="pp-sub">More programs to explore, the next closest to your interests</p>
+          </div>
+          <div id="cr-alternatives" class="pp-grid"></div>
+        </section>
+
+        <!-- 4. Preferred Course (shown separately; never part of the CBF calculation): what the student selected (Career Worksheet). -->
         <section class="pp-section" aria-labelledby="crPrefHeading">
           <div class="pp-sechead">
             <h2 id="crPrefHeading" class="pp-h2">Preferred Course</h2>
@@ -295,42 +328,8 @@
           <div id="cr-preferred"></div>
         </section>
 
-        <!-- 3. Best RIASEC Match: CBF only (RIASEC profile + course RIASEC codes + cosine similarity).
-             Not the final Best Match, which will also need the prediction model. -->
-        <section class="pp-section" aria-labelledby="crBestHeading">
-          <div class="pp-sechead">
-            <h2 id="crBestHeading" class="pp-h2">Best RIASEC Match</h2>
-            <p class="pp-sub">The courses most similar to your RIASEC profile</p>
-          </div>
-          <details class="pp-more mb-4">
-            <summary>How is this worked out?</summary>
-            <div class="pp-more-body">
-              We compare your six RIASEC scores with each course's RIASEC code. The courses whose pattern is
-              closest to yours appear here. Your preferred course does not change this list.
-            </div>
-          </details>
-          <p id="cr-tieNote" class="hidden pp-note"></p>
-          <div id="cr-bestRiasec" class="pp-grid"></div>
-        </section>
 
-        <!-- 4. Alternative Courses: the next most similar courses (CBF only). -->
-        <section aria-labelledby="crAltHeading">
-          <div class="pp-sechead">
-            <h2 id="crAltHeading" class="pp-h2">Alternative Courses</h2>
-            <p class="pp-sub">Your next most similar courses</p>
-          </div>
-          <div id="cr-alternatives" class="pp-grid"></div>
-        </section>
 
-        <!-- 5. Prediction model (WEKA J48): shown only when the API sends it
-             (config/cbf.php decision_tree.show_to_students). Separate from the CBF. -->
-        <section id="cr-predictionSection" class="hidden mt-8" aria-labelledby="crPredHeading">
-          <div class="pp-sechead">
-            <h2 id="crPredHeading" class="pp-h2">What Students Like You Chose</h2>
-            <p class="pp-sub">Based on past students with the same top 3 interest areas. Not a recommendation.</p>
-          </div>
-          <div id="cr-prediction"></div>
-        </section>
       </div>
 
       <p class="text-xs text-gray-400 text-center mt-6 max-w-2xl mx-auto">This site incorporates information from <a href="https://services.onetcenter.org/" target="_blank" rel="noopener noreferrer" class="underline hover:text-gray-600">O*NET Web Services</a> by the U.S. Department of Labor, Employment and Training Administration (USDOL/ETA).</p>
@@ -517,9 +516,15 @@ document.addEventListener('click', function (e) {
   }
 
   const scores = status.scores;
-  const ranked = AXIS_ORDER
-    .map(function(name) { return { name: name, score: scores[name[0]] }; })
-    .sort(function(a, b) { return b.score - a.score; });
+  // Ranked interests and ordered code come from the server (lib/RiasecProfile.php), the same
+  // implementation the exports and the API use. Equal scores keep the order R, I, A, S, E, C.
+  const profile = status.riasecProfile && status.riasecProfile.valid ? status.riasecProfile : null;
+  const ranked = profile
+    ? profile.ranking.map(function(r) { return { name: r.name, score: r.score, rank: r.rank, tied: r.tied }; })
+    : AXIS_ORDER
+      .map(function(name) { return { name: name, score: scores[name[0]] }; })
+      .sort(function(a, b) { return b.score - a.score; });
+  const codeSuffix = profile && profile.codeProvisional ? ' (provisional)' : '';
 
   // A student can land here either from the RIASEC assessment card (which
   // should always show the RIASEC-only profile, never the worksheet-derived
@@ -573,7 +578,7 @@ document.addEventListener('click', function (e) {
     return '<span class="bg-slate-100 border border-[#e0e3e5] text-[#5e3f3c] text-xs font-semibold px-3 py-1 rounded-full">' + t + '</span>';
   }).join('');
 
-  document.getElementById('hollandCode').textContent = ranked.slice(0, 3).map(function(r) { return r.name[0]; }).join(' ');
+  document.getElementById('hollandCode').textContent = ranked.slice(0, 3).map(function(r) { return r.name[0]; }).join(' ') + codeSuffix;
 
   const intensityHtml = ranked.map(function(r, i) {
     const pct = Math.round((r.score / MAX_SCORE) * 100);
@@ -645,14 +650,15 @@ document.addEventListener('click', function (e) {
   async function renderCareerResults(recommendation) {
     const top3 = ranked.slice(0, 3);
     const topLetters = top3.map(function(r) { return TYPE_INFO[r.name].letter; });
-    document.getElementById('cr-code').textContent = topLetters.join(' ');
+    document.getElementById('cr-code').textContent = topLetters.join(' ') + codeSuffix;
+
 
     document.getElementById('cr-topTypes').innerHTML = top3.map(function(r, i) {
       const info = TYPE_INFO[r.name];
       return '<div class="pp-top3-item">' +
-        '<span class="pp-rank' + (i === 0 ? ' is-first' : '') + '" aria-label="Rank ' + (i + 1) + '">' + (i + 1) + '</span>' +
+        '<span class="pp-rank' + (i === 0 ? ' is-first' : '') + '" aria-label="Rank ' + (r.rank || i + 1) + (r.tied ? ', tied' : '') + '">' + (r.rank || i + 1) + '</span>' +
         '<div class="min-w-0"><p class="text-sm font-semibold text-[#001c43]">' + r.name + ' (' + info.letter + ')</p>' +
-        '<p class="text-xs text-[#5e3f3c]">' + info.nickname + ' &middot; ' + info.traits.join(', ') + '</p></div>' +
+        '<p class="text-xs text-[#5e3f3c]">' + info.nickname + ' &middot; ' + info.traits.join(', ') + (r.tied ? ' &middot; <b>tied score</b>' : '') + '</p></div>' +
       '</div>';
     }).join('');
 
@@ -720,7 +726,7 @@ document.addEventListener('click', function (e) {
       });
       const extra = chips.length - CHIPS_SHOWN;
       const shown = chips.map(function(c, i) { return i < CHIPS_SHOWN ? c : c.replace('class="pp-chip', 'class="hidden pp-chip-extra pp-chip'); });
-      return '<div><p class="pp-label mb-2" style="color:#5e3f3c;">Careers That Fit</p><div class="pp-chips">' + shown.join('') +
+      return '<div><p class="pp-label mb-2" style="color:#5e3f3c;">Associated Careers</p><div class="pp-chips">' + shown.join('') +
         (extra > 0 ? '<button type="button" class="pp-chip-toggle" aria-expanded="false" data-more="' + extra + '">+' + extra + ' more</button>' : '') +
         '</div></div>';
     }
@@ -731,6 +737,17 @@ document.addEventListener('click', function (e) {
     const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
     const ICON_INFO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 11v5M12 8h.01"/></svg>';
     const COUNSELOR_BTN = '<a href="student-help-center?subject=Request%20for%20Academic%20Advising" class="js-advising-link inline-block border text-xs font-semibold rounded px-4 py-2 hover:opacity-80" style="border-color:#495e88;color:#001c43;background-color:#ffffff;align-self:flex-start;">Talk to a Guidance Counselor</a>';
+
+    // The program's approved RIASEC code (Guidance Office), its letters by name, and, only when the
+    // student's own code is not decided by tied scores, a note when the order is exactly the same.
+    // The note changes nothing in the list; not having it says nothing against the program.
+    function codeLineHtml(p) {
+      if (!p.hollandCode) return '';
+      const names = (p.hollandCodeNames || []).join(', ');
+      return '<p class="text-xs text-[#5e3f3c]">Approved RIASEC code: <span class="font-semibold text-[#001c43] tracking-[1px]">' +
+        escapeText(String(p.hollandCode).toUpperCase()) + '</span>' + (names ? ' (' + escapeText(names) + ')' : '') + '</p>' +
+        (p.exactOrderedCodeMatch === true ? '<p><span class="pp-badge pp-badge--match">' + ICON_CHECK + 'Same letters in the same order as your code</span></p>' : '');
+    }
 
     // "Why this course?": built only from data already on the page — the course's RIASEC
     // code and the student's top three letters.
@@ -745,7 +762,7 @@ document.addEventListener('click', function (e) {
         body += '<p class="flex items-center gap-1.5 flex-wrap">Course RIASEC code: ' + code.map(function(l) {
           return '<span class="pp-letter' + (shared.indexOf(l) !== -1 ? ' is-shared' : '') + '" title="' + TYPE_INFO_BY_LETTER[l] + '">' + l + '</span>';
         }).join('') + '</p>';
-        body += '<p>' + (shared.length
+        if (!(profile && profile.flat)) body += '<p>' + (shared.length
           ? 'It shares <b>' + join(names(shared)) + '</b> with your top 3 interest areas (' + topLetters.join(' ') + ').'
           : 'It doesn\'t share a letter with your top 3, but it is close to your overall profile across all six areas.') + '</p>';
       }
@@ -828,6 +845,7 @@ document.addEventListener('click', function (e) {
           (opts.fav ? favBtnHtml(p) : '') +
         '</div>' +
         (opts.badge ? '<div>' + opts.badge + '</div>' : '') +
+        codeLineHtml(p) +
         careerChipsHtml(p) +
         (opts.body || '') +
         whyHtml(p) +
@@ -846,7 +864,7 @@ document.addEventListener('click', function (e) {
       prefHtml = programCardHtml(preferred, {
         badge: '<span class="pp-badge pp-badge--differs">' + ICON_INFO + 'Differs from your Best RIASEC Match</span>',
         body: typedCareer + '<p class="text-sm text-[#191c1e]">That\'s okay. Your interests are only one part of choosing a course. ' +
-          'Compare it with your Best RIASEC Match below, or talk it through with a Guidance Counselor.</p>' + COUNSELOR_BTN
+          'Compare it with your Best RIASEC Match above, or talk it through with a Guidance Counselor.</p>' + COUNSELOR_BTN
       });
     } else if (recommendation.statedCareer) {
       // The typed career could not be linked to an MMCL program: there is no preferred course to compare.
@@ -859,6 +877,26 @@ document.addEventListener('click', function (e) {
     }
     document.getElementById('cr-preferred').innerHTML = prefHtml;
 
+    // Ties: say which letters scored the same and that the order between them is a convention.
+    const codeNote = document.getElementById('cr-codeNote');
+    if (profile && profile.codeProvisional && !profile.flat) {
+      const tieText = profile.ties.filter(function(t) { return t.positions.some(function(p) { return p <= 3; }); })
+        .map(function(t) { return t.letters.map(function(l) { return TYPE_INFO_BY_LETTER[l] + ' (' + l + ')'; }).join(' and ') + ' both scored ' + t.score; });
+      codeNote.textContent = 'Your code is provisional: ' + tieText.join('; ') + '. Equal scores are listed in the order R, I, A, S, E, C. ' +
+        'That order is only a convention; it does not mean one of these interests is stronger. A Guidance Counselor can help you explore them.';
+      codeNote.classList.remove('hidden');
+    }
+    // Flat or all-minimum profiles: every program is equally similar, so say so instead of implying a clear match.
+    const notice = document.getElementById('cr-profileNotice');
+    if (profile && profile.flat) {
+      notice.innerHTML = '<p>' + (profile.allMinimum
+        ? 'You answered "Dislike" to every question, so your answers do not point to any interest area yet.'
+        : 'Your scores are the same in all six interest areas, so they do not single out particular programs.') +
+        ' Every program is equally close to your answers, so all are listed below as tied. This is not a recommendation for any one of them.' +
+        ' Please talk with a Guidance Counselor, who can help you explore your interests.</p>' + COUNSELOR_BTN;
+      notice.classList.remove('hidden');
+    }
+
     // 3. Best RIASEC Match (CBF). Tied courses are all shown; the tie is never broken.
     const best = recommendation.bestRiasecMatch || [];
     const prefBadge = function(p) {
@@ -866,7 +904,11 @@ document.addEventListener('click', function (e) {
     };
     if (best.length > 1) {
       const tie = document.getElementById('cr-tieNote');
-      tie.textContent = 'These ' + best.length + ' courses have the same RIASEC letters, so they match your profile equally. They are listed in no particular order.';
+      const letterSets = best.map(function(p) { return String(p.hollandCode || '').toUpperCase().split('').sort().join(''); });
+      const sameLetters = letterSets.every(function(l) { return l === letterSets[0]; });
+      tie.textContent = 'These ' + best.length + ' programs are equally close to your interests, so the system cannot rank one above another. ' +
+        (sameLetters ? 'Their codes have the same three letters (the order of the letters is not used). '
+          : 'Some of your scores are tied, so programs with different codes come out equally close. ') + 'They are listed in no particular order.';
       tie.classList.remove('hidden');
     }
     document.getElementById('cr-bestRiasec').innerHTML = best.length
@@ -878,16 +920,6 @@ document.addEventListener('click', function (e) {
     document.getElementById('cr-alternatives').innerHTML = alts.length
       ? alts.map(function(p) { return programCardHtml(p, { fav: true, badge: prefBadge(p) }); }).join('')
       : '<p class="text-sm text-[#5e3f3c]">No alternative courses.</p>';
-
-    // 5. Prediction model (WEKA J48), only when the API includes it for students.
-    const pred = recommendation.prediction;
-    if (pred && pred.course) {
-      document.getElementById('cr-prediction').innerHTML = programCardHtml(pred.course, {
-        fav: true,
-        badge: pred.course.inBestRiasecMatch ? '<span class="pp-badge pp-badge--match">' + ICON_CHECK + 'Also in your Best RIASEC Match</span>' : prefBadge(pred.course)
-      });
-      document.getElementById('cr-predictionSection').classList.remove('hidden');
-    }
   }
 })();
 </script>

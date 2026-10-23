@@ -10,8 +10,7 @@
  *   alternatives      CBF: course(s) at the next-highest cosine similarity
  *   each course carries its cosine similarity (0-1), never a percentage
  *   prediction        the WEKA J48 model's course ("students with a similar RIASEC profile
- *                     chose"), shown on its own. Staff always get it; students only when
- *                     config/cbf.php decision_tree.show_to_students is true.
+ *                     intended"), shown on its own, to staff only. Students never receive it.
  *   finalBestMatch    null: needs an adviser-approved combination rule
  * Staff (studentId=...) also get `cbf`: every course's cosine calculation, and
  *   predictionDetail  the Prediction Module (WEKA J48) run on the student's latest RIASEC scores
@@ -26,6 +25,7 @@
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/CBFData.php';
 require_once __DIR__ . '/../lib/Careers.php';
+require_once __DIR__ . '/../lib/RiasecProfile.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     jsonResponse(['error' => 'Method not allowed'], 405);
@@ -78,6 +78,17 @@ if ($row['source_worksheet_id'] !== null) {
     }
 }
 
+// The student's ranked interests and ordered Holland code (lib/RiasecProfile.php), from the
+// assessment this recommendation was computed from.
+$aStmt = $pdo->prepare('SELECT score_r, score_i, score_a, score_s, score_e, score_c FROM assessments WHERE id = ?');
+$aStmt->execute([(int) $row['source_assessment_id']]);
+$aRow = $aStmt->fetch();
+$profile = RiasecProfile::derive($aRow ? ['R' => $aRow['score_r'], 'I' => $aRow['score_i'], 'A' => $aRow['score_a'],
+    'S' => $aRow['score_s'], 'E' => $aRow['score_e'], 'C' => $aRow['score_c']] : null);
+// Exact ordered-code match: an explanatory note only. It never changes cosine values, the order or
+// the CBF result, and is given only when the student's code is not decided by tied scores (null otherwise).
+$exactMatch = fn(string $code) => $profile['valid'] && !$profile['codeProvisional'] ? strtoupper($code) === $profile['code'] : null;
+
 $scores = json_decode($row['scores'], true) ?: [];
 usort($scores, fn($a, $b) => [$b['cosine'], $a['programId']] <=> [$a['cosine'], $b['programId']]);
 $cosineOf = array_column($scores, 'cosine', 'programId');
@@ -95,7 +106,7 @@ $alternativeIds = array_map('intval', array_column(CBFEngine::selectAlternatives
 $candidateIds = array_merge($bestIds, $alternativeIds);
 // Prediction model (WEKA): NULL = did not run; {} = ran but predicted no active program.
 $predictionIds = CBFData::parseIntArray($row['prediction_program_ids'] ?? null);
-$showPrediction = $isStaff || !empty(CBFEngine::config()['decision_tree']['show_to_students']);
+$showPrediction = $isStaff;   // the Prediction Module is staff-only
 if ($showPrediction && $predictionIds) {
     $candidateIds = array_merge($candidateIds, $predictionIds);
 }
@@ -115,6 +126,9 @@ if ($neededIds = array_values(array_unique(array_map('intval', $neededIds)))) {
             'id' => (int) $r['id'],
             'title' => $title,
             'hollandCode' => Crypto::dec($r['holland_code_enc']),
+            // The approved code's letters, in order, by name (e.g. IRC -> Investigative, Realistic, Conventional).
+            'hollandCodeNames' => array_values(array_map(fn($l) => RiasecProfile::NAMES[$l] ?? $l, str_split(strtoupper(Crypto::dec($r['holland_code_enc']))))),
+            'exactOrderedCodeMatch' => $exactMatch(Crypto::dec($r['holland_code_enc'])),
             'description' => $r['description_enc'] !== null ? Crypto::dec($r['description_enc']) : '',
             // Careers that fit this program (its title if staff haven't listed any).
             'careers' => Careers::effective(Careers::parse($r['careers']), $title),
@@ -154,6 +168,9 @@ $response = [
     'matchStatus' => $row['match_status'],
     'mismatchReason' => $row['mismatch_reason'],
     'needsRecompute' => !$isCurrent,
+    // Ranked interests, ordered code, ties and flat-profile checks. When the profile is flat or
+    // ties decide the code, the CBF still lists every tied program; the page adds a guidance note.
+    'riasecProfile' => $profile,
 ];
 if (!$showPrediction) {
     $response['sources']['prediction'] = 'staff_only';
@@ -259,6 +276,13 @@ function predictionDetail(PDO $pdo, array $row, array $programs, array $bestIds,
             'classAttribute' => $model['class_attribute'] ?? null,
             'classes' => count($model['class_labels']),
             'sha256' => $model['model_sha256'] ?? null,
+            // What the model is, as recorded at export; null = not recorded (shown as unknown, never filled in).
+            'featureEncoding' => $model['feature_encoding'] ?? null,
+            'featureEncodingDescription' => $model['feature_encoding_description'] ?? null,
+            'targetDefinition' => $model['target_definition'] ?? null,
+            'trainingRecords' => $model['training']['records'] ?? null,
+            'trainingDataVersion' => $model['training']['data_version'] ?? null,
+            'evaluationProtocol' => $model['evaluation']['protocol'] ?? null,
         ],
         'savedPredictionDiffers' => $predicted !== null && ($row['prediction_program_ids'] ?? null) !== null
             && CBFData::parseIntArray($row['prediction_program_ids']) !== ($predicted['programId'] !== null ? [$predicted['programId']] : []),

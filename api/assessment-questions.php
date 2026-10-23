@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/QuestionBank.php';
+require_once __DIR__ . '/../lib/AssessmentVersion.php';
 
 $pdo = Database::get();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -40,6 +41,20 @@ if ($method === 'GET') {
     // Students only get a question set that is ready: the same number of active questions for every type.
     if (!$isStaff && !$balance['ok']) {
         jsonResponse(['questions' => [], 'unavailable' => true, 'error' => 'The assessment is being updated by the Guidance Office. Please check back soon.'], 409);
+    }
+
+    // Students get the immutable version (question set) of exactly these questions; the submission
+    // is scored only against this set (api/assessment-submit.php, lib/AssessmentVersion.php).
+    if (!$isStaff) {
+        try {
+            $questions = AssessmentVersion::activeQuestions($pdo);
+            $set = AssessmentVersion::setFor($pdo, $questions);
+        } catch (PDOException $e) {
+            error_log('[assessment-questions] ' . $e->getMessage() . ' (run php db/migrate_add_assessment_versions.php)');
+            jsonResponse(['questions' => [], 'unavailable' => true, 'error' => 'The assessment is being updated by the Guidance Office. Please check back soon.'], 503);
+        }
+        $_SESSION['assessmentQuestionSetId'] = $set['id'];
+        jsonResponse(['questions' => array_map(fn($q) => $q + ['isActive' => true], $questions), 'questionSetId' => $set['id']]);
     }
 
     $sql = 'SELECT id, dimension, order_index, question_text_enc, is_active FROM assessment_questions';

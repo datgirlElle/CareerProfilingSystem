@@ -308,7 +308,10 @@
     const first = QUESTIONS.findIndex(function(q) { return q.dimension === code; });
     return { start: first, end: first + (dimTotal[code] || 0) };
   }
-  const QUESTION_SET = QUESTIONS.map(function(q) { return q.id; }).join(',');
+  // The server's id for this exact question set (ids, types and wording); answers are sent per question id
+  // and scored against this set only. Saved progress from another set (or wording) is not reused.
+  const QUESTION_SET_ID = questionsData.questionSetId;
+  const QUESTION_SET = QUESTION_SET_ID + ':' + QUESTIONS.map(function(q) { return q.id; }).join(',');
 
   const PROGRESS_KEY = 'assessmentProgress_' + currentUser.schoolId;
 
@@ -484,7 +487,10 @@
         const res = await fetch('api/assessment-submit.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ answers: state.answers })
+          body: JSON.stringify({
+            questionSetId: QUESTION_SET_ID,
+            answers: QUESTIONS.map(function(q, i) { return { questionId: q.id, answer: state.answers[i] }; })
+          })
         });
         const data = await res.json();
         if (!data.success) {

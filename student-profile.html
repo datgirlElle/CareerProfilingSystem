@@ -237,6 +237,10 @@
                 <span id="recStatus" class="sp-badge wait"></span>
               </div>
               <div>
+                <p class="sp-label">Student's RIASEC Code</p>
+                <p id="recCode" class="text-sm text-gray-800 mt-1">—</p>
+              </div>
+              <div>
                 <p class="sp-label">Preferred Course</p>
                 <p id="recPreferred" class="text-sm text-gray-800 mt-1"></p>
               </div>
@@ -492,8 +496,15 @@
     const r = await res.json();
     if (!r.hasRecommendation) return;
     const withCosine = function(p) {
-      return p.title; // course names only: the CGC does not record scores
+      return p.title + (p.hollandCode ? ' (' + p.hollandCode + ')' : ''); // approved program code; no cosine values
     };
+    // Ordered code from the shared implementation (lib/RiasecProfile.php), with what limits it.
+    const prof = r.riasecProfile || { valid: false };
+    document.getElementById('recCode').textContent = !prof.valid ? 'Not available' + (prof.reason ? ': ' + prof.reason : '')
+      : prof.code + (prof.allMinimum ? ' · All answers "Dislike": profile does not separate interests'
+        : prof.flat ? ' · All six scores equal: profile does not separate interests'
+        : prof.codeProvisional ? ' · Provisional: tied scores (' + prof.ties.map(function(t) { return t.letters.join('='); }).join(', ') + ') ordered R,I,A,S,E,C by convention'
+        : '');
     const list = function(items) { return items && items.length ? items.join(', ') : 'None'; };
     const status = document.getElementById('recStatus');
     // The badge carries the Preferred Course status, so the Preferred Course line shows only the course.
@@ -532,8 +543,12 @@
         const val = document.createElement('td'); val.textContent = prob(c.probability); val.style.textAlign = 'right';
         tr.appendChild(name); tr.appendChild(val); dist.appendChild(tr);
       });
-      document.getElementById('recPredModel').textContent = 'Model: ' + (pd.model.version || '—') + ' · ' + pd.model.classifier +
-        ' · Weka ' + pd.model.wekaVersion + ' · ' + pd.model.classes + ' classes. Equal probabilities are listed in the model\'s class order.';
+      const unknown = function(v) { return v === null || v === undefined || v === '' ? 'unknown' : v; };
+      document.getElementById('recPredModel').textContent = 'Model: ' + unknown(pd.model.version) + ' · ' + pd.model.classifier +
+        ' · Weka ' + pd.model.wekaVersion + ' · ' + pd.model.classes + ' classes. Inputs: ' + unknown(pd.model.featureEncoding) +
+        '. Target: ' + unknown(pd.model.targetDefinition) + '. Training records: ' + unknown(pd.model.trainingRecords) +
+        ' (data version: ' + unknown(pd.model.trainingDataVersion) + '). Evaluation: ' + unknown(pd.model.evaluationProtocol) +
+        '. Equal probabilities are listed in the model\'s class order.';
       document.getElementById('recPredDetails').classList.remove('hidden');
       document.getElementById('recModelVersion').textContent = "Past students' intended course (" + (pd.model.version || 'J48') + ')';
     } else {

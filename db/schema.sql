@@ -118,6 +118,17 @@ CREATE TABLE assessment_questions (
     UNIQUE (dimension, order_index)
 );
 
+-- Immutable snapshots of the questions a student was shown (lib/AssessmentVersion.php).
+CREATE TABLE assessment_question_sets (
+    id              SERIAL PRIMARY KEY,
+    fingerprint     CHAR(64) NOT NULL UNIQUE,
+    question_count  INT NOT NULL,
+    items_per_type  INT NOT NULL,
+    scoring_version VARCHAR(40) NOT NULL,
+    snapshot_enc    TEXT NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE assessments (
     id              SERIAL PRIMARY KEY,
     student_id      INT NOT NULL REFERENCES students(user_id) ON DELETE CASCADE,
@@ -131,6 +142,10 @@ CREATE TABLE assessments (
     score_c         INT NOT NULL CHECK (score_c BETWEEN 0 AND 50),
     top_types       JSONB NOT NULL,
     completed_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- Reproducibility (lib/AssessmentVersion.php). NULL = legacy attempt saved before versioning.
+    question_set_id INT REFERENCES assessment_question_sets(id),
+    answers_enc     TEXT,           -- [{questionId, answer}] in the order shown, encrypted
+    scoring_version VARCHAR(40),
     UNIQUE (student_id, attempt_number)
 );
 

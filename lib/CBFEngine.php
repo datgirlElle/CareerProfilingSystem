@@ -234,8 +234,7 @@ class CBFEngine
      */
     public static function topRiasecLetters(array $scores, int $n = 3): array
     {
-        $ranked = array_intersect_key(array_merge(array_flip(self::DIMENSIONS), $scores), array_flip(self::DIMENSIONS));
-        arsort($ranked);
-        return array_slice(array_keys($ranked), 0, $n);
+        require_once __DIR__ . '/RiasecProfile.php';
+        return array_slice(RiasecProfile::order($scores), 0, $n);
     }
 }

@@ -60,6 +60,24 @@ class PredictionModel
 
     /** Format written by tools/weka/ExportJ48Lookup.java. */
     public const LOOKUP_FORMAT = 'weka-j48-binary-lookup';
+    /** The only feature encoding the lookup serves: 1 for the three highest scores, else 0. */
+    public const BINARY_ENCODING = 'top3-binary';
+
+    /**
+     * Numeric split points in a printed J48 tree ("C <= 0" -> ['C <= 0', 0.0]).
+     *
+     * @return array<int,array{0:string,1:float}>
+     */
+    public static function splitThresholds(string $treeText): array
+    {
+        $out = [];
+        foreach (preg_split('/\R/', $treeText) as $line) {
+            if (preg_match('/^[|\s]*([A-Za-z]+)\s*(<=|>=|<|>)\s*(-?[0-9.]+(?:[Ee][-+]?[0-9]+)?)/', $line, $m)) {
+                $out[] = [trim($line), (float) $m[3]];
+            }
+        }
+        return $out;
+    }
 
     /**
      * Checks an exported lookup before it is used: inputs R, I, A, S, E, C in that order,
@@ -76,6 +94,18 @@ class PredictionModel
         }
         if (($model['attribute_type'] ?? null) !== 'numeric') {
             $fail('inputs must be numeric 0/1.');
+        }
+        // Only the top-three binary encoding can be served by the 20-input lookup. Exports made
+        // before the encoding was recorded (exporter v1) have none; for every export the tree's
+        // splits must also fit 0/1 inputs, which a raw-score model's splits (e.g. "C <= 12") do not.
+        $encoding = $model['feature_encoding'] ?? null;
+        if ($encoding !== null && $encoding !== self::BINARY_ENCODING) {
+            $fail("feature encoding '$encoding' cannot be served by the binary lookup (only " . self::BINARY_ENCODING . ').');
+        }
+        foreach (self::splitThresholds((string) ($model['tree'] ?? '')) as [$line, $t]) {
+            if ($t < 0 || $t >= 1) {
+                $fail("the tree splits at '$line'; top-three binary inputs are 0 or 1, so this is not a binary model.");
+            }
         }
         $labels = $model['class_labels'] ?? null;
         if (!is_array($labels) || $labels === [] || count(array_unique($labels)) !== count($labels)) {
@@ -141,10 +171,7 @@ class PredictionModel
                 throw new InvalidArgumentException("The RIASEC score for $d ({$scores[$d]}) is not a whole number.");
             }
         }
-        $order = CBFEngine::DIMENSIONS;
-        usort($order, fn($x, $y) => ((float) $scores[$y] <=> (float) $scores[$x])
-            ?: (array_search($x, CBFEngine::DIMENSIONS, true) <=> array_search($y, CBFEngine::DIMENSIONS, true)));
-        $top = array_slice($order, 0, 3);
+        $top = CBFEngine::topRiasecLetters($scores, 3);   // shared ranking (lib/RiasecProfile.php)
         return array_map(fn($d) => in_array($d, $top, true) ? 1 : 0, CBFEngine::DIMENSIONS);
     }
 

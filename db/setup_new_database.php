@@ -73,6 +73,7 @@ $steps = [
     'migrate_add_facilitator_role.php',
     'migrate_add_staff_accounts_rbac.php',
     'migrate_add_retake_requests.php',
+    'migrate_add_assessment_versions.php',
     // Reference data.
     'seed_colleges.php',
     'seed_programs.php',
