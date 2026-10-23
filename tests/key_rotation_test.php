@@ -139,6 +139,8 @@ KeyRotation::useKey($oldKey);
 
 if ($chained) {
     $pdo->beginTransaction();
+    // A fresh test database has an empty audit log; seal one entry of our own (rolled back below) so there is something to tamper with.
+    AuditChain::append($pdo, [null, null, 'qa_key_rotation_probe', null, null, null, null]);
     $pdo->exec("UPDATE audit_log SET action = action || '_edited' WHERE id = (SELECT MIN(id) FROM audit_log)");
     $msg = thrown(fn() => KeyRotation::rotate($pdo, $oldKey, $newKey));
     check('a tampered audit log stops the rotation (re-sealing would hide it)', str_contains($msg, 'does not check out'), $msg);
