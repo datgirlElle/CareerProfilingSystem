@@ -9,6 +9,8 @@ require_once __DIR__ . '/../../ContentBasedFiltering/lib/Mismatch.php';
 require_once __DIR__ . '/../../UserManagement/lib/StaffScope.php';
 require_once __DIR__ . '/../../Authentication/lib/SessionEnd.php';
 require_once __DIR__ . '/../../CareerProfiling/lib/AssessmentProgress.php';
+require_once __DIR__ . '/../lib/StudentListPdf.php';
+require_once __DIR__ . '/../../../shared/lib/RateLimiter.php';
 
 $user = Rbac::requireRole('admin', 'counselor');
 $pdo = Database::get();
@@ -217,6 +219,7 @@ $registrationFilter = (string) ($_GET['registration'] ?? ''); // registered | no
 $accountFilter = (string) ($_GET['account'] ?? '');           // active | inactive (a registered student's sign-in)
 $assessmentFilter = (string) ($_GET['assessment'] ?? '');     // assessed | notAssessed
 $asCsv = ($_GET['format'] ?? '') === 'csv';
+$asPdf = ($_GET['format'] ?? '') === 'pdf';
 
 $rows = $pdo->query(
     'SELECT s.user_id, s.school_id, s.first_name_enc, s.last_name_enc, s.strand, s.grade_level, s.section, s.registered_at, s.academic_year,
@@ -282,6 +285,7 @@ $students = array_map(function ($r) use ($counseledIds, $mismatchIds) {
         'registeredAt' => $r['registered_at'],
         'assessmentDate' => $r['completed_at'],
         '_email' => $r['email'], // only for the CSV download; never sent in the list JSON
+        '_schoolId' => $r['school_id'], // only for the PDF download
     ];
 }, $rows);
 
@@ -316,6 +320,7 @@ if ($currentAy !== '') {
             'rosterId' => (int) $rr['id'],
             'hasEmail' => trim((string) $rr['email']) !== '',
             '_email' => $rr['email'],
+            '_schoolId' => $rr['school_id'],
         ];
     }
 }
@@ -325,6 +330,20 @@ $completedCount = count(array_filter($students, fn($s) => $s['status'] === 'Comp
 $pendingCount = $totalStudents - $completedCount;
 $counselingCount = count(array_filter($students, fn($s) => $s['counseling'] === 'Availed'));
 $mismatchedCount = count(array_filter($students, fn($s) => $s['mismatched']));
+
+// Each summary card's number split by strand, for the breakdown a card opens on the dashboard. Counted the
+// same way as the cards (every student in view, before the table's filters), so each split adds up to its card.
+$byStrand = [];
+foreach (array_unique([...Sections::STRANDS, ...array_column($students, 'strand')]) as $strandName) {
+    $byStrand[$strandName] = ['strand' => $strandName, 'total' => 0, 'completed' => 0, 'pending' => 0, 'mismatched' => 0];
+}
+foreach ($students as $s) {
+    $byStrand[$s['strand']]['total']++;
+    $byStrand[$s['strand']][$s['status'] === 'Completed' ? 'completed' : 'pending']++;
+    if ($s['mismatched']) {
+        $byStrand[$s['strand']]['mismatched']++;
+    }
+}
 
 // A summary per section for the dashboard: how many students each section has and where they stand.
 $sectionSummary = [];
@@ -433,6 +452,79 @@ if ($asCsv) {
     exit;
 }
 
+// The list as a PDF, with every row matching the filters (not just one page) and the filters printed on it.
+// Same safeguards as the audit log export: started from the page only, rate limited, and recorded in the
+// audit log with a reference code that is also printed on every page.
+if ($asPdf) {
+    if (($_SERVER['HTTP_SEC_FETCH_SITE'] ?? 'same-origin') !== 'same-origin') {
+        jsonResponse(['error' => 'Start the download from the Student Information page.'], 403);
+    }
+    if (RateLimiter::tooMany('student-list-pdf:' . (int) $user['id'], 20, 60)) {
+        jsonResponse(['error' => 'Too many downloads in the last hour. Please try again later.'], 429);
+    }
+    usort($filtered, fn($a, $b) => [$a['strand'], $a['section'], $a['name']] <=> [$b['strand'], $b['section'], $b['name']]);
+    $labels = [
+        'status' => ['Completed' => 'Completed', 'Pending' => 'Pending', 'Mismatched' => 'Mismatched', 'Not Registered' => 'Not registered'],
+        'registration' => ['registered' => 'Registered', 'notRegistered' => 'Not registered'],
+        'account' => ['active' => 'Active', 'inactive' => 'Deactivated'],
+        'assessment' => ['assessed' => 'Assessed', 'notAssessed' => 'Not assessed'],
+        'counseling' => ['Availed' => 'Availed', 'Did Not Avail' => 'Did not avail'],
+    ];
+    $applied = array_filter([
+        $search !== '' ? 'Search "' . $search . '"' : '',
+        $strandFilter !== '' ? 'Strand ' . $strandFilter : '',
+        $sectionFilter !== '' ? 'Section ' . $sectionFilter : '',
+        $registrationFilter !== '' ? 'Registration: ' . ($labels['registration'][$registrationFilter] ?? $registrationFilter) : '',
+        $accountFilter !== '' ? 'Account: ' . ($labels['account'][$accountFilter] ?? $accountFilter) : '',
+        $statusFilter !== '' ? 'Assessment status: ' . ($labels['status'][$statusFilter] ?? $statusFilter) : '',
+        $assessmentFilter !== '' ? 'Assessed: ' . ($labels['assessment'][$assessmentFilter] ?? $assessmentFilter) : '',
+        $counselingFilter !== '' ? 'Counseling: ' . ($labels['counseling'][$counselingFilter] ?? $counselingFilter) : '',
+    ]);
+    $filters = $applied ? implode('; ', $applied) : 'None (all students)';
+    $reference = 'STU-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(4)));
+    $count = fn(callable $test) => number_format(count(array_filter($filtered, $test)));
+    $counts = 'In this list: ' . $count(fn($s) => $s['status'] === 'Completed') . ' completed, '
+        . $count(fn($s) => $s['status'] === 'Pending') . ' pending, '
+        . $count(fn($s) => $s['status'] === 'Not Registered') . ' not registered, '
+        . $count(fn($s) => $s['mismatched']) . ' mismatched.';
+    try {
+        // Inside the try: the student names were decrypted above, but nothing here should break the page with a raw error.
+        $rows = array_map(fn($s) => [
+            $s['name'],
+            (string) ($s['_schoolId'] ?? ''),
+            (string) $s['strand'],
+            (string) $s['section'],
+            $s['userId'] === null ? 'No account' : (!$s['isActive'] ? 'Deactivated' : (!empty($s['locked']) ? 'Locked' : 'Active')),
+            $s['mismatched'] ? 'Mismatched' : $s['status'],   // a mismatched result is always a completed one
+            $s['assessmentDate'] ? date('M j, Y', strtotime((string) $s['assessmentDate'])) : '-',
+            QuestionBank::hollandCode(array_values(array_filter(explode(', ', (string) ($s['riasec'] ?? ''))))) ?: '-',
+            $s['counseling'] !== '' ? $s['counseling'] : 'No request',
+        ], $filtered);
+        $position = $user['role'] === 'counselor' ? ($user['positionLabel'] ?? 'Guidance Counselor') : 'Administrator';
+        $pdfBytes = StudentListPdf::build($rows, [
+            'exportedBy' => ($user['displayName'] ?? $user['username']) . " ($position)",
+            'exportedAt' => (new DateTime())->format('M j, Y g:i A'),
+            'reference' => $reference,
+            'schoolYear' => $viewAy !== '' ? $viewAy : 'not set',
+            'filters' => $filters,
+            'counts' => $counts,
+        ]);
+    } catch (Throwable $e) {
+        error_log('[student-list-pdf] ' . $e->getMessage());
+        AuditLogger::log($user['id'], $user['role'], 'export_student_list_pdf_failed', 'student', $reference, 'PDF could not be built');
+        jsonResponse(['error' => 'The PDF could not be made. Please try again.'], 500);
+    }
+    // The filters stay in the encrypted detail (a search can contain a name); the reference goes in target_id.
+    AuditLogger::log($user['id'], $user['role'], 'export_student_list_pdf', 'student', $reference, 'PDF, ' . count($rows) . ' students. Filters: ' . $filters);
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="students-' . date('Y-m-d') . '-' . $reference . '.pdf"');
+    header('Content-Length: ' . strlen($pdfBytes));
+    header('Cache-Control: no-store');
+    header('X-Export-Reference: ' . $reference);
+    echo $pdfBytes;
+    exit;
+}
+
 $total = count($filtered);
 $totalPages = max(1, (int) ceil($total / $pageSize));
 $page = min($page, $totalPages);
@@ -440,7 +532,7 @@ $offset = ($page - 1) * $pageSize;
 // A registered student's account email is shown to staff (it is their sign-in); a roster email is never sent to the page.
 $pageRows = array_map(function ($s) {
     $s['email'] = $s['userId'] !== null ? $s['_email'] : null;
-    unset($s['_email']);
+    unset($s['_email'], $s['_schoolId']);
     return $s;
 }, array_slice($filtered, $offset, $pageSize));
 
@@ -461,5 +553,6 @@ jsonResponse([
         'pendingCount' => $pendingCount,
         'counselingCount' => $counselingCount,
         'mismatchedCount' => $mismatchedCount,
+        'byStrand' => array_values($byStrand),
     ],
 ]);

@@ -7,6 +7,7 @@
 <title>CBF Candidate Programs — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
+<link rel="stylesheet" href="css/components.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -110,9 +111,9 @@
           <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Programs Most Similar to Students' RIASEC Profiles</h1>
           <p class="text-sm text-slate-500 mt-1">How many students have each program as a best RIASEC match.</p>
         </div>
-        <div class="relative w-full sm:w-72">
-          <img src="images/analytics/icon-filter.svg" alt="" class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3">
-          <input id="searchInput" type="text" placeholder="Search careers..." aria-label="Search careers" class="w-full bg-white border border-slate-300 rounded-md pl-9 pr-4 py-2.5 text-sm text-slate-700 placeholder:text-slate-400">
+        <div class="pp-filter-search w-full sm:w-72">
+          <img src="images/admin/icon-search2.svg" alt="">
+          <input id="searchInput" type="text" placeholder="Search programs..." aria-label="Search programs" class="pp-filter-input">
         </div>
       </div>
 
@@ -248,10 +249,10 @@
       <tr>
         <td class="px-5 py-4 text-sm text-slate-600">${index + 1}</td>
         <td class="px-5 py-4 text-sm font-medium text-slate-800 whitespace-nowrap">${escapeHtml(career.title)}</td>
-        <td class="px-5 py-4 text-sm text-slate-500">${escapeHtml(career.collegeCode)}</td>
+        <td class="px-5 py-4">${PP.college.badge(career.collegeCode)}</td>
         <td class="px-5 py-4"><div class="flex items-center gap-3">
           <span class="text-sm text-slate-600 w-8">${career.students}</span>
-          <div class="w-32 h-1.5 rounded-full bg-slate-100"><div class="h-1.5 rounded-full bg-[#19427b]" style="width:${career.width}%"></div></div>
+          <div class="w-32 h-1.5 rounded-full bg-slate-100"><div class="h-1.5 rounded-full" style="width:${career.width}%;background:${PP.college.color(career.collegeCode)}"></div></div>
         </div></td>
         <td class="px-5 py-4 text-sm text-slate-600">${career.percent.toFixed(1)}%</td>
       </tr>`;

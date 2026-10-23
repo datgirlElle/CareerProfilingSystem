@@ -7,6 +7,7 @@
 <title>Monitoring Details — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
+<link rel="stylesheet" href="css/components.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -109,17 +110,18 @@
           <h1 class="text-[30px] font-bold text-slate-900">Monitoring Details</h1>
           <p class="text-sm text-slate-500 mt-1">Full list view for each monitoring category.</p>
         </div>
-        <div class="relative w-full sm:w-72">
-          <input id="searchInput" type="text" placeholder="Search students..." aria-label="Search students" class="w-full bg-white border border-slate-300 rounded-md pl-4 pr-4 py-2.5 text-sm text-slate-700 placeholder:text-slate-400">
+        <div class="pp-filter-search w-full sm:w-72">
+          <svg viewBox="0 -960 960 960" fill="#64748B" aria-hidden="true"><path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>
+          <input id="searchInput" type="text" placeholder="Search students..." aria-label="Search students" class="pp-filter-input">
         </div>
       </div>
 
       <!-- Tabs -->
       <div class="flex flex-wrap gap-2 mb-6" id="tabBar">
-        <button type="button" data-tab="needs-review" class="tab-btn px-4 py-2.5 rounded-md text-sm font-medium border">Needs Review <span class="tab-count"></span></button>
-        <button type="button" data-tab="completed" class="tab-btn px-4 py-2.5 rounded-md text-sm font-medium border">Completed Today <span class="tab-count"></span></button>
-        <button type="button" data-tab="pending" class="tab-btn px-4 py-2.5 rounded-md text-sm font-medium border">Pending Assessments <span class="tab-count"></span></button>
-        <button type="button" data-tab="counseling" class="tab-btn px-4 py-2.5 rounded-md text-sm font-medium border">Counseling Queue <span class="tab-count"></span></button>
+        <button type="button" data-tab="needs-review" aria-pressed="false" class="tab-btn pp-filter-tab">Needs Review <span class="tab-count"></span></button>
+        <button type="button" data-tab="completed" aria-pressed="false" class="tab-btn pp-filter-tab">Completed Today <span class="tab-count"></span></button>
+        <button type="button" data-tab="pending" aria-pressed="false" class="tab-btn pp-filter-tab">Pending Assessments <span class="tab-count"></span></button>
+        <button type="button" data-tab="counseling" aria-pressed="false" class="tab-btn pp-filter-tab">Counseling Queue <span class="tab-count"></span></button>
       </div>
 
       <!-- Data Table -->
@@ -389,8 +391,7 @@
 
       document.querySelectorAll('.tab-btn').forEach(btn => {
         const isActive = btn.dataset.tab === activeTab;
-        btn.className = 'tab-btn px-4 py-2.5 rounded-md text-sm font-medium border ' +
-          (isActive ? 'bg-[#ed1c24] border-[#ed1c24] text-white' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50');
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');   // css/components.css .pp-filter-tab shows the chosen one
         btn.querySelector('.tab-count').textContent = '(' + tabCounts[btn.dataset.tab] + ')';
       });
 

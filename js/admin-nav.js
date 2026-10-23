@@ -30,7 +30,7 @@
       { id: 'analytics', href: 'analytics', label: 'Analytics &amp; Report', icon: 'analytics' }
     ] },
     { title: 'Assessment', items: [
-      { id: 'career-dataset', href: 'career-dataset', label: 'Career Dataset', icon: 'database' },
+      { id: 'career-dataset', href: 'career-dataset', label: 'Program Mapping Crosswalk', icon: 'database' },
       { id: 'question-bank', href: 'question-bank', label: 'Question Bank', icon: 'quiz' },
       { id: 'assessment-scheduling', href: 'assessment-scheduling', label: 'Assessment Scheduling', icon: 'calendar' },
       { id: 'monitoring', href: 'monitoring', label: 'Monitoring', icon: 'monitoring' }

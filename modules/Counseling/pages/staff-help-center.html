@@ -7,6 +7,7 @@
 <title>Help Center — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
+<link rel="stylesheet" href="css/components.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -123,12 +124,19 @@
               </div>
 
               <div class="border border-slate-200 rounded-lg p-[17px] flex flex-col gap-3">
-                <p class="text-sm font-semibold text-slate-800">Counseling Booking Link</p>
-                <div class="flex flex-col gap-2">
-                  <input type="url" id="bookingUrlInput" maxlength="300" class="border border-slate-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#ed1c24]" placeholder="https://" aria-label="Counseling booking link">
-                  <button type="button" id="bookingLinkSave" class="self-start px-4 py-2 text-xs font-semibold text-white bg-[#0f2a6b] rounded-md hover:opacity-90">Save</button>
+                <div>
+                  <label for="bookingUrlInput" class="text-sm font-semibold text-slate-800">CGC Counseling Booking Link</label>
+                  <p id="bookingLinkHelp" class="text-xs text-slate-500 mt-1">Students who click <span class="font-medium text-slate-700">Avail Counseling</span> get this link by email. Saving a new link changes the emails sent from now on; emails already sent keep the link they had.</p>
                 </div>
-                <p id="bookingLinkStatus" class="hidden text-xs" aria-live="polite"></p>
+                <div class="flex flex-col gap-2">
+                  <input type="url" id="bookingUrlInput" maxlength="300" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://" aria-describedby="bookingLinkHelp bookingLinkError" class="pp-filter-input w-full">
+                  <p id="bookingLinkError" class="hidden text-xs text-[#ed1c24]" role="alert"></p>
+                  <div class="flex items-center gap-3 flex-wrap">
+                    <button type="button" id="bookingLinkSave" class="pp-dim-disabled px-4 py-2 text-xs font-semibold text-white bg-[#0f2a6b] rounded-md hover:opacity-90">Save</button>
+                    <a id="bookingLinkOpen" href="#" target="_blank" rel="noopener noreferrer" class="hidden text-xs font-medium text-[#0f2a6b] underline">Open saved link</a>
+                  </div>
+                </div>
+                <p id="bookingLinkStatus" class="hidden text-xs" role="status" aria-live="polite"></p>
               </div>
 
         </div>
@@ -307,14 +315,43 @@
       ohValidate();
     }
 
+    // The saved link: shown in the box, with "Open saved link" to check the page it points to. Save is on only when the
+    // box holds something different from what is saved.
+    function savedBookingUrl() { return (state.booking && state.booking.url) || ''; }
     function renderBookingLink() {
-      document.getElementById('bookingUrlInput').value = (state.booking && state.booking.url) || '';
+      const saved = savedBookingUrl();
+      document.getElementById('bookingUrlInput').value = saved;
+      const open = document.getElementById('bookingLinkOpen');
+      open.classList.toggle('hidden', saved === '');
+      if (saved) open.href = saved;
+      updateBookingSave();
       if (!isAdmin) {
         [document.getElementById('bookingUrlInput'), document.getElementById('bookingLinkSave')].forEach(el => {
           el.disabled = true;
           el.classList.add('opacity-60', 'cursor-not-allowed');
         });
       }
+    }
+    // The same checks as the server (modules/Counseling/lib/BookingLink.php), so a mistake shows before saving.
+    function bookingLinkProblem(url) {
+      if (url === '') return '';
+      if (url.length > 300) return 'The link must be 300 characters or fewer.';
+      let parsed;
+      try { parsed = new URL(url); } catch (e) { return 'Enter a full web address that starts with https://'; }
+      if (parsed.protocol !== 'https:' || !parsed.hostname || !/^https:\/\//i.test(url)) return 'Enter a full web address that starts with https://';
+      if (parsed.username || parsed.password) return 'The link cannot contain a user name or password.';
+      return '';
+    }
+    function showBookingError(message) {
+      const err = document.getElementById('bookingLinkError');
+      const input = document.getElementById('bookingUrlInput');
+      err.textContent = message;
+      err.classList.toggle('hidden', !message);
+      if (message) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid');
+    }
+    function updateBookingSave() {
+      const value = document.getElementById('bookingUrlInput').value.trim();
+      document.getElementById('bookingLinkSave').disabled = !isAdmin || value === savedBookingUrl();
     }
 
 
@@ -340,22 +377,48 @@
         }
       });
 
+      const bookingInput = document.getElementById('bookingUrlInput');
+      bookingInput.addEventListener('input', function() {
+        document.getElementById('bookingLinkStatus').classList.add('hidden');
+        if (document.getElementById('bookingLinkError').textContent) showBookingError(bookingLinkProblem(bookingInput.value.trim()));
+        updateBookingSave();
+      });
+      bookingInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !document.getElementById('bookingLinkSave').disabled) document.getElementById('bookingLinkSave').click();
+      });
       document.getElementById('bookingLinkSave').addEventListener('click', async function() {
+        const btn = this;
         const statusEl = document.getElementById('bookingLinkStatus');
-        const url = document.getElementById('bookingUrlInput').value.trim();
-        const res = await fetch('api/security-config.php', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'bookingLink', url })
-        });
-        const data = await res.json();
-        statusEl.classList.remove('hidden');
-        if (data.success) {
-          statusEl.textContent = url === '' ? 'Link removed.' : 'Saved.';
-          statusEl.className = 'text-xs text-green-600';
+        const url = bookingInput.value.trim();
+        statusEl.classList.add('hidden');
+        const problem = bookingLinkProblem(url);
+        showBookingError(problem);
+        if (problem) { bookingInput.focus(); return; }
+        // Removing the link hides Avail Counseling from students, so ask first.
+        if (url === '' && !(await PP.confirm('Remove the counseling booking link? Students will not see Avail Counseling until a new link is saved.', { okLabel: 'Remove link', danger: true }))) return;
+        const done = PP.busy(btn, 'Saving…');
+        let data = null;
+        try {
+          const res = await fetch('api/security-config.php', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'bookingLink', url })
+          });
+          data = await res.json().catch(() => null);
+          if (!res.ok && !(data && data.error)) data = { error: res.status === 403 ? 'You do not have permission to change the booking link.' : 'Could not save the link. Please try again.' };
+        } catch (e) {
+          data = { error: 'Unable to reach the server. Your link was not saved. Please try again.' };
+        } finally {
+          done();
+        }
+        if (data && data.success) {
           await loadState();
+          statusEl.textContent = url === '' ? 'Link removed. Avail Counseling is hidden for students until a new link is saved.'
+            : 'Saved. Counseling booking emails sent from now on use this link.';
+          statusEl.className = 'text-xs text-green-700';
+          PP.toast(url === '' ? 'Booking link removed.' : 'Booking link saved.', false);
         } else {
-          statusEl.textContent = data.error || 'Failed to save.';
-          statusEl.className = 'text-xs text-[#ed1c24]';
+          showBookingError((data && data.error) || 'Could not save the link. Please try again.');
+          updateBookingSave();
         }
       });
 

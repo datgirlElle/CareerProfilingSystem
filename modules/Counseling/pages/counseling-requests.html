@@ -7,6 +7,7 @@
 <title>Counseling Requests — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
+<link rel="stylesheet" href="css/components.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -109,8 +110,8 @@
       </div>
 
       <div class="flex items-center gap-2 mb-4" id="viewTabs">
-        <button type="button" data-view="counseling" class="view-tab px-4 py-2 rounded-md text-sm font-medium border">Counseling Requests</button>
-        <button type="button" data-view="retakes" class="view-tab px-4 py-2 rounded-md text-sm font-medium border">Retake Requests <span id="retakeCount"></span></button>
+        <button type="button" data-view="counseling" aria-pressed="false" class="view-tab pp-filter-tab">Counseling Requests</button>
+        <button type="button" data-view="retakes" aria-pressed="false" class="view-tab pp-filter-tab">Retake Requests <span id="retakeCount"></span></button>
       </div>
 
       <div class="flex flex-col gap-4" id="requestsList">
@@ -258,18 +259,17 @@
   // ---- Two views: students' messages to the Guidance Office, and requests to retake the assessment.
   let view = new URLSearchParams(window.location.search).get('tab') === 'retakes' ? 'retakes' : 'counseling';
   let retakeStatus = 'pending';
-  const TAB_ON = 'bg-[#ed1c24] border-[#ed1c24] text-white';
-  const TAB_OFF = 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50';
+  // Tabs use the shared filter-tab style (css/components.css); aria-pressed marks the chosen one.
   function renderTabs(counts) {
     document.querySelectorAll('.view-tab').forEach(btn => {
-      btn.className = 'view-tab px-4 py-2 rounded-md text-sm font-medium border ' + (btn.dataset.view === view ? TAB_ON : TAB_OFF);
+      btn.setAttribute('aria-pressed', btn.dataset.view === view ? 'true' : 'false');
     });
     const tabs = view === 'retakes'
       ? [['pending', 'Pending' + (counts && counts.pending !== undefined ? ' (' + counts.pending + ')' : '')], ['approved', 'Approved'], ['declined', 'Declined'], ['completed', 'Retaken'], ['all', 'All']]
       : [['open', 'Open' + (counts && counts.open !== undefined ? ' (' + counts.open + ')' : '')], ['resolved', 'Resolved'], ['all', 'All']];
     const active = view === 'retakes' ? retakeStatus : activeStatus;
     document.getElementById('statusTabs').innerHTML = tabs.map(function(tb) {
-      return '<button type="button" data-status="' + tb[0] + '" class="status-tab px-4 py-2 rounded-md text-sm font-medium border ' + (tb[0] === active ? TAB_ON : TAB_OFF) + '">' + tb[1] + '</button>';
+      return '<button type="button" data-status="' + tb[0] + '" aria-pressed="' + (tb[0] === active ? 'true' : 'false') + '" class="status-tab pp-filter-tab">' + tb[1] + '</button>';
     }).join('');
     document.querySelectorAll('.status-tab').forEach(btn => {
       btn.addEventListener('click', () => {

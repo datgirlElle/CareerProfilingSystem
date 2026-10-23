@@ -7,6 +7,7 @@
 <title>Analytics &amp; Report — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
+<link rel="stylesheet" href="css/components.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -116,30 +117,30 @@
         </div>
         <div class="flex items-center gap-3">
           <div class="flex items-center gap-2">
-            <label for="ayFilter" class="text-xs font-medium text-slate-600">School year</label>
-            <select id="ayFilter" class="border border-slate-300 rounded-md px-3 py-2.5 text-sm text-slate-700 bg-white shadow-sm"></select>
+            <label for="ayFilter" class="pp-filter-label">School year</label>
+            <select id="ayFilter" class="pp-filter-select"></select>
           </div>
           <div class="relative">
-            <button type="button" id="filtersBtn" class="flex items-center gap-2 bg-white border border-slate-300 rounded-md px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+            <button type="button" id="filtersBtn" aria-controls="filtersPanel" class="pp-filter-btn">
               <img src="images/analytics/icon-filter.svg" alt="" class="w-3.5 h-3">
               <span id="filtersBtnLabel">Filters</span>
             </button>
             <div id="filtersPanel" class="hidden absolute left-0 top-[calc(100%+8px)] w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-4 z-20">
-              <label class="block text-xs font-medium text-slate-600 mb-1">Strand</label>
-              <select id="strandFilter" class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm mb-3">
+              <label for="strandFilter" class="pp-filter-label block mb-1">Strand</label>
+              <select id="strandFilter" class="pp-filter-select w-full mb-3">
                 <option value="">All Strands</option>
                 <option value="STEM">STEM</option>
                 <option value="ABM">ABM</option>
                 <option value="ICT">ICT</option>
                 <option value="HUMSS">HUMSS</option>
               </select>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Section</label>
-              <select id="sectionFilter" class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm mb-3">
+              <label for="sectionFilter" class="pp-filter-label block mb-1">Section</label>
+              <select id="sectionFilter" class="pp-filter-select w-full mb-3">
                 <option value="">All Sections</option>
               </select>
               <div class="flex items-center gap-2">
-                <button type="button" id="applyStrandFilter" class="flex-1 bg-[#ed1c24] text-white text-sm font-medium rounded-md py-2 hover:opacity-90">Apply</button>
-                <button type="button" id="clearStrandFilter" class="flex-1 border border-slate-300 text-slate-700 text-sm font-medium rounded-md py-2 hover:bg-slate-50">Clear</button>
+                <button type="button" id="applyStrandFilter" class="flex-1 bg-[#0f2a6b] text-white text-sm font-medium rounded-md py-2 hover:opacity-90">Apply</button>
+                <button type="button" id="clearStrandFilter" class="pp-filter-btn flex-1">Clear</button>
               </div>
             </div>
           </div>
@@ -294,6 +295,7 @@
           <div id="topCareersBox" style="position:relative;height:280px">
             <canvas id="topCareersChart" aria-label="Top 5 recommended programs by number of students matched"></canvas>
           </div>
+          <div id="topCareersLegend" class="college-legend mt-3" aria-label="Bar colors: the program's college"></div>
           <p id="topCareersEmpty" class="hidden px-5 py-8 text-center text-sm text-slate-500">No recommendations computed yet.</p>
         </div>
         <div class="border-t border-slate-200 flex items-center justify-between px-4 py-4">
@@ -727,6 +729,8 @@
 
     // Ranked counts of categories -> horizontal bars, so long program names stay readable.
     document.getElementById('topCareersEmpty').classList.toggle('hidden', data.topCareers.length > 0);
+    // Each bar takes its program's college color; the legend lists those colleges once each.
+    PP.college.legend(document.getElementById('topCareersLegend'), [...new Set(data.topCareers.map(c => c.collegeCode).filter(Boolean))]);
     document.getElementById('topCareersChart').parentElement.classList.toggle('hidden', data.topCareers.length === 0);
     if (careersChartInstance) careersChartInstance.destroy();
     if (data.topCareers.length) {
@@ -735,7 +739,7 @@
         type: 'bar',
         data: {
           labels: data.topCareers.map((c, i) => (i + 1) + '. ' + shorten(c.title)),
-          datasets: [{ data: data.topCareers.map(c => c.count), backgroundColor: '#19427b', borderRadius: 4, barThickness: 28 }]
+          datasets: [{ data: data.topCareers.map(c => c.count), backgroundColor: data.topCareers.map(c => PP.college.color(c.collegeCode)), borderRadius: 4, barThickness: 28 }]
         },
         options: {
           indexAxis: 'y',

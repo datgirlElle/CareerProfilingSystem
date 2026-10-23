@@ -4,9 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
-<title>Career Dataset — Career Profiling System</title>
+<title>Program Mapping Crosswalk — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
+<link rel="stylesheet" href="css/components.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -103,13 +104,13 @@
       <!-- Page Header -->
       <div class="flex items-start justify-between flex-wrap gap-4 mb-8">
         <div>
-          <h1 class="text-2xl font-bold text-slate-900">Career Dataset</h1>
-          <p class="text-sm text-slate-500 mt-1">MMCL programs and their RIASEC codes.</p>
+          <h1 class="text-2xl font-bold text-slate-900">Program Mapping Crosswalk</h1>
+          <p class="text-sm text-slate-500 mt-1">MMCL programs mapped to their RIASEC (Holland) codes and colleges.</p>
         </div>
         <div class="flex items-center gap-3">
-          <div class="relative">
-            <img src="images/admin/icon-search2.svg" alt="" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4">
-            <input type="text" id="searchInput" placeholder="Search programs..." aria-label="Search programs" class="w-64 pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
+          <div class="pp-filter-search w-64">
+            <img src="images/admin/icon-search2.svg" alt="">
+            <input type="text" id="searchInput" placeholder="Search programs..." aria-label="Search programs" class="pp-filter-input">
           </div>
           <a href="add-career" class="flex items-center gap-2 bg-[#ed1c24] text-white rounded-md px-5 py-2.5 text-sm font-medium shadow-sm hover:opacity-90">
             <span class="font-black">+</span> Add Program
@@ -154,46 +155,39 @@
       <!-- Main Data Section -->
       <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
 
-        <!-- Filters Bar -->
-        <div class="border-b border-slate-200 px-5 py-5 flex items-end justify-between flex-wrap gap-4">
-          <div class="flex items-start gap-4 flex-wrap">
-            <div class="flex flex-col gap-1">
-              <label class="text-xs font-medium text-slate-600">College</label>
-              <div class="relative">
-                <select id="filterDepartment" class="appearance-none bg-white border border-slate-300 rounded-md pl-3 pr-9 py-2 text-sm text-slate-700 w-[162px]">
-                  <option value="All">All Colleges</option>
-                </select>
-                <img src="images/admin/icon-chevron-select.svg" alt="" class="absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-1.5 pointer-events-none">
-              </div>
+        <!-- Filters Bar (the Audit Log filter style: each drop-down says what it filters; labels for screen readers) -->
+        <div class="border-b border-slate-200 px-5 py-4 flex items-center justify-between flex-wrap gap-3">
+          <div class="flex items-center gap-3 flex-wrap">
+            <div>
+              <label for="filterDepartment" class="pp-sr-only">College</label>
+              <select id="filterDepartment" class="pp-filter-select">
+                <option value="All">All Colleges</option>
+              </select>
             </div>
-            <div class="flex flex-col gap-1">
-              <label class="text-xs font-medium text-slate-600">RIASEC Code</label>
-              <div class="relative">
-                <select id="filterRiasec" class="appearance-none bg-white border border-slate-300 rounded-md pl-3 pr-9 py-2 text-sm text-slate-700 w-[121px]">
-                  <option value="All">All Codes</option>
-                  <option>R</option><option>I</option><option>A</option>
-                  <option>S</option><option>E</option><option>C</option>
-                </select>
-                <img src="images/admin/icon-chevron-select.svg" alt="" class="absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-1.5 pointer-events-none">
-              </div>
+            <div>
+              <label for="filterRiasec" class="pp-sr-only">RIASEC code</label>
+              <select id="filterRiasec" class="pp-filter-select">
+                <option value="All">All RIASEC Codes</option>
+                <option>R</option><option>I</option><option>A</option>
+                <option>S</option><option>E</option><option>C</option>
+              </select>
             </div>
-            <div class="flex flex-col gap-1">
-              <label class="text-xs font-medium text-slate-600">Status</label>
-              <div class="relative">
-                <select id="filterStatus" class="appearance-none bg-white border border-slate-300 rounded-md pl-3 pr-9 py-2 text-sm text-slate-700 w-[117px]">
-                  <option value="All">All Status</option>
-                  <option>Active</option>
-                  <option>Inactive</option>
-                </select>
-                <img src="images/admin/icon-chevron-select.svg" alt="" class="absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-1.5 pointer-events-none">
-              </div>
+            <div>
+              <label for="filterStatus" class="pp-sr-only">Status</label>
+              <select id="filterStatus" class="pp-filter-select">
+                <option value="All">All Status</option>
+                <option>Active</option>
+                <option>Inactive</option>
+              </select>
             </div>
           </div>
-          <button type="button" id="clearFiltersBtn" class="flex items-center gap-2 border border-slate-300 rounded-md px-4 py-2 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50">
-            <img src="images/admin/icon-clear-filters.svg" alt="" class="w-4 h-3.5">
-            Clear Filters
+          <button type="button" id="clearFiltersBtn" disabled class="pp-clear-filters">
+            <span class="pp-clear-filters-icon" aria-hidden="true"></span>
+            Clear filters
           </button>
         </div>
+        <!-- The college colors (css/components.css), shown for the colleges in the dataset. -->
+        <div id="collegeLegend" class="college-legend px-5 py-3 border-b border-slate-100" aria-label="College colors"></div>
 
         <!-- Data Table -->
         <div class="overflow-x-auto">
@@ -410,16 +404,6 @@
   }, { passive: true });
   })();
 
-  const COLLEGE_COLORS = [
-    { bg: 'bg-[#dcfce7]', text: 'text-[#16a34a]' },
-    { bg: 'bg-[#fee2e2]', text: 'text-[#dc2626]' },
-    { bg: 'bg-[#fef9c3]', text: 'text-[#ca8a04]' },
-    { bg: 'bg-[#f3e8ff]', text: 'text-[#9333ea]' },
-    { bg: 'bg-[#e0e7ff]', text: 'text-[#4f46e5]' },
-    { bg: 'bg-[#e0f2fe]', text: 'text-[#0369a1]' },
-    { bg: 'bg-[#fae8ff]', text: 'text-[#a21caf]' },
-    { bg: 'bg-[#ffedd5]', text: 'text-[#c2410c]' }
-  ];
   const STATUS_COLORS = {
     Active:   { bg: 'bg-[#dcfce7]', text: 'text-[#16a34a]' },
     Inactive: { bg: 'bg-slate-100', text: 'text-slate-500' }
@@ -427,7 +411,6 @@
 
   let programs = [];
   let colleges = [];
-  let collegeColor = {};
 
   const tbody = document.getElementById('careerTableBody');
   const searchInput = document.getElementById('searchInput');
@@ -453,14 +436,13 @@
   }
 
   function renderRow(program) {
-    const dept = collegeColor[program.collegeCode] || { bg: 'bg-slate-100', text: 'text-slate-600' };
     const status = STATUS_COLORS[program.status] || STATUS_COLORS.Active;
     const rowOpacity = program.status === 'Inactive' ? ' opacity-60' : '';
     return `
       <tr data-id="${program.id}" class="${rowOpacity}">
         <td class="px-6 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">${escapeHtml(program.title)}</td>
         <td class="px-6 py-4"><div class="flex gap-1.5">${riasecBadges(program.hollandCode)}</div></td>
-        <td class="px-6 py-4"><span class="inline-block ${dept.bg} ${dept.text} text-xs font-medium px-3 py-1 rounded-full">${escapeHtml(program.collegeCode)}</span></td>
+        <td class="px-6 py-4">${PP.college.badge(program.collegeCode)}</td>
         <td class="px-6 py-4"><span class="inline-block ${status.bg} ${status.text} text-xs font-medium px-3 py-1 rounded-full">${escapeHtml(program.status)}</span></td>
         <td class="px-6 py-4"><div class="flex items-center gap-3">
           <button type="button" class="edit-career-btn" data-id="${program.id}"><img src="images/admin/icon-row-edit.svg" alt="Edit" class="w-3.5 h-3.5"></button>
@@ -482,6 +464,8 @@
     const dept = filterDepartment.value;
     const riasec = filterRiasec.value;
     const status = filterStatus.value;
+
+    clearFiltersBtn.disabled = !search && dept === 'All' && riasec === 'All' && status === 'All';
 
     const filtered = programs.filter(p => {
       const matchesSearch = !search || p.title.toLowerCase().includes(search);
@@ -654,6 +638,7 @@
     filterRiasec.value = 'All';
     filterStatus.value = 'All';
     applyFilters();
+    searchInput.focus(); // the button just turned off, so keep the keyboard in the filter bar
   });
 
   // ---- Init ----
@@ -673,8 +658,7 @@
     programs = data.programs;
     colleges = data.colleges;
     strandOptions = data.strands || [];
-    collegeColor = {};
-    colleges.forEach((c, i) => { collegeColor[c.code] = COLLEGE_COLORS[i % COLLEGE_COLORS.length]; });
+    PP.college.legend(document.getElementById('collegeLegend'), colleges.map(c => ({ code: c.code, name: c.name })));
 
     const collegeOptions = '<option value="All">All Colleges</option>' +
       colleges.map(c => `<option value="${c.code}">${escapeHtml(c.code)}</option>`).join('');

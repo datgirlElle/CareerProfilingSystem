@@ -378,6 +378,35 @@
   // Stale-while-revalidate for data that rarely changes: render(data, fromCache) runs with the saved copy at once
   // (if any), then again with the fresh copy. Resolves with the fresh data; rejects if the server could not be reached
   // and nothing was cached.
+  // College colors are defined once, in css/components.css (--college-<code>). Badges and legends use them
+  // through data-college; charts read the same variables here. A college not listed there gets its grey.
+  PP.college = {
+    key: function (code) { return String(code == null ? '' : code).toLowerCase().replace(/[^a-z0-9]/g, ''); },
+    color: function (code) {
+      var css = getComputedStyle(document.documentElement);
+      return css.getPropertyValue('--college-' + PP.college.key(code)).trim() || css.getPropertyValue('--college-other').trim() || '#94a3b8';
+    },
+    badge: function (code) {
+      var span = document.createElement('span');
+      span.className = 'college-badge';
+      span.dataset.college = String(code == null ? '' : code);
+      span.textContent = String(code == null ? '' : code);
+      return span.outerHTML;
+    },
+    // colleges: codes, or { code, name } objects (the name shows on hover).
+    legend: function (el, colleges) {
+      if (!el) return;
+      el.replaceChildren.apply(el, colleges.map(function (c) {
+        var item = document.createElement('span');
+        item.className = 'college-legend-item';
+        item.dataset.college = typeof c === 'string' ? c : c.code;
+        item.textContent = item.dataset.college;
+        if (typeof c !== 'string' && c.name) item.title = c.name;
+        return item;
+      }));
+    }
+  };
+
   PP.swr = function (url, render, ttlMs) {
     var s = storage(), key = SWR_PREFIX + url, shown = false;
     try {
