@@ -111,8 +111,12 @@ if (preg_match('~^/api/([a-z0-9-]+)\.php$~', $path, $api) && ($apiFile = moduleF
     return true;
 }
 
-// The module code (modules/, shared/) is reached only through the page and API URLs, never by its own path.
-if (preg_match('~^/+(modules|shared)(/|$)~i', $path)) {
+// Folders that are never served over the web. The module code (modules/, shared/) is reached only through
+// the page and API URLs. The database scripts (db/), tests, settings (config/), evaluation scripts and
+// libraries (vendor/) are run from the command line only: run over the web, a script such as
+// db/seed_admin.php would act on the live database.
+const PRIVATE_DIRS = 'modules|shared|db|tests|config|evaluation|vendor';
+if (preg_match('~^/+(' . PRIVATE_DIRS . ')(/|$)~i', $path)) {
     http_response_code(404);
     header('Content-Type: text/plain; charset=UTF-8');
     echo "404 Not Found";
@@ -135,11 +139,11 @@ if (isset(PROTECTED_PAGES[$slug])) {
 
 // A request for a real file on disk — images/*, css/*, js/* — is left
 // entirely to the built-in server's default handling, which serves static
-// files as-is. The module code (modules/, shared/) is reached only through
-// the page and API URLs above and below.
+// files as-is. Checked again on the resolved path, so a request such as
+// /css/../db/seed_admin.php cannot reach the private folders above.
 $fullPath = realpath(__DIR__ . $path);
-$codeDirs = '~^' . preg_quote(str_replace('\\', '/', __DIR__), '~') . '/(modules|shared)(/|$)~i';
-if ($fullPath !== false && is_file($fullPath) && !preg_match($codeDirs, str_replace('\\', '/', $fullPath))) {
+$privateDirs = '~^' . preg_quote(str_replace('\\', '/', __DIR__), '~') . '/(' . PRIVATE_DIRS . ')(/|$)~i';
+if ($fullPath !== false && is_file($fullPath) && !preg_match($privateDirs, str_replace('\\', '/', $fullPath))) {
     return false;
 }
 
