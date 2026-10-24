@@ -84,11 +84,6 @@
       white-space: nowrap;
       border: 0;
     }
-    /* "Blocked" badge (account lockout): orange, so it reads as a failure but not a plain wrong password. */
-    .badge-blocked {
-      background: #ffedd5;
-      color: #c2410c;
-    }
     /* Details open right under their row and show only what the row does not: the details, and the
        activity number, exact time and target. */
     tr.row-selected td {
@@ -541,7 +536,7 @@
       </main>
 
       <footer
-        class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+        class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-500">
         <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
         <span>&middot;</span>
         <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
@@ -1033,11 +1028,12 @@
           }).join('');
         }
 
-        // Fixed HTML per status (the status is only compared, never inserted), for the table and the details.
+        // Fixed label per status (the status is only compared, never inserted), for the table and the details.
+        // Blocked (account lockout) is amber: it needs a look, but it is not a plain wrong password (red).
         function statusBadge(status) {
-          if (status === 'Blocked') return '<span class="badge-blocked text-xs font-medium px-2.5 py-1 rounded-full">Blocked</span>';
-          if (status === 'Failed') return '<span class="bg-red-100 text-red-700 text-xs font-medium px-2.5 py-1 rounded-full">Failed</span>';
-          return '<span class="bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">Success</span>';
+          if (status === 'Blocked') return PP.badge('Blocked', 'amber');
+          if (status === 'Failed') return PP.badge('Failed', 'red');
+          return PP.badge('Success', 'green');
         }
 
         // Details open in a row right under the clicked one and show only what the row does not: the

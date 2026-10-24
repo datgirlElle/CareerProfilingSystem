@@ -144,7 +144,7 @@
 
     </main>
 
-      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-500">
         <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
         <span>&middot;</span>
         <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
@@ -294,9 +294,7 @@
     function rowHtml(tab, r) {
       if (tab === 'needs-review' || tab === 'counseling') {
         const priorityCell = tab === 'needs-review'
-          ? '<td class="px-6 py-3"><span class="border text-xs font-bold px-2.5 py-1 rounded-md ' +
-              (r.priority === 'High' ? 'bg-red-50 border-red-100 text-[#ed1c24]' : r.priority === 'Medium' ? 'bg-orange-50 border-orange-100 text-orange-600' : 'bg-slate-50 border-slate-200 text-slate-600') +
-              '">' + escapeHtml(r.priority) + '</span></td>'
+          ? '<td class="px-6 py-3">' + PP.badge(r.priority, { High: 'red', Medium: 'amber' }[r.priority] || 'gray') + '</td>'
           : '';
         return '<tr>' +
           '<td class="px-6 py-3"><p class="text-sm text-slate-900">' + escapeHtml(r.name) + '</p></td>' +
@@ -321,7 +319,7 @@
         '<td class="px-6 py-3"><p class="text-sm text-slate-900">' + escapeHtml(r.name) + '</p></td>' +
         '<td class="px-6 py-3 text-sm text-slate-900">' + escapeHtml(r.strand) + '</td>' +
         '<td class="px-6 py-3 text-sm text-slate-600">' + escapeHtml(r.assigned) + '</td>' +
-        '<td class="px-6 py-3"><span class="border text-xs font-bold px-2.5 py-1 rounded-md bg-slate-50 border-slate-200 text-slate-600">' + escapeHtml(r.status) + '</span></td>' +
+        '<td class="px-6 py-3">' + PP.badge(r.status, 'blue') + '</td>' +
       '</tr>';
     }
 
@@ -361,7 +359,7 @@
         .map(h => '<th class="px-6 py-3 text-sm font-bold text-slate-500">' + h + '</th>').join('');
       document.getElementById('tableBody').innerHTML = data.rows.length
         ? data.rows.map(r => rowHtml(activeTab, r)).join('')
-        : '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-slate-400">No entries in this category.</td></tr>';
+        : '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-slate-500">No entries in this category.</td></tr>';
 
       const tabCounts = {
         'needs-review': data.summary.needsReview, 'completed': data.summary.completedToday,

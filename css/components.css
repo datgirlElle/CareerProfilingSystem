@@ -223,7 +223,8 @@
 .pp-chips.hidden,
 .pp-filter-count.hidden,
 .pp-btn.hidden,
-.pp-choice.hidden {
+.pp-choice.hidden,
+.pp-badge.hidden {
   display: none;
 }
 
@@ -729,4 +730,65 @@ button.breakdown-row.is-picked:not(:disabled):hover {
 .pp-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* ---- Status badges (PP.badge in js/ui-state.js): one shape, five colors by meaning ---- */
+/* Green done or OK, amber waiting or needs a look, blue not started or next step, red a problem, gray off, closed or
+   none. Colors are the app's own: Tailwind's variables in css/tailwind.css and the blue already used on Student
+   Information and Assessment Scheduling. Each text color passes 4.5:1 on its background. */
+.pp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  padding: 2px 10px;
+  border: 1px solid;
+  border-radius: 9999px;
+}
+.pp-badge::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: currentColor;
+}
+/* An icon in place of the dot (for example the lock on "Enforced"). */
+.pp-badge-icon::before {
+  display: none;
+}
+.pp-badge-green {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: var(--color-green-700);
+}
+.pp-badge-amber {
+  background: var(--color-amber-50);
+  border-color: var(--color-amber-200);
+  color: var(--color-amber-700);
+}
+.pp-badge-blue {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+.pp-badge-red {
+  background: var(--color-red-50);
+  border-color: var(--color-red-200);
+  color: var(--color-red-700);
+}
+.pp-badge-gray {
+  background: var(--color-slate-100);
+  border-color: var(--color-slate-200);
+  color: var(--color-slate-600);
+}
+/* The bigger size on student pages (My Assessments). */
+.pp-badge-lg {
+  gap: 8px;
+  font-size: 16px;
+  line-height: 24px;
+  padding: 4px 14px;
 }

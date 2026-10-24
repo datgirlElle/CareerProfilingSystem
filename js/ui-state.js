@@ -571,6 +571,13 @@
     }
   };
 
+  // One status badge on every page (css/components.css .pp-badge). The color says what kind of status it is, so the
+  // same word is never two colors: green done or OK, amber waiting or needs a look, blue not started or next step,
+  // red a problem, gray off, closed or none. Returns HTML; the label is escaped. opts.large: the bigger student size.
+  PP.badge = function (label, tone, opts) {
+    return '<span class="pp-badge pp-badge-' + (tone || 'gray') + (opts && opts.large ? ' pp-badge-lg' : '') + '">' + esc(label) + '</span>';
+  };
+
   PP.swr = function (url, render, ttlMs) {
     var s = storage(), key = SWR_PREFIX + url, shown = false;
     try {

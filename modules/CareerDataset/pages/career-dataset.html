@@ -211,7 +211,7 @@
 
     </main>
 
-      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-500">
         <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
         <span>&middot;</span>
         <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
@@ -252,15 +252,15 @@
         <input type="text" id="editHollandCode" required maxlength="3" placeholder="e.g. RIC" class="border border-slate-300 rounded-md px-3 py-2 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
       </div>
       <div class="flex flex-col gap-1.5">
-        <label class="text-xs font-medium text-slate-600">Related SHS Strands <span class="text-slate-400">(optional; only used if the strand weight is above 0)</span></label>
+        <label class="text-xs font-medium text-slate-600">Related SHS Strands <span class="text-slate-500">(optional; only used if the strand weight is above 0)</span></label>
         <div id="editStrands" class="flex flex-wrap gap-x-4 gap-y-2"></div>
       </div>
       <div class="flex flex-col gap-1">
-        <label class="text-xs font-medium text-slate-600">Description <span class="text-slate-400">(optional)</span></label>
+        <label class="text-xs font-medium text-slate-600">Description <span class="text-slate-500">(optional)</span></label>
         <textarea id="editDescription" rows="3" maxlength="1000" placeholder="A short description of what this program covers and where it leads." class="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></textarea>
       </div>
       <div class="flex flex-col gap-1">
-        <label class="text-xs font-medium text-slate-600">Careers <span class="text-slate-400">(optional, one per line, up to 8)</span></label>
+        <label class="text-xs font-medium text-slate-600">Careers <span class="text-slate-500">(optional, one per line, up to 8)</span></label>
         <textarea id="editCareers" rows="4" placeholder="Software Engineer&#10;Data Analyst&#10;Systems Analyst" class="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></textarea>
       </div>
     </div>
@@ -336,10 +336,8 @@
   }, { passive: true });
   })();
 
-  const STATUS_COLORS = {
-    Active:   { bg: 'bg-[#dcfce7]', text: 'text-[#16a34a]' },
-    Inactive: { bg: 'bg-slate-100', text: 'text-slate-500' }
-  };
+  // Badge colors by meaning (PP.badge in js/ui-state.js).
+  const STATUS_TONE = { Active: 'green', Inactive: 'gray' };
 
   let programs = [];
   let colleges = [];
@@ -380,14 +378,13 @@
   }
 
   function renderRow(program) {
-    const status = STATUS_COLORS[program.status] || STATUS_COLORS.Active;
     const rowOpacity = program.status === 'Inactive' ? ' opacity-60' : '';
     return `
       <tr data-id="${program.id}" class="${rowOpacity}">
         <td class="px-6 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">${escapeHtml(program.title)}</td>
         <td class="px-6 py-4"><div class="flex gap-1.5">${riasecBadges(program.hollandCode)}</div></td>
         <td class="px-6 py-4">${PP.college.badge(program.collegeCode)}</td>
-        <td class="px-6 py-4"><span class="inline-block ${status.bg} ${status.text} text-xs font-medium px-3 py-1 rounded-full">${escapeHtml(program.status)}</span></td>
+        <td class="px-6 py-4">${PP.badge(program.status, STATUS_TONE[program.status] || 'green')}</td>
         <td class="px-6 py-4"><div class="flex items-center gap-3">
           <button type="button" class="edit-career-btn" data-id="${program.id}"><img src="images/admin/icon-row-edit.svg" alt="Edit" class="w-3.5 h-3.5"></button>
           <button type="button" class="toggle-active-career-btn text-xs font-semibold rounded-md px-2.5 py-1 border whitespace-nowrap ${program.status === 'Active' ? 'btn-danger text-[#ed1c24] border-[#ed1c24] hover:bg-red-50' : 'text-emerald-600 border-emerald-300 hover:bg-emerald-50'}" data-id="${program.id}" data-active="${program.status === 'Active' ? '1' : '0'}" data-title="${escapeHtml(program.title)}">${program.status === 'Active' ? 'Deactivate' : 'Reactivate'}</button>

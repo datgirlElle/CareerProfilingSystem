@@ -235,7 +235,7 @@
         <!-- Schedule list -->
         <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
           <div class="border-b border-slate-200 px-6 py-4 flex items-center justify-between gap-3 flex-wrap">
-            <h2 class="text-base font-semibold text-slate-900"><span id="listTitle">Scheduled Sessions</span> <span id="listAyLabel" class="text-slate-400 font-normal"></span></h2>
+            <h2 class="text-base font-semibold text-slate-900"><span id="listTitle">Scheduled Sessions</span> <span id="listAyLabel" class="text-slate-500 font-normal"></span></h2>
             <div class="flex items-center gap-3">
               <div class="flex items-center gap-2">
                 <label for="ayFilter" class="pp-filter-label">School Year</label>
@@ -245,7 +245,7 @@
             </div>
           </div>
           <div id="schedulesList" class="divide-y divide-slate-100">
-            <p class="px-6 py-8 text-center text-sm text-slate-400">Loading…</p>
+            <p class="px-6 py-8 text-center text-sm text-slate-500">Loading…</p>
           </div>
         </div>
 
@@ -253,7 +253,7 @@
 
     </main>
 
-      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-500">
         <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
         <span>&middot;</span>
         <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
@@ -344,11 +344,12 @@
   const listEl = document.getElementById('schedulesList');
   const listAyLabel = document.getElementById('listAyLabel');
 
-  // Status chip on each session: Completed (ended), Today, or Scheduled.
+  // Status chip on each session: Ended, Today, or Scheduled (PP.badge in js/ui-state.js). A past session says
+  // "Ended", since "Completed" is the green status of a student who finished the assessment.
   function statusChip(s) {
-    if (s.isArchived) return '<span class="inline-flex bg-gray-100 border border-gray-200 text-gray-500 text-[11px] font-medium px-2.5 py-0.5 rounded-full">Completed</span>';
-    if (s.examDate === todayStr()) return '<span class="inline-flex bg-[#dbeafe] border border-[#bfdbfe] text-[#1d4ed8] text-[11px] font-medium px-2.5 py-0.5 rounded-full">Today</span>';
-    return '<span class="inline-flex bg-[#f0fdf4] border border-[#bbf7d0] text-emerald-600 text-[11px] font-medium px-2.5 py-0.5 rounded-full">Scheduled</span>';
+    if (s.isArchived) return PP.badge('Ended', 'gray');
+    if (s.examDate === todayStr()) return PP.badge('Today', 'blue');
+    return PP.badge('Scheduled', 'green');
   }
 
   function renderCard(s) {
@@ -371,7 +372,7 @@
                 ${statusChip(s)}
               </div>
               <p class="text-xs text-slate-500 mt-0.5">${escapeHtml(scopeLabel(s))}</p>
-              ${s.notes ? '<p class="text-xs text-slate-400 mt-1">' + escapeHtml(s.notes) + '</p>' : ''}
+              ${s.notes ? '<p class="text-xs text-slate-500 mt-1">' + escapeHtml(s.notes) + '</p>' : ''}
             </div>
             ${canWrite && !viewingPast && !s.isArchived ? `<button type="button" class="btn-danger delete-schedule-btn text-xs font-medium text-[#ed1c24] hover:underline shrink-0" data-id="${s.id}">Delete</button>` : ''}
           </div>
@@ -487,7 +488,7 @@
     updateRoomConflictHint();
     listEl.innerHTML = data.schedules && data.schedules.length
       ? data.schedules.map(renderCard).join('')
-      : '<p class="px-6 py-8 text-center text-sm text-slate-400">' + (showArchived ? 'No archived sessions.' : 'No active assessment schedules.') + '</p>';
+      : '<p class="px-6 py-8 text-center text-sm text-slate-500">' + (showArchived ? 'No archived sessions.' : 'No active assessment schedules.') + '</p>';
 
     listEl.querySelectorAll('.delete-schedule-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
