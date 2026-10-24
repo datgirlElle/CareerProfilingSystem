@@ -8,7 +8,8 @@
  * The Logout button below the menu stays in each page's own markup.
  *
  * A page closed to this person (every feature on it is No Access in the permission table, Security Configuration) keeps
- * its icon and name but is grayed out, not a link, with the "not allowed" cursor. The list of closed pages comes from
+ * its icon and name but is grayed out, not a link, with the "not allowed" cursor. The administrator's own pages (Security
+ * Configuration, Audit Log) are not shown to other staff at all; they get My Access instead. The list of closed pages comes from
  * api/session.php (user.closedPages): drawn at once from this tab's cached profile, then again from the fresh answer
  * (the 'pp:session' event from js/ui-state.js). router.php refuses those pages too; this only shows it.
  */
@@ -45,10 +46,13 @@
       { id: 'counseling-requests', href: 'counseling-requests', label: 'Counseling Requests', icon: 'headset' },
       { id: 'staff-help-center', href: 'staff-help-center', label: 'Help Center', icon: 'help' }
     ] },
+    // only: 'admin' = the Head of Guidance's own pages (Rbac::ADMIN_PAGES), not shown to other staff at all;
+    // only: 'staff' = for Guidance Counselors and Facilitators (their own access, read-only).
     { title: 'Administration', items: [
       { id: 'account-management', href: 'account-management', label: 'Account Management', icon: 'manage' },
-      { id: 'security-configuration', href: 'security-configuration', label: 'Security Configuration', icon: 'shield' },
-      { id: 'audit-log', href: 'audit-log', label: 'Audit Log', icon: 'history' }
+      { id: 'security-configuration', href: 'security-configuration', label: 'Security Configuration', icon: 'shield', only: 'admin' },
+      { id: 'my-access', href: 'my-access', label: 'My Access', icon: 'shield', only: 'staff' },
+      { id: 'audit-log', href: 'audit-log', label: 'Audit Log', icon: 'history', only: 'admin' }
     ] }
   ];
 
@@ -69,13 +73,22 @@
     return '<svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="' + ICONS[it.icon] + '"/></svg>';
   }
 
+  // Items marked "only" show for that role alone. Before the person is known (a first page with nothing cached yet), only
+  // the shared items and the page you are on are drawn; the rest follows the moment the session answers.
+  function shown(it, role) {
+    if (!it.only || it.id === active) return true;
+    if (!role) return false;
+    return it.only === (role === 'admin' ? 'admin' : 'staff');
+  }
+
   function draw(user) {
     var closed = user && Array.isArray(user.closedPages) ? user.closedPages : [];
-    var key = closed.join(',');
+    var role = user ? user.role : '';
+    var key = role + '|' + closed.join(',');
     if (key === drawn) return;
     drawn = key;
     nav.innerHTML = MENU.map(function (group, i) {
-      var items = group.items.map(function (it) {
+      var items = group.items.filter(function (it) { return shown(it, role); }).map(function (it) {
         if (it.id !== active && closed.indexOf(it.id) !== -1) {
           return '<span class="' + ITEM + CLOSED + '" aria-disabled="true" title="' + CLOSED_TIP + '">' + icon(it) + it.label +
             '<span class="pp-sr-only">, no access</span></span>';
@@ -90,7 +103,8 @@
   draw(window.PP && PP.cachedUser ? PP.cachedUser() : null);
   window.addEventListener('pp:session', function (e) { draw(e.detail); });
 
-  // The same groups, pages, names and icons for the permission table on Security Configuration, so the two never drift apart.
+  // The same groups, pages, names and icons for the permission table (js/rbac-features.js: Security Configuration and My
+  // Access), so the two never drift apart. Every item, whatever the role.
   if (window.PP) {
     PP.navMenu = MENU.map(function (group) {
       return { title: group.title, items: group.items.map(function (it) { return { id: it.id, label: it.label, icon: icon(it) }; }) };

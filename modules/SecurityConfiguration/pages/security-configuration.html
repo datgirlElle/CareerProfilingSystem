@@ -47,6 +47,7 @@
     </div>
     <nav id="adminNav" data-active="security-configuration" class="flex-1 flex flex-col gap-0.5 py-2 overflow-auto"></nav>
     <script src="js/admin-nav.js"></script>
+    <script src="js/rbac-features.js"></script>
     <div class="border-t border-white/5 pt-[25px] pb-6">
       <a href="staff-login" id="sidebarLogout" class="flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] border-transparent text-white/85 text-sm hover:bg-white/5">
         <svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>
@@ -122,8 +123,8 @@
         <!-- LEFT COLUMN (span 2) -->
         <div class="xl:col-span-2 flex flex-col gap-6">
 
-          <!-- Role-Based Access Control. The administrator sees and edits the whole table; other staff see "Your Access"
-               (their own column, view only), filled in by renderOwnAccess(). -->
+          <!-- Role-Based Access Control: the whole table, edited by the administrator (the only one who opens this page).
+               Other staff see their own levels on My Access (modules/SecurityConfiguration/pages/my-access.html). -->
           <div id="rbacCard" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
             <div class="border-b border-slate-200 flex items-center justify-between px-5 py-5 flex-wrap gap-3">
               <div class="flex items-center gap-3">
@@ -133,7 +134,6 @@
                   <p id="rbacSubtitle" class="text-xs text-slate-500">Manage what each user role can access and do within the system.</p>
                 </div>
               </div>
-              <span id="rbacRoleChip" class="hidden inline-flex items-center gap-1 bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap"></span>
               <div id="rbacActions" class="hidden items-center gap-2 flex-wrap">
                 <span id="rbacPendingCount" class="text-xs text-slate-500"></span>
                 <button type="button" id="rbacCancelBtn" class="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-300 rounded-md hover:bg-slate-50">Cancel</button>
@@ -143,8 +143,6 @@
 
             <p id="rbacMessage" class="hidden px-5 pt-3 text-xs" aria-live="polite"></p>
             <p id="rbacViewOnlyNote" class="hidden px-5 pt-3 text-xs text-slate-500">View only: only the administrator can change permissions.</p>
-            <div id="rbacOwnList" class="hidden divide-y divide-slate-200"></div>
-            <p id="rbacOwnFoot" class="hidden px-5 py-3 border-t border-slate-200 text-xs text-slate-500">Need more access? Ask the administrator. Only the administrator can change permissions.</p>
             <div id="rbacTableWrap" class="overflow-x-auto">
               <table class="w-full text-left border-collapse min-w-[700px]">
                 <thead class="bg-slate-50/50 border-b border-slate-200">
@@ -356,6 +354,11 @@
     window.location.replace('staff-login');
     return;
   }
+  // The administrator's page (router.php refuses it to other staff); they see their own access on My Access.
+  if (currentUser.role !== 'admin') {
+    window.location.replace('my-access');
+    return;
+  }
 
   const headerAvatarWrap = document.getElementById('headerAvatarWrap');
   if (currentUser.avatarUrl) {
@@ -407,63 +410,9 @@
   })();
 
   (async function() {
-    // The permission table: each feature (a key of Rbac::DEFAULTS in modules/Authentication/lib/Rbac.php), shown under the
-    // sidebar page it lives on, in the sidebar's groups and order (PP.navMenu from js/admin-nav.js). "desc" says what View
-    // Only and Full allow.
-    const FEATURES = {
-      dashboard: { label: 'Dashboard', desc: 'The summary cards and progress charts.' },
-      studentInfo: { label: 'Student information', desc: 'The student list and profiles. Full: also change a student\'s section.' },
-      studentAccounts: { label: 'Student account management', desc: 'See if an account is active or locked. Full: deactivate, unlock, invite to register, send reminders.' },
-      assessmentResults: { label: 'Assessment results', desc: 'RIASEC code, scores and past attempts on the profile.' },
-      recommendations: { label: 'Career recommendations', desc: 'Recommended programs on the profile and CBF Candidate Programs.' },
-      notesCreate: { label: 'Create counseling notes', desc: 'Write counseling notes on a student profile.' },
-      exportResults: { label: 'Export student results', desc: 'View Only: summary downloads (totals and percentages). Full: lists with student names.' },
-      analytics: { label: 'Analytics and reports', desc: 'The charts and tables on Analytics & Report.' },
-      analyticsEmail: { label: 'Send analytics report', desc: 'Email the Analytics Report to someone.' },
-      programs: { label: 'Program Mapping Crosswalk', desc: 'MMCL programs and their RIASEC codes. Full: add and edit programs.' },
-      questionBank: { label: 'Question Bank', desc: 'The assessment questions. Full: add, edit and hide questions.' },
-      examinations: { label: 'Assessment Scheduling', desc: 'Schedules, rooms and access codes. Full: create and change them.' },
-      monitoring: { label: 'Flagged student monitoring', desc: 'Flagged recommendations. Full: approve, escalate or dismiss them.' },
-      announcements: { label: 'Announcements', desc: 'Read the announcements sent. Full: post and edit them.' },
-      counselingHistory: { label: 'View counseling history', desc: 'Notes, requests and retakes. View Only: who and when, not what was written.' },
-      counselingStatus: { label: 'Update counseling status', desc: 'Resolve requests, decide retakes and invite students to counseling.' },
-      helpCenter: { label: 'Help Center', desc: 'The FAQs. Full: edit the FAQs, office hours and booking link.' },
-      roster: { label: 'Student roster management', desc: 'Class rosters and sections. Full: upload rosters, add and deactivate sections.' },
-      staffAccounts: { label: 'Manage staff accounts', desc: 'Approve sign-ups, send access codes, assign sections, deactivate staff.' },
-      settings: { label: 'System settings and permissions', desc: 'This page. View Only: see your own access. Only the administrator changes settings.' },
-      auditLog: { label: 'Audit logs', desc: 'Every sign-in and change in the system.' }
-    };
-    // Which features are shown under which sidebar page. (Which features open a page is decided by Rbac::PAGES on the server.)
-    const PAGE_FEATURES = {
-      'admin-dashboard': ['dashboard', 'studentInfo', 'studentAccounts', 'assessmentResults', 'recommendations', 'notesCreate', 'exportResults'],
-      'analytics': ['analytics', 'analyticsEmail'],
-      'career-dataset': ['programs'],
-      'question-bank': ['questionBank'],
-      'assessment-scheduling': ['examinations'],
-      'monitoring': ['monitoring'],
-      'announcements': ['announcements'],
-      'counseling-requests': ['counselingHistory', 'counselingStatus'],
-      'staff-help-center': ['helpCenter'],
-      'account-management': ['roster', 'staffAccounts'],
-      'security-configuration': ['settings'],
-      'audit-log': ['auditLog']
-    };
-    const MODULES = Object.keys(FEATURES).map(id => ({ id: id, label: FEATURES[id].label, desc: FEATURES[id].desc }));
-    // The sidebar's groups and pages, each with its features. A feature not under any page (should not happen) goes last.
-    function featureGroups() {
-      const menu = (window.PP && PP.navMenu) || [];
-      const placed = {};
-      const groups = menu.map(g => ({
-        title: g.title,
-        pages: g.items.filter(it => PAGE_FEATURES[it.id]).map(it => {
-          PAGE_FEATURES[it.id].forEach(id => { placed[id] = true; });
-          return { label: it.label, icon: it.icon, features: PAGE_FEATURES[it.id].map(id => MODULES.find(m => m.id === id)) };
-        })
-      }));
-      const rest = MODULES.filter(m => !placed[m.id]);
-      if (rest.length) groups.push({ title: 'Other', pages: [{ label: 'Other', icon: '', features: rest }] });
-      return groups;
-    }
+    // The permission table: the rows and their grouping come from js/rbac-features.js (shared with My Access).
+    const MODULES = PP.rbacFeatures.modules;
+    const featureGroups = function() { return PP.rbacFeatures.groups({ adminOnly: true }); };
     const RBAC_COLUMNS = ['admin', 'counselor', 'facilitator']; // Student access is fixed, so it is not shown
     const LEVEL_LABEL = { full: 'Full Access', limited: 'View Only', none: 'No Access' };
     let state = null;
@@ -557,44 +506,8 @@
       });
     }
 
-    // Everyone but the administrator sees only their own access, as a list with one clear label per area (the server
-    // sends only their own column: api/security-config.php).
-    const OWN_PILL = {
-      full: 'bg-green-50 border border-green-200 text-green-700',
-      limited: 'bg-amber-50 border border-amber-200 text-amber-700',
-      none: 'bg-slate-100 border border-slate-200 text-slate-600'
-    };
-    function renderOwnAccess(role) {
-      const label = ROLE_LABEL[role] || 'your role';
-      document.getElementById('rbacTitle').textContent = 'Your Access';
-      document.getElementById('rbacSubtitle').textContent = 'What you can do in ProfilePath as a ' + label + '. Set by the administrator.';
-      const chip = document.getElementById('rbacRoleChip');
-      chip.innerHTML = '<img src="images/security/icon-counselor.svg" alt="" class="w-2.5 h-3">';
-      chip.appendChild(document.createTextNode(label));
-      chip.classList.remove('hidden');
-      ['rbacTableWrap', 'rbacViewOnlyNote', 'rbacActions'].forEach(id => document.getElementById(id).classList.add('hidden'));
-      document.getElementById('rbacOwnFoot').classList.remove('hidden');
-      const list = document.getElementById('rbacOwnList');
-      list.innerHTML = featureGroups().map(g =>
-        '<p class="px-5 pt-4 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">' + g.title + '</p>' +
-        g.pages.map(p => p.features.map(m => {
-          const lvl = levelOf(m.id, role);
-          const name = p.features.length === 1 ? p.label : p.label + ': ' + m.label;
-          return '<div class="flex items-center justify-between gap-4 px-5 py-3">' +
-            '<div class="flex items-start gap-3"><span class="text-slate-500 mt-0.5">' + p.icon + '</span>' +
-            '<div><p class="text-sm font-medium text-slate-800">' + name + '</p><p class="text-xs text-slate-500">' + m.desc + '</p></div></div>' +
-            '<span class="' + (OWN_PILL[lvl] || OWN_PILL.none) + ' text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap">' + (LEVEL_LABEL[lvl] || LEVEL_LABEL.none) + '</span>' +
-            '</div>';
-        }).join('')).join('')
-      ).join('');
-      list.classList.remove('hidden');
-    }
-
+    // Only the administrator opens this page (Rbac::ADMIN_PAGES); other staff see their own access on My Access (my-access).
     function renderRbacTable() {
-      if (state.rbacOwnOnly) {
-        renderOwnAccess(state.rbacOwnOnly);
-        return;
-      }
       // Only the administrator gets editable cells from the server (Rbac::editableLevels); everyone else just looks.
       document.getElementById('rbacViewOnlyNote').classList.toggle('hidden', MODULES.some(m => RBAC_COLUMNS.some(r => isEditable(m.id, r))));
       const tbody = document.getElementById('rbacTableBody');
@@ -610,6 +523,12 @@
         '<tr class="rbac-group"><th colspan="4" scope="colgroup" class="px-5 pt-5 pb-2 text-left text-[11px] font-semibold tracking-wide text-slate-500 uppercase">' + g.title + '</th></tr>' +
         g.pages.map(p => {
           const pageName = '<span class="text-slate-500 mt-0.5">' + p.icon + '</span>';
+          if (p.adminOnly) {
+            // The Head of Guidance's own pages: always the administrator's, never in the table for other staff.
+            return '<tr><td class="px-5 py-3"><div class="flex items-start gap-3">' + pageName +
+              '<div><p class="text-sm font-medium text-slate-800">' + p.label + '</p><p class="text-xs text-slate-500">' + p.desc + '</p></div>' +
+              '</div></td>' + RBAC_COLUMNS.map(r => '<td class="px-3 py-3 text-center">' + permIcon(r === 'admin' ? 'full' : 'none') + '</td>').join('') + '</tr>';
+          }
           if (p.features.length === 1) {
             const m = p.features[0];
             return '<tr><td class="px-5 py-3"><div class="flex items-start gap-3">' + pageName +
