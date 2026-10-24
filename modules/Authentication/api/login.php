@@ -34,11 +34,7 @@ const LOCKED_MESSAGE = 'Account temporarily locked due to repeated failed attemp
 function lockoutPolicy(PDO $pdo): array
 {
     $rows = $pdo->query("SELECT key, value FROM security_policies WHERE key LIKE 'lockout.%'")->fetchAll(PDO::FETCH_KEY_PAIR);
-    return [
-        'enabled' => ($rows['lockout.enabled'] ?? 'true') === 'true',
-        'maxAttempts' => (int) ($rows['lockout.maxAttempts'] ?? 5),
-        'lockoutMinutes' => (int) ($rows['lockout.lockoutMinutes'] ?? 15),
-    ];
+    return LoginLock::policy($rows); // always on, within the limits the administrator can set
 }
 
 // No real username or email is this long; it is treated like an unknown one.

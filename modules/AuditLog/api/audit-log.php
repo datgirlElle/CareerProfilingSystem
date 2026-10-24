@@ -293,7 +293,7 @@ function readableDetail(string $detail): string
         'enabled' => 'Status', 'minLength' => 'Minimum password length', 'requireUpper' => 'Needs an uppercase letter',
         'requireLower' => 'Needs a lowercase letter', 'requireNumber' => 'Needs a number', 'requireSymbol' => 'Needs a symbol',
         'maxAttempts' => 'Failed attempts before lockout', 'lockoutMinutes' => 'Lockout length', 'retentionDays' => 'Log retention',
-        'twoFactor' => 'Two-step sign-in', 'sessionTimeoutEnabled' => 'Session timeout', 'timeoutMinutes' => 'Timeout length',
+        'twoFactor' => 'Email verification for password changes', 'sessionTimeoutEnabled' => 'Session timeout', 'timeoutMinutes' => 'Timeout length',
     ];
     $units = ['lockoutMinutes' => 'minute', 'timeoutMinutes' => 'minute', 'retentionDays' => 'day'];
     $switches = ['enabled', 'twoFactor', 'sessionTimeoutEnabled'];   // On/Off; other yes/no settings say Yes/No

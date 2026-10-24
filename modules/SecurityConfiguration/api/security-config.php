@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../../shared/lib/AcademicYear.php';
 require_once __DIR__ . '/../../Counseling/lib/OfficeHours.php';
 require_once __DIR__ . '/../../Counseling/lib/BookingLink.php';
 require_once __DIR__ . '/../../Authentication/lib/PasswordPolicy.php';
+require_once __DIR__ . '/../../Authentication/lib/LoginLock.php';
 require_once __DIR__ . '/../../AuditLog/lib/AuditChange.php';
 require_once __DIR__ . '/../../AuditLog/lib/AuditRetention.php';
 
@@ -68,9 +69,8 @@ function loadPolicies(PDO $pdo): array
                 'requireUpper' => $b('password.requireUpper', true), 'requireLower' => $b('password.requireLower', true),
                 'requireNumber' => $b('password.requireNumber', true), 'requireSymbol' => $b('password.requireSymbol', true),
             ],
-            'lockout' => [
-                'enabled' => $b('lockout.enabled', true), 'maxAttempts' => $i('lockout.maxAttempts', 5),
-                'lockoutMinutes' => $i('lockout.lockoutMinutes', 15),
+            // Always on, within the limits the administrator can set (LoginLock::policy, the same rule sign-in uses).
+            'lockout' => LoginLock::policy($rows) + [
             ],
             // Its switch is "Delete older logs automatically" (modules/AuditLog/lib/AuditRetention.php), off unless turned on.
             'retention' => [
@@ -78,9 +78,12 @@ function loadPolicies(PDO $pdo): array
             ],
         ],
         'settings' => [
-            'twoFactor' => $b('twoFactor', true),
-            'sessionTimeoutEnabled' => $b('sessionTimeoutEnabled', true),
-            'timeoutMinutes' => $i('timeoutMinutes', 30),
+            // Email verification for staff password changes and the session timeout are always on (secure by default);
+            // only the timeout length is chosen (Auth::TIMEOUT_CHOICES).
+            'twoFactor' => true,
+            'sessionTimeoutEnabled' => true,
+            'timeoutMinutes' => Auth::timeoutMinutes($rows['timeoutMinutes'] ?? null),
+            'timeoutChoices' => Auth::TIMEOUT_CHOICES,
         ],
         // Detected from today's date (shared/lib/AcademicYear.php) — read-only here.
         'academicYear' => [
@@ -261,9 +264,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $set('password.requireNumber', !empty($body['requireNumber']) ? 'true' : 'false');
             $set('password.requireSymbol', !empty($body['requireSymbol']) ? 'true' : 'false');
         } elseif ($key === 'lockout') {
-            $set('lockout.enabled', !empty($body['enabled']) ? 'true' : 'false');
-            $set('lockout.maxAttempts', (string) max(1, min(20, (int) ($body['maxAttempts'] ?? 5))));
-            $set('lockout.lockoutMinutes', (string) max(1, min(1440, (int) ($body['lockoutMinutes'] ?? 15))));
+            // Always on (it cannot be turned off); the numbers must be inside the limits, or nothing is saved.
+            $attempts = (int) ($body['maxAttempts'] ?? 0);
+            $minutes = (int) ($body['lockoutMinutes'] ?? 0);
+            if ($attempts < LoginLock::ATTEMPTS_MIN || $attempts > LoginLock::ATTEMPTS_MAX) {
+                jsonResponse(['success' => false, 'error' => 'Failed attempts must be from ' . LoginLock::ATTEMPTS_MIN . ' to ' . LoginLock::ATTEMPTS_MAX . '.'], 400);
+            }
+            if ($minutes < LoginLock::MINUTES_MIN || $minutes > LoginLock::MINUTES_MAX) {
+                jsonResponse(['success' => false, 'error' => 'The lockout must last at least ' . LoginLock::MINUTES_MIN . ' minutes (at most ' . LoginLock::MINUTES_MAX . ').'], 400);
+            }
+            $set('lockout.enabled', 'true');
+            $set('lockout.maxAttempts', (string) $attempts);
+            $set('lockout.lockoutMinutes', (string) $minutes);
         } else {
             $enabled = !empty($body['enabled']) ? 'true' : 'false';
             $set(AuditRetention::ON_KEY, $enabled);
@@ -336,15 +348,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
             $stmt->execute([$k, $v, $user['id']]);
         };
+        // Only the timeout length changes here: email verification and the timeout itself are always on.
+        $minutes = (int) ($body['timeoutMinutes'] ?? 0);
+        if (!in_array($minutes, Auth::TIMEOUT_CHOICES, true)) {
+            jsonResponse(['success' => false, 'error' => 'Choose a timeout of ' . implode(', ', Auth::TIMEOUT_CHOICES) . ' minutes.'], 400);
+        }
         $beforeSettings = loadPolicies($pdo)['settings'];
-        $set('twoFactor', !empty($body['twoFactor']) ? 'true' : 'false');
-        $set('sessionTimeoutEnabled', !empty($body['sessionTimeoutEnabled']) ? 'true' : 'false');
-        $set('timeoutMinutes', (string) max(5, min(240, (int) ($body['timeoutMinutes'] ?? 30))));
+        $set('twoFactor', 'true');
+        $set('sessionTimeoutEnabled', 'true');
+        $set('timeoutMinutes', (string) $minutes);
 
         $fresh = loadPolicies($pdo);
         AuditLogger::log($user['id'], $user['role'], 'update_settings', 'security_policies', 'settings', AuditChange::detail(
             'Sign-in and session settings', $beforeSettings, $fresh['settings'],
-            ['twoFactor' => 'Two-step sign-in', 'sessionTimeoutEnabled' => 'Session timeout', 'timeoutMinutes' => 'Timeout length (minutes)']
+            ['twoFactor' => 'Email verification for password changes', 'sessionTimeoutEnabled' => 'Session timeout', 'timeoutMinutes' => 'Timeout length (minutes)']
         ));
         jsonResponse(['success' => true] + $fresh);
     }
