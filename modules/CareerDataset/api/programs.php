@@ -4,6 +4,7 @@ require_once __DIR__ . '/../../../shared/api/_bootstrap.php';
 require_once __DIR__ . '/../../ContentBasedFiltering/lib/CBFEngine.php';
 require_once __DIR__ . '/../../ContentBasedFiltering/lib/CBFData.php';
 require_once __DIR__ . '/../lib/Careers.php';
+require_once __DIR__ . '/../../AuditLog/lib/AuditChange.php';
 
 $pdo = Database::get();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -161,28 +162,60 @@ if ($method === 'PUT') {
         jsonResponse(['success' => false, 'error' => 'Missing program id.'], 400);
     }
 
-    $existing = $pdo->prepare('SELECT id FROM programs WHERE id = ?');
+    $existing = $pdo->prepare(
+        'SELECT p.title_enc, p.holland_code_enc, p.description_enc, p.careers, p.status, c.name AS college_name
+         FROM programs p JOIN colleges c ON c.id = p.college_id WHERE p.id = ?'
+    );
     $existing->execute([$id]);
-    if (!$existing->fetch()) {
+    $old = $existing->fetch();
+    if (!$old) {
         jsonResponse(['success' => false, 'error' => 'Program not found.'], 404);
     }
 
     [$title, $hollandCode, $description, $collegeId, $status, $careers] = readProgramInput($body);
 
-    $collegeCheck = $pdo->prepare('SELECT id FROM colleges WHERE id = ?');
+    $collegeCheck = $pdo->prepare('SELECT name FROM colleges WHERE id = ?');
     $collegeCheck->execute([$collegeId]);
-    if (!$collegeCheck->fetch()) {
+    $collegeName = $collegeCheck->fetchColumn();
+    if ($collegeName === false) {
         jsonResponse(['success' => false, 'error' => 'Unknown college.'], 400);
     }
+    $oldCareers = Careers::parse($old['careers']);
+    $before = [
+        'title' => Crypto::dec($old['title_enc']), 'hollandCode' => Crypto::dec($old['holland_code_enc']),
+        'college' => $old['college_name'], 'status' => $old['status'],
+        'description' => $old['description_enc'] !== null ? Crypto::dec($old['description_enc']) : '',
+        'careers' => implode('; ', $oldCareers),
+    ];
+    $after = [
+        'title' => $title, 'hollandCode' => $hollandCode, 'college' => $collegeName, 'status' => $status,
+        'description' => $description, 'careers' => implode('; ', $careers ?? $oldCareers),
+    ];
 
     $update = $pdo->prepare(
         'UPDATE programs SET college_id = ?, title_enc = ?, holland_code_enc = ?, description_enc = ?, careers = COALESCE(?::text[], careers), status = ?, updated_at = NOW() WHERE id = ?'
     );
     $update->execute([$collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null, $careers !== null ? Careers::toLiteral($careers) : null, $status, $id]);
 
-    AuditLogger::log($user['id'], $user['role'], 'update_program', 'program', (string) $id, $title);
+    // What changed, old and new, shown on the Audit Log page (e.g. "Holland code: SEA -> ESA").
+    AuditLogger::log($user['id'], $user['role'], 'update_program', 'program', (string) $id, AuditChange::detail(
+        'Program: ' . $title, $before, $after,
+        ['title' => 'Title', 'hollandCode' => 'Holland code', 'college' => 'College', 'status' => 'Status',
+         'description' => 'Description', 'careers' => 'Careers']
+    ));
 
-    jsonResponse(['success' => true]);
+    // The CBF compares every student with every program's Holland code, so a new code changes saved
+    // results. Recompute them now, so no student or staff member sees results built on the old code.
+    if ($hollandCode !== $before['hollandCode']) {
+        $result = CBFData::recomputeAll($pdo);
+        AuditLogger::log($user['id'], $user['role'], 'recompute_recommendations', 'program', (string) $id,
+            "Holland code of {$title} changed {$before['hollandCode']} -> {$hollandCode}: {$result['recomputed']} students' recommendations recomputed"
+            . ($result['failed'] ? ", {$result['failed']} failed" : ''));
+        jsonResponse(['success' => true, 'hollandCodeChanged' => true, 'previousHollandCode' => $before['hollandCode'],
+            'hollandCode' => $hollandCode, 'recomputed' => $result['recomputed'], 'recomputeFailed' => $result['failed']]);
+    }
+
+    jsonResponse(['success' => true, 'hollandCodeChanged' => false]);
 }
 
 jsonResponse(['error' => 'Method not allowed'], 405);

@@ -104,6 +104,7 @@ $actionLabels = [
     'update_program' => 'Edited program',
     'activate_program' => 'Activated program',
     'deactivate_program' => 'Deactivated program',
+    'recompute_recommendations' => 'Recomputed recommendations',
     // Assessment
     'submit_assessment' => 'Submitted RIASEC assessment',
     'assessment_resubmit_denied' => 'Tried to resubmit assessment',

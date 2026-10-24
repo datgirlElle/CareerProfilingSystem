@@ -94,6 +94,16 @@ similarity with every program, Best RIASEC Match = every program tied at the hig
 Alternative Courses = the next-highest, ties all kept and listed by the counselors' 1-2-3 letter
 ranking, Preferred Course separate. No weights, no other inputs. Awaiting only the adviser's sign-off.
 
+**Changing a program's code** (Career Dataset page; Admin by default, or staff given full
+"Career Profile Input" access in Security Configuration):
+- The code must be three different letters from R, I, A, S, E, C; the page asks for confirmation
+  and reminds staff to use only the code approved by the Guidance Office.
+- The Audit Log records what changed, old and new (e.g. "Holland code: SEA → ESA").
+- Every saved recommendation is recomputed at once with the new code (a new row per student; older
+  rows stay as history; nothing is sent to students), and a second audit entry records how many.
+- `db/migrate_final_holland_codes.php` sets the 32 approved codes; run it once on a new database
+  only, because running it again would undo later edits made on the Career Dataset page.
+
 `modules/ContentBasedFiltering/lib/CBFEngine.php`, `config/cbf.php`, `db/program_codes.php`.
 
 - **Student vector:** the six stored scores ÷ 10.
