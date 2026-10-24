@@ -242,57 +242,64 @@ The learning curve levels off from about 300 students: adding students *of the s
 inputs, same target) is not expected to approach 80%. The limit is set mainly by the inputs: students
 with identical inputs chose different courses, an error no classifier can remove (the Bayes error).
 
-### 10.2 Related studies
+### 10.2 Related studies (2023–present)
 
-1. **Interests alone predict career or major choice only moderately, even in large studies.**
-   - Hanna & Rounds (2020): a meta-analysis of over 75 years of interest-inventory research found
-     that measured interests predict career choice (including college major) correctly about 50%
-     of the time; accuracy depends on the inventory, the scale type and the hit-rate method.
-   - Gasser, Larson & Borgen (2007): with the Strong Interest Inventory and 31 college majors
-     (1,403 women, 469 men), the most specific scales (Basic Interest Scales) predicted major best,
-     with hit rates about 6 times chance; broad themes were less predictive.
-   - Song et al. (*Personnel Psychology*, DOI 10.1111/peps.12529): with 81,267 people, matching on
-     the highest RIASEC types predicted career choice about 45% of the time; machine learning
-     improved accuracy for common categories but under-predicted rare ones.
-   - *This study:* 28 exact courses from top-3 binary inputs, a harder task than those studies;
-     J48's 17.12% is about 4.8 times a uniform 1-in-28 guess (3.6%). The definitions of "chance"
-     differ between studies, so the comparison is indicative only.
-2. **Missing attributes: interests are one of several determinants of course choice.**
-   - Lent, Brown & Hackett (1994), Social Cognitive Career Theory: choices also depend on
-     self-efficacy, outcome expectations and contextual supports and barriers (e.g. family, finances).
-   - Allen & Robbins (2008): in about 50,000 students, interest–major fit and first-year academic
-     performance each predicted persistence in a major, so academic information adds to interests.
-   - *This study:* the dataset contains only the six RIASEC scores and the stated course: no grades,
-     SHS strand, abilities, self-efficacy, family or financial factors.
-3. **Information lost by reducing scores to top-three yes/no.**
-   - MacCallum, Zhang, Preacher & Rucker (2002): dichotomizing quantitative variables loses
-     information and weakens the relationships that can be detected.
+Only studies published from 2023 onward are used as related studies (adviser's requirement). Older
+works that are a theory, an instrument or a statistical convention rather than a related study are
+listed separately in §10.4.
+
+1. **Interests alone predict career choice only moderately, even with large samples and machine learning.**
+   - Song et al. (2024), *Personnel Psychology*: with 81,267 people, traditional interest-profile
+     matching predicted occupational membership and vocational aspirations only moderately (about
+     45% by high-point RIASEC matching, as summarized for the study: confirm in the article).
+     Machine learning improved overall accuracy but was most accurate for common job categories and
+     under-predicted rare ones.
+   - *This study:* 28 exact courses from top-three inputs is a harder task; J48's 17.12% is about
+     4.8 times a uniform 1-in-28 guess (3.6%).
+2. **More classes, lower accuracy.**
+   - University of Jordan study (2025; machine-learning prediction of the best-fit engineering major
+     from 25 vocational-interest features, 734 students): test accuracy fell from 91.3% for 2 majors
+     to 87.7%, 82.7%, 77.7%, 72.9% and 65.0% for 3 to 7 majors. (Venue listed as *SN Computer
+     Science*; confirm the authors before citing.)
+   - *This study:* 28 courses, four times the classes of that study's hardest setting.
+3. **Missing attributes: course choice depends on more than interests.**
+   - Leighton & Speer (2023), EdWorkingPaper 23-767: students' family background, especially
+     parents' education, is related to which college major they choose.
+   - *This study:* the dataset has only the six RIASEC scores and the stated course: no grades, SHS
+     strand, parents' education, family income or self-efficacy.
+4. **Information lost by reducing scores to top-three yes/no.**
+   - Ma et al. (2023), *Journal of Clinical Epidemiology*: categorizing (most often dichotomizing)
+     continuous predictors was the most common practice in 118 prediction-model studies; it discards
+     information and lowers predictive accuracy.
    - *This study:* "R = 1" does not show how strong R was; 21% of students' top three depend on a tie.
-4. **Many classes, few and uneven students per class.**
-   - He & Garcia (2009): classifiers favour majority classes and miss minority ones.
-   - Figueroa, Zeng-Treitler, Kandula & Ngo (2012): classifier performance grows with training size
-     along a learning curve with diminishing returns.
+5. **Few students in many classes, and more data of the same kind does not help.**
+   - Gao et al. (2025), *Frontiers of Computer Science* (survey of imbalanced-data learning): models
+     trained on skewed class sizes favour the large classes.
+   - Rajput, Wang & Chen (2023), *BMC Bioinformatics*: accuracy rose with sample size only for data
+     that separate the classes well; for data with weak discriminative power, accuracy stayed poor
+     and did not improve with more samples.
    - *This study:* 12 of 28 courses have fewer than 10 students and are never predicted; the
-     learning curve (§10.1) has levelled off.
-5. **A limit that no classifier can exceed when inputs overlap.**
-   - Hastie, Tibshirani & Friedman (2009), Ch. 2 (the Bayes classifier and Bayes error rate).
-   - *This study:* the ceiling of 24.68% is that limit for these inputs, measured on the data.
+     learning curve levels off at about 17% (§10.1), as Rajput et al. found for weakly separable data.
+6. **A limit no classifier can exceed when inputs overlap (the Bayes error).**
+   - Ishida et al. (2023), ICLR: the Bayes error is the lowest error any classifier can achieve and
+     is a yardstick for judging how far a model can improve.
+   - *This study:* the ceiling of 24.68% (§10.1) is that limit for these inputs, measured on the data.
 
 ### 10.3 Draft paragraph (Results / Discussion)
 
-> The J48 model achieved a mean accuracy of 17.12% (SD 1.24) under 10-fold cross-validation
+> The J48 model achieved a mean accuracy of 17.12% (SD 4.45) under 10-fold cross-validation
 > repeated ten times, compared with 7.76% for the ZeroR baseline, below the 80% target. This is
-> consistent with prior research: even large interest-inventory studies predict career or major
-> choice correctly about 45–50% of the time (Hanna & Rounds, 2020; Song et al.), and predicting
-> among many specific majors is harder than predicting broad categories (Gasser et al., 2007).
-> Course choice also depends on factors not in the dataset, such as self-efficacy, academic
-> performance and contextual supports and barriers (Lent et al., 1994; Allen & Robbins, 2008).
-> Representing each student only by their top three RIASEC types further discards information
-> (MacCallum et al., 2002), and twelve of the 28 courses had fewer than ten students, which limits
-> what a classifier can learn (He & Garcia, 2009; Figueroa et al., 2012). An analysis of the dataset
-> showed that no classifier using these inputs could exceed 24.68% accuracy, because students with
-> the same top three types chose different courses, and accuracy levelled off at about 17% from
-> roughly 300 students onward. J48's 17.12% approaches the best achievable rule (17.91%).
+> consistent with recent research: even with a large sample, interest-profile matching predicts
+> career choice only moderately, and machine learning improves mainly the common categories (Song
+> et al., 2024); accuracy also falls as the number of majors to choose from grows (University of
+> Jordan study, 2025). Course choice depends on factors not in the dataset, such as family
+> background (Leighton & Speer, 2023). Representing each student only by their top three RIASEC
+> types discards information (Ma et al., 2023), and twelve of the 28 courses had fewer than ten
+> students, which limits what a classifier can learn (Gao et al., 2025). Accuracy levelled off at
+> about 17% from roughly 300 students, as expected for data with weak discriminative power (Rajput
+> et al., 2023), and an analysis of the dataset showed that no classifier using these inputs could
+> exceed 24.68%, the Bayes-error limit of these inputs (Ishida et al., 2023). J48's 17.12% approaches
+> the best achievable rule (17.91%).
 
 ### 10.5 Why the significance test matters
 
@@ -338,52 +345,58 @@ corrected paired t-test, α = .05; SD over 100 folds):
 
 ### 10.4 References for this section
 
-Confirmed through library and index records (the publishers' pages could not be opened from the
-build environment, so check page numbers against the article before final submission):
+**Related studies (2023–present)**, confirmed through index and library records (the publishers'
+pages could not be opened from the build environment; check details against the article):
 
-- Allen, J., & Robbins, S. B. (2008). Prediction of college major persistence based on vocational interests, academic preparation, and first-year academic performance. *Research in Higher Education, 49*(1), 62–79.
-- Figueroa, R. L., Zeng-Treitler, Q., Kandula, S., & Ngo, L. H. (2012). Predicting sample size required for classification performance. *BMC Medical Informatics and Decision Making, 12*, 8. https://doi.org/10.1186/1472-6947-12-8
-- Gasser, C. E., Larson, L. M., & Borgen, F. H. (2007). Concurrent validity of the 2005 Strong Interest Inventory: An examination of gender and major field of study. *Journal of Career Assessment, 15*(1). https://doi.org/10.1177/1069072706294516 (sources differ on the pages: 1–21 or 5–22)
-- Hanna, A., & Rounds, J. (2020). How accurate are interest inventories? A quantitative review of career choice hit rates. *Psychological Bulletin, 146*(9), 765–796. https://doi.org/10.1037/bul0000269 (the 50.3% figure is from the authors' thesis version; confirm the published value)
-- He, H., & Garcia, E. A. (2009). Learning from imbalanced data. *IEEE Transactions on Knowledge and Data Engineering, 21*(9), 1263–1284.
-- Landis, J. R., & Koch, G. G. (1977). The measurement of observer agreement for categorical data. *Biometrics, 33*(1), 159–174. (kappa 0.00–0.20 = "slight")
-- Lent, R. W., Brown, S. D., & Hackett, G. (1994). Toward a unifying social cognitive theory of career and academic interest, choice, and performance. *Journal of Vocational Behavior, 45*(1), 79–122.
-- MacCallum, R. C., Zhang, S., Preacher, K. J., & Rucker, D. D. (2002). On the practice of dichotomization of quantitative variables. *Psychological Methods, 7*(1), 19–40.
+- Gao, X., et al. (2025). A comprehensive survey on imbalanced data learning. *Frontiers of Computer Science*. https://doi.org/10.1007/s11704-025-50274-7 (preprint: arXiv:2502.08960; confirm the full author list)
+- Ishida, T., Yamane, I., Charoenphakdee, N., Niu, G., & Sugiyama, M. (2023). Is the performance of my deep network too good to be true? A direct approach to estimating the Bayes error in binary classification. *International Conference on Learning Representations (ICLR 2023)*. https://arxiv.org/abs/2202.00395
+- Leighton, M., & Speer, J. D. (2023). *Family background and college major choice* (EdWorkingPaper No. 23-767). Annenberg Institute at Brown University. https://edworkingpapers.com/sites/default/files/ai23-767.pdf (confirm the authors' initials)
+- Ma, J., Dhiman, P., Qi, C., Bullock, G., van Smeden, M., Riley, R. D., & Collins, G. S. (2023). Poor handling of continuous predictors in clinical prediction models using logistic regression: A systematic review. *Journal of Clinical Epidemiology, 161*, 140–151. https://doi.org/10.1016/j.jclinepi.2023.07.017
+- Rajput, D., Wang, W.-J., & Chen, C.-C. (2023). Evaluation of a decided sample size in machine learning applications. *BMC Bioinformatics, 24*, 48. https://doi.org/10.1186/s12859-023-05156-9
+- Song, Q. C., Shin, R., Tang, C., Hanna, A., & Behrend, T. (2024). Investigating machine learning's capacity to enhance the prediction of career choices. *Personnel Psychology, 77*(2), 295–319. https://doi.org/10.1111/peps.12529 (confirm the co-authors' initials and the 45% figure in the article)
+- University of Jordan study (2025). An innovative machine learning mechanism for predicting the best fit engineering major for Jordanian undergraduate students. *SN Computer Science*. https://doi.org/10.1007/s42979-025-04464-6 (authors to be filled in from the article)
 
-To be completed before citing:
+**Not related studies, but cited for a theory, instrument or convention** (pre-2023 is normal for
+these; keep only if the adviser allows):
 
-- Song et al. Investigating machine learning's capacity to enhance the prediction of career choices. *Personnel Psychology*. https://doi.org/10.1111/peps.12529 (full author list, year, volume and the 45% figure not yet confirmed from the article)
-- Hastie, T., Tibshirani, R., & Friedman, J. (2009). *The Elements of Statistical Learning* (2nd ed.). Springer. (confirm the page of the Bayes classifier discussion in Ch. 2)
-- Not yet citable: a study of 100 Grade 10 students in Saudi Arabia reporting that RIASEC types did not significantly predict intended majors (HRMARS); authors and journal not confirmed.
+- Landis, J. R., & Koch, G. G. (1977). The measurement of observer agreement for categorical data. *Biometrics, 33*(1), 159–174. (the "slight / fair / moderate" scale used to describe kappa)
+- Lent, R. W., Brown, S. D., & Hackett, G. (1994). Toward a unifying social cognitive theory of career and academic interest, choice, and performance. *Journal of Vocational Behavior, 45*(1), 79–122. (Social Cognitive Career Theory, if used as the framework)
+- The O\*NET Mini-IP documents in §9 (the instrument).
+
+**Replaced (published before 2023; no longer used as related studies):** Hanna & Rounds (2020),
+Gasser et al. (2007), Allen & Robbins (2008), MacCallum et al. (2002), He & Garcia (2009), Figueroa
+et al. (2012), Hastie et al. (2009). A Philippine study on SHS track choice (Nazareno et al.,
+*Philippine Journal of Science*, 2021) and Villarama et al. (Philippine E-Journals; year not
+confirmed) were also considered and not used.
 
 ## 11. Recommendations (the 80% target was not reached)
 
 Each recommendation follows from a cause in §10. None of them is implemented; each needs the
 adviser's approval, and new data needs consent and data-privacy review.
 
-1. **Add attributes beyond interests** (§10.2, item 2). Collect, with consent: SHS strand, general
+1. **Add attributes beyond interests** (§10.2, item 3). Collect, with consent: SHS strand, general
    weighted average and Math/Science/English grades, and validated measures of self-efficacy and
    contextual factors (family influence, financial considerations). Retrain and compare with the
    current model under the same cross-validation.
-2. **Use the full six scores instead of top-three yes/no** (item 3). Train on the numeric scores
+2. **Use the full six scores instead of top-three yes/no** (§10.2, item 4). Train on the numeric scores
    so the strength of each interest is kept. This needs a change to the deployment, which today
    accepts only top-three binary models.
    *Exploratory check (2026-10-24, same 393 records, Weka 3.9.6, 10-fold CV, seeds 1–10):* J48
    `-C 0.1 -M 10` on the raw 0–20 scores gives 16.49% (sd 1.72; 20 leaves, first split `I <= 7`), and
    with Weka's defaults (`-C 0.25 -M 2`) 13.21% (sd 1.72; 121 leaves, over-fitted). Neither is better
    than the top-three model (17.12%), so the full scores alone do not raise accuracy with J48 on this
-   dataset; together with new attributes (item 1) they may. A raw-score tree cannot be deployed in
+   dataset; together with new attributes (recommendation 1) they may. A raw-score tree cannot be deployed in
    ProfilePath (the Prediction Module accepts only top-three 0/1 models).
 3. **Use the same instrument for training and use.** Train on results from ProfilePath's own
    assessment (10–50 scale) rather than the O\*NET website's scores (0–20), so the model sees the
    same kind of scores it is applied to.
-4. **More records, aimed at the small courses** (item 4). The learning curve has levelled off, so
+4. **More records, aimed at the small courses** (§10.2, item 5). The learning curve has levelled off, so
    simply adding more students of the same kind is unlikely to help much; the most useful additions
    are students in the 12 courses with fewer than 10 records. Re-run the learning curve and the
    ceiling check after each collection.
-5. **Handle class imbalance** (item 4): cost-sensitive learning or resampling, applied inside each
+5. **Handle class imbalance** (§10.2, item 5): cost-sensitive learning or resampling, applied inside each
    cross-validation training fold only, and report per-course recall, not accuracy alone.
-6. **Choose an outcome and measure that fit the purpose** (item 1), if the adviser agrees:
+6. **Choose an outcome and measure that fit the purpose** (§10.2, items 1–2), if the adviser agrees:
    - report top-3 accuracy (40.89%) beside exact accuracy, since staff are shown the top three;
    - or predict a broader target (program group or college) with an agreed definition.
    Any change of target must be decided before measuring and reported under its own name.
@@ -407,7 +420,7 @@ staff only). The items below need the team, the adviser or the counselors.
 | 2 | **Tree confirmed (2026-10-25):** the team's Weka Explorer builds the same 7-leaf tree from `all_binary.arff` (screenshot). Still to send: the seed-1 output (68, 17.3028 %, Kappa 0.1103) | Confirms the team's Weka reproduces the installed model | Screenshot of the Classify output |
 | 3 | **Done (2026-10-25)** on the team's Weka: Percent_correct ZeroR 7.76 (0.58), J48 17.12 (4.45) v; Kappa_statistic ZeroR 0.00 (0.00), J48 0.11 (0.05) v | The figures for Chapter 4 (§10.5 table) | — |
 | 4 | **Done (2026-10-25):** the counselors' list of 32 codes matches `db/program_codes.php`, `evaluation/course_profiles.csv` and a seeded database exactly (32 of 32, including the revised BS Tourism Management SEA and BS Computer Engineering ICR). On Render, `php db/migrate_final_holland_codes.php` sets the live database to these codes (safe to run again) | The CBF uses them as the program vectors | — |
-| 5 | Song et al. and Hastie et al. details (§10.4) | Citations not yet confirmed from the article | Full citation from the library database |
+| 5 | Related studies are now all 2023–present (§10.2, §10.4). Confirm from the articles: Song et al. (2024) co-authors' initials and the 45% figure; the University of Jordan study's (2025) authors; Leighton & Speer's initials; Gao et al.'s author list | Citations must match the articles | The confirmed details |
 
 ### 12.2 Decisions (adviser and counselors)
 
