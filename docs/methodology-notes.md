@@ -393,8 +393,8 @@ staff only). The items below need the team, the adviser or the counselors.
 | # | Item | Why it matters | Send |
 |---|---|---|---|
 | 1 | **Done (2026-10-24):** the 393 records used the 30-item O\*NET Mini Interest Profiler, the same items as ProfilePath | Settles the instrument limitation; conversion in §1.1 | — |
-| 2 | Weka Explorer, seed 1: Correctly Classified 68 (17.3028 %), Kappa 0.1103, and the 7-leaf tree | Confirms the team's Weka reproduces the installed model | Screenshot of the output and of Visualize tree |
-| 3 | Weka Experimenter, Analyse: ZeroR 7.76 (0.58), J48 17.12 (4.45) v; and with Kappa_statistic | The figures for Chapter 4 | Copy of the Analyse output text |
+| 2 | **Tree confirmed (2026-10-25):** the team's Weka Explorer builds the same 7-leaf tree from `all_binary.arff` (screenshot). Still to send: the seed-1 output (68, 17.3028 %, Kappa 0.1103) | Confirms the team's Weka reproduces the installed model | Screenshot of the Classify output |
+| 3 | **Percent_correct confirmed (2026-10-25)** on the team's Weka: ZeroR 7.76 (0.58), J48 17.12 (4.45) v, 100 results each. Still to send: the Kappa_statistic output | The figures for Chapter 4 | Analyse output with Kappa_statistic |
 | 4 | The 32 programs' final Holland codes match the counselors' approved list | The CBF uses them as the program vectors | The counselors' list (photo or file) |
 | 5 | Song et al. and Hastie et al. details (§10.4) | Citations not yet confirmed from the article | Full citation from the library database |
 
