@@ -6,6 +6,11 @@
  * right after it; data-active names the menu item to highlight (a page that
  * is a child of a menu item, like Student Profile, names its parent).
  * The Logout button below the menu stays in each page's own markup.
+ *
+ * A page closed to this person (every feature on it is No Access in the permission table, Security Configuration) keeps
+ * its icon and name but is grayed out, not a link, with the "not allowed" cursor. The list of closed pages comes from
+ * api/session.php (user.closedPages): drawn at once from this tab's cached profile, then again from the fresh answer
+ * (the 'pp:session' event from js/ui-state.js). router.php refuses those pages too; this only shows it.
  */
 (function () {
   var ICONS = {
@@ -50,18 +55,45 @@
   var ITEM = 'flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] text-sm ';
   var ACTIVE = 'border-[#ed1c24] bg-[#495e88] text-[#ed1c24]';
   var IDLE = 'border-transparent text-white/85 hover:bg-white/5';
+  // Same look as a switch the person cannot use (the session-timeout switch on Security Configuration).
+  var CLOSED = 'border-transparent text-white/85 opacity-60 cursor-not-allowed';
+  var CLOSED_TIP = 'No access. Ask the Head of Guidance.';
 
   var nav = document.currentScript && document.currentScript.previousElementSibling;
   if (!nav || nav.id !== 'adminNav') nav = document.getElementById('adminNav');
   if (!nav) return;
   var active = nav.getAttribute('data-active') || '';
+  var drawn = null;
 
-  nav.innerHTML = MENU.map(function (group, i) {
-    var items = group.items.map(function (it) {
-      return '<a href="' + it.href + '" class="' + ITEM + (it.id === active ? ACTIVE : IDLE) + '"' + (it.id === active ? ' aria-current="page"' : '') + '>' +
-        '<svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor"><path d="' + ICONS[it.icon] + '"/></svg>' +
-        it.label + '</a>';
+  function icon(it) {
+    return '<svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="' + ICONS[it.icon] + '"/></svg>';
+  }
+
+  function draw(user) {
+    var closed = user && Array.isArray(user.closedPages) ? user.closedPages : [];
+    var key = closed.join(',');
+    if (key === drawn) return;
+    drawn = key;
+    nav.innerHTML = MENU.map(function (group, i) {
+      var items = group.items.map(function (it) {
+        if (it.id !== active && closed.indexOf(it.id) !== -1) {
+          return '<span class="' + ITEM + CLOSED + '" aria-disabled="true" title="' + CLOSED_TIP + '">' + icon(it) + it.label +
+            '<span class="pp-sr-only">, no access</span></span>';
+        }
+        return '<a href="' + it.href + '" class="' + ITEM + (it.id === active ? ACTIVE : IDLE) + '"' + (it.id === active ? ' aria-current="page"' : '') + '>' +
+          icon(it) + it.label + '</a>';
+      }).join('');
+      return '<p class="px-6 ' + (i === 0 ? 'pt-2' : 'pt-6') + ' pb-2 text-xs font-semibold tracking-wide text-white/60 uppercase">' + group.title + '</p>' + items;
     }).join('');
-    return '<p class="px-6 ' + (i === 0 ? 'pt-2' : 'pt-6') + ' pb-2 text-xs font-semibold tracking-wide text-white/60 uppercase">' + group.title + '</p>' + items;
-  }).join('');
+  }
+
+  draw(window.PP && PP.cachedUser ? PP.cachedUser() : null);
+  window.addEventListener('pp:session', function (e) { draw(e.detail); });
+
+  // The same groups, pages, names and icons for the permission table on Security Configuration, so the two never drift apart.
+  if (window.PP) {
+    PP.navMenu = MENU.map(function (group) {
+      return { title: group.title, items: group.items.map(function (it) { return { id: it.id, label: it.label, icon: icon(it) }; }) };
+    });
+  }
 })();
