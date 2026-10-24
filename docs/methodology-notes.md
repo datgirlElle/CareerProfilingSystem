@@ -254,8 +254,13 @@ listed separately in §10.4.
      45% by high-point RIASEC matching, as summarized for the study: confirm in the article).
      Machine learning improved overall accuracy but was most accurate for common job categories and
      under-predicted rare ones.
+   - Tuhame, Kayondo, Habinka & Maiga (2025), *Journal of Information Systems and Informatics*: in
+     717 Ugandan secondary and university students, career preferences and RIASEC personality
+     profiles were only weakly related (Kendall's τ = 0.394); nearly 50% preferred Investigative or
+     Realistic careers but only 28% had matching profiles.
    - *This study:* 28 exact courses from top-three inputs is a harder task; J48's 17.12% is about
-     4.8 times a uniform 1-in-28 guess (3.6%).
+     4.8 times a uniform 1-in-28 guess (3.6%). Students' stated courses often do not follow their
+     interest profile, which caps any interest-based prediction of the stated course.
 2. **More classes, lower accuracy.**
    - University of Jordan study (2025; machine-learning prediction of the best-fit engineering major
      from 25 vocational-interest features, 734 students): test accuracy fell from 91.3% for 2 majors
@@ -291,7 +296,8 @@ listed separately in §10.4.
 > repeated ten times, compared with 7.76% for the ZeroR baseline, below the 80% target. This is
 > consistent with recent research: even with a large sample, interest-profile matching predicts
 > career choice only moderately, and machine learning improves mainly the common categories (Song
-> et al., 2024); accuracy also falls as the number of majors to choose from grows (University of
+> et al., 2024); students' stated career preferences are only weakly related to their RIASEC
+> profiles (Tuhame et al., 2025); accuracy also falls as the number of majors to choose from grows (University of
 > Jordan study, 2025). Course choice depends on factors not in the dataset, such as family
 > background (Leighton & Speer, 2023). Representing each student only by their top three RIASEC
 > types discards information (Ma et al., 2023), and twelve of the 28 courses had fewer than ten
@@ -354,6 +360,7 @@ pages could not be opened from the build environment; check details against the 
 - Ma, J., Dhiman, P., Qi, C., Bullock, G., van Smeden, M., Riley, R. D., & Collins, G. S. (2023). Poor handling of continuous predictors in clinical prediction models using logistic regression: A systematic review. *Journal of Clinical Epidemiology, 161*, 140–151. https://doi.org/10.1016/j.jclinepi.2023.07.017
 - Rajput, D., Wang, W.-J., & Chen, C.-C. (2023). Evaluation of a decided sample size in machine learning applications. *BMC Bioinformatics, 24*, 48. https://doi.org/10.1186/s12859-023-05156-9
 - Song, Q. C., Shin, R., Tang, C., Hanna, A., & Behrend, T. (2024). Investigating machine learning's capacity to enhance the prediction of career choices. *Personnel Psychology, 77*(2), 295–319. https://doi.org/10.1111/peps.12529 (confirm the co-authors' initials and the 45% figure in the article)
+- Tuhame, M. K., Kayondo, B. N., Habinka, A. D. B., & Maiga, G. (2025). Career preference-personality mismatch: Leveraging the RIASEC model in IT-driven career guidance. *Journal of Information Systems and Informatics, 7*(2). https://doi.org/10.51519/journalisi.v7i2.1121
 - University of Jordan study (2025). An innovative machine learning mechanism for predicting the best fit engineering major for Jordanian undergraduate students. *SN Computer Science*. https://doi.org/10.1007/s42979-025-04464-6 (authors to be filled in from the article)
 
 **Not related studies, but cited for a theory, instrument or convention** (pre-2023 is normal for
@@ -446,4 +453,48 @@ staff only). The items below need the team, the adviser or the counselors.
 - Ch. 4: CBF worked example (§4) and Tables 19–21 with binary values (lowest top cosine 0.5500);
   Weka results (§10.5 order), the ceiling, the tree figure.
 - Ch. 5: the 80% gap explained with §10; recommendations from §11; limitations (§6, §10.1).
+
+## 13. Related literature for Chapter 2 (2023–2026, local and international)
+
+Compiled 2026-10-25 from index and library records; the publishers' pages could not be opened from
+the build environment, so check each against the article (especially the items marked *check*).
+Grouped by what each study supports in ProfilePath.
+
+### 13.1 RIASEC interests and course choice
+
+| Study | Setting | Finding | Use in ProfilePath |
+|---|---|---|---|
+| Fernandez, C. B., Balijon, M. B., & Ancho, I. V. (2023). Career preferences of Filipino senior high school students. *CTU Journal of Innovation and Sustainable Development, 15*(3), 81–91. https://doi.org/10.22144/ctujoisd.2023.053 | **Philippines** (Cebu City public SHS; 35 participants incl. 5 guidance counselors) | Students often choose careers that fit their families' needs, many rely on parents' choices; recommends career pathing by guidance counselors | Background and need for the system; why stated courses differ from interests (missing attributes) |
+| Tuhame, M. K., Kayondo, B. N., Habinka, A. D. B., & Maiga, G. (2025). *Journal of Information Systems and Informatics, 7*(2). https://doi.org/10.51519/journalisi.v7i2.1121 | Uganda, 717 students | Preferences and RIASEC profiles only weakly related (τ = 0.394); proposes IT-driven guidance that combines RIASEC with other data | Why the stated course is hard to predict from interests; supports counselor-supported guidance |
+| Chayka, R. M. (2025). From RIASEC to algorithms: A literature review of person-vocation fit (1990–2025). *Psychological Sciences* (Kherson State University), 2025(2). https://doi.org/10.32999/ksu2312-3206/2025-2-9 (*check* author name format and journal title) | Review of 87 studies | RIASEC congruence indices are the "gold standard" (62% of studies); a shift toward algorithmic assessment | Supports matching students to programs by RIASEC similarity (Objective 2) |
+| Leighton, M., & Speer, J. D. (2023). *Family background and college major choice* (EdWorkingPaper 23-767). https://edworkingpapers.com/sites/default/files/ai23-767.pdf (*check* initials) | United States | Parents' education relates to major choice | Missing attributes (§10.2) |
+
+### 13.2 Recommender systems for program choice (content-based filtering, hybrids)
+
+| Study | Setting | Finding | Use in ProfilePath |
+|---|---|---|---|
+| Kamal, et al. (2024). Recommender system in academic choices of higher education: A systematic review. *IEEE Access, 12*, 35475–35501. https://doi.org/10.1109/ACCESS.2024.3368058 (*check* full author list) | Review of 56 studies (2011–2023) | Hybrid strategies performed best; most studies were lab-based; personality traits are a future direction | Positions ProfilePath's content-based (RIASEC) recommendation and its separate prediction source |
+| Bucad, A. T. (2024). Towards the development of a career path recommender system for senior high school in selected public schools using multi-label classification. *International Journal of Research and Innovation in Applied Science, 9*(3), 374–382. https://doi.org/10.51584/IJRIAS.2024.90334 | **Philippines** (Valenzuela City, Grade 10) | Proposes content-based filtering with decision tree, KNN, Naïve Bayes and SVM classifiers on family background, personality, grades and IQ (a design paper; no results yet) | Local precedent for combining content-based filtering with a decision-tree classifier |
+| Valles-Coral, M. A., et al. (2025). A hybrid machine learning model for personalized elective course recommendations in higher education. *Ingénierie des Systèmes d'Information, 30*(7), 1723–1730. https://doi.org/10.18280/isi.300705 | Peru, 120 students | PCA, K-Means and a neural network on academic records (R² 0.85); limitation: no personal interests or career goals | Shows the gap ProfilePath fills by recommending from interests (RIASEC) |
+
+### 13.3 Predicting course, strand or major with machine learning
+
+| Study | Setting | Finding | Use in ProfilePath |
+|---|---|---|---|
+| Song, Q. C., Shin, R., Tang, C., Hanna, A., & Behrend, T. (2024). *Personnel Psychology, 77*(2), 295–319. https://doi.org/10.1111/peps.12529 (*check* initials and the 45% figure) | 81,267 people | Machine learning improved interest-based prediction of career choice mainly for common categories; under-predicted rare ones | Prediction Module (J48) and its limits |
+| University of Jordan study (2025). *SN Computer Science*. https://doi.org/10.1007/s42979-025-04464-6 (*check* authors) | Jordan, 734 students | Interest-based prediction of engineering major: 91.3% with 2 majors down to 65.0% with 7 | Why 28 courses lowers accuracy |
+| Hernandez, R., & Atienza, R. Career track prediction using deep learning model based on discrete series of quantitative classification. *Applied Computer Science*. https://ph.pollub.pl/index.php/acs/article/view/3135 (*check* the year: use only if 2023 or later) | **Philippines** (Batangas State University; 1,500 students) | A deep neural network on grades, sex, age, siblings and parents' income predicted the SHS strand with 83.11% accuracy | Contrast: richer inputs (grades, income) and fewer classes give much higher accuracy, supporting recommendation 1 (§11) |
+
+### 13.4 Why accuracy is limited
+
+Ma et al. (2023), Gao et al. (2025), Rajput, Wang & Chen (2023) and Ishida et al. (2023): see §10.2
+items 4–6 and §10.4.
+
+### 13.5 Considered and not used
+
+Nazareno et al. (2021, *Philippine Journal of Science*; before 2023); Villarama et al.
+(Philippine E-Journals; year not confirmed); a "CoDeRS" computing-degree recommender (Frontiers in
+Artificial Intelligence, 2026) whose page could not be opened to confirm its details; a RIASEC
+profile-matching decision support system for Indonesian SMA students (DOI 10.36341/rabit.v11i2.7967;
+year not confirmed).
 
