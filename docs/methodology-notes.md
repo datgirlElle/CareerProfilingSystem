@@ -264,6 +264,39 @@ with identical inputs chose different courses, an error no classifier can remove
 > the same top three types chose different courses, and accuracy levelled off at about 17% from
 > roughly 300 students onward. J48's 17.12% approaches the best achievable rule (17.91%).
 
+### 10.5 Why the significance test matters
+
+With an accuracy far below the target, the first question a panel will ask is whether the model
+learned anything or only guessed. The Weka Experimenter answers it with evidence:
+
+1. **A fair baseline.** ZeroR always predicts the most common course (Architecture) and is right
+   7.76% of the time. A model that learned something must do better than this.
+2. **A reliable estimate.** One cross-validation run can be lucky (18.83%) or unlucky (14.50%). Ten
+   runs of 10 folds (100 tests, seeds 1–10 fixed in advance) give 17.12%, which does not depend on
+   one chosen run.
+3. **Evidence that the difference is real.** The corrected paired t-test (Nadeau & Bengio's
+   correction, used by Weka's Paired T-Tester (corrected)) compares J48 and ZeroR on the same 100
+   test folds. J48 is significantly better (t = 6.04, df 99, p < .05), so RIASEC top-three patterns
+   carry real information about students' stated intended courses.
+
+**How it fits the findings:** the model did not reach 80%, but it performs significantly better
+than the baseline; its accuracy is limited by the inputs (ceiling 24.68%, §10.1) for reasons the
+related studies explain (§10.2).
+
+**What it does not show:** that 17% is a high accuracy; that the predicted course suits the
+student (the target is the stated intended course); or that the model can replace counselor
+judgement. The model therefore stays a supporting, staff-only tool.
+
+**What to report in Chapter 4, in order of importance:** (1) the Experimenter's mean accuracy
+against ZeroR with the significance result; (2) the ceiling and the related studies; (3) kappa
+(0.107) and top-3 accuracy (40.89%); (4) the tree figure (Weka Explorer, Visualize tree).
+
+Sentence for the manuscript:
+
+> Using the Weka Experimenter (10-fold cross-validation, 10 repetitions), J48 achieved a mean
+> accuracy of 17.12% (SD 4.45), significantly higher than the ZeroR baseline of 7.76% (SD 0.58) by
+> the corrected paired t-test (p < .05).
+
 ### 10.4 References for this section
 
 Confirmed through library and index records (the publishers' pages could not be opened from the
@@ -313,3 +346,45 @@ adviser's approval, and new data needs consent and data-privacy review.
    accuracy, results from choosing seeds, or results after removing students.
 8. **Keep the model's role limited.** It stays a supporting, staff-only prediction of the stated
    intended course, separate from the CBF recommendation, until a validated model exists.
+
+## 12. Finalization checklist (open items before the system and manuscript are checked)
+
+What is final in the repository: the CBF (binary program vectors, cosine similarity, ties kept and
+listed by the 1-2-3 letter ranking) and the Prediction Module (J48, 393 records, top-3 binary,
+staff only). The items below need the team, the adviser or the counselors.
+
+### 12.1 Confirmations (the team)
+
+| # | Item | Why it matters | Send |
+|---|---|---|---|
+| 1 | Which O\*NET tool and how many questions were used for the 393 records (link, number of items, answer scale) | Scores 0–20 fit the 30-item Mini Interest Profiler scored 0–4. ProfilePath uses the same 30 items scored 1–5 (stored = 2 × O\*NET score + 10), which would make the type ranking, and so the top three, identical. This changes the "different instrument" limitation (§6) | The link and a screenshot of one result page |
+| 2 | Weka Explorer, seed 1: Correctly Classified 68 (17.3028 %), Kappa 0.1103, and the 7-leaf tree | Confirms the team's Weka reproduces the installed model | Screenshot of the output and of Visualize tree |
+| 3 | Weka Experimenter, Analyse: ZeroR 7.76 (0.58), J48 17.12 (4.45) v; and with Kappa_statistic | The figures for Chapter 4 | Copy of the Analyse output text |
+| 4 | The 32 programs' final Holland codes match the counselors' approved list | The CBF uses them as the program vectors | The counselors' list (photo or file) |
+| 5 | Song et al. and Hastie et al. details (§10.4) | Citations not yet confirmed from the article | Full citation from the library database |
+
+### 12.2 Decisions (adviser and counselors)
+
+| # | Decision | Current state |
+|---|---|---|
+| 1 | CBF: binary vectors with the 1-2-3 ranking used only to order tied programs | Implemented; 3-2-1 weights not used |
+| 2 | Weka: accept the 393-record model and explain the 80% gap with §10 | Implemented and documented |
+| 3 | Which standard deviation to report (Experimenter over 100 folds, or over 10 run means) | Both documented (`tools/weka/README.md`) |
+| 4 | Whether any §11 recommendation is done now or left as future work | None implemented |
+
+### 12.3 Running the updated system (the team)
+
+1. Local: `git pull origin main`; run the five migrations (`db/setup_new_database.php` lists them);
+   `php db/recompute_recommendations.php`; open the results page and a staff student profile.
+2. Render: the same migrations and `php db/recompute_recommendations.php` on the live database.
+3. Security: change the Render database password, the AES keys and the admin password; never
+   commit `.env`.
+
+### 12.4 Manuscript (send the latest Chapters 1–5)
+
+- Ch. 3: CBF method (binary vectors, cosine, ties, 1-2-3 order inside a tie: §4); Weka method
+  (top-3 binary inputs, 393 records, J48 -C 0.1 -M 10, 10×10-fold CV, ZeroR, corrected t-test).
+- Ch. 4: CBF worked example (§4) and Tables 19–21 with binary values (lowest top cosine 0.5500);
+  Weka results (§10.5 order), the ceiling, the tree figure.
+- Ch. 5: the 80% gap explained with §10; recommendations from §11; limitations (§6, §10.1).
+
