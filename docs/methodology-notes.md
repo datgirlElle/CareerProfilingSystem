@@ -357,6 +357,12 @@ adviser's approval, and new data needs consent and data-privacy review.
 2. **Use the full six scores instead of top-three yes/no** (item 3). Train on the numeric scores
    so the strength of each interest is kept. This needs a change to the deployment, which today
    accepts only top-three binary models.
+   *Exploratory check (2026-10-24, same 393 records, Weka 3.9.6, 10-fold CV, seeds 1–10):* J48
+   `-C 0.1 -M 10` on the raw 0–20 scores gives 16.49% (sd 1.72; 20 leaves, first split `I <= 7`), and
+   with Weka's defaults (`-C 0.25 -M 2`) 13.21% (sd 1.72; 121 leaves, over-fitted). Neither is better
+   than the top-three model (17.12%), so the full scores alone do not raise accuracy with J48 on this
+   dataset; together with new attributes (item 1) they may. A raw-score tree cannot be deployed in
+   ProfilePath (the Prediction Module accepts only top-three 0/1 models).
 3. **Use the same instrument for training and use.** Train on results from ProfilePath's own
    assessment (10–50 scale) rather than the O\*NET website's scores (0–20), so the model sees the
    same kind of scores it is applied to.
