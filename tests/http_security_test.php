@@ -98,7 +98,7 @@ try {
     $r = $k->req('GET', "/api/counseling-notes.php?studentId=$stuB"); check('scoped counselor cannot read notes of an out-of-scope student', stripos($r['body'], 'QA PRIVATE NOTE') === false, $r['code'] . ' ' . substr($r['body'], 0, 120));
     $r = $k->req('POST', '/api/counseling-notes.php', ['studentId' => $stuB, 'note' => 'written by out-of-scope staff']); check('scoped counselor cannot write notes for an out-of-scope student', $r['code'] >= 400, $r['code'] . ' ' . substr($r['body'], 0, 100));
     $r = $k->req('GET', "/api/recommendations.php?studentId=$stuB"); check('scoped counselor cannot read recommendations of an out-of-scope student', $r['code'] >= 400 || stripos($r['body'], 'qa_stu_b') === false, $r['code'] . ' ' . substr($r['body'], 0, 100));
-    $r = $k->req('POST', '/api/security-config.php', ['type' => 'rbac', 'changes' => [['module' => 'career', 'role' => 'counselor', 'level' => 'full']]]); check('counselor cannot raise own permissions', $r['code'] >= 400 || ($k->json($r)['success'] ?? false) !== true, $r['code'] . ' ' . substr($r['body'], 0, 100));
+    $r = $k->req('POST', '/api/security-config.php', ['type' => 'rbac', 'changes' => [['module' => 'programs', 'role' => 'counselor', 'level' => 'full']]]); check('counselor cannot raise own permissions', $r['code'] >= 400 || ($k->json($r)['success'] ?? false) !== true, $r['code'] . ' ' . substr($r['body'], 0, 100));
     $r = $k->req('POST', '/api/security-config.php', ['type' => 'passwordPolicy', 'minLength' => 6]); check('counselor cannot change password policy', $r['code'] >= 400 || ($k->json($r)['success'] ?? false) !== true, $r['code'] . ' ' . substr($r['body'], 0, 100));
 
     echo "\n=== Facilitator restrictions (direct requests) ===\n";
