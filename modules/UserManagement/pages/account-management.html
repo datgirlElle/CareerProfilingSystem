@@ -136,7 +136,7 @@
         </section>
 
         <!-- Sections -->
-        <section class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <section id="sectionsSection" class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           <div class="border-b border-gray-200 px-5 py-5">
             <h2 class="text-base font-semibold text-gray-900">Sections</h2>
           </div>
@@ -147,7 +147,7 @@
         </section>
 
         <!-- Class roster -->
-        <section class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <section id="rosterSection" class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           <div class="border-b border-gray-200 px-5 py-5">
             <h2 class="text-base font-semibold text-gray-900">Class Roster</h2>
           </div>
@@ -282,16 +282,16 @@
   // ---------- Staff accounts ----------
   // The administrator always manages these. A guidance counselor or facilitator sees the list only when the
   // administrator gave them "Staff Accounts" access (Security Configuration, Edit Roles): Full lets them approve
-  // sign-ups and send access codes, View Only just looks. Assigning sections is the separate "Guidance Counselor" permission.
+  // sign-ups, send access codes and assign sections, View Only just looks (Manage staff accounts, permission table).
   let staffLevel = isAdmin ? 'full' : 'none';
-  // Assigning sections is the separate "Guidance Counselor" permission.
+  // Assigning sections to staff is part of Manage staff accounts (Full).
   let canAssign = isAdmin;
   if (!isAdmin) {
     try {
       const cfg = await (await fetch('api/security-config.php')).json();
       const me = currentUser.rbacRole || currentUser.role;
       staffLevel = (cfg.rbac && cfg.rbac.staffAccounts && cfg.rbac.staffAccounts[me]) || 'none';
-      canAssign = ((cfg.rbac && cfg.rbac.counselor && cfg.rbac.counselor[me]) || 'none') === 'full';
+      canAssign = ((cfg.rbac && cfg.rbac.staffAccounts && cfg.rbac.staffAccounts[me]) || 'none') === 'full'; // Manage staff accounts
     } catch (e) {}
   }
   if (staffLevel !== 'none') {
@@ -476,10 +476,10 @@
     // An error is a sentence to read, so it stays up longer than a confirmation.
     showSectionsStatus.timer = setTimeout(() => el.classList.add('hidden'), isError ? 9000 : 3000);
   }
-  // Full = can add and deactivate/reactivate sections (a Guidance Facilitator only ever sees Limited).
-  // Comes from the 'sections' row of Security Configuration's permission table.
+  // Full = can add and deactivate/reactivate sections; View Only = look at them.
+  // Comes from the Student roster management row of Security Configuration's permission table.
   function sectionsLevel() {
-    return (rbac && rbac.sections && rbac.sections[currentUser.rbacRole || currentUser.role]) || 'none';
+    return (rbac && rbac.roster && rbac.roster[currentUser.rbacRole || currentUser.role]) || 'none'; // Student roster management
   }
   // The same rules the server applies (modules/StudentManagement/lib/Sections.php), so a mistake is caught while typing. Returns '' when fine.
   function sectionCodeProblem(strand, code) {
@@ -639,15 +639,21 @@
     rbac = cfg.rbac;
     canEditRoster = !!cfg.canEditRoster;
   } catch (e) { rbac = null; }
+  // No Access on Student roster management: the sections and class roster cards are not shown at all.
+  const seesRoster = sectionsLevel() !== 'none';
+  if (!seesRoster) {
+    ['sectionsSection', 'rosterSection'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
+  }
   if (!canEditRoster) {
-    // View-only (Guidance Facilitator): no template download or upload, just what has been uploaded.
-    ['downloadTemplateBtn', 'uploadRosterBtn'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
+    // View Only on Student roster management: no template download or upload, just what has been uploaded.
+    // style, not the "hidden" class: both are inline-flex, which comes after "hidden" in css/tailwind.css and wins.
+    ['downloadTemplateBtn', 'uploadRosterBtn'].forEach(function(id) { document.getElementById(id).style.display = 'none'; });
     const note = document.createElement('p');
     note.className = 'text-xs text-gray-500';
-    note.textContent = 'You have view-only access to the class roster. A Guidance Counselor or the Head of Guidance uploads it.';
+    note.textContent = 'You have view-only access to the class roster. The Head of Guidance, or staff given Full access, uploads it.';
     document.getElementById('rosterResult').before(note);
   }
-  await loadSections();
+  if (seesRoster) await loadSections();
 
   // ---------- Class roster ----------
   // The sections already uploaded for this academic year, so staff can see what is on the roster.
@@ -671,7 +677,7 @@
       PP.showError(body, e.message, loadRosterSections, 5);
     }
   }
-  loadRosterSections();
+  if (seesRoster) loadRosterSections();
   const resultEl = document.getElementById('rosterResult');
   function showRosterResult(text, isError) {
     resultEl.textContent = text;
