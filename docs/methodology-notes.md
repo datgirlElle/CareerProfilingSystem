@@ -88,6 +88,12 @@ page, the API, the dataset export and the Prediction Module's inputs.
 
 ## 4. The CBF method
 
+**Status: final (2026-10-25).** Binary program vectors from the counselors' approved codes (all 32
+confirmed against the counselors' list, §12.1), the student's six stored scores ÷ 10, cosine
+similarity with every program, Best RIASEC Match = every program tied at the highest similarity,
+Alternative Courses = the next-highest, ties all kept and listed by the counselors' 1-2-3 letter
+ranking, Preferred Course separate. No weights, no other inputs. Awaiting only the adviser's sign-off.
+
 `modules/ContentBasedFiltering/lib/CBFEngine.php`, `config/cbf.php`, `db/program_codes.php`.
 
 - **Student vector:** the six stored scores ÷ 10.
@@ -249,11 +255,11 @@ works that are a theory, an instrument or a statistical convention rather than a
 listed separately in §10.4.
 
 1. **Interests alone predict career choice only moderately, even with large samples and machine learning.**
-   - Song et al. (2024), *Personnel Psychology*: with 81,267 people, traditional interest-profile
-     matching predicted occupational membership and vocational aspirations only moderately (about
-     45% by high-point RIASEC matching, as summarized for the study: confirm in the article).
-     Machine learning improved overall accuracy but was most accurate for common job categories and
-     under-predicted rare ones.
+   - Song, Shin, Tang, Hanna & Behrend (2024), *Personnel Psychology*: reviewing earlier work, they
+     note that interest inventories predicted career choice correctly about 45% of the time when a
+     "hit" means matching the highest RIASEC category (Hanna & Rounds, 2020, as cited in Song et al.,
+     2024). In their own sample of 81,267 people, machine learning improved prediction overall but
+     mainly for common job categories, and under-predicted rare ones.
    - Tuhame, Kayondo, Habinka & Maiga (2025), *Journal of Information Systems and Informatics*: in
      717 Ugandan secondary and university students, career preferences and RIASEC personality
      profiles were only weakly related (Kendall's τ = 0.394); nearly 50% preferred Investigative or
@@ -294,9 +300,10 @@ listed separately in §10.4.
 
 > The J48 model achieved a mean accuracy of 17.12% (SD 4.45) under 10-fold cross-validation
 > repeated ten times, compared with 7.76% for the ZeroR baseline, below the 80% target. This is
-> consistent with recent research: even with a large sample, interest-profile matching predicts
-> career choice only moderately, and machine learning improves mainly the common categories (Song
-> et al., 2024); students' stated career preferences are only weakly related to their RIASEC
+> consistent with recent research: interest inventories predict career choice correctly only
+> about 45% of the time even when a hit means matching the highest RIASEC category (Hanna & Rounds,
+> 2020, as cited in Song et al., 2024), and machine learning improves mainly the common categories
+> (Song et al., 2024); students' stated career preferences are only weakly related to their RIASEC
 > profiles (Tuhame et al., 2025); accuracy also falls as the number of majors to choose from grows (University of
 > Jordan study, 2025). Course choice depends on factors not in the dataset, such as family
 > background (Leighton & Speer, 2023). Representing each student only by their top three RIASEC
@@ -356,12 +363,12 @@ pages could not be opened from the build environment; check details against the 
 
 - Gao, X., et al. (2025). A comprehensive survey on imbalanced data learning. *Frontiers of Computer Science*. https://doi.org/10.1007/s11704-025-50274-7 (preprint: arXiv:2502.08960; confirm the full author list)
 - Ishida, T., Yamane, I., Charoenphakdee, N., Niu, G., & Sugiyama, M. (2023). Is the performance of my deep network too good to be true? A direct approach to estimating the Bayes error in binary classification. *International Conference on Learning Representations (ICLR 2023)*. https://arxiv.org/abs/2202.00395
-- Leighton, M., & Speer, J. D. (2023). *Family background and college major choice* (EdWorkingPaper No. 23-767). Annenberg Institute at Brown University. https://edworkingpapers.com/sites/default/files/ai23-767.pdf (confirm the authors' initials)
+- Leighton, M., & Speer, J. D. (2023). *Family background and college major choice* (EdWorkingPaper No. 23-767). Annenberg Institute at Brown University. https://edworkingpapers.com/sites/default/files/ai23-767.pdf (authors' names confirmed: Margaret Leighton and Jamin D. Speer. Not to be confused with their 2020 *European Economic Review* paper on major specificity, which is a different study)
 - Ma, J., Dhiman, P., Qi, C., Bullock, G., van Smeden, M., Riley, R. D., & Collins, G. S. (2023). Poor handling of continuous predictors in clinical prediction models using logistic regression: A systematic review. *Journal of Clinical Epidemiology, 161*, 140–151. https://doi.org/10.1016/j.jclinepi.2023.07.017
 - Rajput, D., Wang, W.-J., & Chen, C.-C. (2023). Evaluation of a decided sample size in machine learning applications. *BMC Bioinformatics, 24*, 48. https://doi.org/10.1186/s12859-023-05156-9
-- Song, Q. C., Shin, R., Tang, C., Hanna, A., & Behrend, T. (2024). Investigating machine learning's capacity to enhance the prediction of career choices. *Personnel Psychology, 77*(2), 295–319. https://doi.org/10.1111/peps.12529 (confirm the co-authors' initials and the 45% figure in the article)
+- Song, Q. C., Shin, H. J., Tang, C., Hanna, A., & Behrend, T. (2024). Investigating machine learning's capacity to enhance the prediction of career choices. *Personnel Psychology, 77*(2), 295–319. https://doi.org/10.1111/peps.12529 (confirmed by the team, 2026-10-25. The 45% figure is Hanna & Rounds (2020) as discussed by Song et al.: cite it as "Hanna & Rounds, 2020, as cited in Song et al., 2024"; only Song et al. goes in the reference list)
 - Tuhame, M. K., Kayondo, B. N., Habinka, A. D. B., & Maiga, G. (2025). Career preference-personality mismatch: Leveraging the RIASEC model in IT-driven career guidance. *Journal of Information Systems and Informatics, 7*(2). https://doi.org/10.51519/journalisi.v7i2.1121
-- University of Jordan study (2025). An innovative machine learning mechanism for predicting the best fit engineering major for Jordanian undergraduate students. *SN Computer Science*. https://doi.org/10.1007/s42979-025-04464-6 (authors to be filled in from the article)
+- University of Jordan study (2025). An innovative machine learning mechanism for predicting the best fit engineering major for Jordanian undergraduate students. *SN Computer Science*. https://doi.org/10.1007/s42979-025-04464-6 (authors to be filled in from the article at that link; if they cannot be confirmed, drop this study)
 
 **Not related studies, but cited for a theory, instrument or convention** (pre-2023 is normal for
 these; keep only if the adviser allows):
@@ -378,13 +385,17 @@ confirmed) were also considered and not used.
 
 ## 11. Recommendations (the 80% target was not reached)
 
-Each recommendation follows from a cause in §10. None of them is implemented; each needs the
-adviser's approval, and new data needs consent and data-privacy review.
+The 80% target was not reached, so, as the adviser asked, each recommendation below names the
+cause it addresses and the related study (2023–present) that supports it. None is implemented;
+they are recommendations for future work, and new data needs consent and data-privacy review.
 
 1. **Add attributes beyond interests** (§10.2, item 3). Collect, with consent: SHS strand, general
    weighted average and Math/Science/English grades, and validated measures of self-efficacy and
    contextual factors (family influence, financial considerations). Retrain and compare with the
    current model under the same cross-validation.
+   *Supported by:* Leighton & Speer (2023) (family background shapes major choice); Fernandez,
+   Balijon & Ancho (2023) (Filipino SHS students choose careers to fit family needs); Tuhame et al.
+   (2025) (preferences only weakly follow RIASEC profiles, so other factors are needed).
 2. **Use the full six scores instead of top-three yes/no** (§10.2, item 4). Train on the numeric scores
    so the strength of each interest is kept. This needs a change to the deployment, which today
    accepts only top-three binary models.
@@ -394,24 +405,42 @@ adviser's approval, and new data needs consent and data-privacy review.
    than the top-three model (17.12%), so the full scores alone do not raise accuracy with J48 on this
    dataset; together with new attributes (recommendation 1) they may. A raw-score tree cannot be deployed in
    ProfilePath (the Prediction Module accepts only top-three 0/1 models).
+   *Supported by:* Ma et al. (2023) (categorizing continuous predictors discards information and
+   lowers predictive accuracy).
 3. **Use the same instrument for training and use.** Train on results from ProfilePath's own
    assessment (10–50 scale) rather than the O\*NET website's scores (0–20), so the model sees the
-   same kind of scores it is applied to.
+   same kind of scores it is applied to. (The items are the same 30 Mini-IP items and the type
+   ranking is identical, §1.1; this mainly removes the reworded-label difference.)
 4. **More records, aimed at the small courses** (§10.2, item 5). The learning curve has levelled off, so
    simply adding more students of the same kind is unlikely to help much; the most useful additions
    are students in the 12 courses with fewer than 10 records. Re-run the learning curve and the
    ceiling check after each collection.
+   *Supported by:* Rajput, Wang & Chen (2023) (more samples do not raise accuracy when the inputs
+   separate the classes weakly); the University of Jordan study (2025) (accuracy falls as the number
+   of majors grows).
 5. **Handle class imbalance** (§10.2, item 5): cost-sensitive learning or resampling, applied inside each
    cross-validation training fold only, and report per-course recall, not accuracy alone.
+   *Supported by:* Gao et al. (2025) (models trained on skewed classes favour the large ones);
+   Song et al. (2024) (machine learning under-predicted rare career categories).
 6. **Choose an outcome and measure that fit the purpose** (§10.2, items 1–2), if the adviser agrees:
    - report top-3 accuracy (40.89%) beside exact accuracy, since staff are shown the top three;
    - or predict a broader target (program group or college) with an agreed definition.
    Any change of target must be decided before measuring and reported under its own name.
+   *Supported by:* Hanna & Rounds (2020, as cited in Song et al., 2024) (about 45% even for the
+   highest RIASEC category); the University of Jordan study (2025) (fewer classes, higher accuracy).
 7. **Report honestly.** State that the 80% target was not met, give the cross-validated result
    with ZeroR and the ceiling (24.68%), and explain it with §10. Do not report training-set
    accuracy, results from choosing seeds, or results after removing students.
+   *Supported by:* Ishida et al. (2023) (the Bayes error is the limit any classifier can reach; the
+   ceiling of 24.68% is that limit for these inputs).
 8. **Keep the model's role limited.** It stays a supporting, staff-only prediction of the stated
    intended course, separate from the CBF recommendation, until a validated model exists.
+   *Supported by:* Fernandez, Balijon & Ancho (2023) (recommend career pathing by guidance
+   counselors); Tuhame et al. (2025) (guidance should not rely on RIASEC alone).
+9. **Test the recommendations with students and counselors.** Measure acceptance and counselor
+   agreement with the CBF's Best RIASEC Match, as a separate evaluation from prediction accuracy.
+   *Supported by:* Rances et al. (2026) (a Philippine degree-program recommender evaluated through
+   SHS students' acceptance of its recommendations).
 
 ## 12. Finalization checklist (open items before the system and manuscript are checked)
 
@@ -427,16 +456,17 @@ staff only). The items below need the team, the adviser or the counselors.
 | 2 | **Tree confirmed (2026-10-25):** the team's Weka Explorer builds the same 7-leaf tree from `all_binary.arff` (screenshot). Still to send: the seed-1 output (68, 17.3028 %, Kappa 0.1103) | Confirms the team's Weka reproduces the installed model | Screenshot of the Classify output |
 | 3 | **Done (2026-10-25)** on the team's Weka: Percent_correct ZeroR 7.76 (0.58), J48 17.12 (4.45) v; Kappa_statistic ZeroR 0.00 (0.00), J48 0.11 (0.05) v | The figures for Chapter 4 (§10.5 table) | — |
 | 4 | **Done (2026-10-25):** the counselors' list of 32 codes matches `db/program_codes.php`, `evaluation/course_profiles.csv` and a seeded database exactly (32 of 32, including the revised BS Tourism Management SEA and BS Computer Engineering ICR). On Render, `php db/migrate_final_holland_codes.php` sets the live database to these codes (safe to run again) | The CBF uses them as the program vectors | — |
-| 5 | Related studies are now all 2023–present (§10.2, §10.4). Confirm from the articles: Song et al. (2024) co-authors' initials and the 45% figure; the University of Jordan study's (2025) authors; Leighton & Speer's initials; Gao et al.'s author list | Citations must match the articles | The confirmed details |
+| 5 | **Mostly done (2026-10-25):** Song et al., Chayka, Leighton & Speer and Rances et al. confirmed; Hernandez & Atienza (2021) and the 2021 Kamal paper dropped as pre-2023. Still open: the authors of the University of Jordan study (DOI 10.1007/s42979-025-04464-6) and of the 2024 IEEE Access review (DOI 10.1109/ACCESS.2024.3368058) | Citations must match the articles | Authors from those two DOI pages |
 
 ### 12.2 Decisions (adviser and counselors)
 
 | # | Decision | Current state |
 |---|---|---|
-| 1 | CBF: binary vectors with the 1-2-3 ranking used only to order tied programs | Implemented; 3-2-1 weights not used |
-| 2 | Weka: accept the 393-record model and explain the 80% gap with §10 | Implemented and documented |
-| 3 | Which standard deviation to report (Experimenter over 100 folds, or over 10 run means) | Both documented (`tools/weka/README.md`) |
-| 4 | Whether any §11 recommendation is done now or left as future work | None implemented |
+| 1 | CBF: binary vectors with the 1-2-3 ranking used only to order tied programs | Final in the system (§4); adviser's sign-off pending |
+| 2 | Weka: accept the 393-record model and explain the 80% gap with related studies | **Adviser (2026-10-25):** if the target is not reached, support the reasons with related studies and put them in the recommendations. Done: §10.2 (causes and studies), §11 (each recommendation cites its study) |
+| 3 | Which standard deviation to report | Not yet decided. Proposed: the Experimenter's SD over 100 folds (4.45), as in the §10.5 table, which is Weka's own output |
+| 4 | Whether any §11 recommendation is done now | Not decided; treated as future work (Chapter 5) |
+| 5 | Pre-2023 sources for theories and instruments | **Allowed** (adviser, 2026-10-25): Landis & Koch (1977), SCCT (1994) and the O\*NET documents stay |
 
 ### 12.3 Running the updated system (the team)
 
@@ -466,24 +496,24 @@ Grouped by what each study supports in ProfilePath.
 |---|---|---|---|
 | Fernandez, C. B., Balijon, M. B., & Ancho, I. V. (2023). Career preferences of Filipino senior high school students. *CTU Journal of Innovation and Sustainable Development, 15*(3), 81–91. https://doi.org/10.22144/ctujoisd.2023.053 | **Philippines** (Cebu City public SHS; 35 participants incl. 5 guidance counselors) | Students often choose careers that fit their families' needs, many rely on parents' choices; recommends career pathing by guidance counselors | Background and need for the system; why stated courses differ from interests (missing attributes) |
 | Tuhame, M. K., Kayondo, B. N., Habinka, A. D. B., & Maiga, G. (2025). *Journal of Information Systems and Informatics, 7*(2). https://doi.org/10.51519/journalisi.v7i2.1121 | Uganda, 717 students | Preferences and RIASEC profiles only weakly related (τ = 0.394); proposes IT-driven guidance that combines RIASEC with other data | Why the stated course is hard to predict from interests; supports counselor-supported guidance |
-| Chayka, R. M. (2025). From RIASEC to algorithms: A literature review of person-vocation fit (1990–2025). *Psychological Sciences* (Kherson State University), 2025(2). https://doi.org/10.32999/ksu2312-3206/2025-2-9 (*check* author name format and journal title) | Review of 87 studies | RIASEC congruence indices are the "gold standard" (62% of studies); a shift toward algorithmic assessment | Supports matching students to programs by RIASEC similarity (Objective 2) |
-| Leighton, M., & Speer, J. D. (2023). *Family background and college major choice* (EdWorkingPaper 23-767). https://edworkingpapers.com/sites/default/files/ai23-767.pdf (*check* initials) | United States | Parents' education relates to major choice | Missing attributes (§10.2) |
+| Chayka, R. M. (2025). From RIASEC to algorithms: A literature review of person-vocation fit (1990–2025). *Scientific Bulletin of Kherson State University. Series "Psychological Sciences"*, (2), 67–75. https://doi.org/10.32999/ksu2312-3206/2025-2-9 (confirmed) | Review of 87 studies | RIASEC congruence indices are the "gold standard" (62% of studies); a shift toward algorithmic assessment | Supports matching students to programs by RIASEC similarity (Objective 2) |
+| Leighton, M., & Speer, J. D. (2023). *Family background and college major choice* (EdWorkingPaper 23-767). https://edworkingpapers.com/sites/default/files/ai23-767.pdf (names confirmed) | United States | Parents' education relates to major choice | Missing attributes (§10.2) |
 
 ### 13.2 Recommender systems for program choice (content-based filtering, hybrids)
 
 | Study | Setting | Finding | Use in ProfilePath |
 |---|---|---|---|
-| Kamal, et al. (2024). Recommender system in academic choices of higher education: A systematic review. *IEEE Access, 12*, 35475–35501. https://doi.org/10.1109/ACCESS.2024.3368058 (*check* full author list) | Review of 56 studies (2011–2023) | Hybrid strategies performed best; most studies were lab-based; personality traits are a future direction | Positions ProfilePath's content-based (RIASEC) recommendation and its separate prediction source |
+| Recommender system in academic choices of higher education: A systematic review (2024). *IEEE Access, 12*, 35475–35501. https://doi.org/10.1109/ACCESS.2024.3368058 (*check* the authors at this DOI. Not the 2021 ICCIS paper "Smart career guidance system" by Kamal, Naushad, Rafiq & Tahzeeb, which is a different, pre-2023 work) | Review of 56 studies (2011–2023) | Hybrid strategies performed best; most studies were lab-based; personality traits are a future direction | Positions ProfilePath's content-based (RIASEC) recommendation and its separate prediction source |
 | Bucad, A. T. (2024). Towards the development of a career path recommender system for senior high school in selected public schools using multi-label classification. *International Journal of Research and Innovation in Applied Science, 9*(3), 374–382. https://doi.org/10.51584/IJRIAS.2024.90334 | **Philippines** (Valenzuela City, Grade 10) | Proposes content-based filtering with decision tree, KNN, Naïve Bayes and SVM classifiers on family background, personality, grades and IQ (a design paper; no results yet) | Local precedent for combining content-based filtering with a decision-tree classifier |
+| Rances, C. A., Sipe, R. A., Baris, S., Lopez, A., Rosaldo, A. D., Bringula, R., & Ulfa, S. (2026). CoDeRS: A computing degree program recommender system using machine learning algorithms. *Frontiers in Artificial Intelligence, 9*, Article 1874202. https://doi.org/10.3389/frai.2026.1874202 (confirmed by the team) | **Philippines**, computing degree programs | A machine-learning degree-program recommender tested with 20 senior high school students from different strands; 76.2% accepted the recommendations (figures from the article page as summarized by search: *check*) | Closest local precedent: a degree-program recommender for SHS students; supports acceptance testing with students and counselors |
 | Valles-Coral, M. A., et al. (2025). A hybrid machine learning model for personalized elective course recommendations in higher education. *Ingénierie des Systèmes d'Information, 30*(7), 1723–1730. https://doi.org/10.18280/isi.300705 | Peru, 120 students | PCA, K-Means and a neural network on academic records (R² 0.85); limitation: no personal interests or career goals | Shows the gap ProfilePath fills by recommending from interests (RIASEC) |
 
 ### 13.3 Predicting course, strand or major with machine learning
 
 | Study | Setting | Finding | Use in ProfilePath |
 |---|---|---|---|
-| Song, Q. C., Shin, R., Tang, C., Hanna, A., & Behrend, T. (2024). *Personnel Psychology, 77*(2), 295–319. https://doi.org/10.1111/peps.12529 (*check* initials and the 45% figure) | 81,267 people | Machine learning improved interest-based prediction of career choice mainly for common categories; under-predicted rare ones | Prediction Module (J48) and its limits |
+| Song, Q. C., Shin, H. J., Tang, C., Hanna, A., & Behrend, T. (2024). *Personnel Psychology, 77*(2), 295–319. https://doi.org/10.1111/peps.12529 (confirmed) | 81,267 people | Interest inventories match the highest RIASEC category about 45% of the time (Hanna & Rounds, 2020, as cited); machine learning improved prediction mainly for common categories and under-predicted rare ones | Prediction Module (J48) and its limits |
 | University of Jordan study (2025). *SN Computer Science*. https://doi.org/10.1007/s42979-025-04464-6 (*check* authors) | Jordan, 734 students | Interest-based prediction of engineering major: 91.3% with 2 majors down to 65.0% with 7 | Why 28 courses lowers accuracy |
-| Hernandez, R., & Atienza, R. Career track prediction using deep learning model based on discrete series of quantitative classification. *Applied Computer Science*. https://ph.pollub.pl/index.php/acs/article/view/3135 (*check* the year: use only if 2023 or later) | **Philippines** (Batangas State University; 1,500 students) | A deep neural network on grades, sex, age, siblings and parents' income predicted the SHS strand with 83.11% accuracy | Contrast: richer inputs (grades, income) and fewer classes give much higher accuracy, supporting recommendation 1 (§11) |
 
 ### 13.4 Why accuracy is limited
 
@@ -492,9 +522,10 @@ items 4–6 and §10.4.
 
 ### 13.5 Considered and not used
 
-Nazareno et al. (2021, *Philippine Journal of Science*; before 2023); Villarama et al.
-(Philippine E-Journals; year not confirmed); a "CoDeRS" computing-degree recommender (Frontiers in
-Artificial Intelligence, 2026) whose page could not be opened to confirm its details; a RIASEC
+Hernandez & Atienza (2021, *Applied Computer Science, 17*(4), 55–74; before 2023; a deep neural network
+predicted the SHS strand from grades and family data with 83.11% accuracy); Kamal, Naushad, Rafiq &
+Tahzeeb (2021, ICCIS; before 2023); Nazareno et al. (2021, *Philippine Journal of Science*; before 2023); Villarama et al.
+(Philippine E-Journals; year not confirmed); a RIASEC
 profile-matching decision support system for Indonesian SMA students (DOI 10.36341/rabit.v11i2.7967;
 year not confirmed).
 
