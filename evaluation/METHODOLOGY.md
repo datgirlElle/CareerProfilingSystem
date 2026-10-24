@@ -113,11 +113,13 @@ letter appears in the course's final Holland code (YES), and **0** if not (NO):
 
 Example: IRC → `[1, 1, 0, 0, 0, 1]`. This is built in
 `modules/ContentBasedFiltering/lib/CBFEngine.php`; there is no weight setting. The counselors' 1st, 2nd
-and 3rd letter order is shown with each program but is not a numeric weight (3-2-1 weights are not approved).
+and 3rd letter order is not a numeric weight (3-2-1 weights are not approved). In the web app it only
+orders programs that have the same cosine (1st letter matching the student's 1st-ranked interest
+first, then 2nd, then 3rd); it changes no cosine value and no membership.
 
 **What binary encoding means:**
 
-- **Letter order is not used.** Codes with the same three letters get the same vector:
+- **Letter order is not used in the similarity.** Codes with the same three letters get the same vector:
   IRC, RIC and ICR are all `[1, 1, 0, 0, 0, 1]`. Under binary, the CBF cannot distinguish
   BS Computer Science (IRC) from BS Civil Engineering (RIC) or BS Computer Engineering (ICR).
 - **Validator revisions that only reorder letters have no effect on recommendations.** For
@@ -403,7 +405,8 @@ separate; none is given a numeric weight, and the worksheet never enters the cos
 
 - **Best RIASEC Match (CBF only):** every course tied at the highest cosine similarity. Because
   course vectors are binary, courses with the same three letters (e.g. IRC, RIC, ICR) always have
-  the same similarity; such ties are shown together and never broken.
+  the same similarity; such ties are all shown, listed by the counselors' 1-2-3 letter ranking
+  (the order only; every tied course stays a Best RIASEC Match).
 - **Alternative Courses (CBF only):** every course at the next-highest cosine similarity.
 - **Preferred Course:** the student's own selection, shown separately on the results page. It
   never increases, decreases, forces or replaces a CBF result. The page says whether it is also a
@@ -427,9 +430,10 @@ separate; none is given a numeric weight, and the worksheet never enters the cos
 3. **Instrument validity.** The project questionnaire has not been psychometrically validated (§4).
 4. **Expert-coding subjectivity.** Course codes come from the crosswalk and validator
    judgement. One reviewer's revisions may not generalise.
-5. **Encoding decision.** Binary encoding ignores letter order (§3). IRC, RIC and ICR are
-   treated as the same profile. This was chosen because weighted letter positions lack published
-   support.
+5. **Encoding decision.** Binary encoding ignores letter order in the similarity (§3). IRC, RIC
+   and ICR are treated as the same profile. This was chosen because weighted letter positions lack
+   published support. The 1-2-3 letter ranking only orders tied courses on screen; the evaluation's
+   tie-aware metrics count tied courses as sharing a rank, so this order does not change them.
 6. **Indistinguishable courses.** Under binary encoding, the 32 courses form only 11
    distinct vectors, which limits CBF Top-1. For example, the 11 courses with letters I, R and C
    always tie, so a student in any of them can reach at most 1/11 expected Top-1 from that tie

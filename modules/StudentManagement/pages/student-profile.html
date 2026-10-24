@@ -540,7 +540,7 @@
     status.className = 'sp-badge ' + (r.matchStatus === 'match' ? 'done' : 'wait');
     document.getElementById('recPreferred').textContent = r.preferredCourse ? withCosine(r.preferredCourse) : 'None';
     document.getElementById('recBest').textContent = list(r.bestRiasecMatch.map(withCosine)) +
-      (r.bestRiasecMatch.length > 1 ? ' · ' + r.bestRiasecMatch.length + ' tied' : '') + (r.needsRecompute ? ' · Outdated: run recompute' : '');
+      (r.bestRiasecMatch.length > 1 ? ' · ' + r.bestRiasecMatch.length + ' tied, listed in 1-2-3 letter order' : '') + (r.needsRecompute ? ' · Outdated: run recompute' : '');
     document.getElementById('recAlternatives').textContent = list(r.alternatives.map(withCosine));
     // Prediction Module (modules/ContentBasedFiltering/api/recommendations.php predictionDetail): staff only, separate from the CBF.
     const pd = r.predictionDetail || { status: 'unavailable', reason: 'Not available.' };

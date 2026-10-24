@@ -83,8 +83,9 @@ if ($row['source_worksheet_id'] !== null) {
 $aStmt = $pdo->prepare('SELECT score_r, score_i, score_a, score_s, score_e, score_c FROM assessments WHERE id = ?');
 $aStmt->execute([(int) $row['source_assessment_id']]);
 $aRow = $aStmt->fetch();
-$profile = RiasecProfile::derive($aRow ? ['R' => $aRow['score_r'], 'I' => $aRow['score_i'], 'A' => $aRow['score_a'],
-    'S' => $aRow['score_s'], 'E' => $aRow['score_e'], 'C' => $aRow['score_c']] : null);
+$studentScores = $aRow ? ['R' => $aRow['score_r'], 'I' => $aRow['score_i'], 'A' => $aRow['score_a'],
+    'S' => $aRow['score_s'], 'E' => $aRow['score_e'], 'C' => $aRow['score_c']] : null;
+$profile = RiasecProfile::derive($studentScores);
 // Exact ordered-code match: an explanatory note only. It never changes cosine values, the order or
 // the CBF result, and is given only when the student's code is not decided by tied scores (null otherwise).
 $exactMatch = fn(string $code) => $profile['valid'] && !$profile['codeProvisional'] ? strtoupper($code) === $profile['code'] : null;
@@ -142,13 +143,23 @@ if ($neededIds = array_values(array_unique(array_map('intval', $neededIds)))) {
         ];
     }
 }
+// Inside each tie group, the counselors' 1-2-3 letter ranking decides the order (CBFEngine::letterOrderMatch);
+// results saved before this rule are ordered the same way here. Membership and cosine values are unchanged.
+if ($profile['valid']) {
+    $codes = array_map(fn($p) => (string) ($p['hollandCode'] ?? ''), $programs);
+    $bestIds = CBFEngine::orderByLetterRank($bestIds, $codes, $studentScores);
+    $alternativeIds = CBFEngine::orderByLetterRank($alternativeIds, $codes, $studentScores);
+    foreach ($programs as $id => $p) {
+        $programs[$id]['letterOrderMatch'] = CBFEngine::letterOrderMatch($studentScores, $codes[$id]);
+    }
+}
 $programsFor = fn(array $ids) => array_values(array_filter(array_map(fn($id) => $programs[$id] ?? null, $ids)));
 
 $response = [
     'hasRecommendation' => true,
     'computedAt' => $row['computed_at'],
     // CBF (RIASEC profile + course RIASEC codes + cosine similarity) only:
-    'bestRiasecMatch' => $programsFor($bestIds),         // tied courses all listed, never tie-broken
+    'bestRiasecMatch' => $programsFor($bestIds),         // tied courses all listed, in 1-2-3 letter order
     'alternatives' => $programsFor($alternativeIds),     // next-highest similarity
     // The student's own selection (Career Electives Worksheet), shown separately; it never
     // changes the CBF result.

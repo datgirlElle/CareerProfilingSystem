@@ -16,15 +16,19 @@
  *                      values; it only puts the vector on the answer scale (1-5).
  *   2. Course vectors  [R, I, A, S, E, C] = 1 if the letter is in the program's code,
  *                      0 if not (e.g. AES -> [0, 0, 1, 1, 1, 0]). The counselors' order of the
- *                      letters (1st, 2nd, 3rd) is shown with each program but carries no
- *                      numeric weight: letter-position weights (e.g. 3-2-1) are not approved.
+ *                      letters (1st, 2nd, 3rd) carries no numeric weight: letter-position
+ *                      weights (e.g. 3-2-1) are not approved. It is used only in step 4.
  *                      A program without a valid code is flagged and skipped.
  *   3. Cosine          computed between the student vector and EVERY valid course vector,
  *                      with the dot product and both magnitudes kept for auditing.
- *   4. Results         all courses sorted by cosine similarity (highest first; equal
- *                      values keep the program-list order).
+ *   4. Results         all courses sorted by cosine similarity (highest first). Courses with
+ *                      the same similarity are listed by the counselors' 1-2-3 letter ranking:
+ *                      first those whose 1st letter matches the student's 1st-ranked interest,
+ *                      then the 2nd, then the 3rd (letterOrderMatch()), then the program-list
+ *                      order. This only orders a tie; it changes no cosine value and no
+ *                      membership, and uses no numeric weights.
  *   5. Best RIASEC Match  every course tied at the highest cosine similarity (ties are
- *                      kept, never broken: courses with the same three letters have the
+ *                      kept, all listed: courses with the same three letters have the
  *                      same vector and therefore the same similarity).
  *   6. Alternatives    every course at the next-highest cosine similarity.
  *
@@ -172,12 +176,13 @@ class CBFEngine
                 'dotProduct' => round(self::dotProduct($student, $course), 4),
                 'courseMagnitude' => round(self::magnitude($course), 4),
                 'cosine' => $cosine,
+                'letterOrder' => self::letterOrderMatch($riasecScores, $p['hollandCode']),
             ];
         }
 
-        // Highest similarity first; equal values keep the program-list order (lower id).
+        // Highest similarity first; equal values by the 1-2-3 letter ranking, then program-list order (lower id).
         usort($results, fn($a, $b) => abs($a['cosine'] - $b['cosine']) < self::TIE_EPSILON
-            ? $a['id'] <=> $b['id']
+            ? [$b['letterOrder'], $a['id']] <=> [$a['letterOrder'], $b['id']]
             : $b['cosine'] <=> $a['cosine']);
 
         $candidates = self::selectCandidates($results, 'cosine');
@@ -227,6 +232,37 @@ class CBFEngine
             return [];
         }
         return self::selectCandidates(array_values($rest), $key);
+    }
+
+    /**
+     * The counselors' 1-2-3 ranking of a program's code against the student's ranked interests:
+     * for the program's 1st, 2nd and 3rd letter, true when that letter has the student's 1st,
+     * 2nd or 3rd highest score respectively. Equal scores share a rank, so a tie between the
+     * student's scores never favours one letter over another (e.g. S = I = 45: S and I both match
+     * 1st and 2nd). Used only to order courses that already have the same cosine similarity.
+     *
+     * @return bool[] three values, for the program's 1st, 2nd and 3rd letter
+     */
+    public static function letterOrderMatch(array $scores, string $hollandCode): array
+    {
+        $ranked = array_map(fn($d) => (float) $scores[$d], self::DIMENSIONS);
+        rsort($ranked);
+        $match = [];
+        foreach (array_slice(str_split(strtoupper($hollandCode)), 0, 3) as $i => $letter) {
+            $match[] = isset($scores[$letter]) && abs((float) $scores[$letter] - $ranked[$i]) < self::TIE_EPSILON;
+        }
+        return $match;
+    }
+
+    /**
+     * Program ids from one tie group (same cosine similarity) listed by the 1-2-3 letter ranking,
+     * then by id. $codes maps program id => approved Holland code. Used for saved results.
+     */
+    public static function orderByLetterRank(array $ids, array $codes, array $scores): array
+    {
+        $key = fn($id) => isset($codes[$id]) ? self::letterOrderMatch($scores, $codes[$id]) : [false, false, false];
+        usort($ids, fn($a, $b) => [$key($b), $a] <=> [$key($a), $b]);
+        return $ids;
     }
 
     /**

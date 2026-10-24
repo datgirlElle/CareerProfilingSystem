@@ -60,24 +60,40 @@ page, the API, the dataset export and the Prediction Module's inputs.
 
 ## 4. The CBF method
 
-`modules/ContentBasedFiltering/lib/CBFEngine.php`, `config/cbf.php`, `db/program_codes.php` (unchanged in this update).
+`modules/ContentBasedFiltering/lib/CBFEngine.php`, `config/cbf.php`, `db/program_codes.php`.
 
 - **Student vector:** the six stored scores ÷ 10.
 - **Program vectors:** binary vectors from the counselor-approved three-letter codes (1 for each letter present).
 - **Similarity:** cosine similarity with every program.
 - **Best RIASEC Match:** every program tied at the highest similarity.
 - **Alternative Courses:** every program at the next-highest similarity.
+- **Order inside a tie (1-2-3 letter ranking):** programs with the same similarity are listed by the
+  counselors' letter order. A program whose 1st letter is the student's 1st-ranked interest comes
+  first, then one whose 2nd letter matches the 2nd, then the 3rd (compared in that order), then the
+  program-list order (`CBFEngine::letterOrderMatch`).
+  - Equal scores share a rank, so a tie between the student's scores favours neither letter.
+    For a flat profile every code matches, so the list order is kept.
+  - It changes no cosine value and no membership: every tied program stays in Best Match or
+    Alternatives. There are no numeric weights.
 - **Preferred Course:** shown separately and never enters the calculation.
+
+**Worked example (student S = 45, I = 40, R = 30, C = 25, A = 20, E = 15; code SIR):**
+- Student vector [3.0, 4.0, 2.0, 4.5, 1.5, 2.5]; ‖S‖ = √57.75 = 7.5993.
+- BS Nursing (SIR), BS Physical Therapy (SIR) and BS Biology (IRS) all have S·C = 3.0 + 4.0 + 4.5 = 11.5
+  and cosine 11.5 ÷ (7.5993 × 1.7321) = 0.8737, so all three are the Best RIASEC Match.
+- Inside the tie, Nursing and Physical Therapy (1st, 2nd and 3rd letters match) are listed before
+  Biology (none match). BS Pharmacy (ISC, 0.8357) is the Alternative.
 
 **Limitation:** a binary vector records which interests a code contains, not their priority. IRC, RIC
 and ICR have identical vectors and always tie, although their ordered codes differ. Ties are kept;
-the system never picks one tied program over another.
+the 1-2-3 ranking only orders the tied programs, it never removes or demotes one.
 
 **Explanation shown, without changing the method:**
 - Each program card shows the approved ordered code and its letters by name.
-- When the student's code is not decided by ties, a program whose code has the same letters in the same order is marked "Same letters in the same order as your code". This note changes no cosine value, no order and no recommendation.
-- Not having the note is not evidence against a program.
-- Position-sensitive ranking (letter-order weights) is **not** implemented; it would need a separately approved method.
+- When the student's code is not decided by ties, a program whose code has the same letters in the same order is marked "Same letters in the same order as your code". Otherwise the card says which of its 1st, 2nd and 3rd letters match the student's.
+- The tie note on the results page explains the 1-2-3 order and that all tied programs are equally good matches.
+- Not having a letter match is not evidence against a program.
+- Letter-order **weights** (e.g. 3-2-1, which would change cosine values) are **not** implemented; they would need a separately approved method.
 
 **Cosine similarity** is a measure of similarity between two interest patterns. It is not accuracy,
 not a probability of success and not a percentage fit, and it is not shown to students.
@@ -124,9 +140,9 @@ and an appropriate independent evaluation.
 
 | Topic | Manuscript (as reviewed) | Repository | Action |
 |---|---|---|---|
-| CBF program vectors | 3–2–1 weighted vectors by letter position | Binary vectors (letter present = 1) | Correct the method description, formulas and worked examples to binary vectors, or approve and implement the weighted method separately. This update does **not** implement 3–2–1 weights |
+| CBF program vectors | 3–2–1 weighted vectors by letter position | Binary vectors (letter present = 1); the 1-2-3 letter ranking orders programs inside a tie | Correct the method description, formulas and worked examples to binary vectors (lowest possible top cosine 0.5500; flat profile 0.7071) and add the 1-2-3 tie order (§4). 3–2–1 weights are not implemented |
 | Student vector | (check wording) | Six stored scores ÷ 10 | Describe the actual scores, not top-three only |
-| Ties | (check wording) | Ties kept; IRC/RIC/ICR always tie | Add the limitation in §4 |
+| Ties | (check wording) | Ties kept; IRC/RIC/ICR always tie; listed by the 1-2-3 letter ranking | Add the limitation and the tie order in §4 |
 | Weka inputs | Top-three RIASEC attributes | `top3-binary` model deployed | Describe as top-three binary; describe any raw-score experiment separately as exploratory, not deployed |
 | Weka target | (check wording) | Stated intended/preferred course | Do not call it actual or suitable course |
 | Evaluation | (check claims) | See §7 | Remove or qualify any 80% accuracy claim; separate the evaluation types |

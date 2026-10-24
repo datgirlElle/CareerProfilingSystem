@@ -131,6 +131,7 @@ class CBFData
         $scoresForStorage = array_map(fn($r) => [
             'programId' => $r['id'], 'hollandCode' => $r['hollandCode'], 'courseVector' => $r['courseVector'],
             'dotProduct' => $r['dotProduct'], 'courseMagnitude' => $r['courseMagnitude'], 'cosine' => $r['cosine'],
+            'letterOrder' => $r['letterOrder'],   // 1st/2nd/3rd letter matches (orders ties only)
             'studentVector' => $cbf['studentVector'], 'studentMagnitude' => $cbf['studentMagnitude'],
         ], $cbf['results']);
 

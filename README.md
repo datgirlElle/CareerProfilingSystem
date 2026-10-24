@@ -156,8 +156,10 @@ Three recommendation sources are kept separate (`modules/ContentBasedFiltering/l
 1. **CBF** (`modules/ContentBasedFiltering/lib/CBFEngine.php`): the student's RIASEC profile (mean item score per type,
    [R, I, A, S, E, C]) is compared with every program's Holland code using cosine
    similarity, cos(S, C) = (S · C) / (||S|| × ||C||). Program vectors are binary (1 for each letter of
-   the counselor-approved code, e.g. RIC = [1, 1, 0, 0, 0, 1]); the counselors' 1st/2nd/3rd order is shown
-   with each program but is not a weight (letter-position weights such as 3-2-1 are not approved).
+   the counselor-approved code, e.g. RIC = [1, 1, 0, 0, 0, 1]). The counselors' 1-2-3 letter ranking
+   orders programs that have the same cosine: the program whose 1st letter is the student's
+   1st-ranked interest comes first, then the 2nd, then the 3rd. It is not a weight and changes no
+   cosine value or which programs are listed (letter-position weights such as 3-2-1 are not approved).
    No 70/30 blend with the worksheet.
 2. **Worksheet**: the Preferred Course from the Career Electives Worksheet.
 3. **Prediction Module (WEKA J48)**: shown to guidance staff only, beside the CBF results; it never

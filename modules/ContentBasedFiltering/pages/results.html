@@ -736,15 +736,20 @@ document.addEventListener('click', function (e) {
     const ICON_INFO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 11v5M12 8h.01"/></svg>';
     const COUNSELOR_BTN = '<a href="student-help-center?subject=Request%20for%20Academic%20Advising" class="js-advising-link inline-block border text-xs font-semibold rounded px-4 py-2 hover:opacity-80" style="border-color:#495e88;color:#001c43;background-color:#ffffff;align-self:flex-start;">Talk to a Guidance Counselor</a>';
 
-    // The program's approved RIASEC code (Guidance Office), its letters by name, and, only when the
-    // student's own code is not decided by tied scores, a note when the order is exactly the same.
-    // The note changes nothing in the list; not having it says nothing against the program.
+    // The program's approved RIASEC code (Guidance Office), its letters by name, and how its 1st, 2nd and
+    // 3rd letters follow the student's ranked interests (the order used inside a tie; it never changes
+    // which programs are listed). Not having a match says nothing against the program.
     function codeLineHtml(p) {
       if (!p.hollandCode) return '';
       const names = (p.hollandCodeNames || []).join(', ');
+      // Which of the program's 1st, 2nd and 3rd letters match your 1st, 2nd and 3rd interests (the order used inside a tie).
+      const order = (profile && !profile.flat && p.exactOrderedCodeMatch !== true && Array.isArray(p.letterOrderMatch))
+        ? ['1st', '2nd', '3rd'].filter(function(_, i) { return p.letterOrderMatch[i] === true; }) : [];
+      const orderJoin = order.length < 2 ? order.join('') : order.slice(0, -1).join(', ') + ' and ' + order[order.length - 1];
       return '<p class="text-xs text-[#5e3f3c]">Approved RIASEC code: <span class="font-semibold text-[#001c43] tracking-[1px]">' +
         escapeText(String(p.hollandCode).toUpperCase()) + '</span>' + (names ? ' (' + escapeText(names) + ')' : '') + '</p>' +
-        (p.exactOrderedCodeMatch === true ? '<p><span class="pp-badge pp-badge--match">' + ICON_CHECK + 'Same letters in the same order as your code</span></p>' : '');
+        (p.exactOrderedCodeMatch === true ? '<p><span class="pp-badge pp-badge--match">' + ICON_CHECK + 'Same letters in the same order as your code</span></p>'
+          : order.length ? '<p class="text-xs text-[#5e3f3c]">Its ' + orderJoin + ' letter' + (order.length > 1 ? 's match' : ' matches') + ' your ' + orderJoin + ' interest' + (order.length > 1 ? 's' : '') + '.</p>' : '');
     }
 
     // "Why this course?": built only from data already on the page — the course's RIASEC
@@ -895,7 +900,7 @@ document.addEventListener('click', function (e) {
       notice.classList.remove('hidden');
     }
 
-    // 3. Best RIASEC Match (CBF). Tied courses are all shown; the tie is never broken.
+    // 3. Best RIASEC Match (CBF). Tied courses are all shown, ordered by the counselors' 1-2-3 letter ranking.
     const best = recommendation.bestRiasecMatch || [];
     const prefBadge = function(p) {
       return preferred && p.id === preferred.id ? '<span class="pp-badge pp-badge--mine">Your Preferred Course</span>' : '';
@@ -904,9 +909,11 @@ document.addEventListener('click', function (e) {
       const tie = document.getElementById('cr-tieNote');
       const letterSets = best.map(function(p) { return String(p.hollandCode || '').toUpperCase().split('').sort().join(''); });
       const sameLetters = letterSets.every(function(l) { return l === letterSets[0]; });
-      tie.textContent = 'These ' + best.length + ' programs are equally close to your interests, so the system cannot rank one above another. ' +
-        (sameLetters ? 'Their codes have the same three letters (the order of the letters is not used). '
-          : 'Some of your scores are tied, so programs with different codes come out equally close. ') + 'They are listed in no particular order.';
+      tie.textContent = 'These ' + best.length + ' programs are equally close to your interests. ' +
+        (sameLetters ? 'Their codes have the same three letters, so the similarity score cannot separate them. '
+          : 'Some of your scores are tied, so programs with different codes come out equally close. ') +
+        (profile && profile.flat ? 'They are listed in no particular order.'
+          : 'They are listed by the Guidance Office\'s 1st-2nd-3rd letter order: programs whose 1st letter is your strongest interest come first, then the 2nd, then the 3rd. All of them are equally good matches.');
       tie.classList.remove('hidden');
     }
     document.getElementById('cr-bestRiasec').innerHTML = best.length

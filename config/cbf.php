@@ -4,10 +4,11 @@
  *
  * The CBF compares the student's RIASEC profile with each program's Holland (RIASEC)
  * code using cosine similarity. Program vectors are binary: 1 for each letter in the
- * counselor-approved code, 0 otherwise. The counselors' order of the letters (1st, 2nd, 3rd)
- * is shown with each program but is not a numeric weight: letter-position weights such as
- * 3-2-1 are not approved, so none are used. No 70/30 split with the worksheet, no strand or
- * elective block.
+ * counselor-approved code, 0 otherwise. The counselors' 1-2-3 order of the letters is used
+ * only to list programs that have the same cosine similarity (1st letter matching the
+ * student's 1st-ranked interest first, then 2nd, then 3rd); it is not a numeric weight and
+ * changes no similarity or membership. Letter-position weights such as 3-2-1 are not
+ * approved, so none are used. No 70/30 split with the worksheet, no strand or elective block.
  */
 return [
     // RIASEC scores are stored on a 10-50 scale per type, whatever the number of questions

@@ -104,7 +104,7 @@ check('hand check, IRC course: S·C = 3.8 + 4.5 + 3.5 = 11.8', near($byId[2]['do
 check('hand check, ||S|| = sqrt(59.02) = 7.6824', near($r['studentMagnitude'], 7.6824));
 check('hand check, cosine = 11.8 / (7.6824 x 1.7321) = 0.8868', near($byId[2]['cosine'], 0.8868));
 check('tied similarity: both IRC courses have the same cosine', $byId[2]['cosine'] === $byId[3]['cosine']);
-check('tied courses keep the program-list order', array_column($r['results'], 'id')[0] === 2 && array_column($r['results'], 'id')[1] === 3);
+check('tied courses with the same code keep the program-list order', array_column($r['results'], 'id')[0] === 2 && array_column($r['results'], 'id')[1] === 3);
 check('multiple CBF candidates: every course tied at the highest similarity', $r['candidates'] === [2, 3]);
 check('candidates come only from the RIASEC profile (no worksheet, no prediction input exists)',
     (new ReflectionMethod('CBFEngine', 'compute'))->getNumberOfParameters() === 3);
@@ -129,6 +129,42 @@ check('no valid course at all -> no candidates',
     CBFEngine::compute($ircStudent, [['id' => 9, 'title' => 'x', 'hollandCode' => '']])['candidates'] === []);
 check('selectCandidates on saved results uses the same rule',
     array_column(CBFEngine::selectCandidates([['id' => 1, 'cosine' => 0.8868], ['id' => 2, 'cosine' => 0.8868], ['id' => 3, 'cosine' => 0.7741]]), 'id') === [1, 2]);
+
+echo "\n=== 1-2-3 letter ranking inside a tie (orders ties only, no weights) ===\n";
+$studentA = ['R' => 30, 'I' => 40, 'A' => 20, 'S' => 45, 'E' => 15, 'C' => 25];   // ranked S, I, R -> code SIR
+$health = [
+    ['id' => 1, 'title' => 'BS Biology', 'hollandCode' => 'IRS'],
+    ['id' => 2, 'title' => 'BS Physical Therapy', 'hollandCode' => 'SIR'],
+    ['id' => 3, 'title' => 'BS Nursing', 'hollandCode' => 'SIR'],
+    ['id' => 4, 'title' => 'BS Pharmacy', 'hollandCode' => 'ISC'],
+];
+$h = CBFEngine::compute($studentA, $health);
+$hById = array_column($h['results'], null, 'id');
+check('the three S-I-R programs tie: cosine 11.5 / (7.5993 x 1.7321) = 0.8737 for each',
+    near($hById[1]['cosine'], 0.8737) && $hById[1]['cosine'] === $hById[2]['cosine'] && $hById[2]['cosine'] === $hById[3]['cosine']);
+check('all three stay in Best RIASEC Match (membership decided by cosine only)', $h['candidates'] === [2, 3, 1]);
+check('inside the tie, SIR (same 1st letter as the student) comes before IRS', array_column($h['results'], 'id') === [2, 3, 1, 4]);
+check('Alternatives unchanged: BS Pharmacy (ISC) at the next similarity', $h['alternatives'] === [4]);
+check('letter matches: SIR = [1st, 2nd, 3rd], IRS = none', $hById[2]['letterOrder'] === [true, true, true] && $hById[1]['letterOrder'] === [false, false, false]);
+check('1st before 2nd before 3rd: SRI > RIS > ISR > IRS',
+    CBFEngine::letterOrderMatch($studentA, 'SRI') === [true, false, false] && CBFEngine::letterOrderMatch($studentA, 'RIS') === [false, true, false]
+    && CBFEngine::letterOrderMatch($studentA, 'ISR') === [false, false, true]
+    && CBFEngine::orderByLetterRank([1, 2, 3, 4], [1 => 'IRS', 2 => 'ISR', 3 => 'RIS', 4 => 'SRI'], $studentA) === [4, 3, 2, 1]);
+check('saved results are ordered the same way (orderByLetterRank)', CBFEngine::orderByLetterRank([1, 2, 3], [1 => 'IRS', 2 => 'SIR', 3 => 'SIR'], $studentA) === [2, 3, 1]);
+$cosines = fn(array $res) => array_map(fn($x) => $x['cosine'], $res);
+$swapped = CBFEngine::compute($studentA, array_reverse($health));
+check('the 1-2-3 order changes no cosine value and no membership (program list reversed)',
+    $cosines($swapped['results']) === $cosines($h['results']) && $swapped['candidates'] === [2, 3, 1] && $swapped['alternatives'] === [4]);
+$tiedTop = ['R' => 30, 'I' => 45, 'A' => 20, 'S' => 45, 'E' => 15, 'C' => 25];   // S = I: neither is "1st"
+check('tied student scores favour neither letter: SIR and ISR both match all three, program order kept',
+    CBFEngine::letterOrderMatch($tiedTop, 'SIR') === [true, true, true] && CBFEngine::letterOrderMatch($tiedTop, 'ISR') === [true, true, true]
+    && CBFEngine::orderByLetterRank([5, 4], [4 => 'SIR', 5 => 'ISR'], $tiedTop) === [4, 5]);
+$thirdTie = ['R' => 30, 'I' => 40, 'A' => 20, 'S' => 45, 'E' => 15, 'C' => 30];  // R = C for 3rd place
+check('a tie for 3rd place: SIR and SIC both match the 3rd letter',
+    CBFEngine::letterOrderMatch($thirdTie, 'SIR') === [true, true, true] && CBFEngine::letterOrderMatch($thirdTie, 'SIC') === [true, true, true]);
+$flat = ['R' => 30, 'I' => 30, 'A' => 30, 'S' => 30, 'E' => 30, 'C' => 30];
+check('flat profile: every code matches, so the program-list order is kept',
+    array_column(CBFEngine::compute($flat, $health)['results'], 'id') === [1, 2, 3, 4]);
 
 echo "\n=== Postgres text[] parsing ===\n";
 check('bare and quoted elements are both read', CBFData::parseTextArray('{Animation,"Biology 1-2",Entrepreneurship}') === ['Animation', 'Biology 1-2', 'Entrepreneurship']);
