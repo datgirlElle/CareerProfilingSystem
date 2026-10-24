@@ -165,11 +165,11 @@ Three recommendation sources are kept separate (`modules/ContentBasedFiltering/l
 3. **Prediction Module (WEKA J48)**: shown to guidance staff only, beside the CBF results; it never
    changes them (`modules/ContentBasedFiltering/lib/PredictionModel.php`; see the Prediction Module section below).
 
-The results page shows, in order: RIASEC profile, **Preferred Course** (what the student selected),
-**Best RIASEC Match** (courses tied at the highest cosine similarity; CBF only) and **Alternative
-Courses** (next-highest similarity). The Preferred Course never changes the CBF result. The final
-Best Match (CBF + prediction model + worksheet) is not computed until the prediction model exists.
-Cosine similarity is shown as "Cosine Similarity: 0.xxx", never as a percentage or an accuracy.
+The results page shows, in order: **Preferred Course** (what the student selected, compared with
+the CBF result), RIASEC profile, **Best RIASEC Match** (courses tied at the highest cosine
+similarity; CBF only; ties listed in the counselors' 1-2-3 letter order) and **Alternative Courses**
+(next-highest similarity). The Preferred Course never changes the CBF result. Students do not see
+cosine values; staff see them on the student profile, never as a percentage or an accuracy.
 
 To see the full CBF calculation for a student (student vector, and for every course its vector,
 dot product, magnitudes and cosine similarity):
