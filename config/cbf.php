@@ -26,7 +26,7 @@ return [
 
     // ---- Prediction model (WEKA) -------------------------------------------------
     // Source 3 of modules/ContentBasedFiltering/lib/RecommendationPipeline.php: the J48 model in config/prediction_model.json,
-    // exported from models/ProfilePath_J48_Binary.model with tools/weka/ExportJ48Lookup (Weka's
+    // exported from models/ProfilePath_J48_Binary_393.model with tools/weka/ExportJ48Lookup (Weka's
     // own predictions and class probabilities for all 20 possible inputs; see
     // tools/weka/README.md). It is shown on its own and never changes the CBF result or the
     // Preferred Course.

@@ -155,7 +155,7 @@ check('Preferred Course never changes the CBF result', $a['bestRiasecMatchIds'] 
 echo "\n=== Prediction Module: incompatible encodings are refused ===\n";
 $model = PredictionModel::load(PredictionModel::MODEL_FILE);
 check('installed model declares top3-binary, target and training metadata', $model['feature_encoding'] === 'top3-binary'
-    && str_contains($model['target_definition'], 'intended/preferred') && $model['training']['records'] === 296);
+    && str_contains($model['target_definition'], 'intended/preferred') && $model['training']['records'] === 393);
 $bad = function (callable $edit) use ($model): bool {
     $m = $model;
     $edit($m);
@@ -167,7 +167,7 @@ check('tree with a negative split -> refused', $bad(function (&$m) { $m['tree'] 
 $legacy = $model;
 unset($legacy['feature_encoding'], $legacy['target_definition'], $legacy['training'], $legacy['evaluation'], $legacy['exporter_version']);
 check('earlier export without encoding metadata but binary splits -> still accepted', throwsMsg(fn() => PredictionModel::validateLookup($legacy), UnexpectedValueException::class) === null);
-check('14 split lines in the installed tree, all at 0', count(PredictionModel::splitThresholds($model['tree'])) === 14
+check('12 split lines in the installed tree (6 splits), all at 0', count(PredictionModel::splitThresholds($model['tree'])) === 12
     && array_unique(array_column(PredictionModel::splitThresholds($model['tree']), 1)) === [0.0]);
 
 echo "\n=== Summary: $passed passed, $failed failed ===\n";

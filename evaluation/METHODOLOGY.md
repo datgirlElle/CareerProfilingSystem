@@ -686,3 +686,23 @@ meet it; only a different target or different inputs could, and that needs appro
 
 **Running it:** run on the team's own computer; the data file stays there and is ignored by git.
 The tests use synthetic fixtures only.
+
+**Result on the 393-record dataset (2026-10-24):** ceiling 24.68% exact course (top 3: 53.94%);
+best possible rule under 10-fold CV 17.91% (sd 0.78); ZeroR 7.89%. College as the target: ceiling
+48.35%, top 3 84.73%. 80% is not reachable for either target with these inputs.
+
+## 17. Final Prediction Module model (393 records, 2026-10-24)
+
+Training file built with `python cbf_eval.py arff --students <file>` (top-3 binary 0/1, ties for 3rd
+place, 84 students, in R, I, A, S, E, C order; 28 courses). Weka 3.9.6, stratified 10-fold
+cross-validation repeated with seeds 1-10:
+
+| Model | Accuracy mean (sd) | Kappa | Top 3 | MRR |
+|---|---|---|---|---|
+| J48 -C 0.1 -M 10 (deployed) | 17.12% (1.24) | 0.107 | 40.89% | 0.343 |
+| J48 -C 0.25 -M 2 (Weka default) | 17.20% (1.16) | 0.109 | 40.43% | 0.343 |
+| ZeroR | 7.76% (0.18) | −0.007 | 24.45% | 0.241 |
+
+The deployed settings were the team's existing ones, not chosen on these runs. The final tree (all
+393 records) has 7 leaves; see `tools/weka/README.md`. The 296- and 291-record results above are
+superseded and not comparable.

@@ -261,5 +261,22 @@ class Evaluation(unittest.TestCase):
         self.assertEqual(m.mcnemar_exact([1, 0], [1, 0])[2], 1.0)
 
 
+
+class BinaryArff(unittest.TestCase):
+    def test_deployed_format_from_an_anonymised_file(self):
+        with tempfile.TemporaryDirectory() as d:
+            src = os.path.join(d, "s.csv")
+            with open(src, "w", newline="") as f:   # synthetic rows; no student column
+                f.write("R,I,A,S,E,C,Actual Course\n3,2,6,1,19,8,BSBAOM\n10,10,9,9,2,1,BSN\n")
+            rows = m.read_students(src)
+            out = os.path.join(d, "a.arff")
+            m.write_arff(out, rows, "top3", "binary")
+            text = open(out).read()
+        self.assertEqual([r["StudentID"] for r in rows], ["row1", "row2"])
+        self.assertIn("@ATTRIBUTE R NUMERIC", text)
+        self.assertIn("@ATTRIBUTE 'Actual Course' {'BS Nursing','BSBA Major in Operations Management'}", text)
+        self.assertIn("0,0,1,0,1,1,'BSBA Major in Operations Management'", text)   # E, C, A
+        self.assertIn("1,1,1,0,0,0,'BS Nursing'", text)                           # A ties S for 3rd: A first
+
 if __name__ == "__main__":
     unittest.main()

@@ -56,8 +56,8 @@ function login(string $base, string $user, string $pass, string $portal): array
 
 echo "=== Model files are not served ===\n";
 $none = null;
-foreach (['/config/prediction_model.json', '/models/ProfilePath_J48_Binary.model', '/tools/weka/export-j48.jar',
-          '/evaluation/METHODOLOGY.md', '/tests/fixtures/profiles20_ProfilePath_J48_Binary.arff', '/docs/methodology-notes.md', '/README.md'] as $path) {
+foreach (['/config/prediction_model.json', '/models/ProfilePath_J48_Binary_393.model', '/tools/weka/export-j48.jar',
+          '/evaluation/METHODOLOGY.md', '/tests/fixtures/profiles20_ProfilePath_J48_Binary_393.arff', '/docs/methodology-notes.md', '/README.md'] as $path) {
     $code = req($base, 'GET', $path, null, tempnam(sys_get_temp_dir(), 'pm'), $none)['code'];
     check("GET $path -> 404", $code === 404, "got $code");
 }

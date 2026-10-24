@@ -122,6 +122,27 @@ not a probability of success and not a percentage fit, and it is not shown to st
 - **What staff see:** the model's encoding, target, version, training record count (as declared by the team) and evaluation protocol. Anything not recorded is shown as unknown.
 - **Students never receive it.** It never changes the CBF results or the Preferred Course.
 
+**Installed model (final):** `models/ProfilePath_J48_Binary_393.model`, J48 `-C 0.1 -M 10`, Weka 3.9.6,
+trained on 393 students, 28 courses; 7 leaves, so it predicts 7 different courses.
+
+| 10-fold CV, seeds 1–10 | Accuracy mean (sd) | Kappa | Course in top 3 |
+|---|---|---|---|
+| J48 (deployed) | 17.12% (1.24) | 0.107 | 40.89% |
+| ZeroR baseline | 7.76% (0.18) | −0.007 | 24.45% |
+| Highest possible with these inputs (ceiling, on the training data itself) | 24.68% | | 53.94% |
+
+- J48 predicts the stated course about 2.2 times as often as ZeroR. It is close to the best
+  possible rule under the same cross-validation (17.91%), so the limit is the inputs, not the
+  algorithm's settings.
+- **80% target:** not reachable with this target and these inputs by any classifier (ceiling
+  24.68%). Meeting it would need a different target or different inputs, decided by the adviser.
+- **Instruments:** the training data are O\*NET Interest Profiler scores (0–20 per type); the
+  application's assessment stores 10–50. Only which three types are highest is used, so the scale
+  difference does not enter the inputs, but the two instruments are not otherwise equated
+  (limitation). 84 of 393 training students (21%) tie for 3rd place, which the R, I, A, S, E, C
+  rule decides.
+- Full figures and the retraining steps: `tools/weka/README.md`.
+
 ## 7. What each evaluation shows
 
 | Evaluation | What it establishes | What it does not establish |
@@ -145,6 +166,7 @@ and an appropriate independent evaluation.
 | Ties | (check wording) | Ties kept; IRC/RIC/ICR always tie; listed by the 1-2-3 letter ranking | Add the limitation and the tie order in §4 |
 | Weka inputs | Top-three RIASEC attributes | `top3-binary` model deployed | Describe as top-three binary; describe any raw-score experiment separately as exploratory, not deployed |
 | Weka target | (check wording) | Stated intended/preferred course | Do not call it actual or suitable course |
+| Weka results | 296-record model (17.97% vs ZeroR 7.23%) or older 291-record results | 393-record model: 17.12% (sd 1.24) vs ZeroR 7.76%, kappa 0.107, top 3 40.89%; ceiling 24.68% | Replace the results table and model description (7 leaves); report the ceiling to explain why 80% cannot be met |
 | Evaluation | (check claims) | See §7 | Remove or qualify any 80% accuracy claim; separate the evaluation types |
 | Assessment scoring | (check wording) | §1 table | Use the stored 10–50 scale and the formula in §1 |
 

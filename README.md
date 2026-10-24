@@ -200,7 +200,7 @@ in the Render dashboard after the first deploy.
 ## Prediction Module (Weka J48)
 
 Guidance staff see a Weka J48 prediction of the student's intended course beside the content-based
-recommendation. The model (`models/ProfilePath_J48_Binary.model`) is exported to
+recommendation. The model (`models/ProfilePath_J48_Binary_393.model`, 393 records) is exported to
 `config/prediction_model.json` with Weka's own predictions and probabilities, so the server needs no
 Java. See `tools/weka/README.md` for the export, the check against Weka, and the API.
 

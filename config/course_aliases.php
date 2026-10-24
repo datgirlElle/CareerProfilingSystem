@@ -8,9 +8,8 @@
  * so a class label written by those tools always resolves to a program here.
  * Ambiguous abbreviations (e.g. BSMT) are deliberately left out.
  *
- * The misspelled names (Pyschology, Managment, Managements) are the exact class labels inside
- * models/ProfilePath_J48_Binary.model; they are matched here so the model's labels can stay
- * exactly as trained.
+ * The misspelled names (Pyschology, Managment, Managements) were class labels in the earlier
+ * 296-record model and dataset; they stay matched so older data and models still resolve.
  */
 return [
     'BA Communication' => ['BACOMM', 'ABCOMM'],

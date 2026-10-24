@@ -8,15 +8,31 @@ Preferred Course. It never changes those results.
 
 | | |
 |---|---|
-| File | `models/ProfilePath_J48_Binary.model` (SHA-256 `7c1bd2eb…495ad`) |
+| File | `models/ProfilePath_J48_Binary_393.model` (SHA-256 `42076366…ee83754`) |
 | Classifier | `weka.classifiers.trees.J48 -C 0.1 -M 10`, saved with Weka 3.9.6, training header included |
-| Inputs | `R, I, A, S, E, C`, numeric, 1 = one of the student's three highest RIASEC scores, 0 = not |
+| Training data | 393 students (`ONET_RIASEC_Raw_393_Updated.csv`: the six O\*NET Interest Profiler scores, 0–20, and the stated course), converted with `python evaluation/cbf_eval.py arff --students <file>` |
+| Inputs | `R, I, A, S, E, C`, numeric, 1 = one of the student's three highest RIASEC scores, 0 = not (ties for 3rd place in R, I, A, S, E, C order: 84 of 393 students) |
 | Class | `Actual Course` (index 6), 28 labels: the students' stated intended/preferred courses |
-| Tree | 8 leaves, size 15 |
+| Tree | 7 leaves, size 13; predicts 7 different courses |
 
-The class labels are kept exactly as trained, including the spellings `BS Pyschology`,
-`BS Hospitality Managment`, `… Operations Managements` and `… Financial Managements`;
-`config/course_aliases.php` maps them to the program list. Four programs are not among the 28
+```
+R <= 0
+|   C <= 0
+|   |   I <= 0: B Multimedia Arts (51.0/42.0)
+|   |   I > 0
+|   |   |   A <= 0: BS Nursing (33.0/18.0)
+|   |   |   A > 0: BS Medical Technology (69.0/57.0)
+|   C > 0: BS Computer Science (55.0/44.0)
+R > 0
+|   A <= 0: BS Civil Engineering (118.0/93.0)
+|   A > 0
+|   |   E <= 0: BS Mechanical Engineering (40.0/30.0)
+|   |   E > 0: BS Architecture (27.0/22.0)
+```
+
+`(51.0/42.0)` means 51 training students reach the leaf and 42 of them chose another course, so
+the leaf's probability for its course is 9/51. `config/course_aliases.php` maps the class labels
+(e.g. `BSBA Major in Financial Management`) to the program list. Four programs are not among the 28
 classes (BS Accounting Information System, BSBA Sustainability Management, BS International
 Business, BS Business Analytics with AI): the model gives them no prediction and no probability.
 
@@ -45,6 +61,28 @@ this display order exactly.
 **Probabilities** are the share of past students at the tree's leaf who intended each course.
 They are not suitability scores and are not shown as percentages.
 
+## Retraining (how the installed model was built)
+
+1. **Training file.** Keep the data file outside the repository (or in `evaluation/`, which git
+   ignores). It needs R, I, A, S, E, C scores and a course column (a student column is optional):
+   ```
+   python evaluation/cbf_eval.py arff --students ONET_RIASEC_Raw_393_Updated.csv --out all_binary.arff
+   ```
+   This sets 1 for each student's three highest scores (ties in R, I, A, S, E, C order, the same
+   rule as the application) and declares only the courses present.
+2. **Ceiling check.** `python evaluation/accuracy_ceiling.py --data ONET_RIASEC_Raw_393_Updated.csv`
+3. **Evaluate** in the Weka Explorer: open `all_binary.arff`, Classify → `trees.J48`, set
+   `confidenceFactor 0.1` and `minNumObj 10`, Cross-validation 10 folds, and repeat with the random
+   seed (More options → Random seed) 1 to 10; do the same with `rules.ZeroR`. Record the mean and
+   standard deviation of the accuracy and kappa. (Command line: `java -cp weka.jar
+   weka.classifiers.trees.J48 -t all_binary.arff -x 10 -s 1 -C 0.1 -M 10`.)
+4. **Final model** on all records: in the Explorer use "Use training set", Start, then right-click
+   the result → Save model, as `models/ProfilePath_J48_Binary_<records>.model`. (Command line: add
+   `-no-cv -d models/ProfilePath_J48_Binary_393.model`.) The training-set accuracy Weka prints here is
+   not an evaluation result; report the cross-validation figures.
+5. Re-export and check it as below, then update the record count, the evaluation text and the
+   tests (`tests/prediction_module_test.php`, the fixtures in `tests/fixtures/`).
+
 ## Re-export after retraining
 
 Run from the project folder. Use Weka's own `weka.jar` (same version that saved the model). In
@@ -54,11 +92,11 @@ Windows Command Prompt (paths for a Weka 3.9.6 install in `D:\Weka\Weka-3-9-6`):
 set WEKA=D:\Weka\Weka-3-9-6\weka.jar
 
 :: 1. Export Weka's predictions for all 20 inputs
-java -cp "%WEKA%;tools\weka\export-j48.jar" ExportJ48Lookup models\ProfilePath_J48_Binary.model config\prediction_model.json "ProfilePath J48 Binary (J48 -C 0.1 -M 10, 296 records)" --encoding top3-binary --training-records 296 --evaluation "10-fold cross-validation (development results; run seeds not yet confirmed)"
+java -cp "%WEKA%;tools\weka\export-j48.jar" ExportJ48Lookup models\ProfilePath_J48_Binary_393.model config\prediction_model.json "ProfilePath J48 Binary (J48 -C 0.1 -M 10, 393 records)" --encoding top3-binary --training-records 393 --training-data "ONET_RIASEC_Raw_393_Updated (top-3 binary)" --evaluation "10-fold cross-validation, 10 runs (seeds 1-10), Weka 3.9.6: accuracy 17.12% (sd 1.24), kappa 0.107, top-3 40.89%; ZeroR 7.76%"
 
 :: 2. Check the application against Weka's own command line
 php db\verify_prediction_model.php --write-arff profiles20.arff
-java -cp "%WEKA%" weka.classifiers.trees.J48 -l models\ProfilePath_J48_Binary.model -T profiles20.arff -classifications "weka.classifiers.evaluation.output.prediction.CSV -distribution -decimals 16" > weka_predictions.csv
+java -cp "%WEKA%" weka.classifiers.trees.J48 -l models\ProfilePath_J48_Binary_393.model -T profiles20.arff -classifications "weka.classifiers.evaluation.output.prediction.CSV -distribution -decimals 16" > weka_predictions.csv
 php db\verify_prediction_model.php weka_predictions.csv
 
 :: 3. Recompute saved recommendations with the new model
@@ -97,9 +135,9 @@ says the Prediction Module is unavailable, and the content-based results are sho
                 "probability": 0.21739130434782608, "inBestRiasecMatch": false, "inAlternatives": false, "tied": false},
   "top3": ["... the three highest, ties in the model's class order"],
   "distribution": ["... all 28 classes in the model's class order"],
-  "model": {"version": "ProfilePath J48 Binary (J48 -C 0.1 -M 10, 296 records)", "wekaVersion": "3.9.6",
+  "model": {"version": "ProfilePath J48 Binary (J48 -C 0.1 -M 10, 393 records)", "wekaVersion": "3.9.6",
             "classifier": "weka.classifiers.trees.J48 -C 0.1 -M 10", "classAttribute": "Actual Course", "classes": 28,
-            "sha256": "7c1bd2eb…"},
+            "sha256": "42076366…"},
   "savedPredictionDiffers": false
 }
 ```
@@ -110,7 +148,28 @@ When it cannot run: `{"status": "unavailable", "reason": "…"}`. Students never
 ## What the evaluation results mean
 
 The class is the students' stated intended course, so accuracy measures agreement with stated
-intentions, not whether a course suits a student. The 10-fold cross-validation figures supplied
-by the team (J48 mean accuracy 17.97%, ZeroR 7.23% over ten runs) are development results, not an
-independent test, and the seeds of those runs are not yet confirmed. They are not comparable with
-the earlier 291-record / 200-91 split results.
+intentions, not whether a course suits a student.
+
+Results on the 393 records, Weka 3.9.6, stratified 10-fold cross-validation repeated with seeds 1–10
+(`weka.classifiers.trees.J48 -t all_binary.arff -x 10 -s <seed>`):
+
+| Model | Accuracy, mean (sd) | Kappa | Course in top 3 | MRR |
+|---|---|---|---|---|
+| **J48 -C 0.1 -M 10 (deployed)** | **17.12% (1.24)**, range 14.50–18.83 | 0.107 | 40.89% | 0.343 |
+| J48 -C 0.25 -M 2 (Weka default, comparison) | 17.20% (1.16) | 0.109 | 40.43% | 0.343 |
+| ZeroR (always the largest class) | 7.76% (0.18) | −0.007 | 24.45% | 0.241 |
+
+Top 3 and MRR come from the cross-validation predictions, with tied probabilities sharing
+positions. The settings were not tuned on these runs, so the figures are not inflated by model
+selection.
+
+**Upper limit of these inputs** (`python evaluation/accuracy_ceiling.py --data <file>`): the 20
+input patterns each mix many courses (e.g. 51 students with A, S, E chose 17 different courses), so
+no model using only these inputs can exceed **24.68%** exact-course accuracy even on its own
+training data (top 3: 53.94%). The best possible rule under the same cross-validation reaches
+17.91%; J48 is close to it. An 80% accuracy target is therefore not reachable with this target and
+these inputs, by any classifier; reaching it would need a different target or different inputs,
+which is a decision for the adviser.
+
+The earlier 296-record model (17.97% vs ZeroR 7.23%, seeds not confirmed) and the 291-record
+results are superseded and not comparable.

@@ -5,8 +5,8 @@
  *
  *   php tests/prediction_module_test.php
  *
- * Uses the installed config/prediction_model.json (exported from models/ProfilePath_J48_Binary.model)
- * and tests/fixtures/weka_predictions_ProfilePath_J48_Binary.csv, which is Weka 3.9.6's own
+ * Uses the installed config/prediction_model.json (exported from models/ProfilePath_J48_Binary_393.model)
+ * and tests/fixtures/weka_predictions_ProfilePath_J48_Binary_393.csv, which is Weka 3.9.6's own
  * command-line output for the 20 possible inputs (see tools/weka/README.md). Score values below
  * are made-up test inputs, not student records.
  */
@@ -47,18 +47,19 @@ check('inputs R, I, A, S, E, C in that order, numeric', $model['attributes'] ===
 check('class attribute "Actual Course" at index 6', $model['class_attribute'] === 'Actual Course' && $model['class_index'] === 6);
 check('J48 -C 0.1 -M 10, exported with Weka 3.9.6', $model['classifier'] === 'weka.classifiers.trees.J48' && $model['options'] === '-C 0.1 -M 10' && $model['weka_version'] === '3.9.6');
 // The 28 class labels in the order Weka read from the .model header (spelling exactly as trained).
-$wekaOrder = ['BS Business Administration Major in Operations Managements', 'BA Communication', 'BS Accountancy', 'BS Architecture',
-    'BS Chemical Engineering', 'BS Nursing', 'BS Electrical Engineering', 'BS Marine Transportation', 'BS Mechanical Engineering',
-    'BS Civil Engineering', 'B Multimedia Arts', 'BS Information Technology', 'BS Computer Engineering', 'BS Computer Science',
-    'BS Pyschology', 'BS Business Administration Major in Financial Managements', 'BS Medical Technology', 'BS Hospitality Managment',
-    'BS Physical Therapy', 'BS Tourism Management', 'BS Pharmacy', 'BS Aeronautical Engineering', 'BS Marine Engineering', 'BS Biology',
-    'BS Aviation Management', 'BS Marketing', 'BS Electronics Engineering', 'BS Industrial Engineering'];
+$wekaOrder = ['BA Communication', 'B Multimedia Arts', 'BS Computer Science', 'BS Information Technology', 'BS Biology',
+    'BS Medical Technology', 'BS Pharmacy', 'BS Physical Therapy', 'BS Psychology', 'BS Nursing', 'BS Accountancy',
+    'BSBA Major in Financial Management', 'BSBA Major in Operations Management', 'BS Hospitality Management', 'BS Tourism Management',
+    'BS Marketing', 'BS Architecture', 'BS Chemical Engineering', 'BS Civil Engineering', 'BS Mechanical Engineering',
+    'BS Electrical Engineering', 'BS Electronics Engineering', 'BS Industrial Engineering', 'BS Computer Engineering',
+    'BS Aeronautical Engineering', 'BS Aviation Management', 'BS Marine Engineering', 'BS Marine Transportation'];
+check('trained on 393 records (top-3 binary)', $model['training']['records'] === 393 && $model['feature_encoding'] === 'top3-binary');
 check('28 class labels in the model header order', $model['class_labels'] === $wekaOrder);
-$modelFile = __DIR__ . '/../models/ProfilePath_J48_Binary.model';
+$modelFile = __DIR__ . '/../models/ProfilePath_J48_Binary_393.model';
 check('exported from this exact .model file (SHA-256 matches)', is_file($modelFile) && hash_file('sha256', $modelFile) === $model['model_sha256']);
 $titles = array_map(fn($p) => $p[1], require __DIR__ . '/../db/program_codes.php');
 $mapped = array_map(fn($l) => PredictionModel::resolveLabel($l, $titles), $model['class_labels']);
-check('every class label maps to a program (misspellings via config/course_aliases.php)', !in_array(null, $mapped, true));
+check('every class label maps to a program (short names via config/course_aliases.php)', !in_array(null, $mapped, true));
 check('... and to 28 different programs', count(array_unique($mapped)) === 28);
 check('programs outside the 28 classes get no probability (4 programs)', count(array_diff($titles, $mapped)) === 4);
 
@@ -96,13 +97,18 @@ foreach (PredictionModel::allBinaryProfiles() as $bits) {
 }
 check('all 20 inputs: 28 probabilities summing to 1', $okSums);
 check('all 20 inputs: predicted class = first highest probability = first displayed', $okArgmax);
+// Leaf shares from the tree (correct/total at the leaf): hand-checkable.
+$ise = PredictionModel::predictBinary($model, $s(20, 40, 20, 40, 40, 20));
+check('I,S,E: leaf R<=0, C<=0, I>0, A<=0 (33 students, 18 not Nursing) -> BS Nursing, 15/33 = 0.4545',
+    $ise['predicted'] === 'BS Nursing' && abs($ise['ranked'][0]['probability'] - 15 / 33) < 1e-12);
 $rae = PredictionModel::predictBinary($model, $s(40, 20, 40, 20, 40, 20));
-check('R,A,E: Architecture and Multimedia Arts tie (0.2105); Weka predicts Architecture, listed first',
-    $rae['predicted'] === 'BS Architecture' && array_column(array_slice($rae['ranked'], 0, 2), 'label') === ['BS Architecture', 'B Multimedia Arts']
-    && abs($rae['ranked'][0]['probability'] - $rae['ranked'][1]['probability']) < 1e-12);
+check('R,A,E: leaf R>0, A>0, E>0 (27 students) -> BS Architecture, 5/27 = 0.1852',
+    $rae['predicted'] === 'BS Architecture' && abs($rae['ranked'][0]['probability'] - 5 / 27) < 1e-12);
+$predicted = array_unique(array_map(fn($b) => PredictionModel::predictBinary($model, array_combine(CBFEngine::DIMENSIONS, array_map(fn($x) => $x ? 40 : 20, $b)))['predicted'], PredictionModel::allBinaryProfiles()));
+check('the tree predicts 7 different courses over the 20 inputs (7 leaves)', count($predicted) === 7);
 
 echo "\n=== Application vs Weka's own output, all 20 inputs ===\n";
-$fixture = __DIR__ . '/fixtures/weka_predictions_ProfilePath_J48_Binary.csv';
+$fixture = __DIR__ . '/fixtures/weka_predictions_ProfilePath_J48_Binary_393.csv';
 exec('php ' . escapeshellarg(__DIR__ . '/../db/verify_prediction_model.php') . ' ' . escapeshellarg($fixture) . ' 2>&1', $out, $code);
 check('db/verify_prediction_model.php: 20 of 20 identical (class and all 28 probabilities)', $code === 0 && str_contains(implode("\n", $out), '20 of 20 inputs identical'));
 // The comparison must notice a difference: shift 1e-10 between two classes of one input.
