@@ -15,9 +15,9 @@
   .perm-cell { display:inline-flex; align-items:center; justify-content:center; padding:6px 10px; border-radius:8px; border:1px solid transparent; cursor:pointer; background:transparent; }
   .perm-cell:hover { background:#f1f5f9; border-color:#cbd5e1; }
   .perm-cell.changed { background:#fffbeb; border-color:#f59e0b; }
-  /* Permission table grouped like the sidebar: a tinted group heading, and lighter lines between the features of one page. */
-  #rbacTableBody .rbac-group { background:#f8fafc; }
+  /* Permission table: lighter lines between the features of one page, and the unsaved-change count on a tab. */
   #rbacTableBody .rbac-sub { border-top-color:#f1f5f9; }
+  .rbac-tab-count { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; margin-left:6px; padding:0 5px; border-radius:9999px; background:#fffbeb; border:1px solid #f59e0b; color:#b45309; font-size:11px; font-weight:600; }
   body{ font-family:'Inter', sans-serif; }
   /* Security Overview tiles: gray icon, orange when the number is above 0 */
   .overview-tile { color:#64748b; transition:border-color .15s; }
@@ -143,6 +143,8 @@
 
             <p id="rbacMessage" class="hidden px-5 pt-3 text-xs" aria-live="polite"></p>
             <p id="rbacViewOnlyNote" class="hidden px-5 pt-3 text-xs text-slate-500">View only: only the administrator can change permissions.</p>
+            <!-- One sidebar group at a time; unsaved changes stay when you switch (each tab shows how many it holds). -->
+            <div id="rbacTabs" class="flex flex-wrap gap-2 px-5 pt-4 pb-1" aria-label="Permission groups"></div>
             <div id="rbacTableWrap" class="overflow-x-auto">
               <table class="w-full text-left border-collapse min-w-[700px]">
                 <thead class="bg-slate-50/50 border-b border-slate-200">
@@ -412,7 +414,7 @@
   (async function() {
     // The permission table: the rows and their grouping come from js/rbac-features.js (shared with My Access).
     const MODULES = PP.rbacFeatures.modules;
-    const featureGroups = function() { return PP.rbacFeatures.groups({ adminOnly: true }); };
+    const featureGroups = function() { return PP.rbacFeatures.groups(); };
     const RBAC_COLUMNS = ['admin', 'counselor', 'facilitator']; // Student access is fixed, so it is not shown
     const LEVEL_LABEL = { full: 'Full Access', limited: 'View Only', none: 'No Access' };
     let state = null;
@@ -507,6 +509,25 @@
     }
 
     // Only the administrator opens this page (Rbac::ADMIN_PAGES); other staff see their own access on My Access (my-access).
+    // The table shows one sidebar group at a time, in tabs (Overview, Assessment, Student Support, Administration).
+    // Changes are kept in `pending` for the whole table, so switching tabs never drops them; Save Changes saves every tab.
+    let rbacTab = 0;
+    const pendingIn = g => g.pages.reduce((n, p) => n + p.features.reduce((k, m) => k + RBAC_COLUMNS.filter(r => (m.id + '|' + r) in pending).length, 0), 0);
+    function renderRbacTabs(groups) {
+      document.getElementById('rbacTabs').innerHTML = groups.map((g, i) => {
+        const n = pendingIn(g);
+        return '<button type="button" class="pp-filter-tab rbac-tab" data-tab="' + i + '" aria-pressed="' + (i === rbacTab) + '">' + g.title +
+          (n ? ' <span class="rbac-tab-count" aria-label="' + n + ' unsaved change' + (n === 1 ? '' : 's') + '">' + n + '</span>' : '') + '</button>';
+      }).join('');
+    }
+    document.getElementById('rbacTabs').addEventListener('click', function(e) {
+      const tab = e.target.closest('.rbac-tab');
+      if (!tab) return;
+      rbacTab = Number(tab.dataset.tab);
+      renderRbacTable();
+      document.querySelector('#rbacTabs .rbac-tab[data-tab="' + rbacTab + '"]').focus();
+    });
+
     function renderRbacTable() {
       // Only the administrator gets editable cells from the server (Rbac::editableLevels); everyone else just looks.
       document.getElementById('rbacViewOnlyNote').classList.toggle('hidden', MODULES.some(m => RBAC_COLUMNS.some(r => isEditable(m.id, r))));
@@ -517,33 +538,27 @@
         const changed = (m.id + '|' + r) in pending;
         return '<td class="px-3 py-3 text-center"><button type="button" class="perm-cell' + (changed ? ' changed' : '') + '" data-module="' + m.id + '" data-role="' + r + '" title="' + LEVEL_LABEL[lvl] + '. Click to change." aria-label="' + ROLE_LABEL[r] + ', ' + name + ': ' + LEVEL_LABEL[lvl] + '. Click to change.">' + permIcon(lvl) + '</button></td>';
       }).join('');
-      // Grouped like the sidebar: a group heading, then each page. A page with one feature is one row (the page's name);
-      // a page with several shows its name, then a row per feature under it.
-      tbody.innerHTML = featureGroups().map(g =>
-        '<tr class="rbac-group"><th colspan="4" scope="colgroup" class="px-5 pt-5 pb-2 text-left text-[11px] font-semibold tracking-wide text-slate-500 uppercase">' + g.title + '</th></tr>' +
-        g.pages.map(p => {
-          const pageName = '<span class="text-slate-500 mt-0.5">' + p.icon + '</span>';
-          if (p.adminOnly) {
-            // The Head of Guidance's own pages: always the administrator's, never in the table for other staff.
-            return '<tr><td class="px-5 py-3"><div class="flex items-start gap-3">' + pageName +
-              '<div><p class="text-sm font-medium text-slate-800">' + p.label + '</p><p class="text-xs text-slate-500">' + p.desc + '</p></div>' +
-              '</div></td>' + RBAC_COLUMNS.map(r => '<td class="px-3 py-3 text-center">' + permIcon(r === 'admin' ? 'full' : 'none') + '</td>').join('') + '</tr>';
-          }
-          if (p.features.length === 1) {
-            const m = p.features[0];
-            return '<tr><td class="px-5 py-3"><div class="flex items-start gap-3">' + pageName +
-              '<div><p class="text-sm font-medium text-slate-800">' + p.label + '</p><p class="text-xs text-slate-500">' + m.desc + '</p></div>' +
-              '</div></td>' + cellsFor(m, p.label) + '</tr>';
-          }
-          return '<tr><th colspan="4" scope="rowgroup" class="px-5 pt-3 pb-1 text-left"><div class="flex items-center gap-3">' + pageName +
-              '<span class="text-sm font-semibold text-slate-900">' + p.label + '</span></div></th></tr>' +
-            p.features.map(m =>
-              '<tr class="rbac-sub"><td class="py-2.5 pr-5" style="padding-left:52px">' +
-                '<p class="text-sm font-medium text-slate-800">' + m.label + '</p><p class="text-xs text-slate-500">' + m.desc + '</p>' +
-              '</td>' + cellsFor(m, p.label + ', ' + m.label) + '</tr>'
-            ).join('');
-        }).join('')
-      ).join('');
+      const groups = featureGroups();
+      rbacTab = Math.min(rbacTab, groups.length - 1);
+      renderRbacTabs(groups);
+      // Each page of the chosen group: a page with one feature is one row (the page's name); a page with several shows its
+      // name, then a row per feature under it.
+      tbody.innerHTML = groups[rbacTab].pages.map(p => {
+        const pageName = '<span class="text-slate-500 mt-0.5">' + p.icon + '</span>';
+        if (p.features.length === 1) {
+          const m = p.features[0];
+          return '<tr><td class="px-5 py-3"><div class="flex items-start gap-3">' + pageName +
+            '<div><p class="text-sm font-medium text-slate-800">' + p.label + '</p><p class="text-xs text-slate-500">' + m.desc + '</p></div>' +
+            '</div></td>' + cellsFor(m, p.label) + '</tr>';
+        }
+        return '<tr><th colspan="4" scope="rowgroup" class="px-5 pt-3 pb-1 text-left"><div class="flex items-center gap-3">' + pageName +
+            '<span class="text-sm font-semibold text-slate-900">' + p.label + '</span></div></th></tr>' +
+          p.features.map(m =>
+            '<tr class="rbac-sub"><td class="py-2.5 pr-5" style="padding-left:52px">' +
+              '<p class="text-sm font-medium text-slate-800">' + m.label + '</p><p class="text-xs text-slate-500">' + m.desc + '</p>' +
+            '</td>' + cellsFor(m, p.label + ', ' + m.label) + '</tr>'
+          ).join('');
+      }).join('');
       updateRbacActions();
     }
 

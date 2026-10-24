@@ -77,9 +77,8 @@ echo "\n=== the rows shown on Security Configuration and My Access (js/rbac-feat
 preg_match("/var FEATURES = \\{(.*?)\\n  \\};/s", $page, $fm);
 preg_match_all("/^\\s+([a-zA-Z]+): \\{ label:/m", $fm[1] ?? '', $fk);
 check('the pages show exactly the 19 features', $fk[1] === $features, implode(',', $fk[1]));
-preg_match("/var ADMIN_ONLY = \\{(.*?)\\n  \\};/s", $page, $am);
-preg_match_all("/'([a-z-]+)': '/", $am[1] ?? '', $ak);
-check('the administrator\'s pages are shown as fixed rows', $ak[1] === Rbac::ADMIN_PAGES, implode(',', $ak[1]));
+$adminRows = array_filter(Rbac::ADMIN_PAGES, fn($p) => str_contains($page, "'$p'"));
+check('the administrator\'s pages are not rows of the shown table', !$adminRows, implode(',', $adminRows));
 preg_match("/var PAGE_FEATURES = \\{(.*?)\\n  \\};/s", $page, $gm);
 preg_match_all("/'([a-z-]+)': \\[([^\\]]*)\\]/", $gm[1] ?? '', $gk, PREG_SET_ORDER);
 $shown = [];

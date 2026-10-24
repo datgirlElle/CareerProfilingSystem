@@ -40,23 +40,17 @@
     'staff-help-center': ['helpCenter'],
     'account-management': ['roster', 'staffAccounts']
   };
-  // The Head of Guidance's own pages (Rbac::ADMIN_PAGES): not rows of the table, shown to the administrator as fixed rows.
-  var ADMIN_ONLY = {
-    'security-configuration': 'Permissions and security settings. Administrator only.',
-    'audit-log': 'Every sign-in and change in the system. Administrator only.'
-  };
+  // (Security Configuration and the Audit Log, Rbac::ADMIN_PAGES, are the administrator's own pages: never rows here.)
   var MODULES = Object.keys(FEATURES).map(function (id) { return { id: id, label: FEATURES[id].label, desc: FEATURES[id].desc }; });
 
-  // The sidebar's groups and pages, each with its features (adminOnly pages carry a description instead).
-  // opts.adminOnly: also list the administrator-only pages. A feature not under any page (should not happen) goes last.
-  function groups(opts) {
+  // The sidebar's groups and pages, each with its features. A feature not under any page (should not happen) goes last.
+  function groups() {
     var menu = (window.PP && PP.navMenu) || [];
     var placed = {};
     var out = menu.map(function (g) {
       return {
         title: g.title,
-        pages: g.items.filter(function (it) { return PAGE_FEATURES[it.id] || (opts && opts.adminOnly && ADMIN_ONLY[it.id]); }).map(function (it) {
-          if (!PAGE_FEATURES[it.id]) return { id: it.id, label: it.label, icon: it.icon, adminOnly: true, desc: ADMIN_ONLY[it.id], features: [] };
+        pages: g.items.filter(function (it) { return PAGE_FEATURES[it.id]; }).map(function (it) {
           PAGE_FEATURES[it.id].forEach(function (id) { placed[id] = true; });
           return { id: it.id, label: it.label, icon: it.icon, features: PAGE_FEATURES[it.id].map(function (id) { return MODULES.find(function (m) { return m.id === id; }); }) };
         })
