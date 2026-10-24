@@ -199,6 +199,7 @@ This section collects the evidence from the study's own data and the related lit
 | Finding | Figure | Source |
 |---|---|---|
 | J48 accuracy (10-fold CV, seeds 1–10) | 17.12% (sd 1.24) vs ZeroR 7.76%; kappa 0.107; top 3 40.89% | §6, `tools/weka/README.md` |
+| Weka Experimenter, J48 vs ZeroR (corrected paired t-test, 0.05) | J48 17.12 (SD 4.45 over 100 folds) significantly better than ZeroR 7.76 (0.58); t = 6.04 | `tools/weka/README.md` |
 | Highest accuracy any classifier can reach with these inputs | 24.68% (top 3: 53.94%) | `evaluation/accuracy_ceiling.py` |
 | Best possible rule under the same cross-validation | 17.91% (sd 0.78): J48 is close to it | same |
 | Input patterns | only 20; e.g. the 51 students with A, S, E chose 17 different courses | same |
