@@ -47,20 +47,20 @@ foreach (Rbac::DEFAULTS as $module => $defaults) {
     $studentLevel = in_array($module, Rbac::STUDENT_MODULES, true) ? 'full' : 'none';
     check("$module/student == $studentLevel", Rbac::accessLevel($module, 'student') === $studentLevel);
 }
-check('the older features are gone from the table', (int) Database::get()->query(
-    "SELECT COUNT(*) FROM security_rbac WHERE module IN ('career', 'rac', 'counselor', 'counselingNotes', 'sections')"
+check('the older features and the administrator\'s pages are not rows of the table', (int) Database::get()->query(
+    "SELECT COUNT(*) FROM security_rbac WHERE module IN ('career', 'rac', 'counselor', 'counselingNotes', 'sections', 'settings', 'auditLog')"
 )->fetchColumn() === 0);
 
 echo "\n=== the administrator always has every feature ===\n";
-check('even if the table is tampered to No Access, the administrator keeps Audit logs',
-    withTable("UPDATE security_rbac SET access_level = 'none' WHERE module = 'auditLog' AND role = 'admin'",
-        fn() => Rbac::accessLevel('auditLog', 'admin') === 'full'));
+check('even if the table is tampered to No Access, the administrator keeps Manage staff accounts',
+    withTable("UPDATE security_rbac SET access_level = 'none' WHERE module = 'staffAccounts' AND role = 'admin'",
+        fn() => Rbac::accessLevel('staffAccounts', 'admin') === 'full'));
 
 echo "\n=== a Student can only ever hold their own recommendations ===\n";
-check('even if the table is tampered to Full, a student has no access to announcements, staff accounts or the audit log',
-    withTable("UPDATE security_rbac SET access_level = 'full' WHERE module IN ('announcements', 'staffAccounts', 'auditLog') AND role = 'student'",
+check('even if the table is tampered to Full, a student has no access to announcements, staff accounts or monitoring',
+    withTable("UPDATE security_rbac SET access_level = 'full' WHERE module IN ('announcements', 'staffAccounts', 'monitoring') AND role = 'student'",
         fn() => Rbac::accessLevel('announcements', 'student') === 'none' && Rbac::accessLevel('staffAccounts', 'student') === 'none'
-            && Rbac::accessLevel('auditLog', 'student') === 'none'));
+            && Rbac::accessLevel('monitoring', 'student') === 'none'));
 check('a student keeps Career recommendations', Rbac::accessLevel('recommendations', 'student') === 'full');
 
 echo "\n=== a missing row falls back to the default ===\n";
@@ -82,9 +82,12 @@ check('a student is never a facilitator', Rbac::isFacilitator(['id' => 0, 'role'
 check('the administrator is never a facilitator', Rbac::isFacilitator(['id' => 1, 'role' => 'admin']) === false);
 
 echo "\n=== pages open and close with their features ===\n";
-check('with the defaults, Audit Log and Security Configuration are closed to the counselor and the facilitator',
+check('Audit Log and Security Configuration are the administrator\'s only, whatever the table says',
     !Rbac::pageOpen('audit-log', 'counselor') && !Rbac::pageOpen('security-configuration', 'counselor')
-    && !Rbac::pageOpen('audit-log', 'facilitator') && !Rbac::pageOpen('security-configuration', 'facilitator'));
+    && !Rbac::pageOpen('audit-log', 'facilitator') && !Rbac::pageOpen('security-configuration', 'facilitator')
+    && Rbac::pageOpen('audit-log', 'admin') && Rbac::pageOpen('security-configuration', 'admin')
+    && withTable("UPDATE security_rbac SET access_level = 'full' WHERE role = 'counselor'", fn() => !Rbac::pageOpen('audit-log', 'counselor')));
+check('My Access is open to all staff', Rbac::pageOpen('my-access', 'counselor') && Rbac::pageOpen('my-access', 'facilitator'));
 check('Analytics is open to the counselor (View Only) and closed to the facilitator',
     Rbac::pageOpen('analytics', 'counselor') && !Rbac::pageOpen('analytics', 'facilitator'));
 check('Account Management is open to the counselor (roster View Only) and closed to the facilitator',
@@ -96,15 +99,14 @@ check('with Dashboard and Student information both No Access, the counselor land
     withTable("UPDATE security_rbac SET access_level = 'none' WHERE module IN ('dashboard', 'studentInfo') AND role = 'counselor'",
         fn() => !Rbac::pageOpen('admin-dashboard', 'counselor') && !Rbac::pageOpen('student-profile', 'counselor')
             && Rbac::firstOpenPage('counselor') === 'analytics'));
-check('with every feature No Access, staff land on their profile',
+check('with every feature No Access, staff land on My Access',
     withTable("UPDATE security_rbac SET access_level = 'none' WHERE role = 'facilitator'",
         fn() => Rbac::firstOpenPage('facilitator') === Rbac::FALLBACK_PAGE && count(Rbac::closedPages('facilitator')) === count(Rbac::PAGES)));
 
 echo "\n=== who may change which permission ===\n";
 check('the administrator can set the counselor and facilitator columns to any level',
     Rbac::editableLevels('admin', 'analytics', 'counselor', []) === ['full', 'limited', 'none'] && Rbac::editableLevels('admin', 'roster', 'facilitator', []) === ['full', 'limited', 'none']);
-check('Security Configuration and Audit Log offer only View Only or No Access to staff',
-    Rbac::editableLevels('admin', 'settings', 'counselor', []) === ['limited', 'none'] && Rbac::editableLevels('admin', 'auditLog', 'facilitator', []) === ['limited', 'none']);
+check('the administrator\'s own pages are not rows that can be set', Rbac::editableLevels('admin', 'settings', 'counselor', []) === [] && Rbac::editableLevels('admin', 'auditLog', 'facilitator', []) === []);
 check('nobody can change the administrator column', Rbac::editableLevels('admin', 'analytics', 'admin', []) === [] && Rbac::editableLevels('counselor', 'analytics', 'admin', []) === []);
 check('nobody can change the student column', Rbac::editableLevels('admin', 'recommendations', 'student', []) === [] && Rbac::editableLevels('counselor', 'staffAccounts', 'student', []) === []);
 check('only the administrator changes permissions', Rbac::editableLevels('counselor', 'announcements', 'facilitator', []) === []
@@ -112,8 +114,7 @@ check('only the administrator changes permissions', Rbac::editableLevels('counse
 check('an unknown feature is not editable', Rbac::editableLevels('admin', 'nope', 'counselor', []) === []);
 
 echo "\n=== sensitive changes ask for a confirmation ===\n";
-check('account and settings features are sensitive', Rbac::isSensitiveChange('staffAccounts', 'facilitator')
-    && Rbac::isSensitiveChange('studentAccounts', 'facilitator') && Rbac::isSensitiveChange('settings', 'facilitator'));
+check('account features are sensitive', Rbac::isSensitiveChange('staffAccounts', 'facilitator') && Rbac::isSensitiveChange('studentAccounts', 'facilitator'));
 check('anything in the Guidance Counselor column is sensitive', Rbac::isSensitiveChange('programs', 'counselor'));
 check('an everyday feature for the facilitator column is not', !Rbac::isSensitiveChange('announcements', 'facilitator'));
 
