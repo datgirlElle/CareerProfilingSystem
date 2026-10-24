@@ -90,6 +90,8 @@ $steps = [
     'migrate_student_announcements_no_access.php',
     'migrate_add_facilitator_role.php',
     'migrate_add_staff_accounts_rbac.php',
+    // The permission table by feature and page: replaces the older rows the migrations above added.
+    'migrate_rbac_by_page.php',
     // Last: the default admin account.
     'seed_admin.php',
     // The audit log's tamper seal over everything written so far.
