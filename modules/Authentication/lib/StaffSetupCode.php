@@ -96,11 +96,14 @@ class StaffSetupCode
             'Your account is approved',
             "<p style=\"margin:0 0 12px 0;\">Hi $safeName,</p>"
                 . "<p style=\"margin:0 0 12px 0;\">The Head of Guidance approved your ProfilePath staff account. Your username is <strong>$safeUser</strong>.</p>"
-                . "<p style=\"margin:0;\">To finish, open <a href=\"$link\">$link</a>, enter this temporary access code, and create your password.</p>",
+                . "<p style=\"margin:0;\">To finish, click <strong>Set Your Password</strong>, enter this temporary access code, and create your password. You can sign in after that.</p>",
             $code,
-            'This code can be used once and expires in ' . self::HOURS_VALID . ' hours. Never share it with anyone.'
+            'This code can be used once and expires in ' . self::HOURS_VALID . ' hours. Never share it with anyone.',
+            'Set Your Password',
+            $link
         );
-        $text = "Hi $displayName,\n\nThe Head of Guidance approved your ProfilePath staff account. Your username is $username.\n\nTemporary access code: $code\n\nOpen $link, enter the code and create your password. The code can be used once and expires in " . self::HOURS_VALID . " hours. Never share it with anyone.";
+        $text = "Hi $displayName,\n\nThe Head of Guidance approved your ProfilePath staff account. Your username is $username.\n\nTemporary access code: $code\n\nSet your password here: $link
+Enter the code there and create your password. You can sign in after that. The code can be used once and expires in " . self::HOURS_VALID . " hours. Never share it with anyone.";
         return [$html, $text];
     }
 }
