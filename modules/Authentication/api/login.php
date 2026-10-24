@@ -199,7 +199,8 @@ if ($user['role'] === 'counselor') {
     $sessionData['positionLabel'] = StaffPosition::label($user['staff_position'] ?? null);
 }
 
-$redirect = 'admin-dashboard';
+// Staff land on the first sidebar page that is open to them (the permission table can close Student Information).
+$redirect = $user['role'] === 'student' ? 'assessment' : Rbac::firstOpenPage(Rbac::roleKey($user));
 if ($user['role'] === 'student') {
     $studentStmt = $pdo->prepare('SELECT school_id, first_name_enc, last_name_enc, strand, grade_level, section, registered_at FROM students WHERE user_id = ?');
     $studentStmt->execute([$user['id']]);
