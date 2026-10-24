@@ -386,7 +386,7 @@ staff only). The items below need the team, the adviser or the counselors.
 
 | # | Item | Why it matters | Send |
 |---|---|---|---|
-| 1 | Which O\*NET tool and how many questions were used for the 393 records (link, number of items, answer scale) | Scores 0–20 fit the 30-item Mini Interest Profiler scored 0–4. ProfilePath uses the same 30 items scored 1–5 (stored = 2 × O\*NET score + 10), which would make the type ranking, and so the top three, identical. This changes the "different instrument" limitation (§6) | The link and a screenshot of one result page |
+| 1 | **Done (2026-10-24):** the 393 records used the 30-item O\*NET Mini Interest Profiler, the same items as ProfilePath | Settles the instrument limitation; conversion in §1.1 | — |
 | 2 | Weka Explorer, seed 1: Correctly Classified 68 (17.3028 %), Kappa 0.1103, and the 7-leaf tree | Confirms the team's Weka reproduces the installed model | Screenshot of the output and of Visualize tree |
 | 3 | Weka Experimenter, Analyse: ZeroR 7.76 (0.58), J48 17.12 (4.45) v; and with Kappa_statistic | The figures for Chapter 4 | Copy of the Analyse output text |
 | 4 | The 32 programs' final Holland codes match the counselors' approved list | The CBF uses them as the program vectors | The counselors' list (photo or file) |
