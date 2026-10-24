@@ -10,7 +10,7 @@ Preferred Course. It never changes those results.
 |---|---|
 | File | `models/ProfilePath_J48_Binary_393.model` (SHA-256 `42076366…ee83754`) |
 | Classifier | `weka.classifiers.trees.J48 -C 0.1 -M 10`, saved with Weka 3.9.6, training header included |
-| Training data | 393 students (`ONET_RIASEC_Raw_393_Updated.csv`: the six O\*NET Interest Profiler scores, 0–20, and the stated course), converted with `python evaluation/cbf_eval.py arff --students <file>` |
+| Training data | 393 students (`ONET_RIASEC_Raw_393_Updated.csv`: the six O\*NET Mini Interest Profiler scores, 0–20 (the same 30 items as ProfilePath's assessment; stored score = 2 × O\*NET + 10, same ranking), and the stated course), converted with `python evaluation/cbf_eval.py arff --students <file>` |
 | Inputs | `R, I, A, S, E, C`, numeric, 1 = one of the student's three highest RIASEC scores, 0 = not (ties for 3rd place in R, I, A, S, E, C order: 84 of 393 students) |
 | Class | `Actual Course` (index 6), 28 labels: the students' stated intended/preferred courses |
 | Tree | 7 leaves, size 13; predicts 7 different courses |

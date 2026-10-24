@@ -26,16 +26,44 @@ Keep these values distinct:
 | Raw total | Sum of a type's responses | 5–25 (n to 5n for n questions) | computed in `AssessmentVersion::score()` |
 | Stored score | `QuestionBank::scaleScore`: 10 × raw ÷ n, rounded half up | 10–50 | `assessments.score_r … score_c` |
 | Student vector | Stored score ÷ 10 (mean response) | 1.0–5.0 | `CBFEngine::studentVector()` |
-| External O\*NET scores | Scores shown by the O\*NET website's own Interest Profiler | different instrument and coding | never converted into, or mixed with, the values above |
+| O\*NET Mini-IP scores (study dataset) | The same 30 items answered on O\*NET's own Mini Interest Profiler: each answer 0–4 (Strongly Dislike … Strongly Like), summed per type | 0–20 | the 393-record training dataset; see §1.1 |
 
 - **5 per type:** stored score = raw × 2 exactly.
 - **10 per type:** stored = raw.
 - **Other counts** are rounded half up, e.g. 4 per type: raw 5 → 12.5 → 13; 3 per type: raw 4 → 13.33 → 13.
 - **Defect fixed (2026-10-23):** the earlier floating-point version rounded 14.5 and 28.5 down for 20 questions per type. Every other count from 3 to 20 gave the same results, and the 5-per-type production scoring is unchanged.
 
-Any conversion between instruments (for example, O\*NET website scores to the application's 10–50
-scale) must state the instrument version, the response coding and its assumptions. None is
-implemented, and historical records are not converted.
+### 1.1 The study dataset and ProfilePath use the same questionnaire
+
+The 393 training records were collected with O\*NET's **Mini Interest Profiler (Mini-IP)**, 30 items,
+5 per type (confirmed by the team, 2026-10-24). ProfilePath's assessment uses the same 30 items
+(`QuestionBank::ONET_MINI_IP`, from the Mini-IP development report). Only the answer coding differs:
+
+| Answer position | O\*NET Mini-IP label | O\*NET value | ProfilePath label | ProfilePath value |
+|---|---|---|---|---|
+| 1 | Strongly Dislike | 0 | Dislike | 1 |
+| 2 | Dislike | 1 | Slightly Dislike | 2 |
+| 3 | Unsure | 2 | Neutral | 3 |
+| 4 | Like | 3 | Slightly Enjoy | 4 |
+| 5 | Strongly Like | 4 | Enjoy | 5 |
+
+Per type (5 items): O\*NET score = sum of the five 0–4 answers (0–20). ProfilePath raw total = O\*NET
+score + 5 (5–25), and the stored score = 2 × raw = **2 × O\*NET score + 10** (10–50).
+
+- **Same ranking.** The conversion is a straight increasing line, so the order of the six types,
+  and any ties, are the same on both scales. The top three, and so the Prediction Module's 0/1
+  inputs, are identical whichever scale is used.
+- **Worked example** (a record from the dataset): O\*NET R 3, I 2, A 6, S 1, E 19, C 8 → ProfilePath
+  stored R 16, I 14, A 22, S 12, E 48, C 26. Both rank E, C, A, R, I, S, so the top three are E, C, A
+  and the inputs are R 0, I 0, A 1, S 0, E 1, C 1.
+- **Cosine values differ.** The CBF uses ProfilePath's stored scores ÷ 10 (= 0.2 × O\*NET + 1), which
+  is not proportional to the O\*NET score, so a cosine computed from raw O\*NET scores would differ.
+  The CBF always uses the application's own scores; no O\*NET scores enter it.
+- **Remaining difference:** ProfilePath's answer labels are reworded (e.g. "Neutral" for "Unsure",
+  "Slightly Enjoy" for "Like"). The five positions are the same, but students may read the labels
+  slightly differently (minor limitation).
+- **Where the scoring is documented:** the Mini-IP development report and the O\*NET Interest
+  Profiler Manual (§9). The conversion is documented here; no stored records are converted.
 
 ## 2. Reproducible assessments
 
@@ -136,11 +164,11 @@ trained on 393 students, 28 courses; 7 leaves, so it predicts 7 different course
   algorithm's settings.
 - **80% target:** not reachable with this target and these inputs by any classifier (ceiling
   24.68%). Meeting it would need a different target or different inputs, decided by the adviser.
-- **Instruments:** the training data are O\*NET Interest Profiler scores (0–20 per type); the
-  application's assessment stores 10–50. Only which three types are highest is used, so the scale
-  difference does not enter the inputs, but the two instruments are not otherwise equated
-  (limitation). 84 of 393 training students (21%) tie for 3rd place, which the R, I, A, S, E, C
-  rule decides.
+- **Instruments:** the training data are O\*NET Mini-IP scores (0–20 per type) for the same 30 items
+  ProfilePath uses (1–5 answers, stored 10–50). The conversion (stored = 2 × O\*NET + 10, §1.1)
+  keeps the order of the types, so the top-three inputs are the same on both scales; only the
+  answer labels are reworded (minor limitation). 84 of 393 training students (21%) tie for 3rd
+  place, which the R, I, A, S, E, C rule decides.
 - Full figures and the retraining steps: `tools/weka/README.md`. Why the accuracy is low (related
   studies) and recommendations: §10 and §11.
 
@@ -179,7 +207,8 @@ The section numbers depend on the manuscript version; map these topics to its Me
 The links below were supplied by the team. They could not be opened from the build environment
 (network policy), so check each against the source before citing.
 
-- Rounds, J., Hoff, K., & Lewis, P. (2021). *O\*NET Interest Profiler Manual*. National Center for O\*NET Development. https://www.onetcenter.org/dl_files/IP_Manual.pdf
+- Rounds, J., Hoff, K., & Lewis, P. (2021). *O\*NET Interest Profiler Manual*. National Center for O\*NET Development. https://www.onetcenter.org/dl_files/IP_Manual.pdf (Chapter 3: scoring and reporting)
+- Rounds, J., Wee, S., Cao, M., Song, C., & Lewis, P. *Development of an O\*NET Mini Interest Profiler (Mini-IP) for Mobile Devices: Psychometric Characteristics*. National Center for O\*NET Development. https://www.onetcenter.org/dl_files/Mini-IP.pdf (the 30 items, Appendix A; computer scoring with answers 0 = Strongly Dislike … 4 = Strongly Like; check the year on the title page)
 - Gregory, C., & Lewis, P. (2016). *Linking Client Assessment Profiles to O\*NET Occupational Profiles*. National Center for O\*NET Development. https://www.onetcenter.org/dl_files/Mini-IP_Linking.pdf
 - Lops, P., de Gemmis, M., & Semeraro, G. (2011). Content-based Recommender Systems: State of the Art and Trends. In *Recommender Systems Handbook* (Springer). https://doi.org/10.1007/978-0-387-85820-3_3
 
