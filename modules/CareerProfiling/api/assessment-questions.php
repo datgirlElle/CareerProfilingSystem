@@ -36,6 +36,9 @@ if ($method === 'GET') {
     $user = Auth::requireLogin();
     $isStaff = $user['role'] !== 'student';
     $includeInactive = $isStaff && isset($_GET['all']); // the staff question-bank page passes ?all=1
+    if ($includeInactive) {
+        Rbac::requireAccess('questionBank', 'limited'); // the whole bank, hidden questions included: Question Bank (permission table)
+    }
     $balance = QuestionBank::balance(activeCounts($pdo));
 
     // Students only get a question set that is ready: the same number of active questions for every type.
@@ -66,7 +69,7 @@ if ($method === 'GET') {
 }
 
 if ($method === 'PUT') {
-    Rbac::requireAccess('rac', 'full');
+    Rbac::requireAccess('questionBank', 'full');
 
     $body = readJsonBody();
     $id = (int) ($body['id'] ?? 0);
@@ -108,7 +111,7 @@ if ($method === 'PUT') {
 }
 
 if ($method === 'POST') {
-    $user = Rbac::requireAccess('rac', 'full');
+    $user = Rbac::requireAccess('questionBank', 'full');
     $body = readJsonBody();
     $action = (string) ($body['action'] ?? 'add');
 
@@ -173,7 +176,7 @@ if ($method === 'POST') {
 }
 
 if ($method === 'DELETE') {
-    $user = Rbac::requireAccess('rac', 'full');
+    $user = Rbac::requireAccess('questionBank', 'full');
     $body = readJsonBody();
     $id = (int) ($body['id'] ?? 0);
     if ($id <= 0) {

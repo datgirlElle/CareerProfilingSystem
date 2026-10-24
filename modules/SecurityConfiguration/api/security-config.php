@@ -11,41 +11,31 @@ require_once __DIR__ . '/../../AuditLog/lib/AuditRetention.php';
 $user = Rbac::requireRole('admin', 'counselor');
 $pdo = Database::get();
 
-// 'announcements' was added to modules/Authentication/lib/Rbac.php's MODULES and to
-// security-configuration.html's UI but this const was never updated to
-// match — meaning loadRbac() silently omitted that row and any RBAC change
-// posted for it was silently dropped by the in_array() guard below. Fixed
-// here alongside adding 'examinations' the same way.
-const RBAC_MODULES = ['career', 'rac', 'recommendations', 'counselor', 'monitoring', 'announcements', 'examinations', 'counselingNotes', 'sections', 'staffAccounts'];
 const RBAC_ROLES = ['admin', 'counselor', 'facilitator', 'student'];
 const RBAC_LEVELS = ['full', 'limited', 'none'];
+// The row names, for the audit log (the page shows the same names, grouped by sidebar page).
+const RBAC_LABELS = [
+    'dashboard' => 'Dashboard', 'studentInfo' => 'Student information', 'studentAccounts' => 'Student account management',
+    'assessmentResults' => 'Assessment results', 'recommendations' => 'Career recommendations', 'notesCreate' => 'Create counseling notes',
+    'exportResults' => 'Export student results', 'analytics' => 'Analytics and reports', 'analyticsEmail' => 'Send analytics report',
+    'programs' => 'Program Mapping Crosswalk', 'questionBank' => 'Question Bank', 'examinations' => 'Assessment Scheduling',
+    'monitoring' => 'Flagged student monitoring', 'announcements' => 'Announcements', 'counselingHistory' => 'View counseling history',
+    'counselingStatus' => 'Update counseling status', 'helpCenter' => 'Help Center', 'roster' => 'Student roster management',
+    'staffAccounts' => 'Manage staff accounts', 'settings' => 'System settings and permissions', 'auditLog' => 'Audit logs',
+];
 
+/** The table as it is enforced (Rbac::levelsFor: saved rows, else the defaults; the administrator always Full). */
 function loadRbac(PDO $pdo): array
 {
-    $rows = $pdo->query('SELECT module, role, access_level FROM security_rbac')->fetchAll();
+    Rbac::forgetSaved();
+    $byRole = [];
+    foreach (RBAC_ROLES as $r) {
+        $byRole[$r] = Rbac::levelsFor($r);
+    }
     $rbac = [];
-    $seenFacilitator = [];
-    foreach (RBAC_MODULES as $m) {
-        $rbac[$m] = array_fill_keys(RBAC_ROLES, 'none');
-    }
-    foreach ($rows as $r) {
-        if (isset($rbac[$r['module']]) && in_array($r['role'], RBAC_ROLES, true)) {
-            $rbac[$r['module']][$r['role']] = $r['access_level'];
-            if ($r['role'] === 'facilitator') {
-                $seenFacilitator[$r['module']] = true;
-            }
-        }
-    }
-    // A database from before the Facilitator column: show what Rbac::accessLevel() will actually apply.
-    foreach (RBAC_MODULES as $m) {
-        if (!isset($seenFacilitator[$m])) {
-            $rbac[$m]['facilitator'] = Rbac::facilitatorDefault($m, $rbac[$m]['counselor']);
-        }
-    }
-    // A Student holds only what Rbac::STUDENT_MODULES allows; show what is enforced.
-    foreach (RBAC_MODULES as $m) {
-        if (!in_array($m, Rbac::STUDENT_MODULES, true)) {
-            $rbac[$m]['student'] = 'none';
+    foreach (Rbac::modules() as $m) {
+        foreach (RBAC_ROLES as $r) {
+            $rbac[$m][$r] = $byRole[$r][$m];
         }
     }
     return $rbac;
@@ -55,7 +45,7 @@ function loadRbac(PDO $pdo): array
 function editableMatrix(array $user, array $rbac): array
 {
     $out = [];
-    foreach (RBAC_MODULES as $m) {
+    foreach (Rbac::modules() as $m) {
         foreach (RBAC_ROLES as $r) {
             $out[$m][$r] = Rbac::editableLevels(Rbac::roleKey($user), $m, $r, $rbac);
         }
@@ -117,10 +107,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $lastUpdated = $lastUpdatedStmt->fetchColumn();
 
     // Security Overview card: each number goes only to someone who can open the page it links to
-    // (null otherwise, and the page leaves that tile out). Sign-in numbers -> Audit Log (Full on 'rac',
+    // (null otherwise, and the page leaves that tile out). Sign-in numbers -> Audit Log (View Only or Full on Audit logs,
     // as in api/audit-log.php); flags waiting -> Monitoring (any access, everyone on the team sees all flags).
     $roleKey = Rbac::roleKey($user);
-    $seesAuditLog = Rbac::accessLevel('rac', $roleKey) === 'full';
+    $seesAuditLog = Rbac::accessLevel('auditLog', $roleKey) !== 'none';
     $seesMonitoring = Rbac::accessLevel('monitoring', $roleKey) !== 'none';
     $lockouts7d = $sharedLogins7d = $pendingFlags = null;
     if ($seesAuditLog) {
@@ -151,9 +141,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         // what this person may change in the table (empty for a fixed cell), and which changes ask for a confirmation
         'rbacEditable' => $isAdmin ? editableMatrix($user, $rbacNow) : (object) [],
         'rbacSensitive' => ['modules' => Rbac::SENSITIVE_MODULES, 'roles' => ['counselor']],
-        // Uploading class rosters: administrator or Guidance Counselor with Full access to the roster module.
-        'canEditRoster' => Rbac::accessLevel('rac', Rbac::roleKey($user)) === 'full'
-            && (Rbac::roleKey($user) !== 'facilitator' || Rbac::accessLevel('sections', 'facilitator') === 'full'),
+        // Uploading class rosters: Full on Student roster management.
+        'canEditRoster' => Rbac::accessLevel('roster', $roleKey) === 'full',
         'lastUpdated' => $lastUpdated,
         'overview' => [
             'lockouts7d' => $lockouts7d,
@@ -167,10 +156,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $body = readJsonBody();
     $type = $body['type'] ?? '';
 
-    // The Guidance Office hours and the counseling booking link are kept up to date by whoever holds Full on Counseling Notes
-    // (set in the permission table). Everything else here, the permission table included, is the administrator's.
+    // The Guidance Office hours and the counseling booking link (edited on the Staff Help Center) are kept up to date by
+    // whoever holds Full on Help Center (permission table). Everything else here, the table included, is the administrator's.
     if (in_array($type, ['officeHours', 'bookingLink'], true)) {
-        $user = Rbac::requireAccess('counselingNotes', 'full');
+        $user = Rbac::requireAccess('helpCenter', 'full');
     } elseif ($type === 'rbac') {
         // Only the Head of Guidance (administrator) changes permissions; Rbac::editableLevels says the same for each cell.
         if ($user['role'] !== 'admin') {
@@ -185,11 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!is_array($changes)) {
             jsonResponse(['success' => false, 'error' => 'Invalid changes payload.'], 400);
         }
-        $moduleLabels = [
-            'career' => 'Career Profile Input', 'rac' => 'RIASEC Assessment', 'recommendations' => 'Recommendations', 'counselor' => 'Guidance Counselor accounts',
-            'monitoring' => 'Student Monitoring', 'announcements' => 'Announcements', 'examinations' => 'Assessment Scheduling',
-            'counselingNotes' => 'Counseling Notes', 'staffAccounts' => 'Staff Accounts', 'sections' => 'Section Management',
-        ];
+        $moduleLabels = RBAC_LABELS;
         $roleLabels = ['admin' => 'Administrator', 'counselor' => 'Guidance Counselor', 'facilitator' => 'Guidance Facilitator', 'student' => 'Student'];
         $levelLabels = ['full' => 'Full Access', 'limited' => 'View Only', 'none' => 'No Access'];
 
@@ -200,7 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $module = is_array($c) ? (string) ($c['module'] ?? '') : '';
             $role = is_array($c) ? (string) ($c['role'] ?? '') : '';
             $level = is_array($c) ? (string) ($c['level'] ?? '') : '';
-            if (!in_array($module, RBAC_MODULES, true) || !in_array($role, RBAC_ROLES, true) || !in_array($level, RBAC_LEVELS, true)) {
+            if (!in_array($module, Rbac::modules(), true) || !in_array($role, RBAC_ROLES, true) || !in_array($level, RBAC_LEVELS, true)) {
                 jsonResponse(['success' => false, 'error' => 'Invalid permission change.'], 400);
             }
             $from = $current[$module][$role];
