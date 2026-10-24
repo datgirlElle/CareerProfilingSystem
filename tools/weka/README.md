@@ -173,3 +173,6 @@ which is a decision for the adviser.
 
 The earlier 296-record model (17.97% vs ZeroR 7.23%, seeds not confirmed) and the 291-record
 results are superseded and not comparable.
+
+Related studies that explain the low accuracy, a learning curve, and recommendations:
+`docs/methodology-notes.md` §10 and §11.

@@ -141,7 +141,8 @@ trained on 393 students, 28 courses; 7 leaves, so it predicts 7 different course
   difference does not enter the inputs, but the two instruments are not otherwise equated
   (limitation). 84 of 393 training students (21%) tie for 3rd place, which the R, I, A, S, E, C
   rule decides.
-- Full figures and the retraining steps: `tools/weka/README.md`.
+- Full figures and the retraining steps: `tools/weka/README.md`. Why the accuracy is low (related
+  studies) and recommendations: §10 and §11.
 
 ## 7. What each evaluation shows
 
@@ -166,7 +167,7 @@ and an appropriate independent evaluation.
 | Ties | (check wording) | Ties kept; IRC/RIC/ICR always tie; listed by the 1-2-3 letter ranking | Add the limitation and the tie order in §4 |
 | Weka inputs | Top-three RIASEC attributes | `top3-binary` model deployed | Describe as top-three binary; describe any raw-score experiment separately as exploratory, not deployed |
 | Weka target | (check wording) | Stated intended/preferred course | Do not call it actual or suitable course |
-| Weka results | 296-record model (17.97% vs ZeroR 7.23%) or older 291-record results | 393-record model: 17.12% (sd 1.24) vs ZeroR 7.76%, kappa 0.107, top 3 40.89%; ceiling 24.68% | Replace the results table and model description (7 leaves); report the ceiling to explain why 80% cannot be met |
+| Weka results | 296-record model (17.97% vs ZeroR 7.23%) or older 291-record results | 393-record model: 17.12% (sd 1.24) vs ZeroR 7.76%, kappa 0.107, top 3 40.89%; ceiling 24.68% | Replace the results table and model description (7 leaves); report the ceiling and explain the gap with the related studies in §10; add the recommendations in §11 |
 | Evaluation | (check claims) | See §7 | Remove or qualify any 80% accuracy claim; separate the evaluation types |
 | Assessment scoring | (check wording) | §1 table | Use the stored 10–50 scale and the formula in §1 |
 
@@ -186,3 +187,128 @@ The links below were supplied by the team. They could not be opened from the bui
 - **Interest Profiler Manual:** ranked-code reporting (high-point codes) supports reporting an ordered code. It does not establish numerical weights such as 3–2–1.
 - **Linking report:** describes correlation-based matching of client profiles to O\*NET occupational profiles. It is not a validation of this system's binary-cosine program method.
 - **Lops et al.:** describes content-based recommendation in general. It supports the CBF framing, not these program codes or results.
+
+## 10. Why the prediction accuracy is below the 80% target (related literature)
+
+The adviser asked that, if the 80% accuracy target is not reached, the study explain the low
+accuracy with related studies (possible causes include a small dataset and missing attributes).
+This section collects the evidence from the study's own data and the related literature.
+
+### 10.1 Evidence from the study's data (393 records)
+
+| Finding | Figure | Source |
+|---|---|---|
+| J48 accuracy (10-fold CV, seeds 1–10) | 17.12% (sd 1.24) vs ZeroR 7.76%; kappa 0.107; top 3 40.89% | §6, `tools/weka/README.md` |
+| Highest accuracy any classifier can reach with these inputs | 24.68% (top 3: 53.94%) | `evaluation/accuracy_ceiling.py` |
+| Best possible rule under the same cross-validation | 17.91% (sd 0.78): J48 is close to it | same |
+| Input patterns | only 20; e.g. the 51 students with A, S, E chose 17 different courses | same |
+| Courses with fewer than 10 students | 12 of 28 (Marketing 1; Hospitality Management and Operations Management 2 each) | dataset check |
+| Courses the tree can predict | 7 of 28 (J48 `-M 10` needs at least 10 students per leaf) | §6 |
+| Students whose top three is decided by a tie for 3rd place | 84 of 393 (21%) | `cbf_eval.py arff` |
+| Learning curve (J48, 10-fold CV; 10 random subsamples per size) | 98 students 15.00% (sd 3.79); 197: 15.26% (1.52); 295: 17.22% (2.15); all 393: 17.12% (1.24) | exploratory run, 2026-10-24 |
+
+The learning curve levels off from about 300 students: adding students *of the same kind* (same
+inputs, same target) is not expected to approach 80%. The limit is set mainly by the inputs: students
+with identical inputs chose different courses, an error no classifier can remove (the Bayes error).
+
+### 10.2 Related studies
+
+1. **Interests alone predict career or major choice only moderately, even in large studies.**
+   - Hanna & Rounds (2020): a meta-analysis of over 75 years of interest-inventory research found
+     that measured interests predict career choice (including college major) correctly about 50%
+     of the time; accuracy depends on the inventory, the scale type and the hit-rate method.
+   - Gasser, Larson & Borgen (2007): with the Strong Interest Inventory and 31 college majors
+     (1,403 women, 469 men), the most specific scales (Basic Interest Scales) predicted major best,
+     with hit rates about 6 times chance; broad themes were less predictive.
+   - Song et al. (*Personnel Psychology*, DOI 10.1111/peps.12529): with 81,267 people, matching on
+     the highest RIASEC types predicted career choice about 45% of the time; machine learning
+     improved accuracy for common categories but under-predicted rare ones.
+   - *This study:* 28 exact courses from top-3 binary inputs, a harder task than those studies;
+     J48's 17.12% is about 4.8 times a uniform 1-in-28 guess (3.6%). The definitions of "chance"
+     differ between studies, so the comparison is indicative only.
+2. **Missing attributes: interests are one of several determinants of course choice.**
+   - Lent, Brown & Hackett (1994), Social Cognitive Career Theory: choices also depend on
+     self-efficacy, outcome expectations and contextual supports and barriers (e.g. family, finances).
+   - Allen & Robbins (2008): in about 50,000 students, interest–major fit and first-year academic
+     performance each predicted persistence in a major, so academic information adds to interests.
+   - *This study:* the dataset contains only the six RIASEC scores and the stated course: no grades,
+     SHS strand, abilities, self-efficacy, family or financial factors.
+3. **Information lost by reducing scores to top-three yes/no.**
+   - MacCallum, Zhang, Preacher & Rucker (2002): dichotomizing quantitative variables loses
+     information and weakens the relationships that can be detected.
+   - *This study:* "R = 1" does not show how strong R was; 21% of students' top three depend on a tie.
+4. **Many classes, few and uneven students per class.**
+   - He & Garcia (2009): classifiers favour majority classes and miss minority ones.
+   - Figueroa, Zeng-Treitler, Kandula & Ngo (2012): classifier performance grows with training size
+     along a learning curve with diminishing returns.
+   - *This study:* 12 of 28 courses have fewer than 10 students and are never predicted; the
+     learning curve (§10.1) has levelled off.
+5. **A limit that no classifier can exceed when inputs overlap.**
+   - Hastie, Tibshirani & Friedman (2009), Ch. 2 (the Bayes classifier and Bayes error rate).
+   - *This study:* the ceiling of 24.68% is that limit for these inputs, measured on the data.
+
+### 10.3 Draft paragraph (Results / Discussion)
+
+> The J48 model achieved a mean accuracy of 17.12% (SD 1.24) under 10-fold cross-validation
+> repeated ten times, compared with 7.76% for the ZeroR baseline, below the 80% target. This is
+> consistent with prior research: even large interest-inventory studies predict career or major
+> choice correctly about 45–50% of the time (Hanna & Rounds, 2020; Song et al.), and predicting
+> among many specific majors is harder than predicting broad categories (Gasser et al., 2007).
+> Course choice also depends on factors not in the dataset, such as self-efficacy, academic
+> performance and contextual supports and barriers (Lent et al., 1994; Allen & Robbins, 2008).
+> Representing each student only by their top three RIASEC types further discards information
+> (MacCallum et al., 2002), and twelve of the 28 courses had fewer than ten students, which limits
+> what a classifier can learn (He & Garcia, 2009; Figueroa et al., 2012). An analysis of the dataset
+> showed that no classifier using these inputs could exceed 24.68% accuracy, because students with
+> the same top three types chose different courses, and accuracy levelled off at about 17% from
+> roughly 300 students onward. J48's 17.12% approaches the best achievable rule (17.91%).
+
+### 10.4 References for this section
+
+Confirmed through library and index records (the publishers' pages could not be opened from the
+build environment, so check page numbers against the article before final submission):
+
+- Allen, J., & Robbins, S. B. (2008). Prediction of college major persistence based on vocational interests, academic preparation, and first-year academic performance. *Research in Higher Education, 49*(1), 62–79.
+- Figueroa, R. L., Zeng-Treitler, Q., Kandula, S., & Ngo, L. H. (2012). Predicting sample size required for classification performance. *BMC Medical Informatics and Decision Making, 12*, 8. https://doi.org/10.1186/1472-6947-12-8
+- Gasser, C. E., Larson, L. M., & Borgen, F. H. (2007). Concurrent validity of the 2005 Strong Interest Inventory: An examination of gender and major field of study. *Journal of Career Assessment, 15*(1). https://doi.org/10.1177/1069072706294516 (sources differ on the pages: 1–21 or 5–22)
+- Hanna, A., & Rounds, J. (2020). How accurate are interest inventories? A quantitative review of career choice hit rates. *Psychological Bulletin, 146*(9), 765–796. https://doi.org/10.1037/bul0000269 (the 50.3% figure is from the authors' thesis version; confirm the published value)
+- He, H., & Garcia, E. A. (2009). Learning from imbalanced data. *IEEE Transactions on Knowledge and Data Engineering, 21*(9), 1263–1284.
+- Lent, R. W., Brown, S. D., & Hackett, G. (1994). Toward a unifying social cognitive theory of career and academic interest, choice, and performance. *Journal of Vocational Behavior, 45*(1), 79–122.
+- MacCallum, R. C., Zhang, S., Preacher, K. J., & Rucker, D. D. (2002). On the practice of dichotomization of quantitative variables. *Psychological Methods, 7*(1), 19–40.
+
+To be completed before citing:
+
+- Song et al. Investigating machine learning's capacity to enhance the prediction of career choices. *Personnel Psychology*. https://doi.org/10.1111/peps.12529 (full author list, year, volume and the 45% figure not yet confirmed from the article)
+- Hastie, T., Tibshirani, R., & Friedman, J. (2009). *The Elements of Statistical Learning* (2nd ed.). Springer. (confirm the page of the Bayes classifier discussion in Ch. 2)
+- Not yet citable: a study of 100 Grade 10 students in Saudi Arabia reporting that RIASEC types did not significantly predict intended majors (HRMARS); authors and journal not confirmed.
+
+## 11. Recommendations (the 80% target was not reached)
+
+Each recommendation follows from a cause in §10. None of them is implemented; each needs the
+adviser's approval, and new data needs consent and data-privacy review.
+
+1. **Add attributes beyond interests** (§10.2, item 2). Collect, with consent: SHS strand, general
+   weighted average and Math/Science/English grades, and validated measures of self-efficacy and
+   contextual factors (family influence, financial considerations). Retrain and compare with the
+   current model under the same cross-validation.
+2. **Use the full six scores instead of top-three yes/no** (item 3). Train on the numeric scores
+   so the strength of each interest is kept. This needs a change to the deployment, which today
+   accepts only top-three binary models.
+3. **Use the same instrument for training and use.** Train on results from ProfilePath's own
+   assessment (10–50 scale) rather than the O\*NET website's scores (0–20), so the model sees the
+   same kind of scores it is applied to.
+4. **More records, aimed at the small courses** (item 4). The learning curve has levelled off, so
+   simply adding more students of the same kind is unlikely to help much; the most useful additions
+   are students in the 12 courses with fewer than 10 records. Re-run the learning curve and the
+   ceiling check after each collection.
+5. **Handle class imbalance** (item 4): cost-sensitive learning or resampling, applied inside each
+   cross-validation training fold only, and report per-course recall, not accuracy alone.
+6. **Choose an outcome and measure that fit the purpose** (item 1), if the adviser agrees:
+   - report top-3 accuracy (40.89%) beside exact accuracy, since staff are shown the top three;
+   - or predict a broader target (program group or college) with an agreed definition.
+   Any change of target must be decided before measuring and reported under its own name.
+7. **Report honestly.** State that the 80% target was not met, give the cross-validated result
+   with ZeroR and the ceiling (24.68%), and explain it with §10. Do not report training-set
+   accuracy, results from choosing seeds, or results after removing students.
+8. **Keep the model's role limited.** It stays a supporting, staff-only prediction of the stated
+   intended course, separate from the CBF recommendation, until a validated model exists.
