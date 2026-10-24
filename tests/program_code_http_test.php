@@ -80,6 +80,28 @@ $fields = array_column($detail['changes'] ?? [], 'field');
 check('audit: "Description" and "Careers" listed as changed, Holland code not', in_array('Description', $fields, true)
     && in_array('Careers', $fields, true) && !in_array('Holland code', $fields, true), json_encode($fields));
 
+echo "\n=== Related SHS strands: optional, saved, returned, audited, never recomputed ===\n";
+$strandsOf = function () use ($a, $pid): ?array {
+    foreach ($a->req('GET', '/api/programs.php?all=1')['json']['programs'] ?? [] as $p) {
+        if ((int) $p['id'] === $pid) { return $p['relatedStrands'] ?? null; }
+    }
+    return null;
+};
+check('starts with no strands', $strandsOf() === []);
+$r = $a->req('PUT', '/api/programs.php', $payload('AEC', 'Synthetic description') + ['relatedStrands' => ['ict', 'STEM']]);
+check('saving STEM and ICT accepted', $r['code'] === 200 && ($r['json']['success'] ?? false), json_encode($r['json']));
+check('returned as saved (allowed list order)', $strandsOf() === ['STEM', 'ICT'], json_encode($strandsOf()));
+check('no recommendations recomputed for a strand change', $recCount() === $before);
+$detail = AuditChange::parse((string) $lastAudit('update_program', $pid));
+$st = array_values(array_filter($detail['changes'] ?? [], fn($c) => $c['field'] === 'Related SHS strands'));
+check('audit: "Related SHS strands" before (none) and after STEM, ICT', isset($st[0]) && $st[0]['after'] === 'STEM, ICT', json_encode($st));
+$r = $a->req('PUT', '/api/programs.php', $payload('AEC', 'Synthetic description'));
+check('an edit that does not send strands keeps them', $r['code'] === 200 && $strandsOf() === ['STEM', 'ICT']);
+$r = $a->req('PUT', '/api/programs.php', $payload('AEC', 'Synthetic description') + ['relatedStrands' => ['STEM', 'XYZ']]);
+check('unknown strand XYZ -> 400, nothing changed', $r['code'] === 400 && $strandsOf() === ['STEM', 'ICT'], (string) $r['code']);
+$r = $a->req('PUT', '/api/programs.php', $payload('AEC', 'Synthetic description') + ['relatedStrands' => []]);
+check('clearing all strands saved', $r['code'] === 200 && $strandsOf() === []);
+
 echo "\n=== Invalid codes are refused and change nothing ===\n";
 foreach (['RRC' => 'repeated letter', 'RIX' => 'letter outside RIASEC', 'RI' => 'two letters'] as $code => $why) {
     $r = $a->req('PUT', '/api/programs.php', $payload($code));

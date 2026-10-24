@@ -144,7 +144,7 @@
         </div>
 
         <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-medium text-slate-600">Related SHS Strands <span class="text-slate-400">(optional)</span></label>
+          <label class="text-xs font-medium text-slate-600">Related SHS Strands <span class="text-slate-400">(optional; for reference only, not used in the recommendations)</span></label>
           <div id="strandsInput" class="flex flex-wrap gap-x-4 gap-y-2"></div>
         </div>
 
@@ -288,6 +288,7 @@
           hollandCode: document.getElementById('hollandCodeInput').value.trim(),
           description: document.getElementById('descriptionInput').value.trim(),
           careers: document.getElementById('careersInput').value.split('\n'),
+          relatedStrands: Array.from(document.querySelectorAll('.strand-cb:checked')).map(function(cb) { return cb.value; }),
         })
       });
       const data = await res.json();

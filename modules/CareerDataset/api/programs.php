@@ -16,7 +16,7 @@ if ($method === 'GET') {
         Rbac::requireAccess('career', 'limited');
     }
 
-    $sql = 'SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, p.original_holland_code_enc, p.careers, p.status, p.college_id, c.code AS college_code, c.name AS college_name
+    $sql = 'SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, p.original_holland_code_enc, p.careers, p.related_strands, p.status, p.college_id, c.code AS college_code, c.name AS college_name
             FROM programs p JOIN colleges c ON c.id = p.college_id';
     if (!$includeInactive) {
         $sql .= " WHERE p.status = 'Active'";
@@ -36,6 +36,8 @@ if ($method === 'GET') {
         'careers' => Careers::parse($r['careers']),
         'careerOptions' => Careers::effective(Careers::parse($r['careers']), Crypto::dec($r['title_enc'])),
         'status' => $r['status'],
+        // Optional reference information for staff; not used in the recommendations.
+        'relatedStrands' => CBFData::parseTextArray($r['related_strands']),
         'collegeId' => (int) $r['college_id'],
         'collegeCode' => $r['college_code'],
         'collegeName' => $r['college_name'],
@@ -111,7 +113,19 @@ function readProgramInput(array $body): array
         jsonResponse(['success' => false, 'error' => $e->getMessage()], 400);
     }
 
-    return [$title, $hollandCode, $description, $collegeId, $status, $careers];
+    // Related SHS strands: optional reference information, not used in the recommendations.
+    // null = not sent (PUT then keeps the stored list). Only the strands in config/cbf.php are allowed.
+    $relatedStrands = null;
+    if (array_key_exists('relatedStrands', $body)) {
+        $allowed = CBFEngine::config()['strands'];
+        $given = is_array($body['relatedStrands']) ? $body['relatedStrands'] : [];
+        $relatedStrands = array_values(array_intersect($allowed, array_map(fn($x) => strtoupper(trim((string) $x)), $given)));
+        if (count($relatedStrands) !== count(array_unique(array_map(fn($x) => strtoupper(trim((string) $x)), $given)))) {
+            jsonResponse(['success' => false, 'error' => 'Related SHS strands must be from: ' . implode(', ', $allowed) . '.'], 400);
+        }
+    }
+
+    return [$title, $hollandCode, $description, $collegeId, $status, $careers, $relatedStrands];
 }
 
 if ($method === 'POST') {
@@ -135,7 +149,7 @@ if ($method === 'POST') {
         jsonResponse(['success' => true, 'status' => $newStatus]);
     }
 
-    [$title, $hollandCode, $description, $collegeId, $status, $careers] = readProgramInput($body);
+    [$title, $hollandCode, $description, $collegeId, $status, $careers, $relatedStrands] = readProgramInput($body);
 
     $exists = $pdo->prepare('SELECT id FROM colleges WHERE id = ?');
     $exists->execute([$collegeId]);
@@ -144,9 +158,10 @@ if ($method === 'POST') {
     }
 
     $insert = $pdo->prepare(
-        'INSERT INTO programs (college_id, title_enc, holland_code_enc, description_enc, careers, status) VALUES (?, ?, ?, ?, ?, ?) RETURNING id'
+        'INSERT INTO programs (college_id, title_enc, holland_code_enc, description_enc, careers, related_strands, status) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id'
     );
-    $insert->execute([$collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null, Careers::toLiteral($careers ?? []), $status]);
+    $insert->execute([$collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null, Careers::toLiteral($careers ?? []),
+        CBFData::textArrayLiteral($relatedStrands ?? []), $status]);
     $id = (int) $insert->fetchColumn();
 
     AuditLogger::log($user['id'], $user['role'], 'create_program', 'program', (string) $id, $title);
@@ -163,7 +178,7 @@ if ($method === 'PUT') {
     }
 
     $existing = $pdo->prepare(
-        'SELECT p.title_enc, p.holland_code_enc, p.description_enc, p.careers, p.status, c.name AS college_name
+        'SELECT p.title_enc, p.holland_code_enc, p.description_enc, p.careers, p.related_strands, p.status, c.name AS college_name
          FROM programs p JOIN colleges c ON c.id = p.college_id WHERE p.id = ?'
     );
     $existing->execute([$id]);
@@ -172,7 +187,7 @@ if ($method === 'PUT') {
         jsonResponse(['success' => false, 'error' => 'Program not found.'], 404);
     }
 
-    [$title, $hollandCode, $description, $collegeId, $status, $careers] = readProgramInput($body);
+    [$title, $hollandCode, $description, $collegeId, $status, $careers, $relatedStrands] = readProgramInput($body);
 
     $collegeCheck = $pdo->prepare('SELECT name FROM colleges WHERE id = ?');
     $collegeCheck->execute([$collegeId]);
@@ -181,27 +196,32 @@ if ($method === 'PUT') {
         jsonResponse(['success' => false, 'error' => 'Unknown college.'], 400);
     }
     $oldCareers = Careers::parse($old['careers']);
+    $oldStrands = CBFData::parseTextArray($old['related_strands']);
     $before = [
         'title' => Crypto::dec($old['title_enc']), 'hollandCode' => Crypto::dec($old['holland_code_enc']),
         'college' => $old['college_name'], 'status' => $old['status'],
         'description' => $old['description_enc'] !== null ? Crypto::dec($old['description_enc']) : '',
         'careers' => implode('; ', $oldCareers),
+        'relatedStrands' => implode(', ', $oldStrands),
     ];
     $after = [
         'title' => $title, 'hollandCode' => $hollandCode, 'college' => $collegeName, 'status' => $status,
         'description' => $description, 'careers' => implode('; ', $careers ?? $oldCareers),
+        'relatedStrands' => implode(', ', $relatedStrands ?? $oldStrands),
     ];
 
     $update = $pdo->prepare(
-        'UPDATE programs SET college_id = ?, title_enc = ?, holland_code_enc = ?, description_enc = ?, careers = COALESCE(?::text[], careers), status = ?, updated_at = NOW() WHERE id = ?'
+        'UPDATE programs SET college_id = ?, title_enc = ?, holland_code_enc = ?, description_enc = ?, careers = COALESCE(?::text[], careers),
+                related_strands = COALESCE(?::text[], related_strands), status = ?, updated_at = NOW() WHERE id = ?'
     );
-    $update->execute([$collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null, $careers !== null ? Careers::toLiteral($careers) : null, $status, $id]);
+    $update->execute([$collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null, $careers !== null ? Careers::toLiteral($careers) : null,
+        $relatedStrands !== null ? CBFData::textArrayLiteral($relatedStrands) : null, $status, $id]);
 
     // What changed, old and new, shown on the Audit Log page (e.g. "Holland code: SEA -> ESA").
     AuditLogger::log($user['id'], $user['role'], 'update_program', 'program', (string) $id, AuditChange::detail(
         'Program: ' . $title, $before, $after,
         ['title' => 'Title', 'hollandCode' => 'Holland code', 'college' => 'College', 'status' => 'Status',
-         'description' => 'Description', 'careers' => 'Careers']
+         'description' => 'Description', 'careers' => 'Careers', 'relatedStrands' => 'Related SHS strands']
     ));
 
     // The CBF compares every student with every program's Holland code, so a new code changes saved
