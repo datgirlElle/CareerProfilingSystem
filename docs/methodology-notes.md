@@ -229,6 +229,7 @@ This section collects the evidence from the study's own data and the related lit
 |---|---|---|
 | J48 accuracy (10-fold CV, seeds 1–10) | 17.12% (sd 1.24) vs ZeroR 7.76%; kappa 0.107; top 3 40.89% | §6, `tools/weka/README.md` |
 | Weka Experimenter, J48 vs ZeroR (corrected paired t-test, 0.05) | J48 17.12 (SD 4.45 over 100 folds) significantly better than ZeroR 7.76 (0.58); t = 6.04 | `tools/weka/README.md` |
+| Weka Experimenter, kappa | J48 0.11 (0.05) significantly better than ZeroR 0.00 (0.00): agreement beyond chance, "slight" on the Landis & Koch (1977) scale | team's Weka, 2026-10-25 |
 | Highest accuracy any classifier can reach with these inputs | 24.68% (top 3: 53.94%) | `evaluation/accuracy_ceiling.py` |
 | Best possible rule under the same cross-validation | 17.91% (sd 0.78): J48 is close to it | same |
 | Input patterns | only 20; e.g. the 51 students with A, S, E chose 17 different courses | same |
@@ -324,7 +325,16 @@ Sentence for the manuscript:
 
 > Using the Weka Experimenter (10-fold cross-validation, 10 repetitions), J48 achieved a mean
 > accuracy of 17.12% (SD 4.45), significantly higher than the ZeroR baseline of 7.76% (SD 0.58) by
-> the corrected paired t-test (p < .05).
+> the corrected paired t-test (p < .05). Its mean kappa of 0.11 (SD 0.05), against 0.00 for ZeroR,
+> indicates agreement beyond chance that is slight (Landis & Koch, 1977).
+
+Table for Chapter 4 (Weka 3.9.6 Experimenter, 10-fold cross-validation × 10 repetitions,
+corrected paired t-test, α = .05; SD over 100 folds):
+
+| Classifier | Accuracy % (SD) | Kappa (SD) | vs ZeroR |
+|---|---|---|---|
+| ZeroR (baseline) | 7.76 (0.58) | 0.00 (0.00) | — |
+| J48 (C = 0.1, M = 10) | 17.12 (4.45) | 0.11 (0.05) | significantly better |
 
 ### 10.4 References for this section
 
@@ -336,6 +346,7 @@ build environment, so check page numbers against the article before final submis
 - Gasser, C. E., Larson, L. M., & Borgen, F. H. (2007). Concurrent validity of the 2005 Strong Interest Inventory: An examination of gender and major field of study. *Journal of Career Assessment, 15*(1). https://doi.org/10.1177/1069072706294516 (sources differ on the pages: 1–21 or 5–22)
 - Hanna, A., & Rounds, J. (2020). How accurate are interest inventories? A quantitative review of career choice hit rates. *Psychological Bulletin, 146*(9), 765–796. https://doi.org/10.1037/bul0000269 (the 50.3% figure is from the authors' thesis version; confirm the published value)
 - He, H., & Garcia, E. A. (2009). Learning from imbalanced data. *IEEE Transactions on Knowledge and Data Engineering, 21*(9), 1263–1284.
+- Landis, J. R., & Koch, G. G. (1977). The measurement of observer agreement for categorical data. *Biometrics, 33*(1), 159–174. (kappa 0.00–0.20 = "slight")
 - Lent, R. W., Brown, S. D., & Hackett, G. (1994). Toward a unifying social cognitive theory of career and academic interest, choice, and performance. *Journal of Vocational Behavior, 45*(1), 79–122.
 - MacCallum, R. C., Zhang, S., Preacher, K. J., & Rucker, D. D. (2002). On the practice of dichotomization of quantitative variables. *Psychological Methods, 7*(1), 19–40.
 
@@ -394,7 +405,7 @@ staff only). The items below need the team, the adviser or the counselors.
 |---|---|---|---|
 | 1 | **Done (2026-10-24):** the 393 records used the 30-item O\*NET Mini Interest Profiler, the same items as ProfilePath | Settles the instrument limitation; conversion in §1.1 | — |
 | 2 | **Tree confirmed (2026-10-25):** the team's Weka Explorer builds the same 7-leaf tree from `all_binary.arff` (screenshot). Still to send: the seed-1 output (68, 17.3028 %, Kappa 0.1103) | Confirms the team's Weka reproduces the installed model | Screenshot of the Classify output |
-| 3 | **Percent_correct confirmed (2026-10-25)** on the team's Weka: ZeroR 7.76 (0.58), J48 17.12 (4.45) v, 100 results each. Still to send: the Kappa_statistic output | The figures for Chapter 4 | Analyse output with Kappa_statistic |
+| 3 | **Done (2026-10-25)** on the team's Weka: Percent_correct ZeroR 7.76 (0.58), J48 17.12 (4.45) v; Kappa_statistic ZeroR 0.00 (0.00), J48 0.11 (0.05) v | The figures for Chapter 4 (§10.5 table) | — |
 | 4 | **Done (2026-10-25):** the counselors' list of 32 codes matches `db/program_codes.php`, `evaluation/course_profiles.csv` and a seeded database exactly (32 of 32, including the revised BS Tourism Management SEA and BS Computer Engineering ICR). On Render, `php db/migrate_final_holland_codes.php` sets the live database to these codes (safe to run again) | The CBF uses them as the program vectors | — |
 | 5 | Song et al. and Hastie et al. details (§10.4) | Citations not yet confirmed from the article | Full citation from the library database |
 

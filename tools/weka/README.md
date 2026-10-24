@@ -162,7 +162,8 @@ Results on the 393 records, Weka 3.9.6, stratified 10-fold cross-validation repe
 **Weka Experimenter** (same file; Cross-validation, 10 folds, 10 repetitions; Analyse with the
 Paired T-Tester (corrected), Percent_correct, test base ZeroR, significance 0.05): ZeroR 7.76 (0.58),
 J48 17.12 (4.45), marked "v" (significantly better than ZeroR; corrected resampled t = 6.04,
-df 99). The Experimenter's standard deviation is over the 100 individual folds (about 39 students
+df 99). Kappa_statistic: ZeroR 0.00 (0.00), J48 0.11 (0.05) v. Both reproduced on the team's own
+Weka 3.9.6 (2026-10-25). The Experimenter's standard deviation is over the 100 individual folds (about 39 students
 each); the 1.24 above is over the 10 run means. Both describe the same runs: report which one you use.
 
 Top 3 and MRR come from the cross-validation predictions, with tied probabilities sharing
