@@ -3,9 +3,10 @@
 // Rbac::PAGES in modules/Authentication/lib/Rbac.php), instead of the older feature list (career, rac, counselor,
 // counselingNotes, sections). The defaults are the permission table agreed with the team on 2026-10-24.
 //
-// First run (the older rows are still there): every row is set to the new default and the older rows are removed. The
-// older levels do not carry over, since the rows mean different things now. Later runs only add rows that are missing,
-// so a level the administrator changed in Security Configuration is never overwritten. Safe to run twice.
+// First run (the older rows are still there): every row is set to the new default. The older levels do not carry over,
+// since the rows mean different things now. Later runs only add rows that are missing, so a level the administrator
+// changed in Security Configuration is never overwritten. Every run removes rows for features that are no longer in the
+// table (Security Configuration and the Audit Log are the administrator's own pages, not rows). Safe to run twice.
 
 require_once __DIR__ . '/../shared/lib/Database.php';
 require_once __DIR__ . '/../modules/Authentication/lib/Rbac.php';
@@ -37,14 +38,12 @@ foreach (Rbac::DEFAULTS as $module => $defaults) {
         $written += $insert->rowCount();
     }
 }
-$removed = 0;
-if ($firstRun) {
-    $delete = $pdo->prepare("DELETE FROM security_rbac WHERE module NOT IN ($placeholders)");
-    $delete->execute($modules);
-    $removed = $delete->rowCount();
-}
+// Rows no page reads any more (Rbac::levelsFor only reads the features in the table): removed, never reset.
+$delete = $pdo->prepare("DELETE FROM security_rbac WHERE module NOT IN ($placeholders)");
+$delete->execute($modules);
+$removed = $delete->rowCount();
 $pdo->commit();
 
 echo $firstRun
     ? "Permission table set to the new defaults ($written row(s) written, $removed older row(s) removed).\n"
-    : "Permission table already uses the new features ($written missing row(s) added).\n";
+    : "Permission table already uses the new features ($written missing row(s) added, $removed unused row(s) removed).\n";

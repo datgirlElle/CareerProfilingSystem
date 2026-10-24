@@ -48,6 +48,7 @@ const PROTECTED_PAGES = [
     'staff-profile' => ['admin', 'counselor'],
     'question-bank' => ['admin', 'counselor'],
     'security-configuration' => ['admin', 'counselor'],
+    'my-access' => ['admin', 'counselor'],
     'student-profile' => ['admin', 'counselor'],
     'account-management' => ['admin', 'counselor'],
     'assessment' => ['student'],
@@ -135,8 +136,9 @@ if (isset(PROTECTED_PAGES[$slug])) {
         header('Location: ' . (in_array('admin', PROTECTED_PAGES[$slug], true) ? '/staff-login' : '/student-login'));
         return true;
     }
-    // A staff page whose features are all No Access for this person (the permission table, Security Configuration) is
-    // refused here too, not only grayed out in the sidebar: they go to the first page that is open to them.
+    // A staff page whose features are all No Access for this person (the permission table, Security Configuration), or an
+    // administrator-only page (Rbac::ADMIN_PAGES), is refused here too, not only grayed out or left out of the sidebar:
+    // they go to the first page that is open to them.
     if ($user['role'] !== 'student') {
         $roleKey = Rbac::roleKey($user);
         if (!Rbac::pageOpen($slug, $roleKey)) {

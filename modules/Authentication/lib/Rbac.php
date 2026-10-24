@@ -42,14 +42,12 @@ class Rbac
         // Administration
         'roster'            => ['counselor' => 'limited', 'facilitator' => 'none'],
         'staffAccounts'     => ['counselor' => 'none',    'facilitator' => 'none'],
-        'settings'          => ['counselor' => 'none',    'facilitator' => 'none'],
-        'auditLog'          => ['counselor' => 'none',    'facilitator' => 'none'],
     ];
 
     /**
      * The staff pages and the features on each. A page is open to someone when at least one of its features is View Only
-     * or Full for them. The first twelve are the sidebar, in its order (the first open one is where staff land); the rest
-     * are pages reached from them. Pages not listed here (staff profile, notifications) are open to all staff.
+     * or Full for them. The first ten (SIDEBAR) are the sidebar's work pages, in its order; the rest are pages reached
+     * from them. Pages not listed here or in ADMIN_PAGES (My Access, staff profile, notifications) are open to all staff.
      */
     public const PAGES = [
         'admin-dashboard'         => ['dashboard', 'studentInfo'],
@@ -62,19 +60,26 @@ class Rbac
         'counseling-requests'     => ['counselingHistory', 'counselingStatus'],
         'staff-help-center'       => ['helpCenter'],
         'account-management'      => ['roster', 'staffAccounts'],
-        'security-configuration'  => ['settings'],
-        'audit-log'               => ['auditLog'],
         'student-profile'         => ['studentInfo'],
         'monitoring-details'      => ['monitoring'],
         'add-career'              => ['programs'],
         'all-recommended-careers' => ['recommendations'],
     ];
 
-    /** Where staff go when every sidebar page is closed to them. */
-    public const FALLBACK_PAGE = 'staff-profile';
+    /** The sidebar's work pages, in its order: staff land on the first one open to them. */
+    public const SIDEBAR = [
+        'admin-dashboard', 'analytics', 'career-dataset', 'question-bank', 'assessment-scheduling', 'monitoring',
+        'announcements', 'counseling-requests', 'staff-help-center', 'account-management',
+    ];
 
-    /** Features where a Guidance Counselor or Facilitator has nothing to change: the administrator may give View Only or No Access. */
-    public const VIEW_ONLY_FEATURES = ['settings', 'auditLog'];
+    /**
+     * The Head of Guidance's own tools: only the administrator ever opens them (they are not in the permission table and are
+     * not shown to other staff at all). Counselors and facilitators see their own access on My Access instead.
+     */
+    public const ADMIN_PAGES = ['security-configuration', 'audit-log'];
+
+    /** Where staff go when every sidebar page is closed to them: their own access, which says why. */
+    public const FALLBACK_PAGE = 'my-access';
 
     /** The roles in the access matrix. Guidance Counselors and Guidance Facilitators share the 'counselor' system role but have a column each. */
     public const ROLES = ['admin', 'counselor', 'facilitator', 'student'];
@@ -102,8 +107,8 @@ class Rbac
     /** The only feature a Student can ever hold: reading their own recommendations. Everything else is No Access, whatever the table says. */
     public const STUDENT_MODULES = ['recommendations'];
 
-    /** Features about accounts and settings: changing who holds them asks for a confirmation before it is saved. */
-    public const SENSITIVE_MODULES = ['staffAccounts', 'studentAccounts', 'settings'];
+    /** Features about accounts: changing who holds them asks for a confirmation before it is saved. */
+    public const SENSITIVE_MODULES = ['staffAccounts', 'studentAccounts'];
 
     /** Every feature in the table. */
     public static function modules(): array
@@ -111,7 +116,7 @@ class Rbac
         return array_keys(self::DEFAULTS);
     }
 
-    /** Changing the Guidance Counselor column, or any account or settings feature, is a sensitive change. */
+    /** Changing the Guidance Counselor column, or any account feature, is a sensitive change. */
     public static function isSensitiveChange(string $module, string $targetRole): bool
     {
         return in_array($module, self::SENSITIVE_MODULES, true) || $targetRole === 'counselor';
@@ -123,7 +128,6 @@ class Rbac
      *    columns. Everyone else only looks at their own access.
      *  - The administrator column and the Student column are never editable (nobody can lock the Head of Guidance out, and a
      *    Student can never be given a staff feature).
-     *  - VIEW_ONLY_FEATURES offer View Only and No Access (there is nothing for a non-administrator to change there).
      *
      * @param array<string,array<string,string>> $matrix module => role => level (kept for callers; not needed any more)
      * @return array<int,string>
@@ -133,7 +137,7 @@ class Rbac
         if (!isset(self::DEFAULTS[$module]) || !in_array($targetRole, ['counselor', 'facilitator'], true) || $actorKey !== 'admin') {
             return [];
         }
-        return in_array($module, self::VIEW_ONLY_FEATURES, true) ? ['limited', 'none'] : self::LEVELS;
+        return self::LEVELS;
     }
 
     /** The matrix column for a signed-in user: 'admin', 'counselor', 'facilitator' or 'student'. */
@@ -209,9 +213,12 @@ class Rbac
         return ($rank[$level] ?? 0) >= ($rank[$minLevel] ?? 1);
     }
 
-    /** Whether the staff page $page is open to $role (pages not in PAGES are open). */
+    /** Whether the staff page $page is open to $role (ADMIN_PAGES: the administrator only; pages not in PAGES are open). */
     public static function pageOpen(string $page, string $role): bool
     {
+        if (in_array($page, self::ADMIN_PAGES, true)) {
+            return $role === 'admin';
+        }
         if (!isset(self::PAGES[$page])) {
             return true;
         }
@@ -230,10 +237,10 @@ class Rbac
         return array_values(array_filter(array_keys(self::PAGES), fn($page) => !self::pageOpen($page, $role)));
     }
 
-    /** Where a staff member lands: the first open sidebar page, else their profile. */
+    /** Where a staff member lands: the first open sidebar page, else My Access. */
     public static function firstOpenPage(string $role): string
     {
-        foreach (array_slice(array_keys(self::PAGES), 0, 12) as $page) {
+        foreach (self::SIDEBAR as $page) {
             if (self::pageOpen($page, $role)) {
                 return $page;
             }

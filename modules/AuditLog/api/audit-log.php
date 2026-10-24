@@ -8,7 +8,7 @@ require_once __DIR__ . '/../../CareerProfiling/lib/QuestionBank.php';
 require_once __DIR__ . '/../lib/AuditChange.php';
 require_once __DIR__ . '/../lib/AuditRetention.php';
 
-$user = Rbac::requireAccess('auditLog', 'limited'); // Audit logs (permission table): View Only reads the log
+$user = Rbac::requireRole('admin'); // the Audit Log is the Head of Guidance's (Rbac::ADMIN_PAGES)
 // Full IP addresses are for the administrator (security incidents); other staff see them masked (maskIp()).
 $seeFullIp = $user['role'] === 'admin';
 $showIp = fn(?string $ip): ?string => $seeFullIp ? $ip : maskIp($ip);

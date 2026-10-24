@@ -21,7 +21,7 @@ const RBAC_LABELS = [
     'programs' => 'Program Mapping Crosswalk', 'questionBank' => 'Question Bank', 'examinations' => 'Assessment Scheduling',
     'monitoring' => 'Flagged student monitoring', 'announcements' => 'Announcements', 'counselingHistory' => 'View counseling history',
     'counselingStatus' => 'Update counseling status', 'helpCenter' => 'Help Center', 'roster' => 'Student roster management',
-    'staffAccounts' => 'Manage staff accounts', 'settings' => 'System settings and permissions', 'auditLog' => 'Audit logs',
+    'staffAccounts' => 'Manage staff accounts',
 ];
 
 /** The table as it is enforced (Rbac::levelsFor: saved rows, else the defaults; the administrator always Full). */
@@ -95,8 +95,24 @@ function loadPolicies(PDO $pdo): array
     ];
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && $user['role'] !== 'admin') {
+    // Other staff: Security Configuration is the Head of Guidance's page (Rbac::ADMIN_PAGES). Their pages read only their own
+    // column of the permission table, the School Year badge, and (Help Center) the office hours and booking link. The
+    // security policies and settings are not sent to them (need to know).
+    $ownRole = Rbac::roleKey($user);
+    $policies = loadPolicies($pdo);
+    jsonResponse([
+        'rbac' => array_map(fn($levels) => [$ownRole => $levels[$ownRole] ?? 'none'], loadRbac($pdo)),
+        'rbacOwnOnly' => $ownRole,
+        'canEditRoster' => Rbac::accessLevel('roster', $ownRole) === 'full',
+        'academicYear' => $policies['academicYear'],
+        'officeHours' => $policies['officeHours'],
+        'booking' => $policies['booking'],
+    ]);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    // The daily cleanup's own markers are not settings changes, so they do not count as updates.
+    // The administrator: the whole page. The daily cleanup's own markers are not settings changes, so they do not count as updates.
     $lastUpdatedStmt = $pdo->prepare(
         'SELECT GREATEST(
             (SELECT MAX(updated_at) FROM security_rbac),
@@ -106,40 +122,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $lastUpdatedStmt->execute([AuditRetention::LAST_RUN_KEY, AuditChain::ANCHOR_KEY]);
     $lastUpdated = $lastUpdatedStmt->fetchColumn();
 
-    // Security Overview card: each number goes only to someone who can open the page it links to
-    // (null otherwise, and the page leaves that tile out). Sign-in numbers -> Audit Log (View Only or Full on Audit logs,
-    // as in api/audit-log.php); flags waiting -> Monitoring (any access, everyone on the team sees all flags).
+    // Security Overview card: sign-in numbers (they link to the Audit Log) and flags waiting (they link to Monitoring).
+    // A lockout is logged (api/login.php) the moment an account reaches the maximum failed attempts,
+    // so this counts accounts that were actually locked out, not every wrong password.
     $roleKey = Rbac::roleKey($user);
-    $seesAuditLog = Rbac::accessLevel('auditLog', $roleKey) !== 'none';
-    $seesMonitoring = Rbac::accessLevel('monitoring', $roleKey) !== 'none';
-    $lockouts7d = $sharedLogins7d = $pendingFlags = null;
-    if ($seesAuditLog) {
-        // A lockout is logged (api/login.php) the moment an account reaches the maximum failed attempts,
-        // so this counts accounts that were actually locked out, not every wrong password.
-        $lockouts7d = (int) $pdo->query(
-            "SELECT COUNT(*) FROM audit_log WHERE action = 'login_lockout' AND created_at >= NOW() - INTERVAL '7 days'"
-        )->fetchColumn();
-        $sharedLogins7d = (int) $pdo->query(
-            "SELECT COUNT(*) FROM audit_log WHERE action = 'login_shared_suspected' AND created_at >= NOW() - INTERVAL '7 days'"
-        )->fetchColumn();
-    }
-    if ($seesMonitoring) {
-        $pendingFlags = (int) $pdo->query("SELECT COUNT(*) FROM monitoring_flags WHERE status = 'pending'")->fetchColumn();
-    }
+    $lockouts7d = (int) $pdo->query(
+        "SELECT COUNT(*) FROM audit_log WHERE action = 'login_lockout' AND created_at >= NOW() - INTERVAL '7 days'"
+    )->fetchColumn();
+    $sharedLogins7d = (int) $pdo->query(
+        "SELECT COUNT(*) FROM audit_log WHERE action = 'login_shared_suspected' AND created_at >= NOW() - INTERVAL '7 days'"
+    )->fetchColumn();
+    $pendingFlags = (int) $pdo->query("SELECT COUNT(*) FROM monitoring_flags WHERE status = 'pending'")->fetchColumn();
 
+    // The whole permission table: the administrator is the only one who can change it.
     $rbacNow = loadRbac($pdo);
-    // The full permission table is for the administrator, who is the only one who can change it. Other staff are sent only
-    // their own column ("Your Access" on the page; the other pages need it to know what they may do), never the other
-    // roles' permissions: need to know, as with the full IP addresses in the Audit Log.
-    $isAdmin = $user['role'] === 'admin';
-    $ownRole = Rbac::roleKey($user);
-    $rbacShown = $isAdmin ? $rbacNow : array_map(fn($levels) => [$ownRole => $levels[$ownRole] ?? 'none'], $rbacNow);
     jsonResponse([
-        'rbac' => $rbacShown,
-        // Non-administrators see "Your Access" (their own column, view only) instead of the whole table.
-        'rbacOwnOnly' => $isAdmin ? null : $ownRole,
-        // what this person may change in the table (empty for a fixed cell), and which changes ask for a confirmation
-        'rbacEditable' => $isAdmin ? editableMatrix($user, $rbacNow) : (object) [],
+        'rbac' => $rbacNow,
+        'rbacOwnOnly' => null,
+        // what may be changed in the table (empty for a fixed cell), and which changes ask for a confirmation
+        'rbacEditable' => editableMatrix($user, $rbacNow),
         'rbacSensitive' => ['modules' => Rbac::SENSITIVE_MODULES, 'roles' => ['counselor']],
         // Uploading class rosters: Full on Student roster management.
         'canEditRoster' => Rbac::accessLevel('roster', $roleKey) === 'full',
