@@ -15,6 +15,9 @@
   .perm-cell { display:inline-flex; align-items:center; justify-content:center; padding:6px 10px; border-radius:8px; border:1px solid transparent; cursor:pointer; background:transparent; }
   .perm-cell:hover { background:#f1f5f9; border-color:#cbd5e1; }
   .perm-cell.changed { background:#fffbeb; border-color:#f59e0b; }
+  /* Permission table grouped like the sidebar: a tinted group heading, and lighter lines between the features of one page. */
+  #rbacTableBody .rbac-group { background:#f8fafc; }
+  #rbacTableBody .rbac-sub { border-top-color:#f1f5f9; }
   body{ font-family:'Inter', sans-serif; }
   /* Security Overview tiles: gray icon, orange when the number is above 0 */
   .overview-tile { color:#64748b; transition:border-color .15s; }
@@ -146,7 +149,7 @@
               <table class="w-full text-left border-collapse min-w-[700px]">
                 <thead class="bg-slate-50/50 border-b border-slate-200">
                   <tr>
-                    <th class="px-5 py-4 text-xs font-semibold tracking-wide text-slate-500 uppercase">Module / Feature</th>
+                    <th class="px-5 py-4 text-xs font-semibold tracking-wide text-slate-500 uppercase">Page / Feature</th>
                     <th class="px-3 py-4 text-xs font-semibold tracking-wide text-slate-500 uppercase text-center">
                       <div class="flex items-center justify-center gap-1"><img src="images/security/icon-admin.svg" alt="" class="w-2.5 h-3">Administrator</div>
                     </th>
@@ -404,18 +407,63 @@
   })();
 
   (async function() {
-    const MODULES = [
-      { id: 'career', label: 'Career Profile Input', desc: 'Create and edit student profiles', icon: 'images/security/icon-module-career.svg', iconClass: 'w-[17.5px] h-4 mt-0.5' },
-      { id: 'rac', label: 'RIASEC Assessment', desc: 'View and manage assessments', icon: 'images/security/icon-module-rac.svg', iconClass: 'w-[10.5px] h-4 mt-0.5' },
-      { id: 'recommendations', label: 'Recommendations', desc: 'View recommendations only', icon: 'images/security/icon-module-recommendations.svg', iconClass: 'w-3.5 h-4 mt-0.5' },
-      { id: 'counselor', label: 'Guidance Counselor', desc: 'Account Management. Full: assign sections to counselors and facilitators. View Only: look at the assignments', icon: 'images/security/icon-module-counselor.svg', iconClass: 'w-3 h-4 mt-0.5' },
-      { id: 'monitoring', label: 'Student Monitoring', desc: 'View student progress and status', icon: 'images/security/icon-module-monitoring.svg', iconClass: 'w-4 h-4 mt-0.5' },
-      { id: 'announcements', label: 'Announcements', desc: 'Send updates to students', icon: 'images/security/icon-module-announcements.svg', iconClass: 'w-4 h-4 mt-0.5' },
-      { id: 'examinations', label: 'Assessment Scheduling', desc: 'Assessment schedules and rooms', icon: 'images/security/icon-module-examinations.svg', iconClass: 'w-4 h-4 mt-0.5' },
-      { id: 'counselingNotes', label: 'Counseling Notes', desc: 'Session notes on student profiles', icon: 'images/security/icon-module-counseling-notes.svg', iconClass: 'w-3.5 h-4 mt-0.5' },
-      { id: 'staffAccounts', label: 'Staff Accounts', desc: 'Account Management. Full: approve sign-ups, send access codes, deactivate staff. View Only: look at the list', icon: 'images/security/icon-module-counselor.svg', iconClass: 'w-3 h-4 mt-0.5' },
-      { id: 'sections', label: 'Section Management', desc: 'Account Management. Full: add and deactivate sections. View Only: look at them', icon: 'images/security/icon-people.svg', iconClass: 'w-4 h-4 mt-0.5' }
-    ];
+    // The permission table: each feature (a key of Rbac::DEFAULTS in modules/Authentication/lib/Rbac.php), shown under the
+    // sidebar page it lives on, in the sidebar's groups and order (PP.navMenu from js/admin-nav.js). "desc" says what View
+    // Only and Full allow.
+    const FEATURES = {
+      dashboard: { label: 'Dashboard', desc: 'The summary cards and progress charts.' },
+      studentInfo: { label: 'Student information', desc: 'The student list and profiles. Full: also change a student\'s section.' },
+      studentAccounts: { label: 'Student account management', desc: 'See if an account is active or locked. Full: deactivate, unlock, invite to register, send reminders.' },
+      assessmentResults: { label: 'Assessment results', desc: 'RIASEC code, scores and past attempts on the profile.' },
+      recommendations: { label: 'Career recommendations', desc: 'Recommended programs on the profile and CBF Candidate Programs.' },
+      notesCreate: { label: 'Create counseling notes', desc: 'Write counseling notes on a student profile.' },
+      exportResults: { label: 'Export student results', desc: 'View Only: summary downloads (totals and percentages). Full: lists with student names.' },
+      analytics: { label: 'Analytics and reports', desc: 'The charts and tables on Analytics & Report.' },
+      analyticsEmail: { label: 'Send analytics report', desc: 'Email the Analytics Report to someone.' },
+      programs: { label: 'Program Mapping Crosswalk', desc: 'MMCL programs and their RIASEC codes. Full: add and edit programs.' },
+      questionBank: { label: 'Question Bank', desc: 'The assessment questions. Full: add, edit and hide questions.' },
+      examinations: { label: 'Assessment Scheduling', desc: 'Schedules, rooms and access codes. Full: create and change them.' },
+      monitoring: { label: 'Flagged student monitoring', desc: 'Flagged recommendations. Full: approve, escalate or dismiss them.' },
+      announcements: { label: 'Announcements', desc: 'Read the announcements sent. Full: post and edit them.' },
+      counselingHistory: { label: 'View counseling history', desc: 'Notes, requests and retakes. View Only: who and when, not what was written.' },
+      counselingStatus: { label: 'Update counseling status', desc: 'Resolve requests, decide retakes and invite students to counseling.' },
+      helpCenter: { label: 'Help Center', desc: 'The FAQs. Full: edit the FAQs, office hours and booking link.' },
+      roster: { label: 'Student roster management', desc: 'Class rosters and sections. Full: upload rosters, add and deactivate sections.' },
+      staffAccounts: { label: 'Manage staff accounts', desc: 'Approve sign-ups, send access codes, assign sections, deactivate staff.' },
+      settings: { label: 'System settings and permissions', desc: 'This page. View Only: see your own access. Only the administrator changes settings.' },
+      auditLog: { label: 'Audit logs', desc: 'Every sign-in and change in the system.' }
+    };
+    // Which features are shown under which sidebar page. (Which features open a page is decided by Rbac::PAGES on the server.)
+    const PAGE_FEATURES = {
+      'admin-dashboard': ['dashboard', 'studentInfo', 'studentAccounts', 'assessmentResults', 'recommendations', 'notesCreate', 'exportResults'],
+      'analytics': ['analytics', 'analyticsEmail'],
+      'career-dataset': ['programs'],
+      'question-bank': ['questionBank'],
+      'assessment-scheduling': ['examinations'],
+      'monitoring': ['monitoring'],
+      'announcements': ['announcements'],
+      'counseling-requests': ['counselingHistory', 'counselingStatus'],
+      'staff-help-center': ['helpCenter'],
+      'account-management': ['roster', 'staffAccounts'],
+      'security-configuration': ['settings'],
+      'audit-log': ['auditLog']
+    };
+    const MODULES = Object.keys(FEATURES).map(id => ({ id: id, label: FEATURES[id].label, desc: FEATURES[id].desc }));
+    // The sidebar's groups and pages, each with its features. A feature not under any page (should not happen) goes last.
+    function featureGroups() {
+      const menu = (window.PP && PP.navMenu) || [];
+      const placed = {};
+      const groups = menu.map(g => ({
+        title: g.title,
+        pages: g.items.filter(it => PAGE_FEATURES[it.id]).map(it => {
+          PAGE_FEATURES[it.id].forEach(id => { placed[id] = true; });
+          return { label: it.label, icon: it.icon, features: PAGE_FEATURES[it.id].map(id => MODULES.find(m => m.id === id)) };
+        })
+      }));
+      const rest = MODULES.filter(m => !placed[m.id]);
+      if (rest.length) groups.push({ title: 'Other', pages: [{ label: 'Other', icon: '', features: rest }] });
+      return groups;
+    }
     const RBAC_COLUMNS = ['admin', 'counselor', 'facilitator']; // Student access is fixed, so it is not shown
     const LEVEL_LABEL = { full: 'Full Access', limited: 'View Only', none: 'No Access' };
     let state = null;
@@ -527,14 +575,18 @@
       ['rbacTableWrap', 'rbacViewOnlyNote', 'rbacActions'].forEach(id => document.getElementById(id).classList.add('hidden'));
       document.getElementById('rbacOwnFoot').classList.remove('hidden');
       const list = document.getElementById('rbacOwnList');
-      list.innerHTML = MODULES.map(m => {
-        const lvl = levelOf(m.id, role);
-        return '<div class="flex items-center justify-between gap-4 px-5 py-3">' +
-          '<div class="flex items-start gap-3"><img src="' + m.icon + '" alt="" class="' + m.iconClass + '">' +
-          '<div><p class="text-sm font-medium text-slate-800">' + m.label + '</p><p class="text-xs text-slate-500">' + m.desc + '</p></div></div>' +
-          '<span class="' + (OWN_PILL[lvl] || OWN_PILL.none) + ' text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap">' + (LEVEL_LABEL[lvl] || LEVEL_LABEL.none) + '</span>' +
-          '</div>';
-      }).join('');
+      list.innerHTML = featureGroups().map(g =>
+        '<p class="px-5 pt-4 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">' + g.title + '</p>' +
+        g.pages.map(p => p.features.map(m => {
+          const lvl = levelOf(m.id, role);
+          const name = p.features.length === 1 ? p.label : p.label + ': ' + m.label;
+          return '<div class="flex items-center justify-between gap-4 px-5 py-3">' +
+            '<div class="flex items-start gap-3"><span class="text-slate-500 mt-0.5">' + p.icon + '</span>' +
+            '<div><p class="text-sm font-medium text-slate-800">' + name + '</p><p class="text-xs text-slate-500">' + m.desc + '</p></div></div>' +
+            '<span class="' + (OWN_PILL[lvl] || OWN_PILL.none) + ' text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap">' + (LEVEL_LABEL[lvl] || LEVEL_LABEL.none) + '</span>' +
+            '</div>';
+        }).join('')).join('')
+      ).join('');
       list.classList.remove('hidden');
     }
 
@@ -546,19 +598,33 @@
       // Only the administrator gets editable cells from the server (Rbac::editableLevels); everyone else just looks.
       document.getElementById('rbacViewOnlyNote').classList.toggle('hidden', MODULES.some(m => RBAC_COLUMNS.some(r => isEditable(m.id, r))));
       const tbody = document.getElementById('rbacTableBody');
-      tbody.innerHTML = MODULES.map(m => {
-        const cells = RBAC_COLUMNS.map(r => {
-          const lvl = levelOf(m.id, r);
-          if (!isEditable(m.id, r)) return '<td class="px-3 py-3 text-center">' + permIcon(lvl) + '</td>';
-          const changed = (m.id + '|' + r) in pending;
-          return '<td class="px-3 py-3 text-center"><button type="button" class="perm-cell' + (changed ? ' changed' : '') + '" data-module="' + m.id + '" data-role="' + r + '" title="' + LEVEL_LABEL[lvl] + '. Click to change." aria-label="' + ROLE_LABEL[r] + ', ' + m.label + ': ' + LEVEL_LABEL[lvl] + '. Click to change.">' + permIcon(lvl) + '</button></td>';
-        }).join('');
-        return '<tr>' +
-          '<td class="px-5 py-3"><div class="flex items-start gap-3">' +
-          '<img src="' + m.icon + '" alt="" class="' + m.iconClass + '">' +
-          '<div><p class="text-sm font-medium text-slate-800">' + m.label + '</p><p class="text-xs text-slate-500">' + m.desc + '</p></div>' +
-          '</div></td>' + cells + '</tr>';
+      const cellsFor = (m, name) => RBAC_COLUMNS.map(r => {
+        const lvl = levelOf(m.id, r);
+        if (!isEditable(m.id, r)) return '<td class="px-3 py-3 text-center">' + permIcon(lvl) + '</td>';
+        const changed = (m.id + '|' + r) in pending;
+        return '<td class="px-3 py-3 text-center"><button type="button" class="perm-cell' + (changed ? ' changed' : '') + '" data-module="' + m.id + '" data-role="' + r + '" title="' + LEVEL_LABEL[lvl] + '. Click to change." aria-label="' + ROLE_LABEL[r] + ', ' + name + ': ' + LEVEL_LABEL[lvl] + '. Click to change.">' + permIcon(lvl) + '</button></td>';
       }).join('');
+      // Grouped like the sidebar: a group heading, then each page. A page with one feature is one row (the page's name);
+      // a page with several shows its name, then a row per feature under it.
+      tbody.innerHTML = featureGroups().map(g =>
+        '<tr class="rbac-group"><th colspan="4" scope="colgroup" class="px-5 pt-5 pb-2 text-left text-[11px] font-semibold tracking-wide text-slate-500 uppercase">' + g.title + '</th></tr>' +
+        g.pages.map(p => {
+          const pageName = '<span class="text-slate-500 mt-0.5">' + p.icon + '</span>';
+          if (p.features.length === 1) {
+            const m = p.features[0];
+            return '<tr><td class="px-5 py-3"><div class="flex items-start gap-3">' + pageName +
+              '<div><p class="text-sm font-medium text-slate-800">' + p.label + '</p><p class="text-xs text-slate-500">' + m.desc + '</p></div>' +
+              '</div></td>' + cellsFor(m, p.label) + '</tr>';
+          }
+          return '<tr><th colspan="4" scope="rowgroup" class="px-5 pt-3 pb-1 text-left"><div class="flex items-center gap-3">' + pageName +
+              '<span class="text-sm font-semibold text-slate-900">' + p.label + '</span></div></th></tr>' +
+            p.features.map(m =>
+              '<tr class="rbac-sub"><td class="py-2.5 pr-5" style="padding-left:52px">' +
+                '<p class="text-sm font-medium text-slate-800">' + m.label + '</p><p class="text-xs text-slate-500">' + m.desc + '</p>' +
+              '</td>' + cellsFor(m, p.label + ', ' + m.label) + '</tr>'
+            ).join('');
+        }).join('')
+      ).join('');
       updateRbacActions();
     }
 
