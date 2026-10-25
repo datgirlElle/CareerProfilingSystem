@@ -105,6 +105,7 @@ $actionLabels = [
     'deactivate_section' => 'Deactivated section',
     'create_program' => 'Added program',
     'update_program' => 'Edited program',
+    'merge_official_careers' => 'Added official careers',
     'activate_program' => 'Activated program',
     'deactivate_program' => 'Deactivated program',
     // Assessment

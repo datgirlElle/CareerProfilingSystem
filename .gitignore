@@ -19,6 +19,9 @@ desktop.ini
 # Logs
 *.log
 
+# Backups made by db/merge_official_careers.php (program titles and careers, kept on the machine that ran it)
+db/backups/
+
 # Standalone Tailwind CLI binary used to (re)generate css/tailwind.css locally —
 # not needed at runtime or in the Docker image, and too large to commit.
 # Re-download from https://github.com/tailwindlabs/tailwindcss/releases if needed:
