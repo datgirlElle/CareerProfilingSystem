@@ -50,11 +50,13 @@ foreach (Rbac::PAGES as $slug => $mods) {
     }
 }
 check('every page lists only real features', !$unknown, implode(', ', $unknown));
-preg_match_all("/\\{ id: '([a-z-]+)', href: '[a-z-]+', label: '[^']*', icon: '[a-z]+'(, only: '(admin|staff)')? \\}/", $nav, $m, PREG_SET_ORDER);
+preg_match_all("/\\{ id: '([a-z-]+)', href: '[a-z-]+', label: '[^']*', icon: '[a-z]+'(, only: '(admin|staff)')?(, coAdmin: true)? \\}/", $nav, $m, PREG_SET_ORDER);
 $sidebar = [];
 $onlyAdmin = [];
 $onlyStaff = [];
+$coAdmin = [];
 foreach ($m as $item) {
+    if (($item[4] ?? '') !== '') $coAdmin[] = $item[1];
     if (($item[3] ?? '') === 'admin') $onlyAdmin[] = $item[1];
     elseif (($item[3] ?? '') === 'staff') $onlyStaff[] = $item[1];
     else $sidebar[] = $item[1];
@@ -63,6 +65,7 @@ check('Rbac::SIDEBAR is the sidebar\'s work pages, in its order', Rbac::SIDEBAR 
 check('every sidebar work page is in the table', !array_diff(Rbac::SIDEBAR, array_keys(Rbac::PAGES)));
 check('the sidebar shows the administrator\'s pages to the administrator only', $onlyAdmin === Rbac::ADMIN_PAGES, implode(',', $onlyAdmin));
 check('the sidebar shows My Access to other staff only', $onlyStaff === ['my-access'], implode(',', $onlyStaff));
+check('the sidebar shows co-admins only Rbac::COADMIN_PAGES of the administrator\'s pages', $coAdmin === Rbac::COADMIN_PAGES, implode(',', $coAdmin));
 preg_match("/const PROTECTED_PAGES = \\[(.*?)\\];/s", $router, $pm);
 $staffPages = [];
 if (preg_match_all("/'([a-z-]+)' => \\['admin', 'counselor'\\]/", $pm[1] ?? '', $sm)) {

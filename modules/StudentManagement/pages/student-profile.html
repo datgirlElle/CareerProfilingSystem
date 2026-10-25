@@ -591,7 +591,7 @@
       toggleActiveUserId = s.userId;
       renderToggleActiveButton(s.isActive);
       if (s.lockedUntil && canManageAccounts) document.getElementById('unlockAccountBtn').classList.remove('hidden');
-      if (currentUser.role === 'admin' && s.status === 'Completed') document.getElementById('resetAssessmentBtn').classList.remove('hidden');
+      if ((currentUser.role === 'admin' || currentUser.isCoAdmin) && s.status === 'Completed') document.getElementById('resetAssessmentBtn').classList.remove('hidden');
       document.getElementById('studentName').textContent = s.name;
       PP.renderAvatar(document.getElementById('studentAvatar'), { first: s.firstName, last: s.lastName, name: s.name, size: 24 });
       document.getElementById('studentId').textContent = 'Grade ' + s.gradeLevel + ' · ' + s.strand + ' ' + s.section;

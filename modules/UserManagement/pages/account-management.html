@@ -13,6 +13,24 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   body{ font-family:'Inter', sans-serif; }
+  /* Co-admins strip (the administrator only) and the Add a co-admin pop-up */
+  .coadmin-strip{ padding:14px 20px; border-bottom:1px solid #e5e7eb; background:#f8fafc; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  .coadmin-strip.hidden{ display:none; } /* the display:flex above would beat Tailwind's hidden */
+  .coadmin-strip-text{ max-width:560px; }
+  .coadmin-chips{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .coadmin-chip{ display:inline-flex; align-items:center; gap:6px; background:#fff; border:1px solid #d1d5db; border-radius:9999px; padding:4px 6px 4px 12px; font-size:13px; color:#111827; }
+  .coadmin-chip-x{ display:inline-flex; width:22px; height:22px; align-items:center; justify-content:center; border-radius:9999px; color:#6b7280; }
+  .coadmin-chip-x:hover{ background:#fee2e2; color:#bb0013; }
+  .coadmin-chip-x:focus-visible, .coadmin-add:focus-visible{ outline:2px solid #19427b; outline-offset:2px; }
+  .coadmin-add{ font-size:13px; padding:6px 12px; }
+  .coadmin-pick{ display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; cursor:pointer; background:#fff; }
+  .coadmin-pick:has(input:checked){ border-color:#19427b; background:#f0f5ff; }
+  .coadmin-rules{ display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:12px; background:#f9fafb; border-radius:8px; }
+  .coadmin-rules li{ display:flex; gap:6px; font-size:13px; color:#374151; margin-top:4px; }
+  .coadmin-rules .yes{ color:#16a34a; font-weight:700; }
+  .coadmin-rules .no{ color:#6b7280; font-weight:700; }
+  @media (max-width:520px){ .coadmin-rules{ grid-template-columns:1fr; } }
+  .coadmin-legend{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; } /* read by screen readers only */
 </style>
 <link rel="stylesheet" href="css/motion.css">
 </head>
@@ -114,6 +132,17 @@
               <h2 class="text-base font-semibold text-gray-900">Staff Accounts</h2>
             </div>
             <span id="pendingBadge" class="hidden text-xs font-semibold bg-amber-50 border border-amber-200 text-amber-700 rounded-full px-3 py-1"></span>
+          </div>
+          <!-- Co-admins: shown to the administrator only (api/staff-approvals.php canManageCoAdmins); everyone else sees the badge in the table -->
+          <div id="coAdminStrip" class="coadmin-strip hidden">
+            <div class="coadmin-strip-text">
+              <h3 class="text-sm font-semibold text-gray-900">Co-admins <span id="coAdminCount" class="text-xs font-medium text-gray-500 ml-1"></span></h3>
+              <p class="text-xs text-gray-500 mt-0.5">Co-admins help with staff accounts, assessment resets and reading the Audit Log. The permission table and security settings stay with you.</p>
+            </div>
+            <div class="coadmin-chips">
+              <span id="coAdminChips" class="coadmin-chips"></span>
+              <button type="button" id="coAdminAddBtn" class="pp-btn pp-btn-secondary coadmin-add">+ Add co-admin</button>
+            </div>
           </div>
           <div class="overflow-auto max-h-[60vh]">
             <table class="w-full text-left border-collapse">
@@ -217,6 +246,42 @@
     </div>
   </div>
 </div>
+<div id="coAdminModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-card pp-dialog pp-dialog-md" role="dialog" aria-modal="true" aria-labelledby="coAdminModalTitle">
+    <div class="pp-dialog-head">
+      <h2 class="pp-dialog-title" id="coAdminModalTitle">Add a co-admin</h2>
+      <button type="button" class="pp-dialog-x" data-dialog-close aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="pp-dialog-form flex flex-col gap-2.5">
+      <p id="coAdminModalNote" class="text-xs text-gray-500"></p>
+      <fieldset id="coAdminPicks" class="flex flex-col gap-2"><legend class="coadmin-legend">Who becomes a co-admin</legend></fieldset>
+      <div class="coadmin-rules">
+        <div>
+          <p class="text-xs font-semibold text-gray-900">A co-admin can</p>
+          <ul>
+            <li><span class="yes" aria-hidden="true">&#10003;</span>Approve, unlock and deactivate counselors</li>
+            <li><span class="yes" aria-hidden="true">&#10003;</span>Reset a student assessment</li>
+            <li><span class="yes" aria-hidden="true">&#10003;</span>Read the Audit Log (IP addresses hidden)</li>
+          </ul>
+        </div>
+        <div>
+          <p class="text-xs font-semibold text-gray-900">Stays with you</p>
+          <ul>
+            <li><span class="no" aria-hidden="true">&#8212;</span>Permission table</li>
+            <li><span class="no" aria-hidden="true">&#8212;</span>Security settings and log retention</li>
+            <li><span class="no" aria-hidden="true">&#8212;</span>Adding or removing co-admins</li>
+          </ul>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500">They get an email, and this is written to the Audit Log.</p>
+      <p id="coAdminModalError" class="hidden text-xs text-[#ed1c24]" role="alert"></p>
+    </div>
+    <div class="pp-dialog-foot">
+      <button type="button" data-dialog-close class="pp-btn pp-btn-secondary">Cancel</button>
+      <button type="button" id="coAdminSaveBtn" class="pp-btn pp-btn-primary">Make co-admin</button>
+    </div>
+  </div>
+</div>
 
 <script>
   function showToast(message, isError) {
@@ -308,8 +373,13 @@
       if (a.status === 'rejected') return PP.badge('Rejected', 'red');
       return a.isActive ? PP.badge('Active', 'green') : PP.badge('Deactivated', 'gray');
     }
+    // Co-admins (api/staff-approvals.php): only the administrator changes a co-admin's account or makes one; everyone else
+    // sees the badge and no buttons on that row.
+    let canManageCoAdmins = false;
+    const mayUnlock = isAdmin || currentUser.isCoAdmin === true;
     function actionButtons(a) {
       if (staffLevel !== 'full') return '';
+      if (a.isCoAdmin && !canManageCoAdmins) return '';
       const btn = 'staff-action text-xs font-semibold rounded-md px-3 py-1.5 border ';
       const data = ' data-id="' + a.id + '" data-name="' + escapeHtml(a.fullName || a.email) + '"';
       if (a.status === 'pending') {
@@ -328,8 +398,8 @@
         '</div>';
       }
       const toggle = '<button type="button" class="' + btn + (a.isActive ? 'text-[#ed1c24] border-[#ed1c24] hover:bg-red-50' : 'text-[#19427b] border-[#19427b] hover:bg-slate-50') + '" data-action="toggleActive"' + data + ' data-active="' + (a.isActive ? '1' : '0') + '">' + (a.isActive ? 'Deactivate' : 'Activate') + '</button>';
-      // Locked by wrong passwords: only an administrator can unlock a staff account.
-      if (a.locked && isAdmin) {
+      // Locked by wrong passwords: only the administrator or a co-admin can unlock a staff account.
+      if (a.locked && mayUnlock) {
         return '<div class="flex items-center justify-center gap-2">' +
           '<button type="button" class="' + btn + 'text-[#19427b] border-[#19427b] hover:bg-slate-50" data-action="unlock"' + data + '>Unlock</button>' +
           toggle + '</div>';
@@ -341,6 +411,8 @@
     let assignmentData = { assignments: {}, options: [] };
     function sectionsCell(a) {
       if (a.status !== 'approved') return '<span class="text-gray-500">Not assigned</span>';
+      // A co-admin sees every section (modules/UserManagement/lib/StaffScope.php), whatever is assigned.
+      if (a.isCoAdmin) return '<span class="text-gray-500">All sections</span>';
       const mine = assignmentData.assignments[a.id] || [];
       const text = mine.length ? mine.map(function(s) { return escapeHtml(s.section); }).join(', ') : 'All sections';
       return '<span class="' + (mine.length ? 'text-gray-700' : 'text-gray-500') + '">' + text + '</span>' + (canAssign
@@ -351,13 +423,17 @@
     async function loadStaff() {
       if (canAssign) { try { assignmentData = await (await fetch('api/staff-assignments.php')).json(); } catch (e) {} }
       let accounts;
+      let list;
       try {
-        accounts = (await PP.fetchJson('api/staff-approvals.php')).accounts || [];
+        list = await PP.fetchJson('api/staff-approvals.php');
+        accounts = list.accounts || [];
       } catch (e) {
         PP.showError(staffTbody, e.message, loadStaff, staffCols);
         return;
       }
       staffTbody.removeAttribute('aria-busy');
+      canManageCoAdmins = list.canManageCoAdmins === true;
+      renderCoAdmins(accounts, list.coAdminMax || 3);
       const pending = accounts.filter(a => a.status === 'pending').length;
       const badge = document.getElementById('pendingBadge');
       badge.textContent = pending + ' pending';
@@ -365,7 +441,7 @@
       staffTbody.innerHTML = accounts.length ? accounts.map(function(a) {
         return '<tr>' +
           '<td class="px-5 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">' + (a.fullName ? escapeHtml(a.fullName) : '<span class="text-gray-500">No name</span>') + (a.username && a.username.indexOf('staff-') !== 0 ? '<span class="block text-xs font-normal text-gray-500">' + escapeHtml(a.username) + '</span>' : '') + '</td>' +
-          '<td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(a.position || 'Guidance Counselor') + '</td>' +
+          '<td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">' + escapeHtml(a.position || 'Guidance Counselor') + (a.isCoAdmin ? '<span class="block mt-1">' + PP.badge('Co-admin', 'blue') + '</span>' : '') + '</td>' +
           '<td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">' + (a.email ? escapeHtml(a.email) : '<span class="text-gray-500">No email</span>') + '</td>' +
           '<td class="px-5 py-4 text-sm text-gray-500">' + sectionsCell(a) + '</td>' +
           '<td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">' + formatDate(a.createdAt) + '</td>' +
@@ -446,6 +522,90 @@
         }
         showToast(sections.length ? 'Sections assigned.' : 'This person can now see all sections.', false);
         closeAssign();
+        await loadStaff();
+      } catch (e) {
+        showToast('Unable to reach the server. Please try again.', true);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // ---- Co-admins (the administrator only): the strip above the table and the Add a co-admin pop-up ----
+    // Who can become one: an active, set-up Guidance Counselor who is not one yet (never a Guidance Facilitator).
+    const canBeCoAdmin = a => a.status === 'approved' && a.activated && a.isActive && !a.isCoAdmin && a.position !== 'Guidance Facilitator';
+    let coAdminCandidates = [];
+    const coAdminDialog = PP.dialog(document.getElementById('coAdminModal'));
+    async function setCoAdmin(id, on) {
+      const res = await fetch('api/staff-approvals.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'setCoAdmin', id: id, on: on })
+      });
+      return res.json();
+    }
+    function renderCoAdmins(accounts, max) {
+      const strip = document.getElementById('coAdminStrip');
+      strip.classList.toggle('hidden', !canManageCoAdmins);
+      if (!canManageCoAdmins) return;
+      const current = accounts.filter(a => a.isCoAdmin);
+      coAdminCandidates = accounts.filter(canBeCoAdmin);
+      document.getElementById('coAdminCount').textContent = current.length + ' of ' + max;
+      document.getElementById('coAdminChips').innerHTML = current.map(function(a) {
+        const name = escapeHtml(a.fullName || a.email);
+        return '<span class="coadmin-chip">' + name + '<button type="button" class="coadmin-chip-x" data-id="' + a.id + '" data-name="' + name + '" aria-label="Remove co-admin ' + name + '" title="Remove co-admin">' +
+          '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg></button></span>';
+      }).join('');
+      const addBtn = document.getElementById('coAdminAddBtn');
+      const full = current.length >= max;
+      addBtn.disabled = full;
+      addBtn.title = full ? 'There are already ' + max + ' co-admins. Remove one first.' : '';
+      document.getElementById('coAdminModalNote').textContent = 'Only active Guidance Counselors can be co-admins (not Guidance Facilitators). '
+        + (max - current.length) + (max - current.length === 1 ? ' place' : ' places') + ' left.';
+    }
+    document.getElementById('coAdminChips').addEventListener('click', async function(e) {
+      const b = e.target.closest('.coadmin-chip-x');
+      if (!b) return;
+      const name = b.dataset.name;
+      if (!(await PP.confirm('Their Guidance Counselor access stays the same. They get an email, and this is written to the Audit Log.',
+        { title: 'Remove ' + name + ' as co-admin?', okLabel: 'Remove co-admin', danger: true }))) return;
+      b.disabled = true;
+      try {
+        const data = await setCoAdmin(Number(b.dataset.id), false);
+        if (!data.success) { showToast(data.error || 'Could not remove this co-admin.', true); b.disabled = false; return; }
+        showToast(name + ' is no longer a co-admin.', false);
+        await loadStaff();
+      } catch (err) {
+        showToast('Unable to reach the server. Please try again.', true);
+        b.disabled = false;
+      }
+    });
+    document.getElementById('coAdminAddBtn').addEventListener('click', function() {
+      const picks = document.getElementById('coAdminPicks');
+      picks.querySelectorAll('label, p').forEach(el => el.remove());
+      document.getElementById('coAdminModalError').classList.add('hidden');
+      picks.insertAdjacentHTML('beforeend', coAdminCandidates.length ? coAdminCandidates.map(function(a, i) {
+        return '<label class="coadmin-pick"><input type="radio" name="coAdminPick" value="' + a.id + '" class="accent-[#0f2a6b]"' + (i === 0 ? ' checked' : '') + '>' +
+          '<span><span class="block text-sm font-medium text-gray-900">' + escapeHtml(a.fullName || a.email) + '</span>' +
+          '<span class="text-xs text-gray-500">' + escapeHtml(a.position || 'Guidance Counselor') + (a.email ? ' &middot; ' + escapeHtml(a.email) : '') + '</span></span></label>';
+      }).join('') : '<p class="text-sm text-gray-500 py-2">No one can be made a co-admin right now. Only active Guidance Counselors who have set up their account can.</p>');
+      document.getElementById('coAdminSaveBtn').disabled = coAdminCandidates.length === 0;
+      coAdminDialog.open();
+    });
+    document.getElementById('coAdminSaveBtn').addEventListener('click', async function() {
+      const btn = this;
+      const pick = document.querySelector('input[name="coAdminPick"]:checked');
+      if (!pick) return;
+      const who = coAdminCandidates.find(a => a.id === Number(pick.value));
+      btn.disabled = true;
+      try {
+        const data = await setCoAdmin(Number(pick.value), true);
+        if (!data.success) {
+          const err = document.getElementById('coAdminModalError');
+          err.textContent = data.error || 'Could not make this person a co-admin.';
+          err.classList.remove('hidden');
+          return;
+        }
+        showToast((who ? (who.fullName || who.email) : 'They') + ' is now a co-admin.', false);
+        coAdminDialog.close();
         await loadStaff();
       } catch (e) {
         showToast('Unable to reach the server. Please try again.', true);

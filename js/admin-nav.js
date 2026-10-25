@@ -48,12 +48,13 @@
       { id: 'staff-help-center', href: 'staff-help-center', label: 'Help Center', icon: 'help' }
     ] },
     // only: 'admin' = the Head of Guidance's own pages (Rbac::ADMIN_PAGES), not shown to other staff at all;
+    // coAdmin: true = a co-admin opens it too (Rbac::COADMIN_PAGES);
     // only: 'staff' = for Guidance Counselors and Facilitators (their own access, read-only).
     { title: 'Administration', items: [
       { id: 'account-management', href: 'account-management', label: 'Account Management', icon: 'manage' },
       { id: 'security-configuration', href: 'security-configuration', label: 'Security Configuration', icon: 'shield', only: 'admin' },
       { id: 'my-access', href: 'my-access', label: 'My Access', icon: 'shield', only: 'staff' },
-      { id: 'audit-log', href: 'audit-log', label: 'Audit Log', icon: 'history', only: 'admin' }
+      { id: 'audit-log', href: 'audit-log', label: 'Audit Log', icon: 'history', only: 'admin', coAdmin: true }
     ] }
   ];
 
@@ -76,12 +77,13 @@
   function shown(it, role) {
     if (!it.only || it.id === active) return true;
     if (!role) return false;
+    if (role === 'coadmin' && it.coAdmin) return true;
     return it.only === (role === 'admin' ? 'admin' : 'staff');
   }
 
   function draw(user) {
     var closed = user && Array.isArray(user.closedPages) ? user.closedPages : [];
-    var role = user ? user.role : '';
+    var role = user ? (user.rbacRole === 'coadmin' ? 'coadmin' : user.role) : '';
     var key = role + '|' + closed.join(',');
     if (key === drawn) return;
     drawn = key;
