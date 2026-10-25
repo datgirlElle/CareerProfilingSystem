@@ -49,8 +49,8 @@ if ($isStaff) {
         ];
     }
 
-    // Staff sign-ups waiting for approval (admins only: only they can approve).
-    if ($user['role'] === 'admin') {
+    // Staff sign-ups waiting for approval (the administrator and co-admins: they approve).
+    if (Rbac::isAdminOrCoAdmin($user)) {
         $stmt = $pdo->query(
             "SELECT id, username, full_name, staff_position, email_verified_at, created_at FROM users
              WHERE role = 'counselor' AND approval_status = 'pending'

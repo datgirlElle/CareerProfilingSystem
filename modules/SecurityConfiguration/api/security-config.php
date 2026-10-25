@@ -104,8 +104,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $user['role'] !== 'admin') {
     // security policies and settings are not sent to them (need to know).
     $ownRole = Rbac::roleKey($user);
     $policies = loadPolicies($pdo);
+    // A co-admin has no column in the table: their levels (Full on every feature) come from Rbac.
+    $ownLevels = $ownRole === Rbac::COADMIN ? Rbac::levelsFor($ownRole) : null;
     jsonResponse([
-        'rbac' => array_map(fn($levels) => [$ownRole => $levels[$ownRole] ?? 'none'], loadRbac($pdo)),
+        'rbac' => array_map(fn($levels) => [$ownRole => $levels[$ownRole] ?? 'none'], $ownLevels === null ? loadRbac($pdo)
+            : array_map(fn($level) => [Rbac::COADMIN => $level], $ownLevels)),
         'rbacOwnOnly' => $ownRole,
         'canEditRoster' => Rbac::accessLevel('roster', $ownRole) === 'full',
         'academicYear' => $policies['academicYear'],
