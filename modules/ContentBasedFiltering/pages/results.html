@@ -265,16 +265,7 @@
           </div>
         </div>
 
-        <!-- 1. Preferred Course (shown first; never part of the CBF calculation): what the student selected (Career Worksheet). -->
-        <section class="pp-section" aria-labelledby="crPrefHeading">
-          <div class="pp-sechead">
-            <h2 id="crPrefHeading" class="pp-h2">Preferred Course</h2>
-            <p class="pp-sub">From the career you typed on your worksheet</p>
-          </div>
-          <div id="cr-preferred"></div>
-        </section>
-
-        <!-- 2. RIASEC Profile -->
+        <!-- 1. RIASEC Profile -->
         <section class="pp-card pp-section" aria-labelledby="crProfileHeading">
           <div class="flex items-baseline justify-between gap-4 flex-wrap mb-4">
             <h2 id="crProfileHeading" class="pp-h2">Your RIASEC Profile</h2>
@@ -299,6 +290,15 @@
 
         <!-- Guidance note when the profile does not separate interests (flat, all-minimum). -->
         <div id="cr-profileNotice" class="hidden pp-note flex flex-col gap-2" role="note"></div>
+
+        <!-- 2. Preferred Course (never part of the CBF calculation): what the student selected (Career Worksheet). -->
+        <section class="pp-section" aria-labelledby="crPrefHeading">
+          <div class="pp-sechead">
+            <h2 id="crPrefHeading" class="pp-h2">Preferred Course</h2>
+            <p class="pp-sub">From the career you typed on your worksheet</p>
+          </div>
+          <div id="cr-preferred"></div>
+        </section>
 
         <!-- 3. Best RIASEC Match: CBF only (RIASEC profile + approved program codes + cosine similarity). -->
         <section class="pp-section" aria-labelledby="crBestHeading">
