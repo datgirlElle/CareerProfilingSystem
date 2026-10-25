@@ -13,6 +13,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   body{ font-family:'Inter', sans-serif; }
+  /* The summary sits beside the list on wide screens and above it on small ones (it comes first in the page). */
+  .ma-layout{ display:grid; gap:24px; align-items:start; }
+  @media (min-width:1024px){
+    .ma-layout{ grid-template-columns:minmax(0,1fr) 300px; }
+    .ma-glance{ grid-column:2; grid-row:1; position:sticky; top:24px; }
+    #accessList{ grid-column:1; grid-row:1; }
+  }
 </style>
 <link rel="stylesheet" href="css/motion.css">
 </head>
@@ -106,9 +113,13 @@
         <p id="accessIntro" class="text-sm text-gray-500 mt-1">What you can do in ProfilePath. Set by the Head of Guidance.</p>
       </div>
 
-      <div class="max-w-3xl">
+      <div id="accessLayout" class="ma-layout">
+        <aside id="accessGlance" class="ma-glance bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+          <h2 class="text-sm font-semibold text-gray-900">Your access at a glance</h2>
+          <div id="glanceCounts" class="flex flex-col gap-3 mt-4"></div>
+          <p class="text-xs text-gray-500 mt-5 pt-4 border-t border-slate-100">Need more access? Ask the Head of Guidance. Only the Head of Guidance changes permissions.</p>
+        </aside>
         <div id="accessList" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden divide-y divide-slate-100" aria-busy="true"></div>
-        <p class="text-xs text-gray-500 mt-4">Need more access? Ask the Head of Guidance. Only the Head of Guidance changes permissions.</p>
       </div>
 
     </main>
@@ -184,6 +195,8 @@
   list.removeAttribute('aria-busy');
   if (currentUser.role === 'admin') {
     document.getElementById('accessIntro').textContent = 'As the Administrator you have every feature.';
+    document.getElementById('accessGlance').remove();
+    document.getElementById('accessLayout').classList.remove('ma-layout');
     list.innerHTML = '<p class="px-5 py-4 text-sm text-gray-700">You change what Guidance Counselors and Facilitators can do in ' +
       '<a href="security-configuration" class="font-medium text-[#19427b] underline">Security Configuration</a>.</p>';
     return;
@@ -191,11 +204,13 @@
   const roleName = currentUser.positionLabel || 'Guidance Counselor';
   document.getElementById('accessIntro').textContent = 'What you can do in ProfilePath as a ' + roleName + '. Set by the Head of Guidance.';
   const access = currentUser.access || {};
+  const counts = { full: 0, limited: 0, none: 0 };
   list.innerHTML = PP.rbacFeatures.groups().map(function(g) {
     return '<p class="px-5 pt-4 pb-1 text-[11px] font-semibold tracking-wide text-slate-500 uppercase bg-slate-50">' + g.title + '</p>' +
       g.pages.map(function(p) {
         return p.features.map(function(m) {
           const lvl = access[m.id] || 'none';
+          counts[lvl]++;
           const name = p.features.length === 1 ? p.label : p.label + ': ' + m.label;
           return '<div class="flex items-center justify-between gap-4 px-5 py-3">' +
             '<div class="flex items-start gap-3"><span class="text-slate-500 mt-0.5">' + p.icon + '</span>' +
@@ -204,6 +219,11 @@
             '</div>';
         }).join('');
       }).join('');
+  }).join('');
+  // How many features have each level, with the same badges as the list.
+  document.getElementById('glanceCounts').innerHTML = ['full', 'limited', 'none'].map(function(lvl) {
+    return '<div class="flex items-center justify-between gap-3">' + PP.badge(LEVEL_LABEL[lvl], LEVEL_TONE[lvl]) +
+      '<span class="text-sm font-semibold text-gray-900">' + counts[lvl] + (counts[lvl] === 1 ? ' feature' : ' features') + '</span></div>';
   }).join('');
 })();
 </script>
