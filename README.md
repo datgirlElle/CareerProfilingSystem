@@ -192,6 +192,10 @@ in the Render dashboard after the first deploy.
 - Encrypted columns (suffixed `_enc`) use a Modified AES-256-CBC cipher with a key-dependent
   S-box (`modules/Encryption/lib/Crypto.php`, `modules/Encryption/lib/ModifiedAES256.php`) and are never used in `WHERE`/`ORDER BY`/
   `JOIN` — see the header comment in `db/schema.sql` for the convention.
+- Changing `APP_AES_KEY` (for example after it was exposed) needs `db/rotate_aes_key.php`: it re-encrypts
+  every `_enc` value and re-seals the audit log with the new key. Setting a new key without it leaves the
+  data unreadable. Suspend the web service, run it as a dry run first, then with `--apply`, set the new
+  key in Render, and resume the service. The header of that file has the details.
 - Module-level access is enforced via `modules/Authentication/lib/Rbac.php`; see `modules/SecurityConfiguration/pages/security-configuration.html` and
   `modules/SecurityConfiguration/api/security-config.php` for the admin-facing config UI.
 - All sensitive/state-changing actions are recorded via `modules/AuditLog/lib/AuditLogger.php` and viewable on

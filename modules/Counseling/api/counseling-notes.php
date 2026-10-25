@@ -15,7 +15,16 @@ function studentInScope(PDO $pdo, array $user, int $studentId): bool
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $user = Rbac::requireAccess('counselingNotes', 'limited');
+    // What this person reads (permission table): Full on View counseling history = every note in full. View Only = every
+    // note's date and author, but the text only of their own notes (notes are sensitive: need to know). No Access, but
+    // allowed to write notes = only their own notes.
+    $user = Auth::requireLogin();
+    $roleKey = Rbac::roleKey($user);
+    $history = Rbac::accessLevel('counselingHistory', $roleKey);
+    $writes = Rbac::atLeast(Rbac::accessLevel('notesCreate', $roleKey), 'full');
+    if ($history === 'none' && !$writes) {
+        jsonResponse(['error' => 'Insufficient permissions for this action.'], 403);
+    }
 
     $studentId = (int) ($_GET['studentId'] ?? 0);
     if ($studentId <= 0) {
@@ -26,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     $stmt = $pdo->prepare(
-        'SELECT cn.id, cn.note_enc, cn.created_at, COALESCE(u.full_name, u.username) AS author_username
+        'SELECT cn.id, cn.note_enc, cn.author_id, cn.created_at, COALESCE(u.full_name, u.username) AS author_username
          FROM counseling_notes cn
          LEFT JOIN users u ON u.id = cn.author_id
          WHERE cn.student_id = ?
@@ -34,18 +43,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     );
     $stmt->execute([$studentId]);
 
-    $notes = array_map(fn($r) => [
-        'id' => (int) $r['id'],
-        'note' => Crypto::dec($r['note_enc']),
-        'author' => $r['author_username'] ?? 'Unknown',
-        'createdAt' => $r['created_at'],
-    ], $stmt->fetchAll());
+    $rows = $stmt->fetchAll();
+    if ($history === 'none') {
+        $rows = array_values(array_filter($rows, fn($r) => (int) $r['author_id'] === (int) $user['id']));
+    }
+    // A note whose text this person may not read is sent as null (never decrypted for them).
+    $notes = array_map(function ($r) use ($history, $user) {
+        $readable = $history === 'full' || (int) $r['author_id'] === (int) $user['id'];
+        return [
+            'id' => (int) $r['id'],
+            'note' => $readable ? Crypto::dec($r['note_enc']) : null,
+            'author' => $r['author_username'] ?? 'Unknown',
+            'createdAt' => $r['created_at'],
+        ];
+    }, $rows);
 
-    jsonResponse(['notes' => $notes]);
+    jsonResponse(['notes' => $notes, 'history' => $history]);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $user = Rbac::requireAccess('counselingNotes', 'full');
+    $user = Rbac::requireAccess('notesCreate', 'full'); // Create counseling notes (permission table)
     $body = readJsonBody();
 
     $studentId = (int) ($body['studentId'] ?? 0);
