@@ -10,8 +10,8 @@
  */
 class Consent
 {
-    public const VERSION = '2026-08';
-    public const LABEL = 'August 2026';
+    public const VERSION = '2026-10';
+    public const LABEL = 'October 2026';
     public const METHODS = ['registration', 'staff_signup'];
 
     /** Readable name of a stored version ("2026-08" -> "August 2026"); unknown values are shown as they are. */
