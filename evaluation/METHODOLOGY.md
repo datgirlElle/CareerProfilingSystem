@@ -491,7 +491,12 @@ sample row).
 
 ## 13. Worked examples
 
-### Current method: top-3 binary student vs. binary course (the system)
+### Earlier method (replaced): top-3 binary student vs. binary course
+
+> The web app no longer uses this: its student vector is the six stored scores ÷ 10 (see the update at
+> the top of §2 and `docs/methodology-notes.md` §4). Cosine values are similarity values, not percentages.
+> In `cbf_eval.py`, the `cbf` and `weights` commands still default to `--scale auto`, which turns numeric
+> scores into this top-3 vector; pass `--scale scores` to evaluate the web app's method.
 
 Test student with scores R 36, I 39, A 37, S 32, E 39, C 41:
 - Top 3 = **C, I, E**, so the student vector is **S = [0, 1, 0, 0, 1, 1]**. This matches the

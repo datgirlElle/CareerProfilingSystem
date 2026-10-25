@@ -142,6 +142,48 @@ the 1-2-3 ranking only orders the tied programs, it never removes or demotes one
 **Cosine similarity** is a measure of similarity between two interest patterns. It is not accuracy,
 not a probability of success and not a percentage fit, and it is not shown to students.
 
+**Calculation and validation (audit of 2026-10-26, `tests/cbf_audit_test.php`):**
+- cos(S, C) = (S · C) ÷ (‖S‖ × ‖C‖) over the six values in R, I, A, S, E, C order, computed at full
+  precision. Ranking, Best RIASEC Match and Alternative Courses use the full-precision value (ties
+  within 1e-9); the 4-decimal value is only what is stored and shown.
+- Refused, never substituted: a missing, non-numeric, NaN/infinite or out-of-range (10–50) score; a
+  vector that is not exactly six finite numbers in that order; a code that is not three different
+  RIASEC letters (the program is listed as excluded). A zero vector gives "undefined", not 0; stored
+  profiles cannot be zero (every score is at least 10).
+- Codes are read trimmed and upper-cased, and the same letters are used for the vector, the stored
+  code and the 1-2-3 order inside a tie.
+- With whole-number stored scores, two different cosine levels differ by at least
+  0.1 ÷ (√150 × √3) ≈ 0.0047, so the 4-decimal rounding can never merge or split a tie group, and
+  results re-read from storage group the same way as when they were computed.
+- The low-similarity monitoring flag compares the stored 4-decimal top value with the threshold
+  (`recommendations.top_score` is NUMERIC(5,4)); Monitoring and Analytics use the same stored value,
+  so all three agree. With the 32 approved codes the highest similarity is never below 0.55, so the
+  default 0.50 threshold is unaffected; only a threshold set within 0.00005 of a value would be.
+
+**What the sources support (checked 2026-10-26):**
+- *O\*NET Interest Profiler Manual* (Rounds, Hoff & Lewis, eds., March 2021), Ch. 2–3: the Mini-IP has
+  5 items per type, answers 0 (Strongly Dislike) to 4 (Strongly Like), summed per type (0–20); results
+  are reported as the three highest types in rank order. Supports the item set, the summed scoring
+  and the ordered code. It does not describe cosine similarity, binary program vectors or 3-2-1 weights.
+- *Career Returns within the O\*NET Interest Profiler Tools* (Lewis & Morris, October 2025): O\*NET
+  matches the person's six scores to each occupation's six-score interest profile with the
+  **Pearson correlation** (profile shape, not level), and warns that all "strongly dislike" answers are
+  likely invalid. ProfilePath's binary-code cosine is therefore a **local design choice**, not O\*NET's
+  method: cosine on uncentered scores also reflects the profile's level (a flat profile ties every
+  program at 0.7071), and programs have three-letter codes, not six-score profiles. The all-minimum
+  warning (§5) is consistent with the report.
+- *holland* R package (Hartmann, Heine & Ertl; paper in *Psych* 3(4), 2021, doi:10.3390/psych3040047):
+  the package manual lists letter-code congruence indices (e.g. Iachan, Wiggins & Moody, a
+  position-weighted Hamming distance with default weights 1.5/1.25/1), each with its own position
+  rule. This shows that position weighting is index-specific; it does not support 3-2-1 or cosine for
+  this system. The paper itself could not be opened (HTTP 403); only the package manual was read.
+- *Chu et al. (2022), Journal of Career Assessment 30(4)*: abstract read (full text paywalled).
+  RIASEC scores from four inventories correlate highly but often give different high-point codes, so
+  inventories are not interchangeable. Supports describing results as specific to this item set; it
+  does not validate the program codes or the method.
+- *Rashid et al. (2022)*: not found under that title; do not cite until the exact reference is confirmed.
+- None of these validates ProfilePath's program codes, vectors, cosine method or recommendation accuracy.
+
 ## 5. Flat and insufficiently differentiated profiles
 
 - **All six scores equal:** the student vector points equally at every interest. Every three-letter binary program vector then has cosine 3 ÷ (√6 × √3) ≈ 0.7071, so all 32 programs tie. A high similarity value alone therefore does not mean a clear recommendation.
