@@ -137,7 +137,7 @@ if (isset(PROTECTED_PAGES[$slug])) {
         return true;
     }
     // A staff page whose features are all No Access for this person (the permission table, Security Configuration), or an
-    // administrator-only page (Rbac::ADMIN_PAGES), is refused here too, not only grayed out or left out of the sidebar:
+    // administrator-only page (Rbac::ADMIN_PAGES), is refused here too, not only left out of the sidebar:
     // they go to the first page that is open to them.
     if ($user['role'] !== 'student') {
         $roleKey = Rbac::roleKey($user);

@@ -7,11 +7,12 @@
  * is a child of a menu item, like Student Profile, names its parent).
  * The Logout button below the menu stays in each page's own markup.
  *
- * A page closed to this person (every feature on it is No Access in the permission table, Security Configuration) keeps
- * its icon and name but is grayed out, not a link, with the "not allowed" cursor. The administrator's own pages (Security
- * Configuration, Audit Log) are not shown to other staff at all; they get My Access instead. The list of closed pages comes from
- * api/session.php (user.closedPages): drawn at once from this tab's cached profile, then again from the fresh answer
- * (the 'pp:session' event from js/ui-state.js). router.php refuses those pages too; this only shows it.
+ * A page closed to this person (every feature on it is No Access in the permission table, Security Configuration) is not
+ * shown at all, and a group left with no pages loses its heading too; My Access still lists every feature with its level,
+ * so the person can see why a page is missing. The administrator's own pages (Security Configuration, Audit Log) are not
+ * shown to other staff either; they get My Access instead. The list of closed pages comes from api/session.php
+ * (user.closedPages): drawn at once from this tab's cached profile, then again from the fresh answer (the 'pp:session'
+ * event from js/ui-state.js). router.php refuses those pages too; this only shows it.
  */
 (function () {
   var ICONS = {
@@ -59,9 +60,6 @@
   var ITEM = 'flex items-center gap-3.5 h-[50px] pl-6 rounded-r-lg border-l-[3px] text-sm ';
   var ACTIVE = 'border-[#ed1c24] bg-[#495e88] text-[#ed1c24]';
   var IDLE = 'border-transparent text-white/85 hover:bg-white/5';
-  // Same look as a switch the person cannot use (the session-timeout switch on Security Configuration).
-  var CLOSED = 'border-transparent text-white/85 opacity-60 cursor-not-allowed';
-  var CLOSED_TIP = 'No access. Ask the Head of Guidance.';
 
   var nav = document.currentScript && document.currentScript.previousElementSibling;
   if (!nav || nav.id !== 'adminNav') nav = document.getElementById('adminNav');
@@ -87,16 +85,18 @@
     var key = role + '|' + closed.join(',');
     if (key === drawn) return;
     drawn = key;
-    nav.innerHTML = MENU.map(function (group, i) {
-      var items = group.items.filter(function (it) { return shown(it, role); }).map(function (it) {
-        if (it.id !== active && closed.indexOf(it.id) !== -1) {
-          return '<span class="' + ITEM + CLOSED + '" aria-disabled="true" title="' + CLOSED_TIP + '">' + icon(it) + it.label +
-            '<span class="pp-sr-only">, no access</span></span>';
-        }
+    var first = true;
+    nav.innerHTML = MENU.map(function (group) {
+      var items = group.items.filter(function (it) {
+        return shown(it, role) && (it.id === active || closed.indexOf(it.id) === -1);
+      }).map(function (it) {
         return '<a href="' + it.href + '" class="' + ITEM + (it.id === active ? ACTIVE : IDLE) + '"' + (it.id === active ? ' aria-current="page"' : '') + '>' +
           icon(it) + it.label + '</a>';
       }).join('');
-      return '<p class="px-6 ' + (i === 0 ? 'pt-2' : 'pt-6') + ' pb-2 text-xs font-semibold tracking-wide text-white/60 uppercase">' + group.title + '</p>' + items;
+      if (!items) return '';
+      var heading = '<p class="px-6 ' + (first ? 'pt-2' : 'pt-6') + ' pb-2 text-xs font-semibold tracking-wide text-white/60 uppercase">' + group.title + '</p>';
+      first = false;
+      return heading + items;
     }).join('');
   }
 

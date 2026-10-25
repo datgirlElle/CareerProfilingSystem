@@ -495,10 +495,9 @@ td, th, .break-words { overflow-wrap: break-word; }
 }
 
 /* Sidebar menu rows never shrink below a comfortable size on short screens; the menu scrolls instead.
-   Phones get 44px rows (finger-sized tap targets). A page closed to this person (grayed, js/admin-nav.js) keeps the
-   same row size. */
-#sidebar nav a, #sidebar nav > [aria-disabled="true"] { flex-shrink: 0; min-height: 36px; }
-@media (max-width: 47.99rem) { #sidebar nav a, #sidebar nav > [aria-disabled="true"] { height: 44px; } }
+   Phones get 44px rows (finger-sized tap targets). */
+#sidebar nav a { flex-shrink: 0; min-height: 36px; }
+@media (max-width: 47.99rem) { #sidebar nav a { height: 44px; } }
 .pl-16 { padding-left: 4rem; }
 .text-purple-700 { color: #7e22ce; }
 /* Page titles: one size and colour on every staff and student page. */
