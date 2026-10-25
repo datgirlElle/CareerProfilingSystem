@@ -178,11 +178,8 @@
   // ---- This person's level for each feature, grouped like the sidebar (js/rbac-features.js). The administrator has every
   // feature and changes the table on Security Configuration, so they get a short note instead.
   const LEVEL_LABEL = { full: 'Full Access', limited: 'View Only', none: 'No Access' };
-  const LEVEL_PILL = {
-    full: 'bg-green-50 border border-green-200 text-green-700',
-    limited: 'bg-amber-50 border border-amber-200 text-amber-700',
-    none: 'bg-slate-100 border border-slate-200 text-slate-600'
-  };
+  // The shared status badge (PP.badge, css/components.css): green full, amber look only, gray none.
+  const LEVEL_TONE = { full: 'green', limited: 'amber', none: 'gray' };
   const list = document.getElementById('accessList');
   list.removeAttribute('aria-busy');
   if (currentUser.role === 'admin') {
@@ -203,7 +200,7 @@
           return '<div class="flex items-center justify-between gap-4 px-5 py-3">' +
             '<div class="flex items-start gap-3"><span class="text-slate-500 mt-0.5">' + p.icon + '</span>' +
             '<div><p class="text-sm font-medium text-slate-800">' + name + '</p><p class="text-xs text-slate-500">' + m.desc + '</p></div></div>' +
-            '<span class="' + LEVEL_PILL[lvl] + ' text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap">' + LEVEL_LABEL[lvl] + '</span>' +
+            PP.badge(LEVEL_LABEL[lvl], LEVEL_TONE[lvl]) +
             '</div>';
         }).join('');
       }).join('');
