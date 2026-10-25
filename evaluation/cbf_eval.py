@@ -17,6 +17,11 @@ encodings, and prepares identical train/test splits for WEKA.
                                                                   -> how often the imported WEKA model's course
                                                                      is also a CBF Best RIASEC Match, per student
 
+Student vector (--scale): every CBF command defaults to "production", the web app's vector (stored
+scores 10-50 / 10, CBFEngine::studentVector). Use "onet-mini" for O*NET Mini-IP 0-20 sums. Results made
+before 2026-10-26 used "auto"/"top3" (cbf, weights) or "scores" (compare, agreement); name the mode to
+reproduce them (evaluation/METHODOLOGY.md). The repository's 0-10 count files need a historical mode.
+
 Rows whose course is "Undecided" (or another --drop value) are removed when the file is read:
 they are not a course, so neither method can recommend them. The .arff files give WEKA the
 top 3 RIASEC types as x/blank (the format modules/ContentBasedFiltering/lib/PredictionModel.php runs in the web app); the
@@ -128,9 +133,20 @@ def third_place_tie(row):
     return abs(vals[2] - vals[3]) < 1e-9
 
 
+PRODUCTION_SCALE = "production"
+SCALES = ["production", "onet-mini", "auto", "top3", "scores", "unit", "raw50", "minmax"]
+
+
 def student_vector(row, scale="auto"):
     """Student RIASEC result -> [R,I,A,S,E,C].
 
+    production : ProfilePath stored scores (assessments.score_r .. score_c, 10-50) / 10, exactly
+                 CBFEngine::studentVector() in the web app. The default of every CBF command on the
+                 command line (--scale); this function keeps "auto" for existing callers.
+    onet-mini  : O*NET Mini Interest Profiler sums (five 0-4 answers per type, 0-20) converted to
+                 the stored scale first (stored = 2 x O*NET + 10, docs/methodology-notes.md §1.1),
+                 then / 10: what the web app computes for the same answers.
+    Historical modes (kept so earlier results can be reproduced; name them explicitly):
     auto   : x/blank cells -> 1/0 as given; numeric scores -> top-3 binary
     top3   : numeric scores -> 1 for the 3 highest, 0 otherwise
     scores : the actual scores as given (any non-negative scale). This is the web app's
@@ -141,11 +157,25 @@ def student_vector(row, scale="auto"):
     minmax : (raw - 10) / 40, so an all-"1" dimension becomes 0 (DOES change cosine)
     """
     if is_marked_row(row):
+        if scale in ("production", "onet-mini"):
+            raise ValueError(f"Student {row.get('StudentID')}: x/blank marks have no scores; the {scale} scale needs "
+                             "numeric scores (use --scale top3 for marked data)")
         return [1.0 if str(row[d]).strip().lower() in MARK_YES else 0.0 for d in DIMENSIONS]
     try:
         vals = [float(row[d]) for d in DIMENSIONS]
     except ValueError:
         raise ValueError(f"Student {row.get('StudentID')}: R..C must be x/blank marks or numbers")
+    if any(not math.isfinite(v) for v in vals):
+        raise ValueError(f"Student {row.get('StudentID')}: scores must be finite numbers")
+    if scale == "production":
+        if any(v < 10 or v > 50 for v in vals):
+            raise ValueError(f"Student {row.get('StudentID')}: production scale needs ProfilePath stored scores 10-50 "
+                             "(use --scale onet-mini for O*NET Mini-IP 0-20 sums, or a named historical scale)")
+        return [v / 10 for v in vals]
+    if scale == "onet-mini":
+        if any(v < 0 or v > 20 or v != int(v) for v in vals):
+            raise ValueError(f"Student {row.get('StudentID')}: onet-mini scale needs whole-number O*NET Mini-IP sums 0-20")
+        return [(2 * v + 10) / 10 for v in vals]
     if scale in ("auto", "top3"):
         return top_binary(vals)
     if scale == "scores":
@@ -513,7 +543,7 @@ def cmd_compare(a):
     cvecs = course_vectors(ENCODINGS[DEFAULT_ENCODING])
     k = a.k
     has_scores = not any(is_marked_row(r) for r in test)
-    cbf_scales = (["scores"] if has_scores else []) + ["top3"]
+    cbf_scales = ([a.scale] if has_scores and a.scale not in ("auto", "top3") else []) + ["top3"]
     majority = Counter(r["ActualCourse"] for r in train).most_common(1)[0][0]
 
     res, per = {}, {"J48": {"top1": [], "hitk": [], "rr": []}}
@@ -632,7 +662,7 @@ def cmd_agreement(a):
     rows = read_students(a.students)
     with open(a.model, encoding="utf-8") as f:
         model = json.load(f)
-    scale = "scores" if not any(is_marked_row(r) for r in rows) else "top3"
+    scale = a.scale if not any(is_marked_row(r) for r in rows) else "top3"
     cvecs = course_vectors(ENCODINGS[DEFAULT_ENCODING])
     code = {n: f for _, n, _, f in COURSES}
     per_combo = {}
@@ -656,7 +686,7 @@ def cmd_agreement(a):
         own_in += r["ActualCourse"] in best
         c["own"] += r["ActualCourse"] in best
     n = len(rows)
-    print(f"\nStudents: {n}  (CBF student vector: {'actual scores, as the web app' if scale == 'scores' else 'top-3 x/blank'};"
+    print(f"\nStudents: {n}  (CBF student vector: scale={scale}{' (the web app)' if scale in ('production', 'onet-mini') else ''};"
           f" model: {model.get('version', '?')}, features {model.get('features', 'top3')})\n")
     print(f"{'Top 3':6} {'Students':>8}  {'WEKA predicts':32} {'code':5} {'WEKA in Best Match':>18} {'Own course in Best Match':>25}")
     for combo, c in sorted(per_combo.items(), key=lambda kv: -kv[1]["n"]):
@@ -669,7 +699,12 @@ def cmd_agreement(a):
     print(f"Distinct top-3 patterns in the data: {len(per_combo)} of 20; the earlier '7 of 20' counted each pattern once, regardless of how many students have it.")
 
 
-def main():
+SCALE_HELP = ("Student vector. Default 'production' = the web app (stored scores 10-50 / 10); 'onet-mini' for O*NET "
+              "Mini-IP 0-20 sums. Results made before 2026-10-26 used 'auto' (cbf, weights: top-3 binary) or 'scores' "
+              "(compare, agreement); pass that name to reproduce them.")
+
+
+def build_parser():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
     c = sub.add_parser("courses")
@@ -677,7 +712,7 @@ def main():
     for name in ("split", "cbf", "weights"):
         s = sub.add_parser(name)
         s.add_argument("--students", required=True)
-        s.add_argument("--scale", choices=["auto", "top3", "scores", "unit", "raw50", "minmax"], default="auto")
+        s.add_argument("--scale", choices=SCALES, default=PRODUCTION_SCALE, help=SCALE_HELP)
         if name == "split":
             s.add_argument("--test-fraction", type=float, default=0.3)
             s.add_argument("--seed", type=int, default=42)
@@ -694,13 +729,27 @@ def main():
     g = sub.add_parser("agreement")
     g.add_argument("--students", required=True, help="student CSV with the course column (all students)")
     g.add_argument("--model", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "prediction_model.json"))
+    g.add_argument("--scale", choices=SCALES, default=PRODUCTION_SCALE, help=SCALE_HELP + " x/blank files always use top3.")
     c = sub.add_parser("compare")
+    c.add_argument("--scale", choices=SCALES, default=PRODUCTION_SCALE,
+                   help=SCALE_HELP + " The CBF is also reported with top3 for reference; x/blank files use top3 only.")
     c.add_argument("--train", required=True, help="train.csv from `split` (for the most-frequent baseline)")
     c.add_argument("--students", required=True, help="test.csv from `split`")
     c.add_argument("--weka", required=True, help="WEKA result buffer with CSV predictions on test.arff")
     c.add_argument("--k", type=int, default=3)
     c.add_argument("--out", default="comparison_results.csv")
-    a = p.parse_args()
+    return p
+
+
+def main():
+    a = build_parser().parse_args()
+    try:
+        _run(a)
+    except ValueError as e:   # e.g. a file that does not fit the chosen --scale: say so, no traceback
+        raise SystemExit(f"error: {e}")
+
+
+def _run(a):
     {"courses": cmd_courses, "split": cmd_split, "cbf": cmd_cbf, "weights": cmd_weights, "compare": cmd_compare, "agreement": cmd_agreement, "arff": cmd_arff}[a.cmd](a)
 
 

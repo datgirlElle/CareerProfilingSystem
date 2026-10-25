@@ -132,6 +132,34 @@ function readProgramInput(array $body): array
     return [$title, $hollandCode, $description, $collegeId, $status, $careers, $relatedStrands];
 }
 
+/**
+ * The CBF compares every student with every Active program's Holland code, so adding an Active program,
+ * activating or deactivating one, or changing a code changes saved results. Recompute them now with the
+ * same pipeline a worksheet submission uses (CBFData::recomputeAll), so no one sees results built on the
+ * old program list. Title, description, careers, college and strands do not enter the CBF.
+ *
+ * The program change is already saved. Students whose recompute fails keep their previous result, which
+ * modules/ContentBasedFiltering/api/recommendations.php then reports as needsRecompute; the count is
+ * returned and audited so staff can run php db/recompute_recommendations.php.
+ *
+ * @return array{recomputed:int, recomputeFailed:int, recomputeError?:string}
+ */
+function recomputeAfterProgramChange(PDO $pdo, array $user, int $programId, string $change): array
+{
+    try {
+        $result = CBFData::recomputeAll($pdo);
+        $out = ['recomputed' => $result['recomputed'], 'recomputeFailed' => $result['failed']];
+    } catch (Throwable $e) {
+        error_log('[programs] recompute after program change: ' . $e->getMessage());
+        $out = ['recomputed' => 0, 'recomputeFailed' => 0, 'recomputeError' => 'Recommendations could not be recomputed.'];
+    }
+    AuditLogger::log($user['id'], $user['role'], 'recompute_recommendations', 'program', (string) $programId,
+        "$change: {$out['recomputed']} students' recommendations recomputed"
+        . ($out['recomputeFailed'] ? ", {$out['recomputeFailed']} failed" : '')
+        . (isset($out['recomputeError']) ? ', recompute did not run' : ''));
+    return $out;
+}
+
 if ($method === 'POST') {
     $user = Rbac::requireAccess('career', 'full');
     $body = readJsonBody();
@@ -150,7 +178,11 @@ if ($method === 'POST') {
             $user['id'], $user['role'], $newStatus === 'Active' ? 'activate_program' : 'deactivate_program',
             'program', (string) $id
         );
-        jsonResponse(['success' => true, 'status' => $newStatus]);
+        $titleStmt = $pdo->prepare('SELECT title_enc FROM programs WHERE id = ?');
+        $titleStmt->execute([$id]);
+        $title = Crypto::dec($titleStmt->fetchColumn());
+        jsonResponse(['success' => true, 'status' => $newStatus]
+            + recomputeAfterProgramChange($pdo, $user, $id, ($newStatus === 'Active' ? 'Activated ' : 'Deactivated ') . $title));
     }
 
     [$title, $hollandCode, $description, $collegeId, $status, $careers, $relatedStrands] = readProgramInput($body);
@@ -170,7 +202,9 @@ if ($method === 'POST') {
 
     AuditLogger::log($user['id'], $user['role'], 'create_program', 'program', (string) $id, $title);
 
-    jsonResponse(['success' => true, 'id' => $id]);
+    // An Inactive program is not compared, so only an Active one changes saved results.
+    jsonResponse(['success' => true, 'id' => $id]
+        + ($status === 'Active' ? recomputeAfterProgramChange($pdo, $user, $id, "Added {$title} ({$hollandCode})") : []));
 }
 
 if ($method === 'PUT') {
@@ -228,15 +262,18 @@ if ($method === 'PUT') {
          'description' => 'Description', 'careers' => 'Careers', 'relatedStrands' => 'Related SHS strands']
     ));
 
-    // The CBF compares every student with every program's Holland code, so a new code changes saved
-    // results. Recompute them now, so no student or staff member sees results built on the old code.
-    if ($hollandCode !== $before['hollandCode']) {
-        $result = CBFData::recomputeAll($pdo);
-        AuditLogger::log($user['id'], $user['role'], 'recompute_recommendations', 'program', (string) $id,
-            "Holland code of {$title} changed {$before['hollandCode']} -> {$hollandCode}: {$result['recomputed']} students' recommendations recomputed"
-            . ($result['failed'] ? ", {$result['failed']} failed" : ''));
-        jsonResponse(['success' => true, 'hollandCodeChanged' => true, 'previousHollandCode' => $before['hollandCode'],
-            'hollandCode' => $hollandCode, 'recomputed' => $result['recomputed'], 'recomputeFailed' => $result['failed']]);
+    // A new code or status changes saved results (recomputeAfterProgramChange); other fields do not.
+    $codeChanged = $hollandCode !== $before['hollandCode'];
+    $statusChanged = $status !== $before['status'];
+    if ($codeChanged || $statusChanged) {
+        $change = implode('; ', array_filter([
+            $codeChanged ? "Holland code of {$title} changed {$before['hollandCode']} -> {$hollandCode}" : null,
+            $statusChanged ? "{$title} " . ($status === 'Active' ? 'activated' : 'deactivated') : null,
+        ]));
+        $recompute = recomputeAfterProgramChange($pdo, $user, $id, $change);
+        jsonResponse(['success' => true, 'hollandCodeChanged' => $codeChanged]
+            + ($codeChanged ? ['previousHollandCode' => $before['hollandCode'], 'hollandCode' => $hollandCode] : [])
+            + ['statusChanged' => $statusChanged] + $recompute);
     }
 
     jsonResponse(['success' => true, 'hollandCodeChanged' => false]);

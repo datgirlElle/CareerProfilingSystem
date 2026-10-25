@@ -101,10 +101,12 @@ class CBFData
     /**
      * Recompute every student who has a Career Worksheet with the current program codes and
      * settings: their latest RIASEC assessment and latest worksheet, saved as a new
-     * `recommendations` row each (older rows stay as history). Used after a program's Holland code
-     * changes (modules/CareerDataset/api/programs.php) and by db/recompute_recommendations.php.
+     * `recommendations` row each (older rows stay as history). Used after a change to the programs the
+     * CBF compares (modules/CareerDataset/api/programs.php: added, activated, deactivated, new code) and by
+     * db/recompute_recommendations.php.
      * Each student is saved in a transaction of its own; one failure does not stop the others.
-     * Sends nothing to students.
+     * A student who could not be saved (an error, or no Active program to compare with) counts as failed:
+     * their previous result stays and is reported as needsRecompute (isStale()). Sends nothing to students.
      *
      * @param callable|null $report called per student: fn(string $schoolId, ?array $saved, ?string $error)
      * @return array{recomputed: int, failed: int}
@@ -130,7 +132,7 @@ class CBFData
                     $pdo, (int) $st['user_id'], $profile, $profile['statedProgramId'], (int) $st['assessment_id'], (int) $st['worksheet_id']
                 );
                 $pdo->commit();
-                $done++;
+                $saved !== null ? $done++ : $failed++;   // null: no Active program, nothing saved
                 if ($report) {
                     $report($st['school_id'], $saved, null);
                 }
@@ -225,6 +227,32 @@ class CBFData
         return ['recommendationId' => $recommendationId, 'topProgramId' => $topProgramId, 'topScore' => $topScore,
             'status' => $result['status'], 'reason' => $result['reason'],
             'bestRiasecMatchTitles' => $named($result['bestRiasecMatchIds']), 'alternativeTitles' => $named($result['alternativeIds'])];
+    }
+
+    /**
+     * Whether a saved result was computed against a different program list than the one active now:
+     * a program added, activated or deactivated, or a Holland code changed since, with no recompute saved
+     * (a failed recompute, or a change made outside the Career Dataset page, e.g. a db/ script). Pure.
+     *
+     * @param array $savedScores the result's `scores` (one entry per program compared: programId, hollandCode)
+     * @param array $activePrograms activePrograms()
+     */
+    public static function isStale(array $savedScores, array $activePrograms): bool
+    {
+        $saved = [];
+        foreach ($savedScores as $s) {
+            $saved[(int) $s['programId']] = strtoupper(trim((string) ($s['hollandCode'] ?? '')));
+        }
+        $current = [];
+        foreach ($activePrograms as $p) {
+            $code = strtoupper(trim((string) ($p['hollandCode'] ?? '')));
+            if (CBFEngine::courseVector($code) !== null) {   // programs the CBF actually compares
+                $current[(int) $p['id']] = $code;
+            }
+        }
+        ksort($saved);
+        ksort($current);
+        return $saved !== $current;
     }
 
     /** PostgreSQL INT[] literal, e.g. {3,4,6}. */

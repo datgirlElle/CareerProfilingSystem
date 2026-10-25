@@ -187,6 +187,26 @@ scores. §9 explains how evaluation handles ties, and §11 discusses this as a t
 > Course vectors stay binary (§3), and there are no weights of any kind. This replaces the
 > top-3 binary student vector described in item 3 below for the web app.
 >
+> **Student-vector modes (`--scale`, 2026-10-26).** `cbf`, `weights`, `split`, `compare` and `agreement`
+> default to **`production`**: ProfilePath stored scores (10–50) ÷ 10, exactly `CBFEngine::studentVector()`
+> (`tests/cbf_audit_test.php` runs this script against `CBFEngine` on every approved code). **`onet-mini`**
+> takes O\*NET Mini-IP sums (0–20) and applies the documented conversion (stored = 2 × O\*NET + 10)
+> first. A file that does not fit the chosen mode is refused with a message; nothing is silently
+> rescaled. Cosine is not shift-invariant, so `scores` on O\*NET 0–20 sums, or on any other instrument's
+> counts, is **not** the web app's method.
+>
+> The files in this folder (`riasec.csv`, `train.csv`, `test.csv`) hold 0–10 counts from an earlier
+> instrument, which cannot be converted to ProfilePath scores; `production` refuses them. Earlier results
+> were made with the historical modes and are reproduced by naming them:
+>
+> | Result | Mode used | Reproduce with |
+> |---|---|---|
+> | `cbf` / `weights` output before 2026-10-26 | `auto` (numeric scores → top-3 binary) | `--scale auto` (or `top3`) |
+> | `comparison_results.csv` (`compare`): `CBF_scores_*` and `CBF_top3_*` columns | `scores` (counts as given) and `top3` | `compare --scale scores …` |
+> | `agreement` output before 2026-10-26 | `scores` for numeric files, `top3` for x/blank | `--scale scores` |
+> | `experiment_report.md` (`model_experiment.py`): "student=scores" / "student=top3" rows | `scores` / `top3`; the "(web app)" label means binary program vectors, and equals the web app's student vector only for stored 10–50 scores | unchanged (`model_experiment.py` names its modes) |
+> | WEKA files (`arff`, `split`) | top-3 binary (the deployed J48 inputs) | unchanged |
+>
 > **Toolkit update (CBF vs J48 comparison).** `cbf_eval.py` now has `--scale scores`, which
 > uses the student's actual scores as given, like the web app (cosine ignores the unit, so
 > 10–50 totals, 1–5 means or 0–10 counts on one scale give the same ranking). `compare`
@@ -480,6 +500,8 @@ separate; none is given a numeric weight, and the worksheet never enters the cos
 7. WEKA J48: train on `train.arff`, *Supplied test set* = `test.arff`, CSV predictions with
    distribution (§8); save the result buffer, e.g. `j48_test.txt`.
 8. `python3 cbf_eval.py compare --train train.csv --students test.csv --weka j48_test.txt`
+   (stored 10–50 scores; add `--scale onet-mini` for O\*NET 0–20 sums, `--scale scores` to reproduce
+   `comparison_results.csv` on the 0–10 count files)
    → §9's table on the same test students: random and most-frequent baselines, J48, CBF
    (actual scores) and CBF (top-3); Top-1, Hit@3 and MRR; paired bootstrap CIs and McNemar's
    test; per-student `comparison_results.csv`.
@@ -491,7 +513,12 @@ sample row).
 
 ## 13. Worked examples
 
-### Current method: top-3 binary student vs. binary course (the system)
+### Earlier method (replaced): top-3 binary student vs. binary course
+
+> The web app no longer uses this: its student vector is the six stored scores ÷ 10 (see the update at
+> the top of §2 and `docs/methodology-notes.md` §4). Cosine values are similarity values, not percentages.
+> Since 2026-10-26 every `cbf_eval.py` CBF command defaults to `--scale production` (see "Student-vector
+> modes" below); this top-3 method is `--scale top3`.
 
 Test student with scores R 36, I 39, A 37, S 32, E 39, C 41:
 - Top 3 = **C, I, E**, so the student vector is **S = [0, 1, 0, 0, 1, 1]**. This matches the

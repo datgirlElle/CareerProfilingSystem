@@ -573,6 +573,7 @@
         btn.disabled = false;
         if (!data.success) { showToast(data.error || 'Failed to update career.', true); return; }
         await loadData();
+        showToast((data.status === 'Active' ? 'Reactivated. ' : 'Deactivated. ') + recomputeNote(data), recomputeIncomplete(data));
       });
     });
   }
@@ -664,14 +665,26 @@
     await loadData();
     closeEditModal();
     if (data.hollandCodeChanged) {
-      showToast('Saved. RIASEC code changed from ' + data.previousHollandCode + ' to ' + data.hollandCode + '; ' +
-        data.recomputed + (data.recomputed === 1 ? ' student\'s' : ' students\'') + ' recommendations were updated.' +
-        (data.recomputeFailed ? ' ' + data.recomputeFailed + ' could not be updated; run php db/recompute_recommendations.php.' : ''),
-        data.recomputeFailed > 0);
+      showToast('Saved. RIASEC code changed from ' + data.previousHollandCode + ' to ' + data.hollandCode + '; ' + recomputeNote(data),
+        recomputeIncomplete(data));
+    } else if (data.statusChanged) {
+      showToast('Saved. ' + recomputeNote(data), recomputeIncomplete(data));
     } else {
       showToast('Saved.');
     }
   });
+
+  // Program changes that alter the CBF comparison recompute every saved recommendation (api/programs.php).
+  function recomputeIncomplete(data) {
+    return data.recomputeFailed > 0 || !!data.recomputeError;
+  }
+  function recomputeNote(data) {
+    if (data.recomputeError) {
+      return 'Recommendations could not be updated; run php db/recompute_recommendations.php.';
+    }
+    return data.recomputed + (data.recomputed === 1 ? ' student\'s' : ' students\'') + ' recommendations were updated.' +
+      (data.recomputeFailed ? ' ' + data.recomputeFailed + ' could not be updated; run php db/recompute_recommendations.php.' : '');
+  }
 
   // ---- Filters wiring ----
   searchInput.addEventListener('input', applyFilters);
