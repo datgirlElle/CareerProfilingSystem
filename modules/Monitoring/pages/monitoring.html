@@ -229,7 +229,7 @@
 <div id="reviewModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
   <div class="modal-card pp-dialog pp-dialog-lg">
     <div class="pp-dialog-head">
-      <h2 class="pp-dialog-title">Review recommendation</h2>
+      <h2 id="reviewTitle" class="pp-dialog-title">Review recommendation</h2>
       <button type="button" class="pp-dialog-x" data-dialog-close aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <div class="pp-dialog-form">
@@ -376,7 +376,7 @@
       '<td class="px-6 py-3 text-sm font-bold ' + matchClass(r.match) + '">' + escapeHtml(r.match) + '</td>' +
       '<td class="px-6 py-3 text-sm text-slate-600">' + escapeHtml(r.reason) + '</td>' +
       '<td class="px-6 py-3">' + PP.badge(r.priority, PRIORITY_TONE[r.priority] || 'gray') + '</td>' +
-      '<td class="px-6 py-3"><a href="#" class="review-link flex items-center gap-1 text-sm text-blue-600 hover:underline" data-flag-id="' + r.flagId + '">Review' +
+      '<td class="px-6 py-3"><a href="#" class="review-link flex items-center gap-1 text-sm text-blue-600 hover:underline" data-flag-id="' + r.flagId + '">' + (canAct ? 'Review' : 'View') +
         '<img src="images/monitoring/icon-chevron-right3.svg" alt="" class="w-1.5 h-2.5"></a></td>' +
     '</tr>';
   }
@@ -473,7 +473,8 @@
     document.getElementById('reviewApproveText').textContent = 'It stands as it is. The flag leaves the review list.';
     document.getElementById('reviewDismissText').textContent = 'Nothing needs to be done. The flag leaves the review list.';
     document.querySelectorAll('input[name="reviewAction"]').forEach(function(input) { input.checked = false; });
-    // View Only staff see the details without the decision part.
+    // View Only staff see the details without the decision part (the link and the title say View, not Review).
+    document.getElementById('reviewTitle').textContent = canAct ? 'Review recommendation' : 'Recommendation details';
     document.getElementById('reviewDecision').classList.toggle('hidden', !canAct);
     document.getElementById('reviewNoteWrap').classList.toggle('hidden', !canAct);
     reviewSubmit.classList.toggle('hidden', !canAct);
