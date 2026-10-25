@@ -183,7 +183,7 @@
   let canInvite = currentUser.role === 'admin';
   try {
     const inviteCfg = await (await fetch('api/security-config.php')).json();
-    canInvite = ((inviteCfg.rbac && inviteCfg.rbac.counselingNotes && inviteCfg.rbac.counselingNotes[currentUser.rbacRole || currentUser.role]) || 'none') === 'full' && (currentUser.rbacRole || currentUser.role) !== 'facilitator'; // Facilitators never invite or decide retakes (DFD process 4.0)
+    canInvite = ((inviteCfg.rbac && inviteCfg.rbac.counselingStatus && inviteCfg.rbac.counselingStatus[currentUser.rbacRole || currentUser.role]) || 'none') === 'full' && (currentUser.rbacRole || currentUser.role) !== 'facilitator'; // Facilitators never invite or decide retakes (DFD process 4.0)
   } catch (e) {}
   async function sendCounselingInvite(studentId) {
     const res = await fetch('api/counseling-invite.php', {
@@ -219,7 +219,8 @@
     const statusBadge = r.status === 'open'
       ? PP.badge('Open — #' + r.queueNumber + ' in queue', 'amber')
       : PP.badge('Resolved', 'green');
-    const resolveBtn = r.status === 'open'
+    // Resolving needs Full on Update counseling status (canInvite holds that level, see above).
+    const resolveBtn = r.status === 'open' && canInvite
       ? '<button type="button" class="resolve-btn shrink-0 bg-[#ed1c24] text-white text-sm font-semibold rounded-md px-4 py-2 hover:opacity-90" data-id="' + r.id + '">Mark Resolved</button>'
       : '';
     const inviteBtn = canInvite && r.studentId
@@ -231,7 +232,7 @@
         '<p class="text-xs text-slate-500 mt-0.5">' + escapeHtml(r.name) + (r.strand ? ' (' + escapeHtml(r.strand) + (r.section ? ' ' + escapeHtml(r.section) : '') + ')' : '') + ' &middot; ' + formatDate(r.sentAt) + '</p></div>' +
         statusBadge +
       '</div>' +
-      '<p class="text-sm text-slate-700 leading-relaxed">' + escapeHtml(r.message) + '</p>' +
+      (r.message === null ? '<p class="text-sm text-slate-500 italic">Not shown to you: your access to counseling history is View Only.</p>' : '<p class="text-sm text-slate-700 leading-relaxed">' + escapeHtml(r.message) + '</p>') +
       ((inviteBtn || resolveBtn) ? '<div class="flex justify-end gap-2">' + inviteBtn + resolveBtn + '</div>' : '') +
     '</div>';
   }
@@ -284,7 +285,7 @@
         '<p class="text-xs text-slate-500 mt-0.5">' + escapeHtml(r.strand) + (r.section ? ' ' + escapeHtml(r.section) : '') + ' &middot; Asked ' + formatDate(r.requestedAt) + ' &middot; Result on record: attempt #' + r.attemptNumber + '</p></div>' +
         badge +
       '</div>' +
-      '<p class="text-sm text-slate-700 leading-relaxed">' + escapeHtml(r.reason) + '</p>' +
+      (r.reason === null ? '<p class="text-sm text-slate-500 italic">Not shown to you: your access to counseling history is View Only.</p>' : '<p class="text-sm text-slate-700 leading-relaxed">' + escapeHtml(r.reason) + '</p>') +
       answered + actions +
     '</div>';
   }

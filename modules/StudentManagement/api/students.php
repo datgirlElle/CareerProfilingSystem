@@ -17,8 +17,21 @@ $pdo = Database::get();
 // Sections this staff member handles (null = everyone): see modules/UserManagement/lib/StaffScope.php.
 $scope = StaffScope::forUser($pdo, $user);
 
+// What this person may do here (the permission table, Security Configuration): the summary cards and charts
+// (dashboard), the student list and profiles (studentInfo), account actions (studentAccounts), results on the profile
+// (assessmentResults) and downloads with student names (exportResults, Full).
+$levels = Rbac::levelsFor(Rbac::roleKey($user));
+$may = fn(string $module, string $min = 'limited'): bool => Rbac::atLeast($levels[$module], $min);
+$refuse = fn() => jsonResponse(['success' => false, 'error' => 'Insufficient permissions for this action.'], 403);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $body = readJsonBody();
+    if (in_array($body['type'] ?? '', ['toggleActive', 'unlock'], true) && !$may('studentAccounts', 'full')) {
+        $refuse();
+    }
+    if (($body['type'] ?? '') === 'updateSection' && !$may('studentInfo', 'full')) {
+        $refuse();
+    }
     if (($body['type'] ?? '') === 'toggleActive') {
         $targetId = (int) ($body['userId'] ?? 0);
         $stmt = $pdo->prepare("SELECT u.id, u.is_active, s.strand, s.section FROM users u LEFT JOIN students s ON s.user_id = u.id WHERE u.id = ? AND u.role = 'student'");
@@ -121,6 +134,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 // URL query params.
 $idLookup = (int) ($_GET['id'] ?? 0);
 if ($idLookup > 0) {
+    if (!$may('studentInfo')) {
+        $refuse();
+    }
+    $seesResults = $may('assessmentResults');
+    $seesAccounts = $may('studentAccounts'); // No Access on Student account management: no active or locked state is sent
     $stmt = $pdo->prepare(
         'SELECT s.user_id, s.first_name_enc, s.last_name_enc, s.strand, s.grade_level, s.section,
                 s.academic_year, s.registered_at, u.is_active, u.locked_until, a.top_types, a.completed_at, a.score_r, a.score_i, a.score_a,
@@ -161,7 +179,7 @@ if ($idLookup > 0) {
     );
     $attemptsStmt->execute([(int) $row['user_id']]);
 
-    $attempts = array_map(fn($a) => [
+    $attempts = !$seesResults ? [] : array_map(fn($a) => [
         'attemptNumber' => (int) $a['attempt_number'],
         'completedAt' => $a['completed_at'],
         'riasec' => implode(', ', json_decode($a['top_types'], true)),
@@ -190,12 +208,14 @@ if ($idLookup > 0) {
             return $sections;
         })(),
         'academicYear' => $row['academic_year'],
-        'isActive' => (bool) $row['is_active'],
+        'isActive' => $seesAccounts ? (bool) $row['is_active'] : null,
         // Set while the account is locked by wrong passwords (the profile then offers Unlock).
-        'lockedUntil' => $row['locked_until'] !== null && strtotime($row['locked_until']) > time() ? $row['locked_until'] : null,
+        'lockedUntil' => $seesAccounts && $row['locked_until'] !== null && strtotime($row['locked_until']) > time() ? $row['locked_until'] : null,
         'status' => $hasAssessment ? 'Completed' : 'Pending',
-        'riasec' => $hasAssessment ? implode(', ', json_decode($row['top_types'], true)) : '',
-        'scores' => $hasAssessment ? [
+        // Without Assessment results the profile shows whether the student finished, but no RIASEC code, scores or attempts.
+        'seesResults' => $seesResults,
+        'riasec' => $hasAssessment && $seesResults ? implode(', ', json_decode($row['top_types'], true)) : '',
+        'scores' => $hasAssessment && $seesResults ? [
             'R' => (int) $row['score_r'], 'I' => (int) $row['score_i'], 'A' => (int) $row['score_a'],
             'S' => (int) $row['score_s'], 'E' => (int) $row['score_e'], 'C' => (int) $row['score_c'],
         ] : null,
@@ -222,6 +242,29 @@ $accountFilter = (string) ($_GET['account'] ?? '');           // active | inacti
 $assessmentFilter = (string) ($_GET['assessment'] ?? '');     // assessed | notAssessed
 $asCsv = ($_GET['format'] ?? '') === 'csv';
 $asPdf = ($_GET['format'] ?? '') === 'pdf';
+
+// The Announcements student picker (?all=1) needs the list to choose who gets an announcement, so Full on Announcements
+// opens it too. Everything else needs the cards (dashboard) or the list (studentInfo); downloads with names need Full on
+// Export student results.
+$isPicker = isset($_GET['all']) && $may('announcements', 'full');
+$seesList = $may('studentInfo') || $isPicker;
+$seesCards = $may('dashboard');
+if (!$seesList && !$seesCards) {
+    $refuse();
+}
+if (!$seesList) {
+    $search = ''; // no names are decrypted for someone who only sees the cards
+}
+if (($asCsv || $asPdf) && (!$may('exportResults', 'full') || !$may('studentInfo'))) {
+    $refuse();
+}
+$exportsResults = $may('assessmentResults'); // the downloads leave out the RIASEC code without Assessment results
+// Without Student account management (No Access), a student's account state (active, deactivated, locked) is not sent,
+// shown in a download, or usable as a filter.
+$seesAccounts = $may('studentAccounts');
+if (!$seesAccounts) {
+    $accountFilter = '';
+}
 
 $rows = $pdo->query(
     'SELECT s.user_id, s.school_id, s.first_name_enc, s.last_name_enc, s.strand, s.grade_level, s.section, s.registered_at, s.academic_year,
@@ -428,6 +471,10 @@ if ($search !== '') {
     $filtered = array_values(array_filter(array_map($withName, $filtered), fn($s) => str_contains(mb_strtolower($s['name']), $needle)));
 }
 
+if (($asCsv || $asPdf) && !$exportsResults) {
+    $filtered = array_map(fn($s) => ['riasec' => ''] + $s, $filtered); // no RIASEC code in the file
+}
+
 // A downloadable copy of the list as filtered (every row, not just one page), for following up with
 // students who haven't registered or haven't taken the assessment.
 if ($asCsv) {
@@ -504,7 +551,7 @@ if ($asPdf) {
             (string) ($s['_schoolId'] ?? ''),
             (string) $s['strand'],
             (string) $s['section'],
-            $s['userId'] === null ? 'No account' : (!$s['isActive'] ? 'Deactivated' : (!empty($s['locked']) ? 'Locked' : 'Active')),
+            !$seesAccounts ? '-' : ($s['userId'] === null ? 'No account' : (!$s['isActive'] ? 'Deactivated' : (!empty($s['locked']) ? 'Locked' : 'Active'))),
             $s['mismatched'] ? 'Mismatched' : $s['status'],   // a mismatched result is always a completed one
             $s['assessmentDate'] ? date('M j, Y', strtotime((string) $s['assessmentDate'])) : '-',
             QuestionBank::hollandCode(array_values(array_filter(explode(', ', (string) ($s['riasec'] ?? ''))))) ?: '-',
@@ -535,17 +582,33 @@ if ($asPdf) {
     exit;
 }
 
+// Only the cards: no student rows (and no names) leave the server.
+if (!$seesList) {
+    $filtered = [];
+}
 $total = count($filtered);
 $totalPages = max(1, (int) ceil($total / $pageSize));
 $page = min($page, $totalPages);
 $offset = ($page - 1) * $pageSize;
+$seesResults = $may('assessmentResults');
 // A registered student's account email is shown to staff (it is their sign-in); a roster email is never sent to the page.
-$pageRows = array_map(function ($s) use ($withName) {
+$pageRows = array_map(function ($s) use ($withName, $seesResults, $seesAccounts) {
     $s = $withName($s); // only the rows on this page are decrypted (all of them for ?all=1)
     $s['email'] = $s['userId'] !== null ? $s['_email'] : null;
+    if (!$seesResults) {
+        $s['riasec'] = ''; // the RIASEC code is an assessment result
+    }
+    if (!$seesAccounts) {
+        $s['isActive'] = null; // the account state belongs to Student account management
+        unset($s['locked']);
+    }
     unset($s['_email'], $s['_schoolId']);
     return $s;
 }, array_slice($filtered, $offset, $pageSize));
+// The Announcements picker without Student information gets only what it needs to choose recipients.
+if (!$may('studentInfo')) {
+    $pageRows = array_map(fn($s) => ['userId' => $s['userId'], 'name' => $s['name'], 'strand' => $s['strand'], 'section' => $s['section']], $pageRows);
+}
 
 jsonResponse([
     'students' => $pageRows,
@@ -554,11 +617,14 @@ jsonResponse([
     'total' => $total,
     'totalPages' => $totalPages,
     'startIndex' => $total > 0 ? $offset + 1 : 0,
-    'sections' => array_values($sectionSummary),
+    // What this person may see here, so the page shows only the parts that are theirs.
+    'seesList' => $seesList,
+    'seesCards' => $seesCards,
+    'sections' => $seesCards ? array_values($sectionSummary) : [],
     'academicYear' => $viewAy,
     'academicYears' => AcademicYear::available($pdo),
     'isPastYear' => AcademicYear::isPast($viewAy),
-    'summary' => [
+    'summary' => !$seesCards ? null : [
         'totalStudents' => $totalStudents,
         'completedCount' => $completedCount,
         'pendingCount' => $pendingCount,

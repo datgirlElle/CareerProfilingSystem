@@ -325,6 +325,11 @@
     window.location.replace('staff-login');
     return;
   }
+  // What this person may do here (the permission table on Security Configuration). The server checks every request; this
+  // only hides what they cannot use.
+  const canManageAccounts = PP.may(currentUser, 'studentAccounts', 'full'); // deactivate, unlock
+  const canEditStudent = PP.may(currentUser, 'studentInfo', 'full');        // change the section
+  const canWriteNotes = PP.may(currentUser, 'notesCreate', 'full');         // add a counseling note
 
   const headerAvatarWrap = document.getElementById('headerAvatarWrap');
   if (currentUser.avatarUrl) {
@@ -356,6 +361,7 @@
   let toggleActiveCurrent = true;
   function renderToggleActiveButton(isActive) {
     toggleActiveCurrent = isActive;
+    if (!canManageAccounts) return; // the button stays hidden
     const btn = document.getElementById('toggleActiveBtn');
     btn.classList.remove('hidden');
     if (isActive) {
@@ -446,15 +452,10 @@
       btn.disabled = false;
     }
   });
-  // Counseling Notes — gated by the 'counselingNotes' RBAC module
-  // (Security Configuration). Loading the list only needs 'limited';
-  // adding a note needs 'full' — rather than pre-checking which level the
-  // current user has, the composer is always shown to anyone who can see
-  // this page at all (admin/counselor), and a 'limited' counselor simply
-  // gets the server's 403 back as an inline error if they try to add one,
-  // matching how the rest of the app surfaces RBAC restrictions. Declared
-  // here, before the student lookup below calls loadCounselingNotes(),
-  // since that call happens well before this script reaches its bottom.
+  // Counseling Notes (permission table): reading follows View counseling history (Full: every note; View Only: the date
+  // and author, plus the text of one's own notes) and writing follows Create counseling notes (Full shows the composer).
+  // Declared here, before the student lookup below calls loadCounselingNotes(), since that call happens well before this
+  // script reaches its bottom.
   let counselingNotesStudentId = null;
   function renderCounselingNotes(notes) {
     const list = document.getElementById('counselingNotesList');
@@ -467,10 +468,13 @@
     empty.classList.add('hidden');
     list.innerHTML = notes.map(function(n) {
       const date = new Date(n.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      const safeNote = n.note.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      // View Only on counseling history: the server sends who wrote a note and when, but not what (note is null).
+      const text = n.note === null
+        ? '<p class="text-sm text-gray-500 italic">Only the date and author are shown to you.</p>'
+        : '<p class="text-sm text-gray-800 whitespace-pre-wrap">' + n.note.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>';
       return '<div class="border border-gray-200 rounded-md px-3.5 py-2.5">' +
         '<p class="text-xs text-gray-500 mb-1">' + date + ' &middot; ' + String(n.author).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</p>' +
-        '<p class="text-sm text-gray-800 whitespace-pre-wrap">' + safeNote + '</p>' +
+        text +
       '</div>';
     }).join('');
   }
@@ -521,8 +525,10 @@
       return;
     }
     document.getElementById('counselingNotesCard').classList.remove('hidden');
-    document.getElementById('counselingNoteComposer').classList.remove('hidden');
-    document.getElementById('counselingNoteComposer').classList.add('flex');
+    if (canWriteNotes) {
+      document.getElementById('counselingNoteComposer').classList.remove('hidden');
+      document.getElementById('counselingNoteComposer').classList.add('flex');
+    }
     renderCounselingNotes(data.notes || []);
   }
   document.getElementById('addCounselingNoteBtn').addEventListener('click', async () => {
@@ -584,14 +590,16 @@
       const s = data.student;
       toggleActiveUserId = s.userId;
       renderToggleActiveButton(s.isActive);
-      if (s.lockedUntil) document.getElementById('unlockAccountBtn').classList.remove('hidden');
+      if (s.lockedUntil && canManageAccounts) document.getElementById('unlockAccountBtn').classList.remove('hidden');
       if (currentUser.role === 'admin' && s.status === 'Completed') document.getElementById('resetAssessmentBtn').classList.remove('hidden');
       document.getElementById('studentName').textContent = s.name;
       PP.renderAvatar(document.getElementById('studentAvatar'), { first: s.firstName, last: s.lastName, name: s.name, size: 24 });
       document.getElementById('studentId').textContent = 'Grade ' + s.gradeLevel + ' · ' + s.strand + ' ' + s.section;
       document.getElementById('strandChip').textContent = s.strand + ' Track';
       document.getElementById('ayChip').textContent = s.academicYear ? 'AY ' + s.academicYear : 'AY —';
-      document.getElementById('statusDot').classList.toggle('off', !s.isActive);
+      // No Access on Student account management: the server sends no account state, so the active dot is left out.
+      if (s.isActive === null) document.getElementById('statusDot').remove();
+      else document.getElementById('statusDot').classList.toggle('off', !s.isActive);
       document.getElementById('gradeLevelField').textContent = 'Grade ' + s.gradeLevel;
       document.getElementById('strandField').textContent = s.strand;
       document.getElementById('sectionField').textContent = s.section;
@@ -611,7 +619,7 @@
         editSectionBtn.classList.remove('hidden');
         sectionError.classList.add('hidden');
       }
-      editSectionBtn.classList.remove('hidden');
+      if (canEditStudent) editSectionBtn.classList.remove('hidden');
       editSectionBtn.addEventListener('click', function() {
         sectionSelect.innerHTML = '<option value="">Select section</option>' +
           (s.allowedSections || []).map(function(sec) {
@@ -672,7 +680,9 @@
       const themes = document.getElementById('riasecThemes');
       themes.innerHTML = topLetters.length
         ? topLetters.map(function(l) { return '<span class="sp-theme"><i style="background:' + types[l].color + '"></i>' + types[l].name + '</span>'; }).join('')
-        : '<p class="text-sm text-gray-500">Not available — assessment not yet completed.</p>';
+        : (s.seesResults === false
+          ? '<p class="text-sm text-gray-500">Not shown: assessment results are not part of your access.</p>'
+          : '<p class="text-sm text-gray-500">Not available — assessment not yet completed.</p>');
       document.getElementById('dominantLabel').classList.toggle('hidden', !topLetters.length);
 
 

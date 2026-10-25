@@ -8,7 +8,7 @@ require_once __DIR__ . '/../../CareerProfiling/lib/QuestionBank.php';
 require_once __DIR__ . '/../lib/AuditChange.php';
 require_once __DIR__ . '/../lib/AuditRetention.php';
 
-$user = Rbac::requireAccess('rac', 'full'); // audit visibility lives alongside the other security/system admin tools
+$user = Rbac::requireRole('admin'); // the Audit Log is the Head of Guidance's (Rbac::ADMIN_PAGES)
 // Full IP addresses are for the administrator (security incidents); other staff see them masked (maskIp()).
 $seeFullIp = $user['role'] === 'admin';
 $showIp = fn(?string $ip): ?string => $seeFullIp ? $ip : maskIp($ip);
@@ -293,7 +293,7 @@ function readableDetail(string $detail): string
         'enabled' => 'Status', 'minLength' => 'Minimum password length', 'requireUpper' => 'Needs an uppercase letter',
         'requireLower' => 'Needs a lowercase letter', 'requireNumber' => 'Needs a number', 'requireSymbol' => 'Needs a symbol',
         'maxAttempts' => 'Failed attempts before lockout', 'lockoutMinutes' => 'Lockout length', 'retentionDays' => 'Log retention',
-        'twoFactor' => 'Two-step sign-in', 'sessionTimeoutEnabled' => 'Session timeout', 'timeoutMinutes' => 'Timeout length',
+        'twoFactor' => 'Email verification for password changes', 'sessionTimeoutEnabled' => 'Session timeout', 'timeoutMinutes' => 'Timeout length',
     ];
     $units = ['lockoutMinutes' => 'minute', 'timeoutMinutes' => 'minute', 'retentionDays' => 'day'];
     $switches = ['enabled', 'twoFactor', 'sessionTimeoutEnabled'];   // On/Off; other yes/no settings say Yes/No

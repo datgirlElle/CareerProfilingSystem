@@ -8,7 +8,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     jsonResponse(['error' => 'Method not allowed'], 405);
 }
 
-$user = Rbac::requireAccess('monitoring', 'full');
+$user = Rbac::requireAccess('exportResults', 'full');
 $pdo = Database::get();
 
 $validStrands = ['STEM', 'ABM', 'ICT', 'HUMSS'];

@@ -191,6 +191,12 @@
     window.location.replace('staff-login');
     return;
   }
+  // Adding a program needs Full on Program Mapping Crosswalk; View Only goes back to the list instead of a form it cannot
+  // save (api/programs.php refuses it too).
+  if (!PP.may(currentUser, 'programs', 'full')) {
+    window.location.replace('career-dataset');
+    return;
+  }
 
   const headerAvatarWrap = document.getElementById('headerAvatarWrap');
   if (currentUser.avatarUrl) {
