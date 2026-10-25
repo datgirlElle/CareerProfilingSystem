@@ -109,7 +109,7 @@
       </div>
 
       <p id="notifState" class="text-sm text-gray-500">Loading notifications…</p>
-      <div id="notifFullList" class="hidden bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100"></div>
+      <div id="notifFullList" class="hidden bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100 overflow-hidden"></div>
 
     </main>
       <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-500">
@@ -200,14 +200,20 @@
     }
     stateEl.classList.add('hidden');
     listEl.classList.remove('hidden');
-    listEl.innerHTML = items.map(function(n) {
+    // Newest first, so the unread items (newer than the last read time) come first: a "New" heading above them and an
+    // "Earlier" heading where the read ones start. The dot, bold title and tint mark unread, so no pill on every row.
+    listEl.innerHTML = items.map(function(n, i) {
       const unread = n.unread !== false;
-      return '<a href="' + escapeHtml(n.link) + '" class="flex items-start gap-3 px-5 py-4 hover:bg-gray-50 ' + (unread ? 'bg-red-50/40' : '') + '">' +
+      const startsGroup = i === 0 || (!unread && items[i - 1].unread !== false);
+      const heading = startsGroup
+        ? '<h2 class="px-5 py-2 bg-gray-50 text-xs font-semibold tracking-wide text-gray-600 uppercase">' + (unread ? 'New' : 'Earlier') + '</h2>'
+        : '';
+      return heading + '<a href="' + escapeHtml(n.link) + '" class="flex items-start gap-3 px-5 py-4 hover:bg-gray-50 ' + (unread ? 'bg-red-50/40' : '') + '">' +
         '<span class="mt-1.5 w-2 h-2 rounded-full shrink-0 ' + (unread ? 'bg-[#ed1c24]' : 'bg-transparent border border-gray-300') + '" aria-hidden="true"></span>' +
         '<div class="min-w-0 flex-1">' +
           '<div class="flex items-center justify-between gap-3 flex-wrap">' +
             '<p class="text-sm ' + (unread ? 'font-semibold text-gray-900' : 'font-medium text-gray-600') + '">' + escapeHtml(n.title || 'Notification') + '</p>' +
-            '<span class="text-[11px] font-medium rounded-full px-2 py-0.5 ' + (unread ? 'bg-[#ed1c24]/10 text-[#bb0013]' : 'bg-gray-100 text-gray-500') + '">' + (unread ? 'Unread' : 'Read') + '</span>' +
+            (unread ? '<span class="pp-sr-only">Unread</span>' : '') +
           '</div>' +
           '<p class="text-sm text-gray-600 mt-0.5">' + escapeHtml(n.text) + '</p>' +
           '<p class="text-xs text-gray-500 mt-1">' + escapeHtml(formatWhen(n.ts)) + '</p>' +
