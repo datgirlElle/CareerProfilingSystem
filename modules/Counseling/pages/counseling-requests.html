@@ -374,10 +374,23 @@
     list.querySelectorAll('.resolve-btn').forEach(btn => {
       btn.addEventListener('click', async function() {
         btn.disabled = true;
-        await fetch('api/help-requests.php', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'resolve', id: Number(btn.dataset.id) })
-        });
+        let res;
+        try {
+          res = await fetch('api/help-requests.php', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'resolve', id: Number(btn.dataset.id) })
+          });
+        } catch (e) {
+          btn.disabled = false;
+          PP.toast('Could not reach the server. Please try again.', true);
+          return;
+        }
+        // 404 is also the answer for a request outside this person's sections (the same answer on purpose), so the
+        // message only says the list was out of date.
+        if (res.ok) PP.toast('Request marked as resolved.', false);
+        else if (res.status === 404) PP.toast('This request is no longer in your list. The list was refreshed.', true);
+        else if (res.status === 403) PP.toast('You do not have permission to resolve requests.', true);
+        else PP.toast('Could not resolve this request. Please try again.', true);
         await load();
       });
     });
