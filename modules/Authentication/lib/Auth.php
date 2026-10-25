@@ -49,6 +49,7 @@ class Auth
         }
 
         if (self::isIdleTimedOut()) {
+            self::logTimeout();
             self::logout();
             return null;
         }
@@ -112,6 +113,34 @@ class Auth
             return false; // no prior activity recorded yet (e.g. first request right after login) — nothing to time out against
         }
         return (time() - $last) > $policy['minutes'] * 60;
+    }
+
+    /**
+     * Audit Log row for a session the idle timeout ended, written before logout() empties the session. A page loads
+     * its data with several requests at once, so all of them can find the same expired session: only the request that
+     * removes the session row writes the row. A row SessionEnd ended meanwhile (other device, account turned off,
+     * password changed) is left alone, so the sign-in page still says why. A failure here is logged and never keeps
+     * the session alive.
+     */
+    private static function logTimeout(): void
+    {
+        try {
+            $claim = Database::get()->prepare(DbSessionHandler::hasUserColumns()
+                ? 'DELETE FROM sessions WHERE id = ? AND ended_reason IS NULL RETURNING id'
+                : 'DELETE FROM sessions WHERE id = ? RETURNING id');
+            $claim->execute([session_id()]);
+            if ($claim->fetchColumn() === false) {
+                return;
+            }
+            require_once __DIR__ . '/../../AuditLog/lib/AuditLogger.php';
+            $user = $_SESSION['user'];
+            $minutes = self::sessionTimeoutPolicy()['minutes'];
+            $last = date('M j, Y g:i A', (int) $_SESSION['lastActivity']);   // Asia/Manila (config/env.php)
+            AuditLogger::log((int) $user['id'], $user['role'], 'session_timeout', 'user', (string) ($user['username'] ?? ''),
+                "Signed out after $minutes minutes of inactivity. Last activity: $last.");
+        } catch (\Throwable $e) {
+            error_log('[auth] session timeout audit row: ' . $e->getMessage());
+        }
     }
 
     public static function login(array $userData): void
