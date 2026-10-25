@@ -597,7 +597,9 @@
       document.getElementById('studentId').textContent = 'Grade ' + s.gradeLevel + ' · ' + s.strand + ' ' + s.section;
       document.getElementById('strandChip').textContent = s.strand + ' Track';
       document.getElementById('ayChip').textContent = s.academicYear ? 'AY ' + s.academicYear : 'AY —';
-      document.getElementById('statusDot').classList.toggle('off', !s.isActive);
+      // No Access on Student account management: the server sends no account state, so the active dot is left out.
+      if (s.isActive === null) document.getElementById('statusDot').remove();
+      else document.getElementById('statusDot').classList.toggle('off', !s.isActive);
       document.getElementById('gradeLevelField').textContent = 'Grade ' + s.gradeLevel;
       document.getElementById('strandField').textContent = s.strand;
       document.getElementById('sectionField').textContent = s.section;

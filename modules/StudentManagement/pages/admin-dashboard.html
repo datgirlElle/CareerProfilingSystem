@@ -261,7 +261,7 @@
                         <label class="fp-option"><input type="radio" name="filterRegistration" value="notRegistered"><span>Not registered</span></label>
                       </div>
                     </fieldset>
-                    <fieldset class="fp-field">
+                    <fieldset id="filterAccountField" class="fp-field">
                       <legend class="fp-label">Status</legend>
                       <div class="fp-options">
                         <label class="fp-option"><input type="radio" name="filterAccount" value="" checked><span>All</span></label>
@@ -326,7 +326,7 @@
                 <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Name</th>
                 <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Strand</th>
                 <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Section</th>
-                <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Account</th>
+                <th id="accountHead" class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Account</th>
                 <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Assessment Status</th>
                 <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Assessment Date</th>
                 <th class="px-6 py-4 text-xs font-semibold tracking-wide text-gray-600 uppercase">Top 3 RIASEC</th>
@@ -437,6 +437,14 @@
     document.getElementById('downloadListBtn').classList.add('hidden');
     document.getElementById('dlNotRegistered').parentElement.classList.add('hidden');
   }
+  // No Access on Student account management: no Account column and no Account status filter (api/students.php does not
+  // send the account state to them either).
+  const seesAccounts = PP.may(currentUser, 'studentAccounts');
+  const COLS = seesAccounts ? 10 : 9;
+  if (!seesAccounts) {
+    document.getElementById('accountHead').remove();
+    document.getElementById('filterAccountField').remove();
+  }
 
   const headerAvatarWrap = document.getElementById('headerAvatarWrap');
   if (currentUser.avatarUrl) {
@@ -527,6 +535,7 @@
   // name) is kept in this tab only, never in the address (PP.listState in js/ui-state.js).
   const listState = PP.listState({ search: '', strand: '', section: '', status: '', counseling: '', registration: '', assessment: '', account: '', academicYear: '', page: 1, pageSize: 50 }, ['search']);
   const state = listState.read();
+  if (!seesAccounts) state.account = ''; // an old address with ?account= does nothing for them
   if (![25, 50, 100].includes(state.pageSize)) state.pageSize = 50;
   searchInput.value = state.search;
   const getStudents = PP.latestJson(); // a new request cancels the one still on its way
@@ -710,6 +719,9 @@
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' });
   }
 
+  // "View profile" as an eye: it opens the profile, it does not edit (the old pencil suggested editing).
+  const EYE_ICON = '<svg class="w-4 h-4 shrink-0" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-320q75 0 127.5-52.5T660-500q0-75-52.5-127.5T480-680q-75 0-127.5 52.5T300-500q0 75 52.5 127.5T480-320Zm0-72q-45 0-76.5-31.5T372-500q0-45 31.5-76.5T480-608q45 0 76.5 31.5T588-500q0 45-31.5 76.5T480-392Zm0 192q-146 0-266-81.5T40-500q54-137 174-218.5T480-800q146 0 266 81.5T920-500q-54 137-174 218.5T480-200Zm0-300Zm0 220q113 0 207.5-59.5T832-500q-50-101-144.5-160.5T480-720q-113 0-207.5 59.5T128-500q50 101 144.5 160.5T480-280Z"/></svg>';
+
   function renderRow(s, index) {
     const isRosterOnly = s.userId === null;
     const statusCell = PP.badge(s.status, STATUS_TONE[s.status]);
@@ -730,25 +742,34 @@
       ? PP.badge(s.counseling, COUNSELING_TONE[s.counseling])
       : '<span class="text-gray-500">No request</span>';
     const params = new URLSearchParams({ id: s.userId });
-    // A roster-only entry has no account to open a profile for — no link,
-    // just a dash, matching the other empty-data cells in this row.
-    // Three fixed slots (open profile | counseling or register invite | activate or deactivate) so the buttons line up
-    // from row to row, whichever ones a row has.
+    // Only the slots this person can ever use (open profile | counseling or register invite | activate or deactivate), so
+    // the buttons line up from row to row and no column stands empty. When opening the profile is all they can do, it is a
+    // labeled "View profile" button; next to other buttons it is an eye icon (it opens the profile, it does not edit).
+    // A roster-only entry has no account, so no profile to open.
     const BTN = 'display:inline-flex;align-items:center;justify-content:center;width:100%;height:32px;padding:0 8px;white-space:nowrap';
-    const slot = function(html) { return html || '<span></span>'; };
-    const wrap = function(a, b, c) {
-      return '<div style="display:grid;grid-template-columns:32px 150px 96px;gap:8px;align-items:center;justify-content:center">' + slot(a) + slot(b) + slot(c) + '</div>';
-    };
-    const actionCell = isRosterOnly
-      ? wrap('', canManageAccounts && s.hasEmail && !isPastYear
-          ? '<button type="button" class="invite-btn text-xs font-semibold rounded-md border text-[#0f2a6b] border-[#0f2a6b] hover:bg-slate-50" style="' + BTN + '" data-roster-id="' + s.rosterId + '" data-name="' + escapeHtml(s.name) + '">Invite to register</button>'
-          : '', '')
-      : wrap(
-          '<a href="student-profile?' + params.toString() + '" title="Open profile" class="inline-flex items-center justify-center border border-gray-200 rounded shadow-sm hover:bg-gray-50" style="width:32px;height:32px">' +
-            '<svg class="w-4 h-4" viewBox="0 -960 960 960" fill="#64748B"><path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/></svg></a>',
-          canInvite && s.isActive ? '<button type="button" class="counsel-invite-btn text-xs font-semibold rounded-md border text-[#0f2a6b] border-[#0f2a6b] hover:bg-slate-50" style="' + BTN + '" data-id="' + s.userId + '" data-name="' + escapeHtml(s.name) + '">Invite to counseling</button>' : '',
-          canManageAccounts ? '<button type="button" class="toggle-active-btn text-xs font-semibold rounded-md border ' + (s.isActive ? 'btn-danger text-[#ed1c24] border-[#ed1c24] hover:bg-red-50' : 'text-emerald-600 border-emerald-300 hover:bg-emerald-50') + '" style="' + BTN + '" data-id="' + s.userId + '" data-active="' + (s.isActive ? '1' : '0') + '" data-name="' + escapeHtml(s.name) + '">' + (s.isActive ? 'Deactivate' : 'Activate') + '</button>' : ''
-        );
+    const NAVY_BTN = 'text-xs font-semibold rounded-md border text-[#0f2a6b] border-[#0f2a6b] hover:bg-slate-50';
+    const profileHref = 'student-profile?' + params.toString();
+    let actionCell;
+    if (!ACTION_SLOTS.invite && !ACTION_SLOTS.toggle) {
+      actionCell = isRosterOnly
+        ? '<span class="text-xs text-gray-500">No profile yet</span>'
+        : '<a href="' + profileHref + '" class="' + NAVY_BTN + '" style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;white-space:nowrap">' +
+            EYE_ICON + 'View profile</a>';
+    } else {
+      const cells = [isRosterOnly ? '' :
+        '<a href="' + profileHref + '" title="View profile" aria-label="View profile of ' + escapeHtml(s.name) + '" class="inline-flex items-center justify-center border border-gray-200 rounded shadow-sm hover:bg-gray-50 text-slate-500" style="width:32px;height:32px">' + EYE_ICON + '</a>'];
+      if (ACTION_SLOTS.invite) {
+        cells.push(isRosterOnly
+          ? (canManageAccounts && s.hasEmail && !isPastYear ? '<button type="button" class="invite-btn ' + NAVY_BTN + '" style="' + BTN + '" data-roster-id="' + s.rosterId + '" data-name="' + escapeHtml(s.name) + '">Invite to register</button>' : '')
+          // isActive is null when the account state is not sent (No Access on accounts); the server refuses a deactivated student.
+          : (canInvite && s.isActive !== false ? '<button type="button" class="counsel-invite-btn ' + NAVY_BTN + '" style="' + BTN + '" data-id="' + s.userId + '" data-name="' + escapeHtml(s.name) + '">Invite to counseling</button>' : ''));
+      }
+      if (ACTION_SLOTS.toggle) {
+        cells.push(isRosterOnly ? '' : '<button type="button" class="toggle-active-btn text-xs font-semibold rounded-md border ' + (s.isActive ? 'btn-danger text-[#ed1c24] border-[#ed1c24] hover:bg-red-50' : 'text-emerald-600 border-emerald-300 hover:bg-emerald-50') + '" style="' + BTN + '" data-id="' + s.userId + '" data-active="' + (s.isActive ? '1' : '0') + '" data-name="' + escapeHtml(s.name) + '">' + (s.isActive ? 'Deactivate' : 'Activate') + '</button>');
+      }
+      actionCell = '<div style="display:grid;grid-template-columns:' + ACTION_SLOTS.columns + ';gap:8px;align-items:center;justify-content:center">' +
+        cells.map(function(html) { return html || '<span></span>'; }).join('') + '</div>';
+    }
     return '<tr>' +
       '<td class="px-6 py-4 text-sm text-gray-500">' + index + '</td>' +
       '<td class="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">' + escapeHtml(s.name) +
@@ -756,7 +777,7 @@
       '</td>' +
       '<td class="px-6 py-4 text-sm text-gray-500">' + escapeHtml(s.strand) + '</td>' +
       '<td class="px-6 py-4 text-sm text-gray-500">' + escapeHtml(s.section) + '</td>' +
-      '<td class="px-6 py-4 whitespace-nowrap">' + accountCell + '</td>' +
+      (seesAccounts ? '<td class="px-6 py-4 whitespace-nowrap">' + accountCell + '</td>' : '') +
       '<td class="px-6 py-4 whitespace-nowrap">' + statusCell + '</td>' +
       '<td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">' + formatDate(s.assessmentDate) + '</td>' +
       '<td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">' + (s.riasec ? escapeHtml(s.riasec) : '<span class="text-gray-500">No result yet</span>') + '</td>' +
@@ -773,7 +794,7 @@
     const statIds = ['cardTotalStudents', 'cardCompleted', 'cardPending', 'cardMismatched'];
     const chartBoxes = ['completionChartBox', 'statusChartBox'];
     listState.save(state);
-    PP.showSkeleton(tbody, PP.skeleton.rows(10, 6));
+    PP.showSkeleton(tbody, PP.skeleton.rows(COLS, 6));
     pager.loading();
     if (!listOnly) {
       statIds.forEach(PP.statLoading);
@@ -791,7 +812,7 @@
     } catch (e) {
       if (e.cancelled) return; // a newer request replaced this one
       if (e.status === 401) { window.location.replace('staff-login'); return; }
-      PP.showError(tbody, e.message, load, 10);
+      PP.showError(tbody, e.message, load, COLS);
       pager.clear();
       if (!listOnly) {
         statIds.forEach(PP.statFailed);
@@ -931,6 +952,10 @@
     const inviteCfg = await (await fetch('api/security-config.php')).json();
     canInvite = ((inviteCfg.rbac && inviteCfg.rbac.counselingStatus && inviteCfg.rbac.counselingStatus[currentUser.rbacRole || currentUser.role]) || 'none') === 'full' && (currentUser.rbacRole || currentUser.role) !== 'facilitator'; // Facilitators never invite or decide retakes (DFD process 4.0)
   } catch (e) {}
+  // The Actions column's slots for this person (renderRow): the profile, then an invite (to counseling, or to register
+  // for a student with no account yet) and activate or deactivate, only when they may use them.
+  const ACTION_SLOTS = { invite: canInvite || canManageAccounts, toggle: canManageAccounts };
+  ACTION_SLOTS.columns = ['32px', ACTION_SLOTS.invite ? '150px' : '', ACTION_SLOTS.toggle ? '96px' : ''].filter(Boolean).join(' ');
 
   // ---- Account actions on a registered student's row: invite to counseling (the CGC booking link), activate / deactivate.
   tbody.addEventListener('click', async function(e) {
@@ -1072,7 +1097,7 @@
     { key: 'status', name: 'filterStatus', label: 'Assessment status' },
     { key: 'assessment', name: 'filterAssessment', label: 'Assessed' },
     { key: 'counseling', name: 'filterCounseling', label: 'Counseling status' }
-  ];
+  ].filter(function(f) { return seesAccounts || f.key !== 'account'; });
   function getChoice(name) {
     const checked = document.querySelector('input[name="' + name + '"]:checked');
     return checked ? checked.value : '';

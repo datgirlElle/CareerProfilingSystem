@@ -138,6 +138,7 @@ if ($idLookup > 0) {
         $refuse();
     }
     $seesResults = $may('assessmentResults');
+    $seesAccounts = $may('studentAccounts'); // No Access on Student account management: no active or locked state is sent
     $stmt = $pdo->prepare(
         'SELECT s.user_id, s.first_name_enc, s.last_name_enc, s.strand, s.grade_level, s.section,
                 s.academic_year, s.registered_at, u.is_active, u.locked_until, a.top_types, a.completed_at, a.score_r, a.score_i, a.score_a,
@@ -207,9 +208,9 @@ if ($idLookup > 0) {
             return $sections;
         })(),
         'academicYear' => $row['academic_year'],
-        'isActive' => (bool) $row['is_active'],
+        'isActive' => $seesAccounts ? (bool) $row['is_active'] : null,
         // Set while the account is locked by wrong passwords (the profile then offers Unlock).
-        'lockedUntil' => $row['locked_until'] !== null && strtotime($row['locked_until']) > time() ? $row['locked_until'] : null,
+        'lockedUntil' => $seesAccounts && $row['locked_until'] !== null && strtotime($row['locked_until']) > time() ? $row['locked_until'] : null,
         'status' => $hasAssessment ? 'Completed' : 'Pending',
         // Without Assessment results the profile shows whether the student finished, but no RIASEC code, scores or attempts.
         'seesResults' => $seesResults,
@@ -258,6 +259,12 @@ if (($asCsv || $asPdf) && (!$may('exportResults', 'full') || !$may('studentInfo'
     $refuse();
 }
 $exportsResults = $may('assessmentResults'); // the downloads leave out the RIASEC code without Assessment results
+// Without Student account management (No Access), a student's account state (active, deactivated, locked) is not sent,
+// shown in a download, or usable as a filter.
+$seesAccounts = $may('studentAccounts');
+if (!$seesAccounts) {
+    $accountFilter = '';
+}
 
 $rows = $pdo->query(
     'SELECT s.user_id, s.school_id, s.first_name_enc, s.last_name_enc, s.strand, s.grade_level, s.section, s.registered_at, s.academic_year,
@@ -544,7 +551,7 @@ if ($asPdf) {
             (string) ($s['_schoolId'] ?? ''),
             (string) $s['strand'],
             (string) $s['section'],
-            $s['userId'] === null ? 'No account' : (!$s['isActive'] ? 'Deactivated' : (!empty($s['locked']) ? 'Locked' : 'Active')),
+            !$seesAccounts ? '-' : ($s['userId'] === null ? 'No account' : (!$s['isActive'] ? 'Deactivated' : (!empty($s['locked']) ? 'Locked' : 'Active'))),
             $s['mismatched'] ? 'Mismatched' : $s['status'],   // a mismatched result is always a completed one
             $s['assessmentDate'] ? date('M j, Y', strtotime((string) $s['assessmentDate'])) : '-',
             QuestionBank::hollandCode(array_values(array_filter(explode(', ', (string) ($s['riasec'] ?? ''))))) ?: '-',
@@ -585,11 +592,15 @@ $page = min($page, $totalPages);
 $offset = ($page - 1) * $pageSize;
 $seesResults = $may('assessmentResults');
 // A registered student's account email is shown to staff (it is their sign-in); a roster email is never sent to the page.
-$pageRows = array_map(function ($s) use ($withName, $seesResults) {
+$pageRows = array_map(function ($s) use ($withName, $seesResults, $seesAccounts) {
     $s = $withName($s); // only the rows on this page are decrypted (all of them for ?all=1)
     $s['email'] = $s['userId'] !== null ? $s['_email'] : null;
     if (!$seesResults) {
         $s['riasec'] = ''; // the RIASEC code is an assessment result
+    }
+    if (!$seesAccounts) {
+        $s['isActive'] = null; // the account state belongs to Student account management
+        unset($s['locked']);
     }
     unset($s['_email'], $s['_schoolId']);
     return $s;
