@@ -106,10 +106,6 @@
         <p class="text-sm text-slate-500 mt-1">Assessment sessions by date, time and room.</p>
       </div>
 
-      <div id="readOnlyNotice" class="hidden bg-amber-50 border border-amber-100 rounded-md px-4 py-3 text-sm text-amber-800 mb-6">
-        You have view-only access to Assessment Scheduling.
-      </div>
-
       <!-- Summary cards (same style as the Student Information cards) -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
 
@@ -338,7 +334,6 @@
   } catch (err) { /* default to read-only if this check fails */ }
   if (!canWrite) {
     document.getElementById('createCard').classList.add('hidden');
-    document.getElementById('readOnlyNotice').classList.remove('hidden');
   }
 
   const listEl = document.getElementById('schedulesList');
