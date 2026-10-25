@@ -202,16 +202,67 @@ class Rbac
 
     private static ?bool $hasCoAdminColumn = null;
 
-    /** Whether db/migrate_add_co_admin.php has run (until then nobody is a co-admin). */
+    /** The database rule that keeps users.is_co_admin on Guidance Counselors only (also in db/migrate_add_co_admin.php). */
+    public const CO_ADMIN_RULE = "CHECK (NOT is_co_admin OR (role = 'counselor' AND staff_position IS DISTINCT FROM 'facilitator'))";
+
+    /**
+     * Whether users.is_co_admin exists (until then nobody is a co-admin). The first request that finds it missing adds it
+     * itself (addCoAdminColumn), so the live site needs no manual migration: Render's free plan has no Shell (Tyn, 2026-10-26).
+     */
     public static function hasCoAdminColumn(): bool
     {
         if (self::$hasCoAdminColumn === null) {
-            // information_schema, not a query that fails: a failed query would break an open transaction.
-            self::$hasCoAdminColumn = (bool) Database::get()->query(
-                "SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'users' AND column_name = 'is_co_admin'"
-            )->fetchColumn();
+            self::$hasCoAdminColumn = self::coAdminColumnExists() || self::addCoAdminColumn();
         }
         return self::$hasCoAdminColumn;
+    }
+
+    private static function coAdminColumnExists(): bool
+    {
+        // information_schema, not a query that fails: a failed query would break an open transaction.
+        return (bool) Database::get()->query(
+            "SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'users' AND column_name = 'is_co_admin'"
+        )->fetchColumn();
+    }
+
+    /**
+     * Adds users.is_co_admin and its rule, the same as db/migrate_add_co_admin.php. Safe to run twice and from two requests
+     * at once. Never inside an open transaction (it would end it), at most one try per 10 minutes after a failure, and a
+     * failure only leaves co-admins switched off (the error goes to the server log). Adding a column with a constant
+     * default is instant on PostgreSQL 11 and later; lock_timeout keeps a busy table from holding the request.
+     */
+    private static function addCoAdminColumn(): bool
+    {
+        $pdo = Database::get();
+        if ($pdo->inTransaction()) {
+            return false;
+        }
+        $marker = sys_get_temp_dir() . '/profilepath-co-admin-column-try';
+        if (is_file($marker) && time() - (int) @filemtime($marker) < 600) {
+            return false;
+        }
+        @touch($marker);
+        try {
+            $pdo->exec("SET lock_timeout = '3s'");
+            $pdo->exec('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_co_admin BOOLEAN NOT NULL DEFAULT FALSE');
+            if (!$pdo->query("SELECT 1 FROM pg_constraint WHERE conname = 'users_co_admin_counselor_only'")->fetchColumn()) {
+                try {
+                    $pdo->exec('ALTER TABLE users ADD CONSTRAINT users_co_admin_counselor_only ' . self::CO_ADMIN_RULE);
+                } catch (PDOException $e) {
+                    if ($e->getCode() !== '42710') { // 42710 = another request added the rule a moment ago
+                        throw $e;
+                    }
+                }
+            }
+            $pdo->exec('RESET lock_timeout');
+            @unlink($marker);
+            error_log('[co-admin] users.is_co_admin added automatically');
+            return true;
+        } catch (Throwable $e) {
+            try { $pdo->exec('RESET lock_timeout'); } catch (Throwable $ignored) {}
+            error_log('[co-admin] could not add users.is_co_admin: ' . $e->getMessage());
+            return false;
+        }
     }
 
     /** A Guidance Counselor's or Facilitator's position and co-admin flag ([] for everyone else). */

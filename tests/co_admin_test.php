@@ -64,6 +64,9 @@ check('schema.sql keeps the flag on Guidance Counselors only', str_contains($sch
     && str_contains($schema, $rule));
 check('the migration adds the same column and rule', str_contains($migration, 'ADD COLUMN IF NOT EXISTS is_co_admin BOOLEAN NOT NULL DEFAULT FALSE')
     && str_contains($migration, $rule));
+$rbacSource = file_get_contents("$root/modules/Authentication/lib/Rbac.php");
+check('the automatic step adds the same column and rule', Rbac::CO_ADMIN_RULE === $rule
+    && str_contains($rbacSource, 'ADD COLUMN IF NOT EXISTS is_co_admin BOOLEAN NOT NULL DEFAULT FALSE'));
 
 echo "\n=== Summary: $passed passed, $failures failed ===\n";
 exit($failures > 0 ? 1 : 0);

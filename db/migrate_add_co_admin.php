@@ -6,6 +6,9 @@
 //
 // The check constraint keeps the flag on Guidance Counselors only: never on a Guidance Facilitator (DFD process 4.0),
 // a student or the administrator. Everyone starts as not co-admin. Safe to run twice.
+//
+// The app also does this by itself on the first request that finds the column missing (Rbac::hasCoAdminColumn), so the
+// live site needs no manual run. This script is for a new database or to do it by hand.
 
 require_once __DIR__ . '/../shared/lib/Database.php';
 
