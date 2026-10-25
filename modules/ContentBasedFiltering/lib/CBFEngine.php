@@ -86,15 +86,34 @@ class CBFEngine
         $vector = [];
         foreach (self::DIMENSIONS as $d) {
             $v = $scores[$d] ?? null;
-            if ($v === null || !is_numeric($v)) {
+            // is_numeric() accepts NAN and INF, which pass no range check; refuse them too.
+            if ($v === null || !is_numeric($v) || !is_finite((float) $v)) {
                 throw new InvalidArgumentException("The RIASEC score for $d is missing or not a number.");
             }
             if ($v < $min || $v > $max) {
                 throw new InvalidArgumentException("The RIASEC score for $d ($v) is outside the valid range $min-$max.");
             }
-            $vector[] = round($v / $items, 4);
+            $vector[] = (float) $v / $items;   // full precision; rounded only for display
         }
         return $vector;
+    }
+
+    /**
+     * Refuses anything other than a list of six finite numbers in [R, I, A, S, E, C] order, so a
+     * short, keyed or non-numeric vector can never give a silently wrong similarity.
+     *
+     * @throws InvalidArgumentException
+     */
+    public static function assertVector(array $v): void
+    {
+        if (!array_is_list($v) || count($v) !== count(self::DIMENSIONS)) {
+            throw new InvalidArgumentException('A vector must list exactly ' . count(self::DIMENSIONS) . ' values in R, I, A, S, E, C order.');
+        }
+        foreach ($v as $x) {
+            if ((!is_int($x) && !is_float($x)) || !is_finite((float) $x)) {
+                throw new InvalidArgumentException('Every vector value must be a finite number.');
+            }
+        }
     }
 
     /**
@@ -123,6 +142,8 @@ class CBFEngine
 
     public static function dotProduct(array $a, array $b): float
     {
+        self::assertVector($a);
+        self::assertVector($b);
         $sum = 0.0;
         foreach ($a as $i => $x) {
             $sum += $x * $b[$i];
@@ -132,6 +153,7 @@ class CBFEngine
 
     public static function magnitude(array $v): float
     {
+        self::assertVector($v);
         return sqrt(array_sum(array_map(fn($x) => $x * $x, $v)));
     }
 
@@ -169,7 +191,9 @@ class CBFEngine
         $results = [];
         $excluded = [];
         foreach ($programs as $p) {
-            $course = self::courseVector($p['hollandCode'] ?? null, $config['holland_rank_weights'] ?? null);
+            // The code as courseVector() reads it, so the stored code uses the same letters as the vector.
+            $code = strtoupper(trim((string) ($p['hollandCode'] ?? '')));
+            $course = self::courseVector($code, $config['holland_rank_weights'] ?? null);
             if ($course === null) {
                 $excluded[] = ['id' => $p['id'], 'title' => $p['title'] ?? null, 'hollandCode' => $p['hollandCode'] ?? null,
                     'reason' => 'Missing or invalid RIASEC mapping (needs three different letters from R, I, A, S, E, C).'];
@@ -184,7 +208,7 @@ class CBFEngine
             $results[] = [
                 'id' => (int) $p['id'],
                 'title' => $p['title'] ?? null,
-                'hollandCode' => strtoupper($p['hollandCode']),
+                'hollandCode' => $code,
                 'courseVector' => $course,
                 'dotProduct' => round(self::dotProduct($student, $course), 4),
                 'courseMagnitude' => round(self::magnitude($course), 4),
