@@ -7,7 +7,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     jsonResponse(['error' => 'Method not allowed'], 405);
 }
 
-Rbac::requireAccess('monitoring', 'full');
+Rbac::requireAccess('analytics', 'limited');
 $pdo = Database::get();
 
 // Optional ?strand=STEM and ?section= filters — narrow every metric to

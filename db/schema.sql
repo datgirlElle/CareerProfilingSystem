@@ -179,13 +179,6 @@ CREATE TABLE worksheets (
     UNIQUE (student_id, attempt_number)
 );
 
-CREATE TABLE saved_programs (
-    student_id  INT NOT NULL REFERENCES students(user_id) ON DELETE CASCADE,
-    program_id  INT NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
-    saved_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (student_id, program_id)
-);
-
 CREATE TABLE recommendations (
     id                      SERIAL PRIMARY KEY,
     student_id              INT NOT NULL REFERENCES students(user_id) ON DELETE CASCADE,
@@ -234,6 +227,8 @@ CREATE TABLE audit_log (
     row_hash        CHAR(64)
 );
 
+-- One row per feature and role (module = a key of Rbac::DEFAULTS in modules/Authentication/lib/Rbac.php, grouped by
+-- sidebar page in Rbac::PAGES). Filled by db/seed_security_defaults.php and db/migrate_rbac_by_page.php.
 CREATE TABLE security_rbac (
     module          VARCHAR(50) NOT NULL,
     role            VARCHAR(20) NOT NULL,

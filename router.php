@@ -19,6 +19,7 @@
  */
 
 require_once __DIR__ . '/modules/Authentication/lib/Auth.php';
+require_once __DIR__ . '/modules/Authentication/lib/Rbac.php';
 require_once __DIR__ . '/shared/lib/SecurityHeaders.php';
 
 SecurityHeaders::send();
@@ -47,6 +48,7 @@ const PROTECTED_PAGES = [
     'staff-profile' => ['admin', 'counselor'],
     'question-bank' => ['admin', 'counselor'],
     'security-configuration' => ['admin', 'counselor'],
+    'my-access' => ['admin', 'counselor'],
     'student-profile' => ['admin', 'counselor'],
     'account-management' => ['admin', 'counselor'],
     'assessment' => ['student'],
@@ -56,7 +58,6 @@ const PROTECTED_PAGES = [
     'student-help-center' => ['student'],
     'student-notifications' => ['student'],
     'results' => ['student'],
-    'saved-careers' => ['student'],
     'riasec-assessment' => ['student'],
     'student-settings' => ['student'],
     'worksheet-results' => ['student'],
@@ -144,6 +145,16 @@ if (isset(PROTECTED_PAGES[$slug])) {
         // Staff pages send a signed-out visitor to the staff sign-in, student pages to the student one.
         header('Location: ' . (in_array('admin', PROTECTED_PAGES[$slug], true) ? '/staff-login' : '/student-login'));
         return true;
+    }
+    // A staff page whose features are all No Access for this person (the permission table, Security Configuration), or an
+    // administrator-only page (Rbac::ADMIN_PAGES), is refused here too, not only left out of the sidebar:
+    // they go to the first page that is open to them.
+    if ($user['role'] !== 'student') {
+        $roleKey = Rbac::roleKey($user);
+        if (!Rbac::pageOpen($slug, $roleKey)) {
+            header('Location: /' . Rbac::firstOpenPage($roleKey) . '?denied=1');
+            return true;
+        }
     }
 }
 

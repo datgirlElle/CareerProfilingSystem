@@ -10,10 +10,16 @@ $pdo = Database::get();
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
-    Auth::requireLogin();
+    $user = Auth::requireLogin();
     $includeInactive = isset($_GET['all']);
     if ($includeInactive) {
-        Rbac::requireAccess('career', 'limited');
+        // Every program, inactive ones included: Program Mapping Crosswalk. With ?stats=1 (CBF Candidate Programs, how many
+        // students each program was recommended to) Career recommendations opens it too.
+        $roleKey = Rbac::roleKey($user);
+        $statsPage = isset($_GET['stats']) && $user['role'] !== 'student' && Rbac::accessLevel('recommendations', $roleKey) !== 'none';
+        if (!$statsPage) {
+            Rbac::requireAccess('programs', 'limited');
+        }
     }
 
     $sql = 'SELECT p.id, p.title_enc, p.holland_code_enc, p.description_enc, p.original_holland_code_enc, p.careers, p.related_strands, p.status, p.college_id, c.code AS college_code, c.name AS college_name
@@ -47,7 +53,7 @@ if ($method === 'GET') {
     // Whether the signed-in user may add, edit or deactivate programs (Full on Career Profile Input), so the
     // page shows those controls only to them.
     $sessionUser = Auth::requireLogin();
-    $response['canEdit'] = Rbac::accessLevel('career', Rbac::roleKey($sessionUser)) === 'full';
+    $response['canEdit'] = Rbac::accessLevel('programs', Rbac::roleKey($sessionUser)) === 'full';
 
     if (isset($_GET['meta'])) {
         $response['colleges'] = array_map(fn($r) => [
@@ -133,7 +139,7 @@ function readProgramInput(array $body): array
 }
 
 if ($method === 'POST') {
-    $user = Rbac::requireAccess('career', 'full');
+    $user = Rbac::requireAccess('programs', 'full');
     $body = readJsonBody();
 
     if (($body['type'] ?? '') === 'toggleActive') {
@@ -174,7 +180,7 @@ if ($method === 'POST') {
 }
 
 if ($method === 'PUT') {
-    $user = Rbac::requireAccess('career', 'full');
+    $user = Rbac::requireAccess('programs', 'full');
     $body = readJsonBody();
     $id = (int) ($body['id'] ?? 0);
     if ($id <= 0) {

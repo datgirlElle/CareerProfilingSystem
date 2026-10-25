@@ -81,7 +81,7 @@ if ($remove) {
         }
         $pdo->beginTransaction();
         try {
-            foreach (['monitoring_flags', 'recommendations', 'saved_programs'] as $t) {
+            foreach (['monitoring_flags', 'recommendations'] as $t) {
                 $pdo->prepare("DELETE FROM $t WHERE student_id = ?")->execute([$id]);
             }
             $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);

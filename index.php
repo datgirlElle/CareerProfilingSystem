@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/modules/Authentication/lib/Auth.php';
+require_once __DIR__ . '/modules/Authentication/lib/Rbac.php';
 require_once __DIR__ . '/shared/lib/SecurityHeaders.php';
 
 SecurityHeaders::send();
@@ -12,6 +13,7 @@ if ($user === null) {
 } elseif ($user['role'] === 'student') {
     header('Location: assessment');
 } else {
-    header('Location: admin-dashboard');
+    // The first sidebar page open to this staff member (the permission table can close Student Information).
+    header('Location: ' . Rbac::firstOpenPage(Rbac::roleKey($user)));
 }
 exit;
