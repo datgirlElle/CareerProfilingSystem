@@ -44,6 +44,10 @@ if ($method === 'GET') {
     ], $rows);
 
     $response = ['programs' => $programs];
+    // Whether the signed-in user may add, edit or deactivate programs (Full on Career Profile Input), so the
+    // page shows those controls only to them.
+    $sessionUser = Auth::requireLogin();
+    $response['canEdit'] = Rbac::accessLevel('career', Rbac::roleKey($sessionUser)) === 'full';
 
     if (isset($_GET['meta'])) {
         $response['colleges'] = array_map(fn($r) => [

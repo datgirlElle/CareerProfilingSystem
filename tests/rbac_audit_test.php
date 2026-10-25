@@ -23,7 +23,8 @@ function check(string $label, bool $condition): void
 echo "=== Rbac::accessLevel against the real seeded security_rbac table ===\n";
 
 $expected = [
-    'career'          => ['admin' => 'full', 'counselor' => 'limited', 'student' => 'none'],
+    // Guidance Counselors add and edit programs and RIASEC codes (db/migrate_counselor_career_access.php).
+    'career'          => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'rac'             => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'recommendations' => ['admin' => 'full', 'counselor' => 'full',    'student' => 'full'],
     'counselor'       => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
@@ -65,7 +66,8 @@ check('the matrix has four columns', Rbac::ROLES === ['admin', 'counselor', 'fac
 check('facilitator defaults follow the counselor, capped on sections and staff accounts (counseling notes: same as the counselor)',
     Rbac::facilitatorDefault('sections', 'full') === 'limited' && Rbac::facilitatorDefault('sections', 'none') === 'none'
     && Rbac::facilitatorDefault('counselingNotes', 'full') === 'full' && Rbac::facilitatorDefault('staffAccounts', 'limited') === 'none'
-    && Rbac::facilitatorDefault('announcements', 'full') === 'full' && Rbac::facilitatorDefault('career', 'limited') === 'limited');
+    && Rbac::facilitatorDefault('announcements', 'full') === 'full' && Rbac::facilitatorDefault('career', 'limited') === 'limited'
+    && Rbac::facilitatorDefault('career', 'full') === 'limited');
 $pdoFac = Database::get();
 $pdoFac->beginTransaction();
 $pdoFac->exec("DELETE FROM security_rbac WHERE role = 'facilitator'");

@@ -71,6 +71,7 @@ $steps = [
     'migrate_question_bank_flexible.php',
     'migrate_add_counseling_invites.php',
     'migrate_add_facilitator_role.php',
+    'migrate_counselor_career_access.php',
     'migrate_add_staff_accounts_rbac.php',
     'migrate_add_retake_requests.php',
     'migrate_add_assessment_progress.php',
@@ -90,6 +91,7 @@ $steps = [
     'migrate_counselor_write_access.php',
     'migrate_student_announcements_no_access.php',
     'migrate_add_facilitator_role.php',
+    'migrate_counselor_career_access.php',
     'migrate_add_staff_accounts_rbac.php',
     // Last: the default admin account.
     'seed_admin.php',

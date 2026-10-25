@@ -6,7 +6,8 @@ $pdo = Database::get();
 
 // Matches security-configuration.html's current DEFAULT_STATE.rbac exactly.
 $rbac = [
-    'career'          => ['admin' => 'full', 'counselor' => 'limited', 'student' => 'none'],
+    // Programs and their RIASEC codes (Career Dataset): Guidance Counselors edit them; Facilitators view only.
+    'career'          => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'rac'             => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],
     'recommendations' => ['admin' => 'full', 'counselor' => 'full',    'student' => 'full'],
     'counselor'       => ['admin' => 'full', 'counselor' => 'full',    'student' => 'none'],

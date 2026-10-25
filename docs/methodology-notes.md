@@ -94,8 +94,8 @@ similarity with every program, Best RIASEC Match = every program tied at the hig
 Alternative Courses = the next-highest, ties all kept and listed by the counselors' 1-2-3 letter
 ranking, Preferred Course separate. No weights, no other inputs. Awaiting only the adviser's sign-off.
 
-**Changing a program's code** (Career Dataset page; Admin by default, or staff given full
-"Career Profile Input" access in Security Configuration):
+**Changing a program's code** (Career Dataset page; the Admin and Guidance Counselors by default,
+Facilitators view only; set in Security Configuration under "Career Profile Input"):
 - The code must be three different letters from R, I, A, S, E, C; the page asks for confirmation
   and reminds staff to use only the code approved by the Guidance Office.
 - The Audit Log records what changed, old and new (e.g. "Holland code: SEA → ESA").

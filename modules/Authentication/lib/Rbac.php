@@ -20,7 +20,7 @@ class Rbac
      * Where a Guidance Facilitator starts when the database has no 'facilitator' rows yet (an older database, before the
      * column existed): the Guidance Counselor's level, but no higher than this. Once the rows exist the matrix decides.
      */
-    public const FACILITATOR_DEFAULT_LIMITS = ['sections' => 'limited', 'staffAccounts' => 'none'];
+    public const FACILITATOR_DEFAULT_LIMITS = ['sections' => 'limited', 'staffAccounts' => 'none', 'career' => 'limited'];
 
     /** The starting level of a Guidance Facilitator for $module, given the Guidance Counselor's level. */
     public static function facilitatorDefault(string $module, string $counselorLevel): string

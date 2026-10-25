@@ -258,6 +258,8 @@
     const res = await fetch('api/programs.php?meta=1');
     if (!res.ok) throw new Error('bad status');
     const data = await res.json();
+    // Only staff with Full access to the Career Dataset add programs; everyone else goes back to the list.
+    if (data.canEdit !== true) { window.location.replace('career-dataset'); return; }
     (data.colleges || []).forEach(function(c) {
       const opt = document.createElement('option');
       opt.value = c.id;

@@ -69,6 +69,37 @@ $a = new Client($base);
 check('admin login', $a->login('admin', 'ChangeMe123!') === 200);
 check("test data has students with a worksheet ($withWorksheet)", $withWorksheet > 0);
 
+echo "\n=== Who may edit: admin and Guidance Counselors yes, Facilitators view only ===\n";
+$staffAccount = function (string $username, string $position) use ($pdo): void {
+    $hash = password_hash('QaPc-Pass-2026!', PASSWORD_BCRYPT);
+    $st = $pdo->prepare("UPDATE users SET password_hash = ?, is_active = TRUE, failed_login_attempts = 0, locked_until = NULL WHERE username = ?");
+    $st->execute([$hash, $username]);
+    if ($st->rowCount() === 0) {
+        $pdo->prepare("INSERT INTO users (role, username, password_hash, email, email_verified_at, approval_status, full_name, staff_position)
+                       VALUES ('counselor', ?, ?, ?, NOW(), 'approved', ?, ?)")
+            ->execute([$username, $hash, "$username@example.invalid", 'QA ' . ucfirst($position), $position]);
+    }
+};
+$staffAccount('qa_pc_counselor', 'counselor');
+$staffAccount('qa_pc_facilitator', 'facilitator');
+$canEdit = fn(Client $c) => $c->req('GET', '/api/programs.php?all=1')['json']['canEdit'] ?? null;
+check('admin: page shows the edit controls (canEdit)', $canEdit($a) === true);
+$co = new Client($base);
+check('Guidance Counselor login', $co->login('qa_pc_counselor', 'QaPc-Pass-2026!') === 200);
+check('Guidance Counselor: canEdit', $canEdit($co) === true);
+$r = $co->req('PUT', '/api/programs.php', $payload('AEC', 'Edited by a counselor'));
+check('Guidance Counselor can save a program edit', $r['code'] === 200 && ($r['json']['success'] ?? false), json_encode($r['json']));
+$fa = new Client($base);
+check('Facilitator login', $fa->login('qa_pc_facilitator', 'QaPc-Pass-2026!') === 200);
+check('Facilitator: can view the list but canEdit is false', $canEdit($fa) === false);
+$r = $fa->req('PUT', '/api/programs.php', $payload('ECA', 'Edited by a facilitator'));
+check('Facilitator cannot edit a program (403)', $r['code'] === 403, (string) $r['code']);
+$r = $fa->req('POST', '/api/programs.php', ['type' => 'toggleActive', 'id' => $pid]);
+check('Facilitator cannot deactivate a program (403)', $r['code'] === 403, (string) $r['code']);
+$st = $pdo->prepare('SELECT holland_code_enc FROM programs WHERE id = ?');
+$st->execute([$pid]);
+check('the facilitator\'s attempt changed nothing (code still AEC)', Crypto::dec((string) $st->fetchColumn()) === 'AEC');
+
 echo "\n=== Edit without a code change: audit records what changed, nothing recomputed ===\n";
 $before = $recCount();
 $r = $a->req('PUT', '/api/programs.php', $payload('AEC', 'Synthetic description'));
@@ -77,8 +108,8 @@ check('reported as no code change', ($r['json']['hollandCodeChanged'] ?? null) =
 check('no recommendations recomputed', $recCount() === $before);
 $detail = AuditChange::parse((string) $lastAudit('update_program', $pid));
 $fields = array_column($detail['changes'] ?? [], 'field');
-check('audit: "Description" and "Careers" listed as changed, Holland code not', in_array('Description', $fields, true)
-    && in_array('Careers', $fields, true) && !in_array('Holland code', $fields, true), json_encode($fields));
+check('audit: "Description" listed as changed, Holland code not', in_array('Description', $fields, true)
+    && !in_array('Holland code', $fields, true), json_encode($fields));
 
 echo "\n=== Related SHS strands: optional, saved, returned, audited, never recomputed ===\n";
 $strandsOf = function () use ($a, $pid): ?array {
