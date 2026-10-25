@@ -98,6 +98,9 @@ $preferredId = $row['stated_program_id'] !== null ? (int) $row['stated_program_i
 // Results saved by this CBF version store each course's dot product; older results
 // (before the CBF revision) should be recomputed (php db/recompute_recommendations.php).
 $isCurrent = isset($scores[0]['dotProduct']);
+// Saved against a program list that has changed since (a recompute that failed or never ran): the result
+// is shown as saved, and reported as needing a recompute.
+$isStale = $isCurrent && CBFData::isStale($scores, CBFData::activePrograms($pdo));
 // Best RIASEC Match: courses tied at the highest cosine similarity (CBF only).
 $bestIds = $isCurrent && $row['cbf_program_ids'] !== null
     ? CBFData::parseIntArray($row['cbf_program_ids'])
@@ -178,7 +181,7 @@ $response = [
     'electives' => $electives,
     'matchStatus' => $row['match_status'],
     'mismatchReason' => $row['mismatch_reason'],
-    'needsRecompute' => !$isCurrent,
+    'needsRecompute' => !$isCurrent || $isStale,
     // Ranked interests, ordered code, ties and flat-profile checks. When the profile is flat or
     // ties decide the code, the CBF still lists every tied program; the page adds a guidance note.
     'riasecProfile' => $profile,

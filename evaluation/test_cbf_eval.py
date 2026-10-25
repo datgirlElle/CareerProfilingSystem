@@ -220,7 +220,8 @@ class Evaluation(unittest.TestCase):
     def test_scores_scale_keeps_the_actual_profile(self):
         row = {"StudentID": "1", "R": "4", "I": "5", "A": "1", "S": "1", "E": "2", "C": "4"}
         self.assertEqual(m.student_vector(row, "scores"), [4.0, 5.0, 1.0, 1.0, 2.0, 4.0])
-        # Same ranking as the web app: IRC course cosine 0.946 (13 / (sqrt(63) * sqrt(3))).
+        # Cosine on the scores as given: IRC course 0.946 (13 / (sqrt(63) * sqrt(3))). Equal to the web app only
+        # when the file holds ProfilePath stored scores (10-50); see ProductionScale below.
         self.assertAlmostEqual(m.cosine(m.student_vector(row, "scores"), m.holland_to_vector("IRC", m.ENCODINGS["binary"])), 13 / (math.sqrt(63) * math.sqrt(3)))
 
     def test_top3_arff_uses_x_blank(self):
@@ -277,6 +278,47 @@ class BinaryArff(unittest.TestCase):
         self.assertIn("@ATTRIBUTE 'Actual Course' {'BS Nursing','BSBA Major in Operations Management'}", text)
         self.assertIn("0,0,1,0,1,1,'BSBA Major in Operations Management'", text)   # E, C, A
         self.assertIn("1,1,1,0,0,0,'BS Nursing'", text)                           # A ties S for 3rd: A first
+
+
+class ProductionScale(unittest.TestCase):
+    """The default student vector is the web app's (CBFEngine::studentVector): stored scores / 10.
+    tests/cbf_audit_test.php also runs this script against CBFEngine on every approved code."""
+
+    def test_production_is_stored_scores_over_ten(self):
+        row = student("1", [30, 40, 20, 45, 15, 25])
+        self.assertEqual(m.student_vector(row, "production"), [3.0, 4.0, 2.0, 4.5, 1.5, 2.5])
+        # docs/methodology-notes.md §4 worked example: SIR cosine 11.5 / (sqrt(57.75) * sqrt(3)) = 0.8737
+        self.assertAlmostEqual(m.cosine(m.student_vector(row, "production"), m.holland_to_vector("SIR")),
+                               11.5 / (math.sqrt(57.75) * math.sqrt(3)), places=12)
+
+    def test_production_refuses_other_scales_and_marks(self):
+        for bad in ([5, 20, 20, 20, 20, 20], [20, 20, 20, 20, 20, 51], [float("nan"), 20, 20, 20, 20, 20]):
+            with self.assertRaises(ValueError):
+                m.student_vector(student("X", bad), "production")
+        with self.assertRaises(ValueError):
+            m.student_vector({"StudentID": "1", "R": "", "I": "x", "A": "", "S": "", "E": "x", "C": "x"}, "production")
+
+    def test_onet_mini_converts_like_the_documented_example(self):
+        # §1.1: O*NET R 3, I 2, A 6, S 1, E 19, C 8 -> stored R 16, I 14, A 22, S 12, E 48, C 26
+        onet = student("1", [3, 2, 6, 1, 19, 8])
+        stored = student("1", [16, 14, 22, 12, 48, 26])
+        self.assertEqual(m.student_vector(onet, "onet-mini"), m.student_vector(stored, "production"))
+        with self.assertRaises(ValueError):
+            m.student_vector(student("X", [3, 2, 6, 1, 21, 8]), "onet-mini")
+
+    def test_onet_raw_scores_are_not_the_production_vector(self):
+        # Cosine is not shift-invariant: raw 0-20 sums give different values from the app's 2x+10 scale.
+        onet = student("1", [3, 2, 6, 1, 19, 8])
+        cv = m.holland_to_vector("ECA")
+        self.assertNotAlmostEqual(m.cosine(m.student_vector(onet, "scores"), cv), m.cosine(m.student_vector(onet, "onet-mini"), cv), places=4)
+
+    def test_every_cbf_command_defaults_to_production(self):
+        p = m.build_parser()
+        for argv in (["cbf", "--students", "x"], ["weights", "--students", "x"], ["split", "--students", "x"],
+                     ["agreement", "--students", "x"], ["compare", "--train", "x", "--students", "y", "--weka", "z"]):
+            self.assertEqual(p.parse_args(argv).scale, "production", argv[0])
+        self.assertEqual(p.parse_args(["cbf", "--students", "x", "--scale", "top3"]).scale, "top3")   # historical, by name
+
 
 if __name__ == "__main__":
     unittest.main()

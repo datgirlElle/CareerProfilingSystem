@@ -94,15 +94,43 @@ similarity with every program, Best RIASEC Match = every program tied at the hig
 Alternative Courses = the next-highest, ties all kept and listed by the counselors' 1-2-3 letter
 ranking, Preferred Course separate. No weights, no other inputs. Awaiting only the adviser's sign-off.
 
-**Changing a program's code** (Career Dataset page; the Admin and Guidance Counselors by default,
+**Algorithm of record (frozen 2026-10-26; change only by a documented, approved decision):**
+
+| Step | Rule | Where |
+|---|---|---|
+| Scores | Stored score per type = round-half-up(10 × raw ÷ n), 10–50 (§1) | `QuestionBank::scaleScore` |
+| Top 1–2–3 | Six types ranked by score; equal scores share a rank and are reported as ties; the code is provisional when ties decide it (§3) | `RiasecProfile::derive` |
+| Student vector | `[R, I, A, S, E, C]` = stored score ÷ 10 (1.0–5.0), all six values, never the top-3 0/1 vector | `CBFEngine::studentVector` |
+| Program vector | 1 for each letter of the counselor-approved three-letter code, 0 otherwise, same order | `CBFEngine::courseVector` |
+| Similarity | cos(S, C) = (S · C) ÷ (‖S‖ × ‖C‖) | `CBFEngine::cosineSimilarity` |
+| Groups | Best RIASEC Match = all programs at the highest full-precision value (ties within 1e-9); Alternatives = the next value; the 1-2-3 letter order only arranges a tie | `CBFEngine::compute` |
+| J48 (separate) | Six 0/1 inputs = the top three types (ties for 3rd in R, I, A, S, E, C order) | `PredictionModel::binaryInputs` |
+
+**Changing the program list** (Career Dataset page; the Admin and Guidance Counselors by default,
 Facilitators view only; set in Security Configuration under "Career Profile Input"):
 - The code must be three different letters from R, I, A, S, E, C; the page asks for confirmation
   and reminds staff to use only the code approved by the Guidance Office.
 - The Audit Log records what changed, old and new (e.g. "Holland code: SEA → ESA").
-- Every saved recommendation is recomputed at once with the new code (a new row per student; older
-  rows stay as history; nothing is sent to students), and a second audit entry records how many.
+- **What recomputes** (`modules/CareerDataset/api/programs.php`, `recomputeAfterProgramChange`): adding an
+  Active program, activating or deactivating one (button or edit form), and changing a code. Every
+  saved recommendation is then recomputed with `CBFData::recomputeAll` (the same pipeline as a
+  worksheet submission: the student's latest assessment, latest worksheet and the current Active
+  programs; a new row per student; older rows stay as history; nothing is sent to students), and an
+  audit entry records the change and how many. Title, description, careers, college and strands do
+  not enter the CBF and do not recompute. Programs are never deleted through the application.
+- **If a recompute fails** the program change stays saved; the page and the audit entry give the number
+  of students not updated (or that the recompute did not run). A student who could not be saved —
+  an error, or no Active program at all — keeps the previous result, and
+  `modules/ContentBasedFiltering/api/recommendations.php` reports it as `needsRecompute` (shown to staff as
+  "Outdated") because its saved program list and codes differ from the current ones
+  (`CBFData::isStale`). The same check catches changes made outside the page (e.g. a `db/` script).
+  Until `php db/recompute_recommendations.php` is run, such a result can still list a deactivated
+  program, marked "no longer available".
 - `db/migrate_final_holland_codes.php` sets the 32 approved codes; run it once on a new database
-  only, because running it again would undo later edits made on the Career Dataset page.
+  only, because running it again would undo later edits made on the Career Dataset page. When it
+  changes a code it prints a reminder to run `php db/recompute_recommendations.php`.
+- **History:** recomputing never touches assessments (scores, attempts, question sets, scoring
+  version) or earlier recommendation rows; each new row records the assessment it was computed from.
 
 `modules/ContentBasedFiltering/lib/CBFEngine.php`, `config/cbf.php`, `db/program_codes.php`.
 
@@ -183,6 +211,39 @@ not a probability of success and not a percentage fit, and it is not shown to st
   does not validate the program codes or the method.
 - *Rashid et al. (2022)*: not found under that title; do not cite until the exact reference is confirmed.
 - None of these validates ProfilePath's program codes, vectors, cosine method or recommendation accuracy.
+
+**Alternatives considered (2026-10-26; no change made).** There are no ground-truth suitability labels:
+the only labelled data are students' *stated intended* courses, so no method can be shown to give
+more suitable recommendations. Figures below are exploratory agreement with stated intent only, on the
+repository's earlier 0–10 count file (`evaluation/riasec.csv`, 291 students with a course, a different
+instrument from ProfilePath's), cosine on the scores as given.
+
+| Method | Needs | Assumes | Effect on ranking | Support | Hit@3 / MRR vs stated course |
+|---|---|---|---|---|---|
+| Binary-code cosine (**production**) | Approved 3-letter code | Each listed letter equally characteristic | Codes with the same letters always tie (e.g. IRC, RIC, ICR); mean 3.7 programs tied at the top | Local design choice | 0.135 / 0.171 |
+| 3-2-1 ordered-code cosine | Code order meaning "most to least characteristic" | The counselors' order is a strength ranking with these exact steps | Splits same-letter codes; fewer ties (2.0) | Not established: the IP Manual reports ordered codes but gives no weights; the counselors describe the order as a ranking, not weights | 0.203 / 0.194 |
+| Pearson profile correlation (O\*NET's method) | Six-score program profiles (not available: programs have 3-letter codes only) | Shape, not level, matters | With 3-letter binary program vectors it gives **exactly the same ranking and ties** as binary cosine (every such vector has the same mean and spread, so both are increasing in S · C) | Lewis & Morris (2025) for occupations with six-score profiles | 0.135 / 0.171 (identical) |
+
+More agreement with stated intent, or fewer ties, is not evidence that a method recommends more
+suitable programs. Changing to 3-2-1 weights would change every cosine value and need an approved
+methodological decision; correlation would only differ if programs had six-score interest profiles.
+
+**Mathematical correctness vs empirical validity.** The tests (`tests/cbf_audit_test.php`,
+`tests/program_code_http_test.php`, `evaluation/test_cbf_eval.py`) show that the system computes the
+documented formula correctly, consistently across the web app and the evaluation script, and keeps
+results current when programs change. They do not show that the recommendations suit students. The
+program representations are the Guidance Office's ordered codes: counselor review records an
+approved mapping; it is not an independent validation of the codes, of the binary representation, or
+of recommendation accuracy or career success.
+
+**Limitations seen in the synthetic checks.** Cosine on uncentered scores measures direction only: a
+student who answered near "Dislike" everywhere but slightly higher on E (R 10, I 11, A 10, S 12, E 18,
+C 11) still gets a Best Match at 0.7847; a flat profile ties all 32 programs at 0.7071 (§5). The
+Prediction Module's 0/1 inputs break ties for 3rd place by R, I, A, S, E, C order (needed for its 20
+input patterns), so a flat profile gives it R, I, A; that is a convention of the J48 inputs, not an
+interest ranking, and the CBF does not use it. The stored `assessments.top_types` list and the exported
+three-letter code use the same convention without a provisional marker; the results page and the API
+report ties and provisional codes.
 
 ## 5. Flat and insufficiently differentiated profiles
 

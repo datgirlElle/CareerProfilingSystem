@@ -45,9 +45,14 @@ foreach ($rows as $r) {
     if ($current !== $final) {
         $setFinal->execute([Crypto::enc($final), $r['id']]);
         echo "  $title: $current -> $final\n";
+        $changed = true;
     }
 }
 $pdo->commit();
+if (!empty($changed)) {
+    // Saved recommendations were computed with the old codes (the results page reports them as needing a recompute).
+    echo "Codes changed: run php db/recompute_recommendations.php to update saved recommendations.\n";
+}
 
 foreach (array_diff_key($codes, $found) as $title => $_) {
     echo "  WARNING: listed program not found in the database: $title\n";

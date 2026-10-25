@@ -298,6 +298,12 @@
         showError(data.error || 'Failed to save the program.');
         return;
       }
+      // An Active program is compared with every student, so saved recommendations were recomputed.
+      if (data.recomputeFailed > 0 || data.recomputeError) {
+        showError('The program was saved, but ' + (data.recomputeError ? 'recommendations' : data.recomputeFailed + ' students\' recommendations') +
+          ' could not be updated. Run php db/recompute_recommendations.php.');
+        return;
+      }
       window.location.href = 'career-dataset';
     } catch (err) {
       showError('Unable to reach the server. Please try again.');
