@@ -105,11 +105,12 @@ if ($isStaff) {
         }
     }
 
-    // Retake requests waiting for an answer: only for staff who handle them (the Counseling Notes permission,
-    // as in api/retake-requests.php) and only for students in their sections (modules/UserManagement/lib/StaffScope.php).
+    // Retake requests waiting for an answer: only for staff who see counseling history (permission table, as in
+    // api/retake-requests.php) and only for students in their sections (modules/UserManagement/lib/StaffScope.php).
+    $seesCounseling = Rbac::accessLevel('counselingHistory', Rbac::roleKey($user)) !== 'none';
     try {
         $retakeRows = [];
-        if (Rbac::accessLevel('counselingNotes', Rbac::roleKey($user)) !== 'none') {
+        if ($seesCounseling) {
             $stmt = $pdo->query(
                 "SELECT rr.id, rr.requested_at, s.first_name_enc, s.last_name_enc, s.strand, s.section FROM retake_requests rr
                  JOIN students s ON s.user_id = rr.student_id
@@ -133,12 +134,12 @@ if ($isStaff) {
         // table not created yet (migration not run)
     }
 
-    // Open counseling requests awaiting a response
-    $stmt = $pdo->query(
+    // Open counseling requests awaiting a response: only for staff who see counseling history (as in api/help-requests.php).
+    $helpRows = !$seesCounseling ? [] : $pdo->query(
         "SELECT id, name_enc, subject_enc, sent_at FROM help_requests
          WHERE status = 'open' ORDER BY sent_at DESC LIMIT $each"
-    );
-    foreach ($stmt->fetchAll() as $row) {
+    )->fetchAll();
+    foreach ($helpRows as $row) {
         $who = Crypto::dec($row['name_enc']) ?: 'A student';
         $items[] = [
             'type' => 'help_request',

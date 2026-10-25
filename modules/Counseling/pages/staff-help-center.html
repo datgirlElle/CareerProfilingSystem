@@ -210,11 +210,11 @@
   document.getElementById('headerUserRole').textContent = currentUser.positionLabel || roleLabels[currentUser.role] || currentUser.role;
 
   // ---- Guidance Office: the office hours and the counseling booking link students see. The Head of Guidance and whoever
-  // holds Full on Counseling Notes (set in the permission table) can change them; nobody else sees this card.
+  // holds Full on Help Center (set in the permission table) can change them; nobody else sees this card.
   (async function() {
     let state = null;
     try { state = await (await fetch('api/security-config.php')).json(); } catch (e) { return; }
-    const level = (state.rbac && state.rbac.counselingNotes && state.rbac.counselingNotes[currentUser.rbacRole || currentUser.role]) || 'none';
+    const level = (state.rbac && state.rbac.helpCenter && state.rbac.helpCenter[currentUser.rbacRole || currentUser.role]) || 'none';
     if (currentUser.role !== 'admin' && level !== 'full') return;
     const isAdmin = true; // only people who may edit get this far
     document.getElementById('guidanceOfficeCard').classList.remove('hidden');

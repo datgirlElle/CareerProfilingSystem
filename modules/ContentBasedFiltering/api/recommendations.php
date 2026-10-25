@@ -19,6 +19,7 @@
 require_once __DIR__ . '/../../../shared/api/_bootstrap.php';
 require_once __DIR__ . '/../lib/CBFData.php';
 require_once __DIR__ . '/../../CareerDataset/lib/Careers.php';
+require_once __DIR__ . '/../../UserManagement/lib/StaffScope.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     jsonResponse(['error' => 'Method not allowed'], 405);
@@ -28,16 +29,26 @@ $user = Auth::requireLogin();
 $pdo = Database::get();
 
 $requestedStudentId = isset($_GET['studentId']) ? (int) $_GET['studentId'] : null;
-if ($requestedStudentId !== null && $requestedStudentId !== (int) $user['id']) {
-    Rbac::requireAccess('recommendations', 'full');
-    $studentId = $requestedStudentId;
+if ($user['role'] === 'student') {
+    // A student only ever reads their own recommendation, whatever studentId the request carries.
+    $studentId = (int) $user['id'];
 } else {
-    if ($user['role'] !== 'student') {
+    if ($requestedStudentId === null) {
         jsonResponse(['error' => 'studentId is required for non-student accounts.'], 400);
     }
-    $studentId = (int) $user['id'];
+    Rbac::requireAccess('recommendations', 'limited'); // Career recommendations (permission table): View Only sees them
+    // Staff only see students in their sections (modules/UserManagement/lib/StaffScope.php); outside them, "not found".
+    $scopeStmt = $pdo->prepare('SELECT strand, section FROM students WHERE user_id = ?');
+    $scopeStmt->execute([$requestedStudentId]);
+    $scopeRow = $scopeStmt->fetch();
+    if (!$scopeRow || !StaffScope::allows(StaffScope::forUser($pdo, $user), $scopeRow['strand'], $scopeRow['section'])) {
+        jsonResponse(['error' => 'Student not found.'], 404);
+    }
+    $studentId = $requestedStudentId;
 }
 $isStaff = $user['role'] !== 'student';
+// The RIASEC scores behind the match (student vector, dot products) are assessment results (permission table).
+$seesScores = $isStaff && Rbac::accessLevel('assessmentResults', Rbac::roleKey($user)) !== 'none';
 
 try {
     $stmt = $pdo->prepare(
@@ -164,13 +175,13 @@ if ($isStaff) {
     $response['cbf'] = [
         'bestRiasecMatch' => array_column($programsFor($bestIds), 'title'),
         'alternatives' => array_column($programsFor($alternativeIds), 'title'),
-        'studentVector' => $scores[0]['studentVector'] ?? null,
-        'studentMagnitude' => $scores[0]['studentMagnitude'] ?? null,
+        'studentVector' => $seesScores ? ($scores[0]['studentVector'] ?? null) : null,
+        'studentMagnitude' => $seesScores ? ($scores[0]['studentMagnitude'] ?? null) : null,
         'results' => array_map(fn($sc) => [
             'title' => $programs[(int) $sc['programId']]['title'] ?? (string) $sc['programId'],
             'hollandCode' => $sc['hollandCode'] ?? ($programs[(int) $sc['programId']]['hollandCode'] ?? null),
             'courseVector' => $sc['courseVector'] ?? null,
-            'dotProduct' => $sc['dotProduct'] ?? null,
+            'dotProduct' => $seesScores ? ($sc['dotProduct'] ?? null) : null,
             'courseMagnitude' => $sc['courseMagnitude'] ?? null,
             'cosineSimilarity' => (float) $sc['cosine'],
         ], $scores),

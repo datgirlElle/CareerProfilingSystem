@@ -160,7 +160,7 @@
 <div id="reviewModal" class="modal-backdrop hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
   <div class="modal-card pp-dialog pp-dialog-lg">
     <div class="pp-dialog-head">
-      <h2 class="pp-dialog-title">Review recommendation</h2>
+      <h2 id="reviewTitle" class="pp-dialog-title">Review recommendation</h2>
       <button type="button" class="pp-dialog-x" data-dialog-close aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <div class="pp-dialog-form">
@@ -303,7 +303,7 @@
           '<td class="px-6 py-3 text-sm font-bold text-slate-700">' + escapeHtml(r.match) + '</td>' +
           '<td class="px-6 py-3 text-sm text-slate-600">' + escapeHtml(r.reason) + '</td>' +
           priorityCell +
-          '<td class="px-6 py-3"><a href="#" class="review-link flex items-center gap-1 text-sm text-blue-600 hover:underline" data-flag-id="' + r.flagId + '">Review</a></td>' +
+          '<td class="px-6 py-3"><a href="#" class="review-link flex items-center gap-1 text-sm text-blue-600 hover:underline" data-flag-id="' + r.flagId + '">' + (canAct ? 'Review' : 'View') + '</a></td>' +
         '</tr>';
       }
       if (tab === 'completed') {
@@ -393,8 +393,10 @@
     let canAct = currentUser.role === 'admin';
     fetch('api/security-config.php').then(function(r) { return r.json(); }).then(function(inviteCfg) {
       const levelFor = (module) => ((inviteCfg.rbac && inviteCfg.rbac[module] && inviteCfg.rbac[module][currentUser.rbacRole || currentUser.role]) || 'none');
-      canInvite = levelFor('counselingNotes') === 'full' && (currentUser.rbacRole || currentUser.role) !== 'facilitator'; // Facilitators never invite (DFD process 4.0)
+      canInvite = levelFor('counselingStatus') === 'full' && (currentUser.rbacRole || currentUser.role) !== 'facilitator'; // Facilitators never invite (DFD process 4.0)
       canAct = levelFor('monitoring') === 'full';
+      // Rows drawn before this answer came get the right word too: Review (can decide) or View (View Only).
+      document.querySelectorAll('.review-link').forEach(function(link) { link.textContent = canAct ? 'Review' : 'View'; });
     }).catch(function() {});
     async function sendCounselingInvite(studentId) {
       const res = await fetch('api/counseling-invite.php', {
@@ -441,7 +443,8 @@
       document.getElementById('reviewDismissText').textContent = 'Nothing needs to be done. ' + leaves;
       document.getElementById('reviewEscalateChoice').classList.toggle('hidden', currentFlag.escalated);
       document.querySelectorAll('input[name="reviewAction"]').forEach(function(input) { input.checked = false; });
-      // View Only staff see the details without the decision part.
+      // View Only staff see the details without the decision part (the link and the title say View, not Review).
+      document.getElementById('reviewTitle').textContent = canAct ? 'Review recommendation' : 'Recommendation details';
       document.getElementById('reviewDecision').classList.toggle('hidden', !canAct);
       document.getElementById('reviewNoteWrap').classList.toggle('hidden', !canAct);
       reviewSubmit.classList.toggle('hidden', !canAct);

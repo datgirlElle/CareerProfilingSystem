@@ -125,7 +125,7 @@
                   <th class="px-5 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Sections</th>
                   <th class="px-5 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Signed Up</th>
                   <th class="px-5 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase">Status</th>
-                  <th class="px-5 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase text-center">Action</th>
+                  <th id="staffActionHead" class="px-5 py-3 text-xs font-semibold tracking-wide text-gray-600 uppercase text-center">Action</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100" id="staffTbody">
@@ -136,7 +136,7 @@
         </section>
 
         <!-- Sections -->
-        <section class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <section id="sectionsSection" class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           <div class="border-b border-gray-200 px-5 py-5">
             <h2 class="text-base font-semibold text-gray-900">Sections</h2>
           </div>
@@ -147,7 +147,7 @@
         </section>
 
         <!-- Class roster -->
-        <section class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <section id="rosterSection" class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           <div class="border-b border-gray-200 px-5 py-5">
             <h2 class="text-base font-semibold text-gray-900">Class Roster</h2>
           </div>
@@ -282,21 +282,25 @@
   // ---------- Staff accounts ----------
   // The administrator always manages these. A guidance counselor or facilitator sees the list only when the
   // administrator gave them "Staff Accounts" access (Security Configuration, Edit Roles): Full lets them approve
-  // sign-ups and send access codes, View Only just looks. Assigning sections is the separate "Guidance Counselor" permission.
+  // sign-ups, send access codes and assign sections, View Only just looks (Manage staff accounts, permission table).
   let staffLevel = isAdmin ? 'full' : 'none';
-  // Assigning sections is the separate "Guidance Counselor" permission.
+  // Assigning sections to staff is part of Manage staff accounts (Full).
   let canAssign = isAdmin;
   if (!isAdmin) {
     try {
       const cfg = await (await fetch('api/security-config.php')).json();
       const me = currentUser.rbacRole || currentUser.role;
       staffLevel = (cfg.rbac && cfg.rbac.staffAccounts && cfg.rbac.staffAccounts[me]) || 'none';
-      canAssign = ((cfg.rbac && cfg.rbac.counselor && cfg.rbac.counselor[me]) || 'none') === 'full';
+      canAssign = ((cfg.rbac && cfg.rbac.staffAccounts && cfg.rbac.staffAccounts[me]) || 'none') === 'full'; // Manage staff accounts
     } catch (e) {}
   }
   if (staffLevel !== 'none') {
     document.getElementById('staffSection').classList.remove('hidden');
     const staffTbody = document.getElementById('staffTbody');
+    // View Only has no staff actions, so the Action column is left out instead of standing empty.
+    const showActions = staffLevel === 'full';
+    const staffCols = showActions ? 7 : 6;
+    if (!showActions) document.getElementById('staffActionHead').remove();
 
     function staffBadge(a) {
       if (a.status === 'pending') return PP.badge('Awaiting approval', 'amber');
@@ -350,7 +354,7 @@
       try {
         accounts = (await PP.fetchJson('api/staff-approvals.php')).accounts || [];
       } catch (e) {
-        PP.showError(staffTbody, e.message, loadStaff, 7);
+        PP.showError(staffTbody, e.message, loadStaff, staffCols);
         return;
       }
       staffTbody.removeAttribute('aria-busy');
@@ -366,9 +370,9 @@
           '<td class="px-5 py-4 text-sm text-gray-500">' + sectionsCell(a) + '</td>' +
           '<td class="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">' + formatDate(a.createdAt) + '</td>' +
           '<td class="px-5 py-4 whitespace-nowrap">' + staffBadge(a) + '</td>' +
-          '<td class="px-5 py-4 text-center whitespace-nowrap">' + actionButtons(a) + '</td>' +
+          (showActions ? '<td class="px-5 py-4 text-center whitespace-nowrap">' + actionButtons(a) + '</td>' : '') +
         '</tr>';
-      }).join('') : '<tr><td colspan="7" class="px-5 py-8 text-center text-sm text-gray-500">No staff accounts yet. Staff can sign up from the login page.</td></tr>';
+      }).join('') : '<tr><td colspan="' + staffCols + '" class="px-5 py-8 text-center text-sm text-gray-500">No staff accounts yet. Staff can sign up from the login page.</td></tr>';
     }
 
     staffTbody.addEventListener('click', async function(e) {
@@ -468,10 +472,10 @@
     // An error is a sentence to read, so it stays up longer than a confirmation.
     showSectionsStatus.timer = setTimeout(() => el.classList.add('hidden'), isError ? 9000 : 3000);
   }
-  // Full = can add and deactivate/reactivate sections (a Guidance Facilitator only ever sees Limited).
-  // Comes from the 'sections' row of Security Configuration's permission table.
+  // Full = can add and deactivate/reactivate sections; View Only = look at them.
+  // Comes from the Student roster management row of Security Configuration's permission table.
   function sectionsLevel() {
-    return (rbac && rbac.sections && rbac.sections[currentUser.rbacRole || currentUser.role]) || 'none';
+    return (rbac && rbac.roster && rbac.roster[currentUser.rbacRole || currentUser.role]) || 'none'; // Student roster management
   }
   // The same rules the server applies (modules/StudentManagement/lib/Sections.php), so a mistake is caught while typing. Returns '' when fine.
   function sectionCodeProblem(strand, code) {
@@ -509,29 +513,32 @@
     const level = sectionsLevel();
     const canAdd = level === 'full';
     const canToggle = level === 'full';
-    const addDisabledAttr = canAdd ? '' : ' disabled';
-    const addDisabledCls = canAdd ? '' : ' opacity-60 cursor-not-allowed';
-    const disabledAttr = canToggle ? '' : ' disabled';
-    const disabledCls = canToggle ? '' : ' opacity-60 cursor-not-allowed';
+    // View Only: the sections are plain labels (an inactive one crossed out, with the word for screen readers) and there is
+    // no Add box, instead of dimmed buttons that cannot be used.
     container.innerHTML = SECTION_STRANDS.map(function(strand) {
       const items = sectionsData.filter(s => s.strand === strand);
       const pills = items.length ? items.map(function(s) {
         const styleCls = s.isActive
-          ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-          : 'bg-gray-100 border-gray-200 text-gray-400 line-through';
-        const pill = '<button type="button" class="section-pill border rounded-full px-3 py-1.5 text-xs font-medium ' + styleCls + disabledCls + '" data-id="' + s.id + '"' + disabledAttr + ' title="' + (canToggle ? (s.isActive ? 'Click to deactivate' : 'Click to reactivate') : (s.isActive ? 'Active' : 'Inactive')) + '">' + escapeHtml(s.code) + '</button>';
-        if (!canToggle) return pill;
+          ? 'bg-white border-gray-300 text-gray-700' + (canToggle ? ' hover:bg-gray-50' : '')
+          : 'bg-gray-100 border-gray-200 text-gray-500 line-through';
+        if (!canToggle) {
+          return '<span class="border rounded-full px-3 py-1.5 text-xs font-medium ' + styleCls + '">' + escapeHtml(s.code) +
+            (s.isActive ? '' : '<span class="pp-sr-only"> (inactive)</span>') + '</span>';
+        }
+        const pill = '<button type="button" class="section-pill border rounded-full px-3 py-1.5 text-xs font-medium ' + styleCls + '" data-id="' + s.id + '" title="' + (s.isActive ? 'Click to deactivate' : 'Click to reactivate') + '">' + escapeHtml(s.code) + '</button>';
         return '<span style="display:inline-flex;align-items:center;gap:2px">' + pill +
           '<button type="button" class="btn-danger delete-section-btn" data-id="' + s.id + '" data-code="' + escapeHtml(s.code) + '" title="Delete section" aria-label="Delete section ' + escapeHtml(s.code) + '" style="width:20px;height:20px;border-radius:9999px;line-height:1;font-size:14px;color:#ed1c24;display:inline-flex;align-items:center;justify-content:center">&times;</button></span>';
       }).join('') : '<p class="text-xs text-gray-500">No sections yet.</p>';
       return '<div class="border border-gray-200 rounded-lg p-[17px] flex flex-col gap-3">' +
         '<p class="text-sm font-semibold text-gray-800">' + strand + '</p>' +
         '<div class="flex flex-wrap gap-2">' + pills + '</div>' +
-        '<div class="flex items-center gap-2">' +
-          '<input type="text" maxlength="5" autocapitalize="characters" spellcheck="false" class="add-section-input flex-1 min-w-0 border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed1c24]' + addDisabledCls + '" placeholder="New section, e.g. S1115" aria-label="New ' + strand + ' section code" data-strand="' + strand + '"' + addDisabledAttr + '>' +
-          '<button type="button" class="add-section-btn px-4 py-2 text-xs font-semibold text-white bg-[#0f2a6b] rounded-md hover:opacity-90 shrink-0' + addDisabledCls + '" data-strand="' + strand + '"' + addDisabledAttr + '>Add</button>' +
-        '</div>' +
-        '<p class="add-section-hint text-xs text-[#ed1c24] hidden" data-strand="' + strand + '"></p>' +
+        (canAdd
+          ? '<div class="flex items-center gap-2">' +
+              '<input type="text" maxlength="5" autocapitalize="characters" spellcheck="false" class="add-section-input flex-1 min-w-0 border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed1c24]" placeholder="New section, e.g. S1115" aria-label="New ' + strand + ' section code" data-strand="' + strand + '">' +
+              '<button type="button" class="add-section-btn px-4 py-2 text-xs font-semibold text-white bg-[#0f2a6b] rounded-md hover:opacity-90 shrink-0" data-strand="' + strand + '">Add</button>' +
+            '</div>' +
+            '<p class="add-section-hint text-xs text-[#ed1c24] hidden" data-strand="' + strand + '"></p>'
+          : '') +
       '</div>';
     }).join('');
 
@@ -631,15 +638,21 @@
     rbac = cfg.rbac;
     canEditRoster = !!cfg.canEditRoster;
   } catch (e) { rbac = null; }
+  // No Access on Student roster management: the sections and class roster cards are not shown at all.
+  const seesRoster = sectionsLevel() !== 'none';
+  if (!seesRoster) {
+    ['sectionsSection', 'rosterSection'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
+  }
   if (!canEditRoster) {
-    // View-only (Guidance Facilitator): no template download or upload, just what has been uploaded.
-    ['downloadTemplateBtn', 'uploadRosterBtn'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
+    // View Only on Student roster management: no template download or upload, just what has been uploaded.
+    // style, not the "hidden" class: both are inline-flex, which comes after "hidden" in css/tailwind.css and wins.
+    ['downloadTemplateBtn', 'uploadRosterBtn'].forEach(function(id) { document.getElementById(id).style.display = 'none'; });
     const note = document.createElement('p');
     note.className = 'text-xs text-gray-500';
-    note.textContent = 'You have view-only access to the class roster. A Guidance Counselor or the Head of Guidance uploads it.';
+    note.textContent = 'You have view-only access to the class roster. The Head of Guidance, or staff given Full access, uploads it.';
     document.getElementById('rosterResult').before(note);
   }
-  await loadSections();
+  if (seesRoster) await loadSections();
 
   // ---------- Class roster ----------
   // The sections already uploaded for this academic year, so staff can see what is on the roster.
@@ -663,7 +676,7 @@
       PP.showError(body, e.message, loadRosterSections, 5);
     }
   }
-  loadRosterSections();
+  if (seesRoster) loadRosterSections();
   const resultEl = document.getElementById('rosterResult');
   function showRosterResult(text, isError) {
     resultEl.textContent = text;

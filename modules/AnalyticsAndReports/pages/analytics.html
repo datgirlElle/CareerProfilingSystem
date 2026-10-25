@@ -298,7 +298,7 @@
         </div>
       </div>
 
-      <!-- Send Analytics Report (administrator and Guidance Counselors): emails the Analytics Report as a PDF (api/analytics-report.php) -->
+      <!-- Analytics Report: preview, export as a PDF and (with Full on Send analytics report) email it (api/analytics-report.php) -->
       <section id="sendReportCard" class="hidden bg-white border border-slate-200 rounded-xl shadow-sm mt-6" aria-labelledby="sendReportTitle">
         <div class="border-b border-slate-200 px-5 py-5 flex items-start gap-4">
           <span class="w-10 h-10 rounded-lg bg-[#eef3fc] flex items-center justify-center shrink-0" aria-hidden="true">
@@ -306,12 +306,12 @@
           </span>
           <div>
             <h2 id="sendReportTitle" class="text-base font-semibold text-slate-900">Send Analytics Report</h2>
-            <p class="text-sm text-slate-500 mt-0.5">Generate and send a summary of the current ProfilePath analytics to the school principal or another authorized school official.</p>
+            <p id="sendReportIntro" class="text-sm text-slate-500 mt-0.5">Generate and send a summary of the current ProfilePath analytics to the school principal or another authorized school official.</p>
           </div>
         </div>
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 p-5">
           <form id="sendReportForm" class="lg:col-span-3 flex flex-col gap-4" novalidate>
-            <div>
+            <div id="reportEmailField">
               <label for="reportEmail" class="block text-sm font-medium text-slate-700 mb-1.5">Recipient email address</label>
               <input type="email" id="reportEmail" name="reportEmail" autocomplete="email" maxlength="254" spellcheck="false" autocapitalize="none"
                 placeholder="principal@school.edu.ph" aria-describedby="reportEmailHint reportEmailError"
@@ -797,9 +797,19 @@
     document.getElementById('reportScope').textContent = who + ', Academic Year ' + (data.academicYear || 'not set');
   }
 
-  // ---- Send Analytics Report: the administrator and Guidance Counselors, not Guidance Facilitators
-  // (api/analytics-report.php checks this again). The report follows the filters on this page (lastExportFilter).
-  if (['admin', 'counselor'].includes(currentUser.rbacRole || currentUser.role)) {
+  // ---- Analytics Report: preview it (Analytics and reports), export it as a PDF (View Only on Export student results: it
+  // holds totals only) and email it (Full on Send analytics report). api/analytics-report.php checks each again. The report
+  // follows the filters on this page (lastExportFilter).
+  if (PP.may(currentUser, 'analytics')) {
+    const canEmail = PP.may(currentUser, 'analyticsEmail', 'full');
+    if (!canEmail) {
+      document.getElementById('sendReportTitle').textContent = 'Analytics Report';
+      document.getElementById('sendReportIntro').textContent = 'Preview a summary of the current ProfilePath analytics.';
+      document.getElementById('reportEmailField').classList.add('hidden');
+      // style, not the "hidden" class: these buttons are inline-flex, which comes after "hidden" in css/tailwind.css and wins.
+      document.getElementById('sendReportBtn').style.display = 'none';
+    }
+    if (!PP.may(currentUser, 'exportResults')) document.getElementById('reportDownloadBtn').style.display = 'none';
     const card = document.getElementById('sendReportCard');
     const form = document.getElementById('sendReportForm');
     const emailInput = document.getElementById('reportEmail');

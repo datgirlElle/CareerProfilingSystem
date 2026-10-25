@@ -97,19 +97,26 @@
     else setTimeout(apply, 0);
   }
 
+  // The server's answer about who is signed in, for parts of the page that draw before the page's own script asks
+  // (the staff sidebar grays out the pages closed to this person: js/admin-nav.js).
+  function announceSession(data) {
+    if (!data || !data.user) return;
+    try { window.dispatchEvent(new CustomEvent('pp:session', { detail: data.user })); } catch (e) {}
+  }
+
   function sessionCall(input, init) {
     var cached = cacheServed ? null : readProfile();
     cacheServed = true;
     var network = patchedFetch(input, init);
     if (!cached) {
       return network.then(function (res) {
-        res.clone().json().then(function (data) { writeProfile(data); fillStaffHeader(data && data.user); }).catch(function () {});
+        res.clone().json().then(function (data) { writeProfile(data); fillStaffHeader(data && data.user); announceSession(data); }).catch(function () {});
         return res;
       });
     }
     fillStaffHeader(cached.user);
     network.then(function (res) { return res.clone().json(); })
-      .then(function (fresh) { reconcile(cached, fresh); })
+      .then(function (fresh) { announceSession(fresh); reconcile(cached, fresh); })
       .catch(function () { /* offline or a server error: keep what is on screen */ });
     return Promise.resolve(new Response(JSON.stringify({ user: cached.user, sessionTimeout: cached.sessionTimeout, csrfToken: null, fromCache: true }), {
       status: 200, headers: { 'Content-Type': 'application/json' }
@@ -571,6 +578,21 @@
     }
   };
 
+  // The signed-in person as this tab last saw them (the profile cache), or null: lets the sidebar draw the right state at
+  // once. The fresh answer follows as the 'pp:session' event.
+  PP.cachedUser = function () {
+    var p = readProfile();
+    return p ? p.user : null;
+  };
+
+  // Whether the signed-in staff member holds at least `level` ('limited' = View Only, 'full') on `feature` in the
+  // permission table (user.access from api/session.php). Only for showing or hiding buttons: the server checks every request.
+  PP.may = function (user, feature, level) {
+    var rank = { none: 0, limited: 1, full: 2 };
+    var have = user && user.access ? user.access[feature] : null;
+    return (rank[have] || 0) >= (rank[level || 'limited'] || 1);
+  };
+
   // One status badge on every page (css/components.css .pp-badge). The color says what kind of status it is, so the
   // same word is never two colors: green done or OK, amber waiting or needs a look, blue not started or next step,
   // red a problem, gray off, closed or none. Returns HTML; the label is escaped. opts.large: the bigger student size.
@@ -790,7 +812,16 @@
       if (f.placeholder) f.setAttribute('aria-label', f.placeholder.replace(/…|\.\.\.$/, '').trim());
     }
   }
-  function onReady() { upgradePlaceholders(); markCurrentNavLink(); nameIconButtons(); linkLabels(); }
+  // router.php sent this person here from a page closed to them (?denied=1): say so once, then drop it from the address.
+  function noteDenied() {
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('denied') !== '1') return;
+    params.delete('denied');
+    var query = params.toString();
+    try { window.history.replaceState(window.history.state, '', window.location.pathname + (query ? '?' + query : '') + window.location.hash); } catch (e) {}
+    PP.toast('You do not have access to that page. Ask the Head of Guidance if you need it.', true);
+  }
+  function onReady() { upgradePlaceholders(); markCurrentNavLink(); nameIconButtons(); linkLabels(); noteDenied(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', onReady);
   else onReady();
 })();

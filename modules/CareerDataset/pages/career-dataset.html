@@ -111,7 +111,7 @@
             <img src="images/admin/icon-search2.svg" alt="">
             <input type="text" id="searchInput" placeholder="Search programs..." aria-label="Search programs" class="pp-filter-input">
           </div>
-          <a href="add-career" class="flex items-center gap-2 bg-[#ed1c24] text-white rounded-md px-5 py-2.5 text-sm font-medium shadow-sm hover:opacity-90">
+          <a href="add-career" id="addProgramLink" class="flex items-center gap-2 bg-[#ed1c24] text-white rounded-md px-5 py-2.5 text-sm font-medium shadow-sm hover:opacity-90">
             <span class="font-black">+</span> Add Program
           </a>
         </div>
@@ -290,6 +290,9 @@
     window.location.replace('staff-login');
     return;
   }
+  // Full on Program Mapping Crosswalk (permission table) adds and edits programs; View Only looks. The server checks each change.
+  const canEdit = PP.may(currentUser, 'programs', 'full');
+  if (!canEdit) document.getElementById('addProgramLink').classList.add('hidden');
 
   const headerAvatarWrap = document.getElementById('headerAvatarWrap');
   if (currentUser.avatarUrl) {
@@ -385,9 +388,9 @@
         <td class="px-6 py-4"><div class="flex gap-1.5">${riasecBadges(program.hollandCode)}</div></td>
         <td class="px-6 py-4">${PP.college.badge(program.collegeCode)}</td>
         <td class="px-6 py-4">${PP.badge(program.status, STATUS_TONE[program.status] || 'green')}</td>
-        <td class="px-6 py-4"><div class="flex items-center gap-3">
+        <td class="px-6 py-4"><div class="flex items-center gap-3">${!canEdit ? '' : `
           <button type="button" class="edit-career-btn" data-id="${program.id}"><img src="images/admin/icon-row-edit.svg" alt="Edit" class="w-3.5 h-3.5"></button>
-          <button type="button" class="toggle-active-career-btn text-xs font-semibold rounded-md px-2.5 py-1 border whitespace-nowrap ${program.status === 'Active' ? 'btn-danger text-[#ed1c24] border-[#ed1c24] hover:bg-red-50' : 'text-emerald-600 border-emerald-300 hover:bg-emerald-50'}" data-id="${program.id}" data-active="${program.status === 'Active' ? '1' : '0'}" data-title="${escapeHtml(program.title)}">${program.status === 'Active' ? 'Deactivate' : 'Reactivate'}</button>
+          <button type="button" class="toggle-active-career-btn text-xs font-semibold rounded-md px-2.5 py-1 border whitespace-nowrap ${program.status === 'Active' ? 'btn-danger text-[#ed1c24] border-[#ed1c24] hover:bg-red-50' : 'text-emerald-600 border-emerald-300 hover:bg-emerald-50'}" data-id="${program.id}" data-active="${program.status === 'Active' ? '1' : '0'}" data-title="${escapeHtml(program.title)}">${program.status === 'Active' ? 'Deactivate' : 'Reactivate'}</button>`}
         </div></td>
       </tr>`;
   }
