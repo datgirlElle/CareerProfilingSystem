@@ -37,7 +37,46 @@ try {
 } catch (InvalidArgumentException $e) {
     $rejected = true;
 }
-check('more than the per-program maximum is rejected', $rejected);
+check('more than the safety cap (' . Careers::MAX_PER_PROGRAM . ') is rejected', $rejected);
+
+echo "\n=== no small per-program limit any more ===\n";
+check('25 careers are accepted', count(Careers::normalize(range(1, 25))) === 25);
+check('120 careers are accepted', count(Careers::normalize(array_map(fn($i) => "Career $i", range(1, 120)))) === 120);
+check('the safety cap itself (' . Careers::MAX_PER_PROGRAM . ') is accepted', count(Careers::normalize(range(1, Careers::MAX_PER_PROGRAM))) === Careers::MAX_PER_PROGRAM);
+$rejected = false;
+try {
+    Careers::normalize(str_repeat("x\n", Careers::MAX_PER_PROGRAM * 200));
+} catch (InvalidArgumentException $e) {
+    $rejected = true;
+}
+check('a huge pasted block is refused before it is processed', $rejected);
+$rejected = false;
+try {
+    Careers::normalize(array_fill(0, Careers::MAX_PER_PROGRAM * 3, 'Same'));
+} catch (InvalidArgumentException $e) {
+    $rejected = true;
+}
+check('a huge list is refused even if it is all repeats', $rejected);
+$rejected = false;
+try {
+    Careers::normalize(['Nurse', ['nested', 'array']]);
+} catch (InvalidArgumentException $e) {
+    $rejected = true;
+}
+check('an item that is not text (a nested list) is refused', $rejected);
+
+echo "\n=== merge: adds only what is missing, never removes ===\n";
+[$merged, $added] = Careers::merge(['Counselor Custom', 'registered nurse'], ['Registered Nurse', 'Staff Nurse', '  School   Nurse ']);
+check('saved careers stay first, in their order', array_slice($merged, 0, 2) === ['Counselor Custom', 'registered nurse']);
+check('a career already saved in other capitals is not added again', !in_array('Registered Nurse', $added, true));
+check('only the missing ones are added (tidied)', $added === ['Staff Nurse', 'School Nurse']);
+[$again, $none] = Careers::merge($merged, ['Registered Nurse', 'Staff Nurse', 'School Nurse']);
+check('running it again adds nothing', $none === [] && $again === $merged);
+check('nothing saved: the whole official list is added', Careers::merge([], ['A', 'B'])[0] === ['A', 'B']);
+
+echo "\n=== changes: what the Audit Log records ===\n";
+check('2 added, 1 removed', Careers::changes(['A', 'B', 'C'], ['A', 'c', 'D', 'E']) === ['added' => 2, 'removed' => 1]);
+check('same list in other capitals: no change', Careers::changes(['Nurse'], ['nurse']) === ['added' => 0, 'removed' => 0]);
 
 $rejected = false;
 try {

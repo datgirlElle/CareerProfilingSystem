@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script><script src="js/career-list-editor.js"></script>
 <title>Add Program — Program Mapping Crosswalk — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
 <link rel="stylesheet" href="css/tailwind.css">
@@ -159,9 +159,9 @@
         </div>
 
         <div class="flex flex-col gap-1">
-          <label for="careersInput" class="text-xs font-medium text-slate-600">Careers <span class="text-slate-500">(optional, one per line, up to 20)</span></label>
-          <textarea id="careersInput" rows="5" aria-describedby="careersCount" placeholder="Software Engineer&#10;Data Analyst&#10;Systems Analyst" class="border border-slate-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></textarea>
-          <p id="careersCount" class="text-xs text-slate-500" aria-live="polite">0 / 20 careers</p>
+          <label for="addCareerAdd" class="text-xs font-medium text-slate-600">Careers <span class="text-slate-500">(optional)</span></label>
+          <!-- The careers of this program (js/career-list-editor.js): add, search, remove. -->
+          <div id="careersInput"></div>
         </div>
 
         <p id="formError" class="hidden text-sm text-[#ed1c24] bg-red-50 border border-red-100 rounded-md px-3.5 py-2.5"></p>
@@ -258,15 +258,7 @@
     showError('Could not load the college list. Please refresh the page.');
   }
 
-  // "12 / 20 careers" under the box (the server limit, Careers::MAX_PER_PROGRAM), red above the limit.
-  const careersInput = document.getElementById('careersInput');
-  careersInput.addEventListener('input', function() {
-    // Counted like the server does (Careers::normalize): blank lines and repeats (any capitals) are left out.
-    const n = new Set(careersInput.value.split('\n').map(function(l) { return l.trim().replace(/\s+/g, ' ').toLowerCase(); }).filter(Boolean)).size;
-    const el = document.getElementById('careersCount');
-    el.textContent = n + ' / 20 careers' + (n > 20 ? '. Remove ' + (n - 20) + ' to save.' : '');
-    el.className = 'text-xs ' + (n > 20 ? 'text-[#ed1c24]' : 'text-slate-500');
-  });
+  const careersEditor = PP.careerEditor(document.getElementById('careersInput'), { idPrefix: 'add' });
 
   document.getElementById('addCareerForm').addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -283,7 +275,7 @@
           status: document.getElementById('statusInput').value,
           hollandCode: document.getElementById('hollandCodeInput').value.trim(),
           description: document.getElementById('descriptionInput').value.trim(),
-          careers: document.getElementById('careersInput').value.split('\n'),
+          careers: careersEditor.get(),
         })
       });
       const data = await res.json();

@@ -792,3 +792,60 @@ button.breakdown-row.is-picked:not(:disabled):hover {
   line-height: 24px;
   padding: 4px 14px;
 }
+
+/* The careers of a program (js/career-list-editor.js, Program Mapping Crosswalk): add, search, remove. The list scrolls,
+   so a long list keeps the dialog the same height. */
+.ce { display: flex; flex-direction: column; gap: 8px; }
+.ce-add { display: flex; gap: 8px; }
+.ce-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: #1e293b;
+  background: #fff;
+}
+.ce-input::placeholder { color: #9ca3af; }
+.ce-input:focus { outline: none; border-color: transparent; box-shadow: 0 0 0 2px #ed1c24; }
+.ce-add-btn { flex: 0 0 auto; }
+.ce-message { margin: 0; font-size: 12px; color: #475569; }
+.ce-count { margin: 0; font-size: 12px; color: #64748b; }
+.ce-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+.ce-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #1e293b;
+}
+.ce-item:hover { background: #fff; }
+.ce-name { min-width: 0; overflow-wrap: anywhere; }
+.ce-remove {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #64748b;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.ce-remove:hover { background: #fee2e2; color: #b91c1c; }
+.ce-remove:focus-visible { outline: 2px solid #001c43; outline-offset: 1px; }
+.ce-empty { padding: 10px 8px; font-size: 13px; color: #64748b; }
