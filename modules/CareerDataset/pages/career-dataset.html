@@ -260,8 +260,9 @@
         <textarea id="editDescription" rows="3" maxlength="1000" placeholder="A short description of what this program covers and where it leads." class="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></textarea>
       </div>
       <div class="flex flex-col gap-1">
-        <label class="text-xs font-medium text-slate-600">Careers <span class="text-slate-500">(optional, one per line, up to 8)</span></label>
-        <textarea id="editCareers" rows="4" placeholder="Software Engineer&#10;Data Analyst&#10;Systems Analyst" class="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></textarea>
+        <label for="editCareers" class="text-xs font-medium text-slate-600">Careers <span class="text-slate-500">(optional, one per line, up to 20)</span></label>
+        <textarea id="editCareers" rows="5" aria-describedby="editCareersCount" placeholder="Software Engineer&#10;Data Analyst&#10;Systems Analyst" class="border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></textarea>
+        <p id="editCareersCount" class="text-xs text-slate-500" aria-live="polite"></p>
       </div>
     </div>
     <div class="pp-dialog-foot">
@@ -478,6 +479,16 @@
   const editHollandCode = document.getElementById('editHollandCode');
   const editDescription = document.getElementById('editDescription');
   const editCareers = document.getElementById('editCareers');
+  // "12 / 20 careers" under the box (the server limit, Careers::MAX_PER_PROGRAM), red above the limit.
+  const MAX_CAREERS = 20;
+  function updateCareersCount() {
+    // Counted like the server does (Careers::normalize): blank lines and repeats (any capitals) are left out.
+    const n = new Set(editCareers.value.split('\n').map(function(l) { return l.trim().replace(/\s+/g, ' ').toLowerCase(); }).filter(Boolean)).size;
+    const el = document.getElementById('editCareersCount');
+    el.textContent = n + ' / ' + MAX_CAREERS + ' careers' + (n > MAX_CAREERS ? '. Remove ' + (n - MAX_CAREERS) + ' to save.' : '');
+    el.className = 'text-xs ' + (n > MAX_CAREERS ? 'text-[#ed1c24]' : 'text-slate-500');
+  }
+  editCareers.addEventListener('input', updateCareersCount);
   const editStatus = document.getElementById('editStatus');
   const editStrands = document.getElementById('editStrands');
   let strandOptions = [];
@@ -496,7 +507,10 @@
     editDepartment.value = program.collegeId;
     editHollandCode.value = program.hollandCode;
     editDescription.value = program.description || '';
-    editCareers.value = (program.careers || []).join('\n');
+    // Nothing saved yet: show the list students see now (the official list for the program, careerOptions), so saving
+    // keeps it as the program's own list.
+    editCareers.value = ((program.careers && program.careers.length ? program.careers : program.careerOptions) || []).join('\n');
+    updateCareersCount();
     editStatus.value = program.status;
     renderStrandCheckboxes(program.relatedStrands || []);
     editDialog.open();

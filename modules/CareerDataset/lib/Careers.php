@@ -12,7 +12,7 @@ require_once __DIR__ . '/StarterCareers.php';
  */
 class Careers
 {
-    public const MAX_PER_PROGRAM = 8;
+    public const MAX_PER_PROGRAM = 20;   // the official mapping lists up to 18 careers per program
     public const MAX_LENGTH = 80;
 
     /** @return array<int,string> */
