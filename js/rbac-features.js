@@ -22,7 +22,7 @@
     monitoring: { label: 'Flagged student monitoring', desc: 'Flagged recommendations. Full: approve, escalate or dismiss them.' },
     announcements: { label: 'Announcements', desc: 'Read the announcements sent. Full: post and edit them.' },
     counselingHistory: { label: 'View counseling history', desc: 'Notes, requests and retakes. View Only: who and when, not what was written.' },
-    counselingStatus: { label: 'Update counseling status', desc: 'Resolve requests, decide retakes and invite students to counseling.' },
+    counselingStatus: { label: 'Update counseling status', desc: 'Resolve requests, decide retakes and invite students to counseling. Never for Guidance Facilitators.' },
     helpCenter: { label: 'Help Center', desc: 'The FAQs. Full: edit the FAQs, office hours and booking link.' },
     roster: { label: 'Student roster management', desc: 'Class rosters and sections. Full: upload rosters, add and deactivate sections.' },
     staffAccounts: { label: 'Manage staff accounts', desc: 'Approve sign-ups, send access codes, assign sections, deactivate staff.' }
