@@ -18,15 +18,25 @@ $items = [];
 $isStaff = $user['role'] === 'admin' || $user['role'] === 'counselor';
 
 if ($isStaff) {
-    // Recently registered students
+    // Staff assigned to sections hear only about those sections' students (StaffScope; no sections = everyone). The
+    // section test is in the query (plain strand and section columns, the same match as StaffScope::allows), so the
+    // LIMIT still keeps each list small.
+    $scoped = StaffScope::forUser($pdo, $user) !== null;
+    $inScopeSql = $scoped
+        ? ' AND EXISTS (SELECT 1 FROM staff_sections ss WHERE ss.user_id = ' . (int) $user['id']
+          . ' AND ss.strand = s.strand AND LOWER(ss.section) = LOWER(s.section))'
+        : '';
+
+    // Recently registered students: only for staff who can open student profiles (Student information), where the
+    // link goes.
     $regDays = $full ? 90 : 7;
-    $stmt = $pdo->query(
-        "SELECT s.user_id, s.school_id, s.first_name_enc, s.last_name_enc, s.registered_at
+    $regRows = Rbac::accessLevel('studentInfo', Rbac::roleKey($user)) === 'none' ? [] : $pdo->query(
+        "SELECT s.user_id, s.first_name_enc, s.last_name_enc, s.registered_at
          FROM students s
-         WHERE s.registered_at > NOW() - INTERVAL '$regDays days'
+         WHERE s.registered_at > NOW() - INTERVAL '$regDays days'$inScopeSql
          ORDER BY s.registered_at DESC LIMIT $each"
-    );
-    foreach ($stmt->fetchAll() as $row) {
+    )->fetchAll();
+    foreach ($regRows as $row) {
         $name = Crypto::dec($row['first_name_enc']) . ' ' . Crypto::dec($row['last_name_enc']);
         $items[] = [
             'type' => 'registration',
@@ -111,14 +121,11 @@ if ($isStaff) {
     try {
         $retakeRows = [];
         if ($seesCounseling) {
-            $stmt = $pdo->query(
-                "SELECT rr.id, rr.requested_at, s.first_name_enc, s.last_name_enc, s.strand, s.section FROM retake_requests rr
+            $retakeRows = $pdo->query(
+                "SELECT rr.id, rr.requested_at, s.first_name_enc, s.last_name_enc FROM retake_requests rr
                  JOIN students s ON s.user_id = rr.student_id
-                 WHERE rr.status = 'pending' ORDER BY rr.requested_at DESC"
-            );
-            $retakeScope = StaffScope::forUser($pdo, $user);
-            $retakeRows = array_slice(array_values(array_filter($stmt->fetchAll(),
-                fn($r) => StaffScope::allows($retakeScope, $r['strand'], $r['section']))), 0, $each);
+                 WHERE rr.status = 'pending'$inScopeSql ORDER BY rr.requested_at DESC LIMIT $each"
+            )->fetchAll();
         }
         foreach ($retakeRows as $row) {
             $name = Crypto::dec($row['first_name_enc']) . ' ' . Crypto::dec($row['last_name_enc']);
@@ -134,10 +141,12 @@ if ($isStaff) {
         // table not created yet (migration not run)
     }
 
-    // Open counseling requests awaiting a response: only for staff who see counseling history (as in api/help-requests.php).
+    // Open counseling requests awaiting a response: only for staff who see counseling history, and only from students in
+    // their sections (as in api/help-requests.php).
     $helpRows = !$seesCounseling ? [] : $pdo->query(
-        "SELECT id, name_enc, subject_enc, sent_at FROM help_requests
-         WHERE status = 'open' ORDER BY sent_at DESC LIMIT $each"
+        "SELECT hr.id, hr.name_enc, hr.subject_enc, hr.sent_at
+         FROM help_requests hr LEFT JOIN students s ON s.user_id = hr.student_id
+         WHERE hr.status = 'open'$inScopeSql ORDER BY hr.sent_at DESC LIMIT $each"
     )->fetchAll();
     foreach ($helpRows as $row) {
         $who = Crypto::dec($row['name_enc']) ?: 'A student';

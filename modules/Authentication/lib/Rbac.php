@@ -8,7 +8,7 @@ require_once __DIR__ . '/Auth.php';
  * full|limited|none. This is what actually enforces the permission table shown on Security Configuration.
  *
  * The rows are the system's features, grouped under the sidebar page each one lives on (PAGES). A page whose features
- * are all No Access for someone is closed to them: the sidebar grays it out (js/admin-nav.js) and router.php refuses it.
+ * are all No Access for someone is closed to them: the sidebar leaves it out (js/admin-nav.js) and router.php refuses it.
  */
 class Rbac
 {
@@ -107,6 +107,13 @@ class Rbac
     /** The only feature a Student can ever hold: reading their own recommendations. Everything else is No Access, whatever the table says. */
     public const STUDENT_MODULES = ['recommendations'];
 
+    /**
+     * Features a Guidance Facilitator never holds, whatever the table says: Update counseling status (resolving counseling
+     * requests, deciding retakes, inviting students to counseling) belongs to the Guidance Counselor and the Administrator
+     * (DFD process 4.0). The cell is fixed at No Access on Security Configuration, so the table shows what is enforced.
+     */
+    public const FACILITATOR_NEVER = ['counselingStatus'];
+
     /** Features about accounts: changing who holds them asks for a confirmation before it is saved. */
     public const SENSITIVE_MODULES = ['staffAccounts', 'studentAccounts'];
 
@@ -135,6 +142,9 @@ class Rbac
     public static function editableLevels(string $actorKey, string $module, string $targetRole, array $matrix): array
     {
         if (!isset(self::DEFAULTS[$module]) || !in_array($targetRole, ['counselor', 'facilitator'], true) || $actorKey !== 'admin') {
+            return [];
+        }
+        if ($targetRole === 'facilitator' && in_array($module, self::FACILITATOR_NEVER, true)) {
             return [];
         }
         return self::LEVELS;
@@ -184,6 +194,9 @@ class Rbac
                 // A Student holds only what is in STUDENT_MODULES, even if a row is tampered with. (Students still read the
                 // announcements sent to them: api/announcements.php serves that without this permission.)
                 $levels[$module] = in_array($module, self::STUDENT_MODULES, true) ? (self::$saved[$role][$module] ?? 'full') : 'none';
+            } elseif ($role === 'facilitator' && in_array($module, self::FACILITATOR_NEVER, true)) {
+                // Fixed for the facilitator (DFD process 4.0), even if an older saved row says otherwise.
+                $levels[$module] = 'none';
             } else {
                 $level = self::$saved[$role][$module] ?? ($defaults[$role] ?? 'none');
                 $levels[$module] = in_array($level, self::LEVELS, true) ? $level : 'none';

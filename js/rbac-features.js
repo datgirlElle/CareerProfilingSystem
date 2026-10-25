@@ -12,20 +12,20 @@
     studentAccounts: { label: 'Student account management', desc: 'See if an account is active or locked. Full: deactivate, unlock, invite to register, send reminders.' },
     assessmentResults: { label: 'Assessment results', desc: 'RIASEC code, scores and past attempts on the profile.' },
     recommendations: { label: 'Career recommendations', desc: 'Recommended programs on the profile and CBF Candidate Programs.' },
-    notesCreate: { label: 'Create counseling notes', desc: 'Write counseling notes on a student profile.' },
+    notesCreate: { label: 'Create notes', desc: 'Write notes on a student profile.' },
     exportResults: { label: 'Export student results', desc: 'View Only: summary downloads (totals and percentages). Full: lists with student names.' },
     analytics: { label: 'Analytics and reports', desc: 'The charts and tables on Analytics & Report.' },
     analyticsEmail: { label: 'Send analytics report', desc: 'Email the Analytics Report to someone.' },
-    programs: { label: 'Program Mapping Crosswalk', desc: 'MMCL programs and their RIASEC codes. Full: add and edit programs.' },
-    questionBank: { label: 'Question Bank', desc: 'The assessment questions. Full: add, edit and hide questions.' },
+    programs: { label: 'Program Mapping Crosswalk', desc: 'MMCL programs and their RIASEC codes. Full: add, edit, turn on or off.' },
+    questionBank: { label: 'Question Bank', desc: 'The assessment questions. Full: add, edit, hide, delete, load the O*NET set.' },
     examinations: { label: 'Assessment Scheduling', desc: 'Schedules, rooms and access codes. Full: create and change them.' },
     monitoring: { label: 'Flagged student monitoring', desc: 'Flagged recommendations. Full: approve, escalate or dismiss them.' },
-    announcements: { label: 'Announcements', desc: 'Read the announcements sent. Full: post and edit them.' },
-    counselingHistory: { label: 'View counseling history', desc: 'Notes, requests and retakes. View Only: who and when, not what was written.' },
-    counselingStatus: { label: 'Update counseling status', desc: 'Resolve requests, decide retakes and invite students to counseling.' },
+    announcements: { label: 'Announcements', desc: 'Read the announcements sent. Full: post, edit, delete, send reminders.' },
+    counselingHistory: { label: 'View counseling history', desc: 'Notes, requests and retakes. View Only: who, when and the subject, not the message.' },
+    counselingStatus: { label: 'Update counseling status', desc: 'Resolve requests, decide retakes, invite to counseling. Never for Guidance Facilitators.' },
     helpCenter: { label: 'Help Center', desc: 'The FAQs. Full: edit the FAQs, office hours and booking link.' },
-    roster: { label: 'Student roster management', desc: 'Class rosters and sections. Full: upload rosters, add and deactivate sections.' },
-    staffAccounts: { label: 'Manage staff accounts', desc: 'Approve sign-ups, send access codes, assign sections, deactivate staff.' }
+    roster: { label: 'Student roster management', desc: 'Class rosters and sections. Full: upload rosters, add, deactivate, delete sections.' },
+    staffAccounts: { label: 'Manage staff accounts', desc: 'View Only: the staff list. Full: approve sign-ups, send access codes, assign sections, deactivate.' }
   };
   // Which features are shown under which sidebar page. (Which features open a page is decided by Rbac::PAGES on the server.)
   var PAGE_FEATURES = {

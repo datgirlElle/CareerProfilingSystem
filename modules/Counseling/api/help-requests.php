@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../../../shared/api/_bootstrap.php';
+require_once __DIR__ . '/../../UserManagement/lib/StaffScope.php';
 
 $user = Auth::requireLogin();
 $pdo = Database::get();
@@ -14,6 +15,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = (int) ($body['id'] ?? 0);
         if ($id <= 0) {
             jsonResponse(['success' => false, 'error' => 'Missing id.'], 400);
+        }
+        // Only a request that exists and is from a student in this person's sections (StaffScope). Anything else
+        // answers "not found", so request ids from other sections cannot be probed.
+        $find = $pdo->prepare('SELECT s.strand, s.section FROM help_requests hr LEFT JOIN students s ON s.user_id = hr.student_id WHERE hr.id = ?');
+        $find->execute([$id]);
+        $request = $find->fetch();
+        if (!$request || !StaffScope::allows(StaffScope::forUser($pdo, $user), $request['strand'], $request['section'])) {
+            jsonResponse(['success' => false, 'error' => 'Request not found.'], 404);
         }
         $pdo->prepare("UPDATE help_requests SET status = 'resolved', resolved_by = ?, resolved_at = NOW() WHERE id = ?")
             ->execute([$user['id'], $id]);
@@ -72,13 +81,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
 
-    $fetchedRows = $stmt->fetchAll();
+    // Staff assigned to sections see only those sections' students' requests (StaffScope; no sections = everyone).
+    $scope = StaffScope::forUser($pdo, $user);
+    $fetchedRows = array_values(array_filter($stmt->fetchAll(), fn($r) => StaffScope::allows($scope, $r['strand'], $r['section'])));
 
     // Queue position among 'open' requests only, oldest first — the same
     // FIFO count a student sees for their own request (see the POST branch).
-    $openIdsByAge = $pdo->query("SELECT id FROM help_requests WHERE status = 'open' ORDER BY sent_at ASC")
-        ->fetchAll(PDO::FETCH_COLUMN);
-    $queuePositions = array_flip($openIdsByAge);
+    // The position is in the whole Guidance Office queue, so it stays the number the student was given.
+    $openByAge = $pdo->query(
+        "SELECT hr.id, s.strand, s.section FROM help_requests hr LEFT JOIN students s ON s.user_id = hr.student_id
+         WHERE hr.status = 'open' ORDER BY hr.sent_at ASC"
+    )->fetchAll();
+    $queuePositions = array_flip(array_map(fn($r) => (int) $r['id'], $openByAge));
 
     $rows = array_map(fn($r) => [
         'id' => (int) $r['id'],
@@ -94,7 +108,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         'queueNumber' => $r['status'] === 'open' ? $queuePositions[(int) $r['id']] + 1 : null,
     ], $fetchedRows);
 
-    $openCount = count($openIdsByAge);
+    // Open requests this person can see (not the other sections' count), whatever the status filter.
+    $openCount = count(array_filter($openByAge, fn($r) => StaffScope::allows($scope, $r['strand'], $r['section'])));
 
     jsonResponse(['requests' => $rows, 'openCount' => $openCount, 'seesMessages' => $seesMessages]);
 }

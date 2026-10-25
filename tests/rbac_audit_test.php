@@ -63,6 +63,13 @@ check('even if the table is tampered to Full, a student has no access to announc
             && Rbac::accessLevel('monitoring', 'student') === 'none'));
 check('a student keeps Career recommendations', Rbac::accessLevel('recommendations', 'student') === 'full');
 
+echo "\n=== a Guidance Facilitator never updates counseling status (DFD process 4.0) ===\n";
+check('even if the table is tampered to Full, the facilitator has No Access to Update counseling status',
+    withTable("UPDATE security_rbac SET access_level = 'full' WHERE module = 'counselingStatus' AND role = 'facilitator'",
+        fn() => Rbac::accessLevel('counselingStatus', 'facilitator') === 'none'));
+check('the facilitator cell of Update counseling status cannot be changed, the counselor cell can',
+    Rbac::editableLevels('admin', 'counselingStatus', 'facilitator', []) === [] && Rbac::editableLevels('admin', 'counselingStatus', 'counselor', []) === ['full', 'limited', 'none']);
+
 echo "\n=== a missing row falls back to the default ===\n";
 check('with no counselor row for Analytics, the counselor gets the default (View Only)',
     withTable("DELETE FROM security_rbac WHERE module = 'analytics' AND role = 'counselor'",

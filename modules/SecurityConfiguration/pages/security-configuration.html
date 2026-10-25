@@ -18,6 +18,10 @@
   /* Permission table: lighter lines between the features of one page, and the unsaved-change count on a tab. */
   #rbacTableBody .rbac-sub { border-top-color:#f1f5f9; }
   .rbac-tab-count { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; margin-left:6px; padding:0 5px; border-radius:9999px; background:#fffbeb; border:1px solid #f59e0b; color:#b45309; font-size:11px; font-weight:600; }
+  /* A permission that can never be changed (Rbac::FACILITATOR_NEVER): its icon with a small lock, and "Always Full" under Administrator. */
+  .fixed-cell { position:relative; display:inline-flex; }
+  .fixed-lock { position:absolute; right:-7px; bottom:-5px; width:13px; height:13px; border-radius:9999px; background:#fff; border:1px solid #cbd5e1; color:#475569; display:flex; align-items:center; justify-content:center; }
+  .fixed-note { font-size:10px; font-weight:500; text-transform:none; letter-spacing:0; color:#64748b; }
   body{ font-family:'Inter', sans-serif; }
   /* Security Overview tiles: gray icon, orange when the number is above 0 */
   .overview-tile { color:#64748b; transition:border-color .15s; }
@@ -152,6 +156,7 @@
                     <th class="px-5 py-4 text-xs font-semibold tracking-wide text-slate-500 uppercase">Page / Feature</th>
                     <th class="px-3 py-4 text-xs font-semibold tracking-wide text-slate-500 uppercase text-center">
                       <div class="flex items-center justify-center gap-1"><img src="images/security/icon-admin.svg" alt="" class="w-2.5 h-3">Administrator</div>
+                      <div class="fixed-note flex items-center justify-center gap-1 mt-0.5"><svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Always Full</div>
                     </th>
                     <th class="px-3 py-4 text-xs font-semibold tracking-wide text-slate-500 uppercase text-center">
                       <div class="flex items-center justify-center gap-1"><img src="images/security/icon-counselor.svg" alt="" class="w-2.5 h-3">Guidance Counselor</div>
@@ -177,6 +182,10 @@
               <div class="flex items-center gap-2">
                 <span class="inline-flex w-4 h-4 items-center justify-center rounded-full border border-red-500"><img src="images/security/icon-x-red.svg" alt="" class="w-2 h-2"></span>
                 <span class="text-xs text-slate-500">No Access</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="inline-flex w-4 h-4 items-center justify-center rounded-full border border-slate-300 text-slate-600"><svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
+                <span class="text-xs text-slate-500">Fixed (cannot be changed)</span>
               </div>
             </div>
           </div>
@@ -478,6 +487,7 @@
     // until Save Changes (Cancel throws the edits away). What a person may change is decided by the server (rbacEditable).
     let pending = {}; // "module|role" -> the level picked on this page, not saved yet
     const LEVEL_ORDER = ['full', 'limited', 'none'];
+    const LOCK_SVG = '<svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
     const ROLE_LABEL = { admin: 'Administrator', counselor: 'Guidance Counselor', facilitator: 'Guidance Facilitator', student: 'Student' };
     const levelOf = (m, r) => (m + '|' + r) in pending ? pending[m + '|' + r] : state.rbac[m][r];
     const allowedFor = (m, r) => (state.rbacEditable && state.rbacEditable[m] && state.rbacEditable[m][r]) || [];
@@ -528,7 +538,11 @@
       const tbody = document.getElementById('rbacTableBody');
       const cellsFor = (m, name) => RBAC_COLUMNS.map(r => {
         const lvl = levelOf(m.id, r);
-        if (!isEditable(m.id, r)) return '<td class="px-3 py-3 text-center">' + permIcon(lvl) + '</td>';
+        // A cell the administrator can never change (outside the Administrator column, which says "Always Full" once in its
+        // header): the icon gets a small lock, and screen readers hear that it is fixed.
+        if (!isEditable(m.id, r)) return '<td class="px-3 py-3 text-center">' + (r === 'admin' ? permIcon(lvl)
+          : '<span class="fixed-cell" title="Fixed: cannot be changed">' + permIcon(lvl) + '<span class="fixed-lock">' + LOCK_SVG + '</span>' +
+            '<span class="pp-sr-only">, fixed, cannot be changed</span></span>') + '</td>';
         const changed = (m.id + '|' + r) in pending;
         return '<td class="px-3 py-3 text-center"><button type="button" class="perm-cell' + (changed ? ' changed' : '') + '" data-module="' + m.id + '" data-role="' + r + '" title="' + LEVEL_LABEL[lvl] + '. Click to change." aria-label="' + ROLE_LABEL[r] + ', ' + name + ': ' + LEVEL_LABEL[lvl] + '. Click to change.">' + permIcon(lvl) + '</button></td>';
       }).join('');
