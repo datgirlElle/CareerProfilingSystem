@@ -179,20 +179,20 @@
               <p class="text-xs font-medium text-slate-600">Start from a template</p>
               <button type="button" id="newTemplateBtn" class="text-xs font-semibold text-[#19427b] hover:underline">+ New template</button>
             </div>
-            <div id="templateButtons" style="display:flex;flex-direction:column;gap:8px"><p class="text-xs text-slate-400">Loading…</p></div>
+            <div id="templateButtons" style="display:flex;flex-direction:column;gap:8px"><p class="text-xs text-slate-500">Loading…</p></div>
           </div>
           <form id="createForm" class="flex flex-col gap-4">
             <div>
               <div class="flex items-center justify-between mb-1">
                 <label class="block text-xs font-medium text-slate-600" for="annTitle">Title</label>
-                <span class="text-[11px] text-slate-400"><span id="titleCount">0</span> / 255</span>
+                <span class="text-[11px] text-slate-500"><span id="titleCount">0</span> / 255</span>
               </div>
               <input type="text" id="annTitle" required maxlength="255" class="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
             </div>
             <div>
               <div class="flex items-center justify-between mb-1">
                 <label class="block text-xs font-medium text-slate-600" for="annBody">Message</label>
-                <span class="text-[11px] text-slate-400"><span id="bodyCount">0</span> / 2000</span>
+                <span class="text-[11px] text-slate-500"><span id="bodyCount">0</span> / 2000</span>
               </div>
               <textarea id="annBody" required rows="4" maxlength="2000" class="w-full border border-slate-300 rounded-md px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></textarea>
             </div>
@@ -248,7 +248,7 @@
             </div>
           </div>
           <div id="announcementsList" class="divide-y divide-slate-100">
-            <p class="px-6 py-8 text-center text-sm text-slate-400">Loading…</p>
+            <p class="px-6 py-8 text-center text-sm text-slate-500">Loading…</p>
           </div>
           <!-- Filled by PP.pager: "Showing 1 to 25 of N announcements", Rows per page and the page buttons. -->
           <div id="annPager"></div>
@@ -258,7 +258,7 @@
 
     </main>
 
-      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-500">
         <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
         <span>&middot;</span>
         <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
@@ -277,7 +277,7 @@
     <div class="pp-dialog-form">
     <p class="text-xs text-gray-500">Write the title and message an announcement should start with. You can change them before sending.</p>
     <div>
-      <label for="tplName" class="block text-xs font-medium text-gray-600 mb-1">Template name <span class="text-gray-400">(the button label)</span></label>
+      <label for="tplName" class="block text-xs font-medium text-gray-600 mb-1">Template name <span class="text-gray-500">(the button label)</span></label>
       <input type="text" id="tplName" maxlength="80" class="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent">
     </div>
     <div>
@@ -287,7 +287,7 @@
     <div>
       <label for="tplBody" class="block text-xs font-medium text-gray-600 mb-1">Message</label>
       <textarea id="tplBody" rows="6" maxlength="2000" class="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></textarea>
-      <p class="text-xs text-gray-400 mt-1"><span id="tplBodyCount">0</span> / 2000. Plain text only. Line breaks are kept.</p>
+      <p class="text-xs text-gray-500 mt-1"><span id="tplBodyCount">0</span> / 2000. Plain text only. Line breaks are kept.</p>
     </div>
     <p id="tplError" class="hidden text-xs text-[#ed1c24]" aria-live="polite"></p>
     </div>
@@ -450,7 +450,7 @@
     const actions = [];
     if (canWrite && a.editable) actions.push('<button type="button" class="edit-btn text-xs font-medium text-[#19427b] hover:underline" data-id="' + a.id + '">' + (a.state === 'draft' ? 'Edit draft' : 'Edit') + '</button>');
     if (remind === 'ready') actions.push('<button type="button" class="remind-btn text-xs font-medium text-[#19427b] hover:underline" data-id="' + a.id + '">Remind unread</button>');
-    if (remind === 'cooldown') actions.push('<span class="text-xs text-slate-400" title="A reminder can be sent once every 24 hours">Reminder sent recently</span>');
+    if (remind === 'cooldown') actions.push('<span class="text-xs text-slate-500" title="A reminder can be sent once every 24 hours">Reminder sent recently</span>');
     if (canWrite) actions.push('<button type="button" class="btn-danger delete-btn text-xs font-medium text-[#ed1c24] hover:underline" data-id="' + a.id + '">Delete</button>');
     return '<div class="px-6 py-4 flex flex-col gap-2">' +
       '<div class="flex items-center gap-2 flex-wrap">' + stateChip(a) + audienceChip(a) + '</div>' +
@@ -481,7 +481,7 @@
     const list = document.getElementById('announcementsList');
     list.innerHTML = slice.length
       ? slice.map(renderRow).join('')
-      : '<p class="px-6 py-8 text-center text-sm text-slate-400">' + (all.length ? 'No announcements match.' : 'No announcements yet.') + '</p>';
+      : '<p class="px-6 py-8 text-center text-sm text-slate-500">' + (all.length ? 'No announcements match.' : 'No announcements yet.') + '</p>';
     pager.render({ page: page, pageSize: pageSize, total: rows.length, totalPages: totalPages, shown: slice.length, startIndex: rows.length ? start + 1 : 0 });
     pager.focus(focusRole);
   }
@@ -576,7 +576,7 @@
 
   function renderTemplates() {
     if (!templates.length) {
-      templateBox.innerHTML = '<p class="text-xs text-slate-400">No templates yet. Use "+ New template" to write one.</p>';
+      templateBox.innerHTML = '<p class="text-xs text-slate-500">No templates yet. Use "+ New template" to write one.</p>';
       return;
     }
     templateBox.innerHTML = templates.map(function(tp) {
@@ -720,7 +720,7 @@
       if (!s) return '';
       return '<span class="inline-flex items-center gap-1 bg-slate-100 border border-slate-200 text-slate-700 text-xs rounded-full pl-2.5 pr-1.5 py-1">' +
         escapeHtml(s.name) +
-        '<button type="button" class="chip-remove text-slate-400 hover:text-[#ed1c24] text-sm leading-none px-0.5" data-id="' + id + '" aria-label="Remove ' + escapeHtml(s.name) + '">&times;</button>' +
+        '<button type="button" class="chip-remove text-slate-500 hover:text-[#ed1c24] text-sm leading-none px-0.5" data-id="' + id + '" aria-label="Remove ' + escapeHtml(s.name) + '">&times;</button>' +
       '</span>';
     }).join('');
     document.getElementById('selectedCount').textContent = selectedStudentIds.size;
@@ -739,9 +739,9 @@
     resultsBox.innerHTML = matches.length
       ? matches.map(function(s) {
           return '<button type="button" class="student-option w-full text-left px-3 py-2 text-sm hover:bg-slate-50" data-id="' + s.userId + '">' +
-            escapeHtml(s.name) + ' <span class="text-xs text-slate-400">(' + escapeHtml(s.strand) + (s.section ? ' ' + escapeHtml(s.section) : '') + ')</span></button>';
+            escapeHtml(s.name) + ' <span class="text-xs text-slate-500">(' + escapeHtml(s.strand) + (s.section ? ' ' + escapeHtml(s.section) : '') + ')</span></button>';
         }).join('')
-      : '<p class="text-xs text-slate-400 text-center py-4">No matching students.</p>';
+      : '<p class="text-xs text-slate-500 text-center py-4">No matching students.</p>';
     resultsBox.classList.remove('hidden');
   }
 

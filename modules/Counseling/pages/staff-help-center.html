@@ -157,7 +157,7 @@
         <div id="faqList" class="divide-y divide-slate-100"></div>
       </div>
     </main>
-      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-500">
         <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
         <span>&middot;</span>
         <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
@@ -182,7 +182,7 @@
     <div>
       <label for="faqAnswer" class="block text-xs font-medium text-gray-600 mb-1">Answer</label>
       <textarea id="faqAnswer" rows="6" maxlength="2000" class="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed1c24] focus:border-transparent"></textarea>
-      <p class="text-xs text-gray-400 mt-1"><span id="faqAnswerCount">0</span> / 2000. Plain text only. Line breaks are kept.</p>
+      <p class="text-xs text-gray-500 mt-1"><span id="faqAnswerCount">0</span> / 2000. Plain text only. Line breaks are kept.</p>
     </div>
     <p id="faqModalError" class="hidden text-xs text-[#ed1c24]" aria-live="polite"></p>
     </div>
@@ -290,9 +290,9 @@
         return '<div class="flex items-center gap-3">' +
           '<label class="flex items-center gap-2 w-32 text-sm text-slate-700"><input type="checkbox" id="ohOpen_' + d[0] + '" class="w-4 h-4 accent-[#0f2a6b]"' + (r ? ' checked' : '') + '>' + d[1] + '</label>' +
           '<select id="ohFrom_' + d[0] + '" aria-label="' + d[1] + ' opening time" ' + sel + (r ? '' : ' disabled') + '>' + ohOptions(r ? r.open : '08:00') + '</select>' +
-          '<span class="text-xs text-slate-400">to</span>' +
+          '<span class="text-xs text-slate-500">to</span>' +
           '<select id="ohTo_' + d[0] + '" aria-label="' + d[1] + ' closing time" ' + sel + (r ? '' : ' disabled') + '>' + ohOptions(r ? r.close : '17:00') + '</select>' +
-          '<span class="text-xs text-slate-400" id="ohClosed_' + d[0] + '"' + (r ? ' hidden' : '') + '>Closed</span>' +
+          '<span class="text-xs text-slate-500" id="ohClosed_' + d[0] + '"' + (r ? ' hidden' : '') + '>Closed</span>' +
         '</div>';
       }).join('');
       OH_DAYS.forEach(function(d) {

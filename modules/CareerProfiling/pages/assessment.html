@@ -153,10 +153,8 @@
             <h2 class="text-lg font-semibold text-[#001a40]">RIASEC Assessment</h2>
             <p class="text-base text-slate-500 max-w-[672px] leading-[26px]">A career interest inventory based on Holland's RIASEC theory. This must be completed first before the worksheet is unlocked.</p>
             <div class="pt-3">
-              <span id="riasecStatusPill" class="inline-flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-full px-3.5 py-1.5">
-                <span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
-                <span class="text-base text-orange-500" id="riasecStatusText">Ready to take</span>
-              </span>
+              <!-- Status badge in the bigger student size (css/components.css .pp-badge): blue ready, green done, gray closed. -->
+              <span id="riasecStatusPill" class="pp-badge pp-badge-lg pp-badge-blue"><span id="riasecStatusText">Ready to take</span></span>
               <p id="riasecWindowNote" class="hidden text-sm text-slate-500 mt-3"></p>
             </div>
           </div>
@@ -175,9 +173,9 @@
             </div>
             <p class="text-base text-slate-500 max-w-[672px] leading-[26px]">Choose your Preferred Course and the electives aligned to your strand and your RIASEC results.</p>
             <div class="pt-3">
-              <span id="worksheetStatusPill" class="inline-flex items-center gap-2 bg-slate-100 border border-slate-200 rounded-full px-3.5 py-1.5">
-                <svg class="w-2.5 h-3.5" viewBox="0 -960 960 960" fill="#64748B"><path d="M240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h40v-80q0-83 58.5-141.5T480-920q83 0 141.5 58.5T680-720v80h40q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Zm0-80h480v-400H240v400Zm296.5-143.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM360-640h240v-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80ZM240-160v-400 400Z"/></svg>
-                <span class="text-base text-slate-500" id="worksheetStatusText">Locked</span>
+              <span id="worksheetStatusPill" class="pp-badge pp-badge-lg pp-badge-gray pp-badge-icon">
+                <svg class="w-2.5 h-3.5" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h40v-80q0-83 58.5-141.5T480-920q83 0 141.5 58.5T680-720v80h40q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Zm0-80h480v-400H240v400Zm296.5-143.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM360-640h240v-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80ZM240-160v-400 400Z"/></svg>
+                <span id="worksheetStatusText">Locked</span>
               </span>
             </div>
           </div>
@@ -190,7 +188,7 @@
 
     </main>
 
-      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-400">
+      <footer class="shrink-0 bg-white border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-3 text-xs text-gray-500">
         <a href="terms" class="hover:text-gray-600 hover:underline">Terms of Use</a>
         <span>&middot;</span>
         <a href="privacy" class="hover:text-gray-600 hover:underline">Data Privacy</a>
@@ -348,6 +346,7 @@
         };
         const note = document.getElementById('riasecWindowNote');
         document.getElementById('riasecStatusText').textContent = w.state === 'upcoming' ? 'Not open yet' : (w.state === 'ended' ? 'Session ended' : 'Not scheduled');
+        document.getElementById('riasecStatusPill').className = 'pp-badge pp-badge-lg ' + (w.state === 'upcoming' ? 'pp-badge-blue' : 'pp-badge-gray');
         note.textContent = w.state === 'upcoming'
           ? 'Your assessment opens on ' + fmt(w.examDate, w.startTime) + (w.room ? ' in Room ' + w.room : '') + '.'
           : (w.state === 'ended'
@@ -366,7 +365,7 @@
       if (status === 'approved') {
         html = '<a href="assessment-instructions" class="inline-block bg-[#ed1c24] text-white text-sm font-semibold rounded-md px-6 py-2.5 hover:opacity-90">Retake Assessment</a>';
       } else if (status === 'pending') {
-        html = '<span class="inline-block bg-amber-50 border border-amber-100 text-amber-600 text-sm font-medium rounded-full px-4 py-1.5">Retake requested</span>';
+        html = '<span class="pp-badge pp-badge-lg pp-badge-amber" style="justify-content:center">Retake requested</span>';
       } else {
         if (status === 'declined') html += '<span class="text-xs text-slate-500">Your last retake request was not approved.</span>';
         html += '<button type="button" id="retakeOpenBtn" class="' + outline + '">Request a retake</button>';
@@ -413,10 +412,8 @@
       const statusText = document.getElementById('riasecStatusText');
       const btn = document.getElementById('riasecActionBtn');
 
-      pill.className = 'inline-flex items-center gap-2 bg-green-50 border border-green-100 rounded-full px-3.5 py-1.5';
-      pill.querySelector('span:first-child').className = 'w-1.5 h-1.5 rounded-full bg-green-600';
+      pill.className = 'pp-badge pp-badge-lg pp-badge-green';
       statusText.textContent = 'Completed';
-      statusText.className = 'text-base text-green-600';
 
       btn.textContent = 'View Results';
       btn.setAttribute('href', 'results?view=riasec');
@@ -437,14 +434,14 @@
       }
 
       if (recommendation.hasRecommendation) {
-        wPill.className = 'inline-flex items-center gap-2 bg-green-50 border border-green-100 rounded-full px-3.5 py-1.5';
-        wPill.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-600"></span><span class="text-base text-green-600">Completed</span>';
+        wPill.className = 'pp-badge pp-badge-lg pp-badge-green';
+        wPill.textContent = 'Completed';
         wBtn.textContent = 'View Worksheet Results';
         wBtn.setAttribute('href', 'worksheet-results');
         wBtn.className = 'inline-block bg-white border border-[#ed1c24] text-[#ed1c24] text-[15px] font-semibold rounded-md px-8 py-3.5 shadow-sm hover:bg-red-50';
       } else {
-        wPill.className = 'inline-flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-full px-3.5 py-1.5';
-        wPill.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span><span class="text-base text-orange-500">Ready to take</span>';
+        wPill.className = 'pp-badge pp-badge-lg pp-badge-blue';
+        wPill.textContent = 'Ready to take';
         wBtn.textContent = 'Start Worksheet';
         wBtn.setAttribute('href', 'career-worksheet');
         wBtn.className = 'inline-block bg-[#ed1c24] text-white text-[15px] font-semibold rounded-md px-8 py-3.5 shadow-sm hover:opacity-90';

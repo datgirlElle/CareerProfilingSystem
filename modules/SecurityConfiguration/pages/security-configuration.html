@@ -656,7 +656,8 @@
     const ALWAYS_ON_TEXT = { password: "Password rules can't be turned off.", lockout: "Account lockout can't be turned off." };
     // "Enforced" with a lock, in a neutral color: a rule that always applies, not a switch that happens to be on
     // (green is kept for real switches, like Audit Log Retention's "Auto-delete on").
-    const ENFORCED_BADGE = '<span class="inline-flex items-center gap-1 bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap">' +
+    // Same badge as every status (css/components.css .pp-badge), with the lock in place of the dot.
+    const ENFORCED_BADGE = '<span class="pp-badge pp-badge-gray pp-badge-icon">' +
       '<svg viewBox="0 0 24 24" fill="none" class="w-3 h-3 shrink-0" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="2.5"/></svg>Enforced</span>';
 
     function policyDesc(key) {
@@ -688,8 +689,8 @@
         const badge = ALWAYS_ON.includes(key)
           ? ENFORCED_BADGE
           : p.enabled
-          ? '<span class="bg-green-50 border border-green-200 text-green-700 text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap">' + onText + '</span>'
-          : '<span class="bg-slate-100 text-slate-600 text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap">' + offText + '</span>';
+          ? PP.badge(onText, 'green')
+          : PP.badge(offText, 'gray');
         const tag = isAdmin ? 'button' : 'div';
         return '<' + tag + ' type="button" class="policy-row w-full flex items-center justify-between px-[17px] py-4 text-left' + (isAdmin ? ' hover:bg-slate-50' : '') + (idx > 0 ? ' border-t border-slate-100' : '') + '" data-policy="' + key + '">' +
           '<div><p class="text-sm font-medium text-slate-800">' + POLICY_META[key].title + '</p><p class="text-xs text-slate-500 policy-desc">' + policyDesc(key) + '</p></div>' +
