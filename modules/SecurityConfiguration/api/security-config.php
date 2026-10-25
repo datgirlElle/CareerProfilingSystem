@@ -17,7 +17,7 @@ const RBAC_LEVELS = ['full', 'limited', 'none'];
 // The row names, for the audit log (the page shows the same names, grouped by sidebar page).
 const RBAC_LABELS = [
     'dashboard' => 'Dashboard', 'studentInfo' => 'Student information', 'studentAccounts' => 'Student account management',
-    'assessmentResults' => 'Assessment results', 'recommendations' => 'Career recommendations', 'notesCreate' => 'Create counseling notes',
+    'assessmentResults' => 'Assessment results', 'recommendations' => 'Career recommendations', 'notesCreate' => 'Create notes',
     'exportResults' => 'Export student results', 'analytics' => 'Analytics and reports', 'analyticsEmail' => 'Send analytics report',
     'programs' => 'Program Mapping Crosswalk', 'questionBank' => 'Question Bank', 'examinations' => 'Assessment Scheduling',
     'monitoring' => 'Flagged student monitoring', 'announcements' => 'Announcements', 'counselingHistory' => 'View counseling history',
