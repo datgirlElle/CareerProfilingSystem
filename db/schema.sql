@@ -22,11 +22,17 @@ CREATE TABLE users (
     -- system role (role = 'counselor') with identical access; this is only the
     -- title shown next to the name. NULL (older accounts) reads as counselor.
     staff_position          VARCHAR(12) CHECK (staff_position IS NULL OR staff_position IN ('counselor', 'facilitator')),
+    -- A Guidance Counselor the administrator made a co-admin (Account Management): shares the admin's day-to-day work,
+    -- never the permission table, security settings or audit log retention (modules/Authentication/lib/Rbac.php).
+    -- Never a Guidance Facilitator (DFD process 4.0), a student or the administrator (db/migrate_add_co_admin.php).
+    is_co_admin             BOOLEAN NOT NULL DEFAULT FALSE,
     failed_login_attempts   INT NOT NULL DEFAULT 0,
     locked_until            TIMESTAMPTZ,
     notifications_read_at   TIMESTAMPTZ,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT users_co_admin_counselor_only
+        CHECK (NOT is_co_admin OR (role = 'counselor' AND staff_position IS DISTINCT FROM 'facilitator'))
 );
 
 -- Students self-register with a MMCL-issued email (see api/register.php's
