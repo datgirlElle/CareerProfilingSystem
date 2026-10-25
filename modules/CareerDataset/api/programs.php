@@ -154,7 +154,8 @@ if ($method === 'POST') {
     $insert->execute([$collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null, Careers::toLiteral($careers ?? []), $status]);
     $id = (int) $insert->fetchColumn();
 
-    AuditLogger::log($user['id'], $user['role'], 'create_program', 'program', (string) $id, $title);
+    AuditLogger::log($user['id'], $user['role'], 'create_program', 'program', (string) $id,
+        $title . ($careers ? ' (' . count($careers) . ' careers)' : ''));
 
     jsonResponse(['success' => true, 'id' => $id]);
 }
@@ -167,9 +168,10 @@ if ($method === 'PUT') {
         jsonResponse(['success' => false, 'error' => 'Missing program id.'], 400);
     }
 
-    $existing = $pdo->prepare('SELECT id FROM programs WHERE id = ?');
+    $existing = $pdo->prepare('SELECT id, careers FROM programs WHERE id = ?');
     $existing->execute([$id]);
-    if (!$existing->fetch()) {
+    $before = $existing->fetch();
+    if (!$before) {
         jsonResponse(['success' => false, 'error' => 'Program not found.'], 404);
     }
 
@@ -186,7 +188,18 @@ if ($method === 'PUT') {
     );
     $update->execute([$collegeId, Crypto::enc($title), Crypto::enc($hollandCode), $description !== '' ? Crypto::enc($description) : null, $careers !== null ? Careers::toLiteral($careers) : null, $status, $id]);
 
-    AuditLogger::log($user['id'], $user['role'], 'update_program', 'program', (string) $id, $title);
+    // Career changes are traceable: how many were added and removed (the detail is stored encrypted).
+    $detail = $title;
+    if ($careers !== null) {
+        $old = Careers::parse($before['careers']);
+        $change = Careers::changes($old, $careers);
+        if ($change['added'] || $change['removed']) {
+            $detail .= " (careers: {$change['added']} added, {$change['removed']} removed, " . count($careers) . ' now)';
+        } elseif ($old !== $careers) {
+            $detail .= ' (careers: spelling or order edited, ' . count($careers) . ' now)';
+        }
+    }
+    AuditLogger::log($user['id'], $user['role'], 'update_program', 'program', (string) $id, $detail);
 
     jsonResponse(['success' => true]);
 }
