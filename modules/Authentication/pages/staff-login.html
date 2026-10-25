@@ -85,7 +85,8 @@
 
           <p id="verifiedBanner" class="hidden text-sm text-green-700 bg-green-50 border border-green-100 rounded-md px-3.5 py-2.5"></p>
           <p id="endedBanner" class="hidden text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3.5 py-2.5" role="status"></p>
-          <p id="loginError" class="hidden text-sm text-[#ed1c24] bg-red-50 border border-red-100 rounded-md px-3.5 py-2.5">
+          <p id="timeoutBanner" class="hidden text-sm text-[#19427b] bg-blue-50 border border-blue-100 rounded-md px-3.5 py-2.5" role="status"></p>
+          <p id="loginError" class="hidden text-sm text-[#ed1c24] bg-red-50 border border-red-100 rounded-md px-3.5 py-2.5" role="alert">
             <span id="loginErrorText"></span>
           </p>
 
@@ -262,13 +263,24 @@
 
     // Signed out on this device by the server (account turned off, password changed): api/session.php says why
     // until the next sign-in on this device (modules/Authentication/lib/SessionEnd.php).
+    // Sent here by the idle timeout (js/csrf.js, js/ui-state.js add ?expired=1): say so, unless the server gave a more
+    // specific reason above.
+    const expired = new URLSearchParams(window.location.search).get('expired') === '1';
+    function showTimeout() {
+      if (!expired) return;
+      const banner = document.getElementById('timeoutBanner');
+      banner.textContent = 'You were signed out because you were inactive for a while. Please sign in again.';
+      banner.classList.remove('hidden');
+    }
     fetch('api/session.php').then(function(r) { return r.json(); }).then(function(d) {
       if (d && d.endedMessage) {
         const banner = document.getElementById('endedBanner');
         banner.textContent = d.endedMessage;
         banner.classList.remove('hidden');
+      } else {
+        showTimeout();
       }
-    }).catch(function() {});
+    }).catch(showTimeout);
 
     // A staff sign-up arrives here from verify-email after confirming the email address.
     if (new URLSearchParams(window.location.search).get('verified') === '2') {
