@@ -4,14 +4,11 @@ require_once __DIR__ . '/../../../shared/api/_bootstrap.php';
 require_once __DIR__ . '/../lib/AuditChain.php';
 require_once __DIR__ . '/../../../shared/lib/RateLimiter.php';
 
-// "Check log" on the Audit Log page (administrators only): checks every entry's seal and link
+// "Check log" on the Audit Log page (the administrator and co-admins): checks every entry's seal and link
 // (modules/AuditLog/lib/AuditChain.php) and records the check and its result in the log. A POST, because it writes that
-// entry; the CSRF check in _bootstrap.php applies.
+// entry; the CSRF check in _bootstrap.php applies. Reading only: it changes no entry.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $user = Rbac::requireRole('admin');
-    if ($user['role'] !== 'admin') {
-        jsonResponse(['success' => false, 'error' => 'Only administrators can check the audit log.'], 403);
-    }
+    $user = Rbac::requireAdminOrCoAdmin();
     $pdo = Database::get();
     if (!AuditChain::enabled($pdo)) {
         jsonResponse(['success' => false, 'error' => 'Tamper protection is not set up yet. Ask the system maintainer to run the database update.'], 409);

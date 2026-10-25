@@ -202,7 +202,10 @@
     return;
   }
   const roleName = currentUser.positionLabel || 'Guidance Counselor';
-  document.getElementById('accessIntro').textContent = 'What you can do in ProfilePath as a ' + roleName + '. Set by the Head of Guidance.';
+  document.getElementById('accessIntro').textContent = currentUser.isCoAdmin
+    // A co-admin (api/session.php): every feature, and the Audit Log to read; the rest stays with the Head of Guidance.
+    ? 'The Head of Guidance made you a co-admin: you have every feature below and can read the Audit Log. The permission table, security settings and audit log retention stay with the Head of Guidance.'
+    : 'What you can do in ProfilePath as a ' + roleName + '. Set by the Head of Guidance.';
   const access = currentUser.access || {};
   const counts = { full: 0, limited: 0, none: 0 };
   list.innerHTML = PP.rbacFeatures.groups().map(function(g) {

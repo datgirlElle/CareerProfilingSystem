@@ -754,6 +754,9 @@
           renderSummary(data.summary);
           renderRetention(data.retention);
           checkLogBtn.classList.toggle('hidden', !data.canCheckLog);
+          // Export PDF is the administrator's (a co-admin reads the log on screen only).
+          exportBtn.classList.toggle('hidden', data.canExport === false);
+          exportNote.classList.toggle('hidden', data.canExport === false);
           // Only the administrator sees full IP addresses (and can search by them); other staff see the network part.
           if (data.ipMasked) {
             const ipHeader = document.getElementById('ipHeader');

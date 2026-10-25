@@ -28,9 +28,14 @@ if ($user !== null && $user['role'] === 'counselor') {
     $user['positionLabel'] = StaffPosition::label($stmt->fetchColumn() ?: null);
 }
 
-// Which column of the access matrix applies to this person (Guidance Counselors and Facilitators have one each).
+// Which column of the access matrix applies to this person (Guidance Counselors and Facilitators have one each; a co-admin
+// is Rbac::COADMIN, Full on every feature).
 if ($user !== null) {
     $user['rbacRole'] = Rbac::roleKey($user);
+    $user['isCoAdmin'] = $user['rbacRole'] === Rbac::COADMIN;
+    if ($user['isCoAdmin']) {
+        $user['positionLabel'] = ($user['positionLabel'] ?? 'Guidance Counselor') . ' (Co-admin)';
+    }
 }
 
 // Staff: their own level for each feature (pages hide what View Only does not allow) and the pages closed to them (the

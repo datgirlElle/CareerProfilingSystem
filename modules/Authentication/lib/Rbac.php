@@ -78,11 +78,27 @@ class Rbac
      */
     public const ADMIN_PAGES = ['security-configuration', 'audit-log'];
 
+    /**
+     * The administrator's pages a co-admin opens too. The Audit Log is read only for them (masked IP addresses, no
+     * retention setting); Security Configuration (permission table, security settings) stays the administrator's.
+     */
+    public const COADMIN_PAGES = ['audit-log'];
+
+    /** At most this many Guidance Counselors are co-admins at once (Account Management). */
+    public const CO_ADMIN_MAX = 3;
+
     /** Where staff go when every sidebar page is closed to them: their own access, which says why. */
     public const FALLBACK_PAGE = 'my-access';
 
     /** The roles in the access matrix. Guidance Counselors and Guidance Facilitators share the 'counselor' system role but have a column each. */
     public const ROLES = ['admin', 'counselor', 'facilitator', 'student'];
+
+    /**
+     * The role key of a co-admin: a Guidance Counselor the administrator gave the shared admin work (users.is_co_admin).
+     * Not a column of the table: a co-admin has Full on every feature, like the administrator, and nobody can change that
+     * column. The administrator keeps the permission table, security settings, audit log retention and full IP addresses.
+     */
+    public const COADMIN = 'coadmin';
 
     /**
      * Used only by the older migrations (db/migrate_add_facilitator_role.php and the ones before it) that seeded the
@@ -150,21 +166,130 @@ class Rbac
         return self::LEVELS;
     }
 
-    /** The matrix column for a signed-in user: 'admin', 'counselor', 'facilitator' or 'student'. */
+    /** The matrix column for a signed-in user: 'admin', 'counselor', 'facilitator', 'student', or COADMIN for a co-admin. */
     public static function roleKey(array $user): string
     {
-        return self::isFacilitator($user) ? 'facilitator' : (string) ($user['role'] ?? '');
+        if (self::isFacilitator($user)) {
+            return 'facilitator';
+        }
+        return self::isCoAdmin($user) ? self::COADMIN : (string) ($user['role'] ?? '');
     }
 
     /** True for a signed-in Guidance Facilitator. */
     public static function isFacilitator(array $user): bool
     {
-        if (($user['role'] ?? '') !== 'counselor') {
+        return (self::staffRow($user)['staff_position'] ?? null) === 'facilitator';
+    }
+
+    /**
+     * True for a co-admin. Read from the database on every request (not the session), so removing a co-admin works at
+     * once. A Guidance Facilitator is never one (also a check constraint on users).
+     */
+    public static function isCoAdmin(array $user): bool
+    {
+        $row = self::staffRow($user);
+        return !empty($row['is_co_admin']) && ($row['staff_position'] ?? null) !== 'facilitator';
+    }
+
+    /** The administrator or a co-admin: the shared admin work (staff accounts, assessment reset, reading the Audit Log). */
+    public static function isAdminOrCoAdmin(array $user): bool
+    {
+        return ($user['role'] ?? '') === 'admin' || self::isCoAdmin($user);
+    }
+
+    /** @var array<int,array{staff_position:?string,is_co_admin:bool}> user id => row, read once per request */
+    private static array $staffRows = [];
+
+    private static ?bool $hasCoAdminColumn = null;
+
+    /** The database rule that keeps users.is_co_admin on Guidance Counselors only (also in db/migrate_add_co_admin.php). */
+    public const CO_ADMIN_RULE = "CHECK (NOT is_co_admin OR (role = 'counselor' AND staff_position IS DISTINCT FROM 'facilitator'))";
+
+    /**
+     * Whether users.is_co_admin exists (until then nobody is a co-admin). The first request that finds it missing adds it
+     * itself (addCoAdminColumn), so the live site needs no manual migration: Render's free plan has no Shell (Tyn, 2026-10-26).
+     */
+    public static function hasCoAdminColumn(): bool
+    {
+        if (self::$hasCoAdminColumn === null) {
+            self::$hasCoAdminColumn = self::coAdminColumnExists() || self::addCoAdminColumn();
+        }
+        return self::$hasCoAdminColumn;
+    }
+
+    private static function coAdminColumnExists(): bool
+    {
+        // information_schema, not a query that fails: a failed query would break an open transaction.
+        return (bool) Database::get()->query(
+            "SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'users' AND column_name = 'is_co_admin'"
+        )->fetchColumn();
+    }
+
+    /**
+     * Adds users.is_co_admin and its rule, the same as db/migrate_add_co_admin.php. Safe to run twice and from two requests
+     * at once. Never inside an open transaction (it would end it), at most one try per 10 minutes after a failure, and a
+     * failure only leaves co-admins switched off (the error goes to the server log). Adding a column with a constant
+     * default is instant on PostgreSQL 11 and later; lock_timeout keeps a busy table from holding the request.
+     */
+    private static function addCoAdminColumn(): bool
+    {
+        $pdo = Database::get();
+        if ($pdo->inTransaction()) {
             return false;
         }
-        $stmt = Database::get()->prepare('SELECT staff_position FROM users WHERE id = ?');
-        $stmt->execute([(int) $user['id']]);
-        return $stmt->fetchColumn() === 'facilitator';
+        $marker = sys_get_temp_dir() . '/profilepath-co-admin-column-try';
+        if (is_file($marker) && time() - (int) @filemtime($marker) < 600) {
+            return false;
+        }
+        @touch($marker);
+        try {
+            $pdo->exec("SET lock_timeout = '3s'");
+            $pdo->exec('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_co_admin BOOLEAN NOT NULL DEFAULT FALSE');
+            if (!$pdo->query("SELECT 1 FROM pg_constraint WHERE conname = 'users_co_admin_counselor_only'")->fetchColumn()) {
+                try {
+                    $pdo->exec('ALTER TABLE users ADD CONSTRAINT users_co_admin_counselor_only ' . self::CO_ADMIN_RULE);
+                } catch (PDOException $e) {
+                    if ($e->getCode() !== '42710') { // 42710 = another request added the rule a moment ago
+                        throw $e;
+                    }
+                }
+            }
+            $pdo->exec('RESET lock_timeout');
+            @unlink($marker);
+            error_log('[co-admin] users.is_co_admin added automatically');
+            return true;
+        } catch (Throwable $e) {
+            try { $pdo->exec('RESET lock_timeout'); } catch (Throwable $ignored) {}
+            error_log('[co-admin] could not add users.is_co_admin: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /** A Guidance Counselor's or Facilitator's position and co-admin flag ([] for everyone else). */
+    private static function staffRow(array $user): array
+    {
+        if (($user['role'] ?? '') !== 'counselor') {
+            return [];
+        }
+        $id = (int) $user['id'];
+        if (!isset(self::$staffRows[$id])) {
+            $stmt = Database::get()->prepare(self::hasCoAdminColumn()
+                ? 'SELECT staff_position, is_co_admin FROM users WHERE id = ?'
+                : 'SELECT staff_position, FALSE AS is_co_admin FROM users WHERE id = ?');
+            $stmt->execute([$id]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+            self::$staffRows[$id] = [
+                'staff_position' => $row['staff_position'] ?? null,
+                'is_co_admin' => !empty($row['is_co_admin']),
+            ];
+        }
+        return self::$staffRows[$id];
+    }
+
+    /** Forget the co-admin flags read in this request (after the administrator changes one). */
+    public static function forgetStaffRows(): void
+    {
+        self::$staffRows = [];
     }
 
     /** Uploading or replacing a class roster, adding or deactivating sections: Full on Student roster management. */
@@ -179,6 +304,10 @@ class Rbac
     /** Every feature's level for $role: the saved row, else the default. One query per role per request. */
     public static function levelsFor(string $role): array
     {
+        if ($role === self::COADMIN) {
+            // A co-admin has every feature, like the administrator; the table has no co-admin column to read.
+            return array_fill_keys(array_keys(self::DEFAULTS), 'full');
+        }
         if (!isset(self::$saved[$role])) {
             $stmt = Database::get()->prepare('SELECT module, access_level FROM security_rbac WHERE role = ?');
             $stmt->execute([$role]);
@@ -226,11 +355,14 @@ class Rbac
         return ($rank[$level] ?? 0) >= ($rank[$minLevel] ?? 1);
     }
 
-    /** Whether the staff page $page is open to $role (ADMIN_PAGES: the administrator only; pages not in PAGES are open). */
+    /**
+     * Whether the staff page $page is open to $role (ADMIN_PAGES: the administrator only, COADMIN_PAGES also a co-admin;
+     * pages not in PAGES are open).
+     */
     public static function pageOpen(string $page, string $role): bool
     {
         if (in_array($page, self::ADMIN_PAGES, true)) {
-            return $role === 'admin';
+            return $role === 'admin' || ($role === self::COADMIN && in_array($page, self::COADMIN_PAGES, true));
         }
         if (!isset(self::PAGES[$page])) {
             return true;
@@ -285,6 +417,19 @@ class Rbac
     public static function requireStaffAccounts(string $minLevel = 'full'): array
     {
         return self::requireAccess('staffAccounts', $minLevel);
+    }
+
+    /** The administrator or a co-admin (reading the Audit Log, "Check log"). Sends 403 and exits otherwise. */
+    public static function requireAdminOrCoAdmin(): array
+    {
+        $user = Auth::requireLogin();
+        if (!self::isAdminOrCoAdmin($user)) {
+            http_response_code(403);
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'Forbidden']);
+            exit;
+        }
+        return $user;
     }
 
     /**

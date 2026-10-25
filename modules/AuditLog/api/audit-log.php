@@ -8,9 +8,14 @@ require_once __DIR__ . '/../../CareerProfiling/lib/QuestionBank.php';
 require_once __DIR__ . '/../lib/AuditChange.php';
 require_once __DIR__ . '/../lib/AuditRetention.php';
 
-$user = Rbac::requireRole('admin'); // the Audit Log is the Head of Guidance's (Rbac::ADMIN_PAGES)
+// The Audit Log is the Head of Guidance's (Rbac::ADMIN_PAGES); co-admins read it too (Rbac::COADMIN_PAGES). Everything
+// below that tests role === 'admin' (full IP addresses, student names, permission details, retention) stays the
+// administrator's alone.
+$user = Rbac::requireAdminOrCoAdmin();
 // Full IP addresses are for the administrator (security incidents); other staff see them masked (maskIp()).
 $seeFullIp = $user['role'] === 'admin';
+// Student names (actors, search) are for the administrator too; a co-admin sees "Student".
+$isMainAdmin = $user['role'] === 'admin';
 $showIp = fn(?string $ip): ?string => $seeFullIp ? $ip : maskIp($ip);
 
 $pdo = Database::get();
@@ -88,6 +93,8 @@ $actionLabels = [
     'activate_staff_account' => 'Activated staff account',
     'deactivate_staff_account' => 'Deactivated staff account',
     'assign_staff_sections' => 'Assigned staff sections',
+    'grant_co_admin' => 'Made co-admin',
+    'revoke_co_admin' => 'Removed co-admin',
     // Students, sections and programs
     'activate_student_account' => 'Activated student account',
     'deactivate_student_account' => 'Deactivated student account',
@@ -200,12 +207,15 @@ function statusOf(string $action): string
     return (str_ends_with($action, FAILED_SUFFIX) || in_array($action, FAILED_ACTIONS, true)) ? 'Failed' : 'Success';
 }
 
-/** Who did it: staff by username, a student by name (their username is their Student Number, which staff don't see). */
-function actorLabel(array $r): string
+/**
+ * Who did it: staff by username, a student by name (their username is their Student Number, which staff don't see).
+ * Student names are for the administrator only: a co-admin reading the log sees "Student" ($showStudents false).
+ */
+function actorLabel(array $r, bool $showStudents = true): string
 {
     if (($r['actor_role'] ?? null) === 'student') {
         // A student whose account was later removed has no name to read: show "Student" instead of failing.
-        if (empty($r['last_name_enc']) && empty($r['first_name_enc'])) {
+        if (!$showStudents || (empty($r['last_name_enc']) && empty($r['first_name_enc']))) {
             return 'Student';
         }
         $name = trim(Crypto::dec($r['last_name_enc'] ?? '') . ', ' . Crypto::dec($r['first_name_enc'] ?? ''), ' ,');
@@ -453,7 +463,7 @@ function exportFilterText(array $q, array $categoryLabels): string
     return "Dates: $dates | Status: $status | Category: $category | Role: $role | Search: " . ($search === '' ? 'none' : '"' . $search . '"');
 }
 
-function buildFilters(array $q, array $actionLabels, array $roleLabels, array $categoryLabels, bool $searchIp = false): array
+function buildFilters(array $q, array $actionLabels, array $roleLabels, array $categoryLabels, bool $searchIp = false, bool $searchStudents = true): array
 {
     $where = ['1=1'];
     $params = [];
@@ -481,7 +491,8 @@ function buildFilters(array $q, array $actionLabels, array $roleLabels, array $c
         $pdo = Database::get();
         $actions = $pdo->query('SELECT DISTINCT action FROM audit_log')->fetchAll(PDO::FETCH_COLUMN);
         $targets = $pdo->query('SELECT DISTINCT target_type FROM audit_log WHERE target_type IS NOT NULL')->fetchAll(PDO::FETCH_COLUMN);
-        $students = $pdo->query('SELECT user_id, first_name_enc, last_name_enc FROM students')->fetchAll();
+        // Searching by a student's name: the administrator only (a co-admin sees "Student", see actorLabel()).
+        $students = $searchStudents ? $pdo->query('SELECT user_id, first_name_enc, last_name_enc FROM students')->fetchAll() : [];
 
         foreach ($terms as $t) {
             $has = fn(string $text): bool => mb_stripos($text, $t) !== false;
@@ -584,6 +595,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['export'])) {
     if (($_SERVER['HTTP_SEC_FETCH_SITE'] ?? 'same-origin') !== 'same-origin') {
         jsonResponse(['error' => 'Start the export from the Audit Log page.'], 403);
     }
+    // Exporting copies the log out of the system: the administrator only (Tyn, 2026-10-26). Co-admins read it on screen.
+    if (!$isMainAdmin) {
+        jsonResponse(['error' => 'Only the administrator can export the audit log.'], 403);
+    }
     // Refusals by the rate limit are not logged: each refused click would add a row, and the
     // exports before it are already in the log.
     if (RateLimiter::tooMany('audit-export:' . (int) $user['id'], 10, 60)) {
@@ -591,7 +606,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['export'])) {
     }
 
     $filters = exportFilterText($_GET, $categoryLabels);
-    [$where, $params] = buildFilters($_GET, $actionLabels, $roleLabels, $categoryLabels, $seeFullIp);
+    [$where, $params] = buildFilters($_GET, $actionLabels, $roleLabels, $categoryLabels, $seeFullIp, $isMainAdmin);
     $sql = "SELECT al.created_at, u.username, u.full_name, u.staff_position, al.actor_role, al.action, al.target_type, al.ip_address, st.first_name_enc, st.last_name_enc
             FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id LEFT JOIN students st ON st.user_id = al.actor_user_id
             WHERE $where ORDER BY al.created_at DESC LIMIT " . (MAX_EXPORT_ROWS + 1);
@@ -613,7 +628,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['export'])) {
         foreach ($found as $row) {
             $rows[] = [
                 (new DateTime($row['created_at']))->format('M j, Y g:i:s A'),
-                actorLabel($row),
+                actorLabel($row, $isMainAdmin),
                 roleLabel($row['actor_role'], $roleLabels, $row['staff_position']),
                 actionLabel($row['action'], $actionLabels),
                 categoryLabel($row['target_type'], $categoryLabels),
@@ -675,13 +690,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
     $detail = null;
     $detailNote = null;
     $changes = [];
-    // Other roles' permissions are for the administrator only (Security Configuration shows other staff just their
-    // own access), so a permission change shows that it happened, not what changed.
-    $hidePermissions = $r['action'] === 'update_rbac' && $user['role'] !== 'admin';
+    // Other roles' permissions and the security settings are for the administrator only (Security Configuration shows
+    // other staff just their own access, and never the policies), so such a change shows that it happened, not what changed.
+    $hidePermissions = in_array($r['action'], ['update_rbac', 'update_policy', 'update_settings'], true) && $user['role'] !== 'admin';
     if ($hidePermissions) {
         $targetLabel = null;
         $targetText = null;
-        $detailNote = 'Hidden: permission changes are shown only to the administrator.';
+        $detailNote = 'Hidden: permission and security setting changes are shown only to the administrator.';
     } elseif (in_array($r['action'], HIDDEN_DETAIL_ACTIONS, true) || ($hideStudent && $studentAccountAction)) {
         $detailNote = "Hidden: sensitive student data. Open the student's record to see it.";
     } elseif ($r['detail_enc'] !== null) {
@@ -716,7 +731,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
         [$detail, $detailNote] = olderEntryDetail($pdo, $r, $detail);
     }
     try {
-        $name = actorLabel($r);
+        $name = actorLabel($r, $isMainAdmin);
     } catch (Throwable $e) {
         $name = 'Could not be read';
     }
@@ -753,7 +768,7 @@ $page = max(1, (int) ($_GET['page'] ?? 1));
 $pageSize = min(100, max(1, (int) ($_GET['pageSize'] ?? 10)));
 $sort = ($_GET['sort'] ?? 'desc') === 'asc' ? 'ASC' : 'DESC';
 
-[$where, $params, $whereAllRoles, $paramsAllRoles] = buildFilters($_GET, $actionLabels, $roleLabels, $categoryLabels, $seeFullIp);
+[$where, $params, $whereAllRoles, $paramsAllRoles] = buildFilters($_GET, $actionLabels, $roleLabels, $categoryLabels, $seeFullIp, $isMainAdmin);
 
 $countSql = "SELECT COUNT(*) FROM audit_log al LEFT JOIN users u ON u.id = al.actor_user_id WHERE $where";
 $countStmt = $pdo->prepare($countSql);
@@ -771,11 +786,11 @@ $sql = "SELECT al.id, al.created_at, u.username, u.full_name, u.staff_position, 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 
-$rows = array_map(function ($r) use ($actionLabels, $roleLabels, $showIp) {
+$rows = array_map(function ($r) use ($actionLabels, $roleLabels, $showIp, $isMainAdmin) {
     return [
         'id' => (int) $r['id'],
         'timestamp' => (new DateTime($r['created_at']))->format('M j, Y g:i:s A'),
-        'user' => actorLabel($r),
+        'user' => actorLabel($r, $isMainAdmin),
         'role' => roleLabel($r['actor_role'], $roleLabels, $r['staff_position']),
         'action' => actionLabel($r['action'], $actionLabels),
         'module' => $r['target_type'] ?? '-',
@@ -871,7 +886,9 @@ jsonResponse([
     ],
     // For the note under the table: what is really kept, and whether this person can change it.
     'retention' => AuditRetention::settings($pdo) + ['canChange' => $user['role'] === 'admin'],
-    // "Check log" (api/audit-log-verify.php) is for administrators.
-    'canCheckLog' => $user['role'] === 'admin',
+    // "Check log" (api/audit-log-verify.php) is for the administrator and co-admins (it only reads the seals).
+    'canCheckLog' => Rbac::isAdminOrCoAdmin($user),
+    // Export PDF: the administrator only.
+    'canExport' => $isMainAdmin,
     'ipMasked' => !$seeFullIp,
 ]);

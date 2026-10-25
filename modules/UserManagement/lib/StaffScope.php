@@ -3,10 +3,12 @@
 /**
  * Which students a guidance counselor / facilitator can see. The administrator assigns sections
  * to each staff member (Account Management); that person then sees only those sections' students
- * on Student Information, Monitoring and the email buttons. The administrator, and any staff
- * member with no sections assigned, see everyone — so no existing account loses access — and so
- * does everyone if the staff_sections table hasn't been created yet.
+ * on Student Information, Monitoring and the email buttons. The administrator, a co-admin, and any
+ * staff member with no sections assigned, see everyone — so no existing account loses access — and
+ * so does everyone if the staff_sections table hasn't been created yet.
  */
+require_once __DIR__ . '/../../Authentication/lib/Rbac.php';
+
 class StaffScope
 {
     /**
@@ -15,7 +17,7 @@ class StaffScope
      */
     public static function forUser(PDO $pdo, array $user): ?array
     {
-        if ($user['role'] !== 'counselor') {
+        if ($user['role'] !== 'counselor' || Rbac::isCoAdmin($user)) {
             return null;
         }
         try {

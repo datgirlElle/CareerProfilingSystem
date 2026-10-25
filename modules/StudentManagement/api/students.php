@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (($body['type'] ?? '') === 'resetAssessment') {
-        if ($user['role'] !== 'admin') {
+        if (!Rbac::isAdminOrCoAdmin($user)) {
             jsonResponse(['success' => false, 'error' => 'Only an administrator can reset a student\'s assessment.'], 403);
         }
         $targetId = (int) ($body['userId'] ?? 0);
