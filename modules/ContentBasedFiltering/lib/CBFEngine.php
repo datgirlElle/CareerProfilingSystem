@@ -52,7 +52,11 @@ class CBFEngine
         'S' => 'Social', 'E' => 'Enterprising', 'C' => 'Conventional',
     ];
 
-    /** Equal cosine values (within this tolerance) are treated as ties. */
+    /**
+     * Equal cosine values (within this tolerance) are treated as ties. Compared on the full-precision values
+     * (cosineExact), never on the 4-decimal display values; two codes that are mathematically equally close differ
+     * only by floating-point error (far below 1e-9), and different similarities among the 32 codes differ by much more.
+     */
     public const TIE_EPSILON = 1e-9;
 
     private static ?array $config = null;
@@ -179,7 +183,7 @@ class CBFEngine
      * @return array{studentScores:array, studentVector:float[], studentMagnitude:float,
      *               results:array, excluded:array, candidates:array}
      *         results: every valid course, highest cosine first, each with
-     *         courseVector, dotProduct, courseMagnitude and cosine.
+     *         courseVector, dotProduct, courseMagnitude, cosine (4 decimals, for display) and cosineExact.
      * @throws InvalidArgumentException for an invalid RIASEC profile
      */
     public static function compute(?array $riasecScores, array $programs, ?array $config = null): array
@@ -224,7 +228,8 @@ class CBFEngine
         $candidates = self::selectCandidates($results, 'cosine');
         $alternatives = self::selectAlternatives($results, 'cosine');
         foreach ($results as &$r) {
-            $r['cosine'] = round($r['cosine'], 4);
+            $r['cosineExact'] = $r['cosine'];          // full precision: ties and groups are decided on this
+            $r['cosine'] = round($r['cosine'], 4);     // display value
         }
         unset($r);
 
