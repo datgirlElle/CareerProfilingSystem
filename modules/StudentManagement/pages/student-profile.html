@@ -494,7 +494,10 @@
       ? withCosine(r.preferredCourse) + (r.preferredCourse.inBestRiasecMatch ? ', also a Best RIASEC Match' : ', differs from the Best RIASEC Match')
       : 'No worksheet result';
     document.getElementById('recBest').textContent = list(r.bestRiasecMatch.map(withCosine)) +
-      (r.bestRiasecMatch.length > 1 ? ' (tied: same RIASEC letters)' : '') + (r.needsRecompute ? ' (saved before the CBF revision; recompute to update)' : '');
+      (r.bestRiasecMatch.length > 1
+        ? (r.bestRiasecMatch.every(function(p) { return (p.hollandCode || '').toUpperCase() === (r.bestRiasecMatch[0].hollandCode || '').toUpperCase(); })
+          ? ' (tied: same RIASEC code)' : ' (tied: equally close, different codes)')
+        : '') + (r.needsRecompute ? ' (saved before the CBF revision; recompute to update)' : '');
     document.getElementById('recAlternatives').textContent = list(r.alternatives.map(withCosine));
     // Source 3, the WEKA J48 prediction (api/recommendations.php `prediction`), shown on its own.
     const pred = r.prediction || { status: 'unavailable' };
