@@ -49,6 +49,12 @@
   .fp-option span:hover { background:#f1f5f9; }
   .fp-option input:checked + span { background:#0f2a6b; border-color:#0f2a6b; color:#fff; }
   .fp-option input:focus-visible + span { outline:2px solid #0f2a6b; outline-offset:2px; }
+  /* Student Status and Course Match: side by side from 1024px, stacked below. */
+  .pie-pair { display:grid; grid-template-columns:1fr; gap:24px; }
+  @media (min-width:1024px) { .pie-pair { grid-template-columns:1fr 1fr; } .pie-pair:has(> .hidden) { grid-template-columns:1fr; } }
+  .pie-pair > .hidden { display:none; }
+  /* Same header height on both cards, so the two pies line up side by side. */
+  @media (min-width:1024px) { .pie-pair .pie-head { min-height:96px; } }
 </style>
 </head>
 <body class="bg-[#f9fafb]">
@@ -361,26 +367,36 @@
         <div class="px-6 pt-4"><p id="completionSummaryLine" class="text-sm text-gray-700"></p></div>
         <div class="p-6 pt-3"><div id="completionChartBox" style="position:relative;height:260px"><canvas id="sectionCompletionChart" aria-label="Registered, assessed and pending students by section"></canvas></div></div>
       </div>
-      <div id="statusCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-8">
-        <div class="border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h2 class="text-lg font-bold text-gray-900">Student Status</h2>
-            <p class="text-xs text-gray-500 mt-1">Assessed, pending and not registered students.</p>
-          </div>
-          <div class="flex items-center gap-2">
-            <label for="statusSection" class="pp-filter-label">Section</label>
-            <select id="statusSection" class="pp-filter-select"></select>
-          </div>
+      <!-- Two pies side by side on wide screens. Both follow the School Year, Strand and Section at the top of the page. -->
+      <div class="pie-pair mb-8">
+      <div id="statusCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
+        <div class="pie-head border-b border-gray-200 px-6 py-4">
+          <h2 class="text-lg font-bold text-gray-900">Student Status</h2>
+          <p class="text-xs text-gray-500 mt-1">Assessed, pending and not registered students. <span class="scope-note"></span></p>
         </div>
-        <div class="p-6">
-          <div id="statusChartBox" style="position:relative;height:300px"><canvas id="statusChart" aria-label="Assessed, pending and not registered students"></canvas></div>
-          <p id="statusEmpty" class="hidden text-sm text-gray-500 text-center py-10">No students in this section yet.</p>
+        <div class="p-6 flex-1">
+          <div id="statusChartBox" style="position:relative;height:280px"><canvas id="statusChart" aria-label="Assessed, pending and not registered students"></canvas></div>
+          <p id="statusEmpty" class="hidden text-sm text-gray-500 text-center py-10">No students in this view yet.</p>
         </div>
         <div class="px-6 pb-6 flex flex-wrap items-center gap-2">
-          <span class="text-xs text-gray-500">Download for the section picked above:</span>
-          <button type="button" id="dlNotRegistered" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not registered (CSV)</button>
-          <button type="button" id="dlNotAssessed" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not assessed (CSV)</button>
+          <span class="text-xs text-gray-500">Download for the filters at the top:</span>
+          <button type="button" id="dlNotRegistered" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not registered (PDF)</button>
+          <button type="button" id="dlNotAssessed" class="border border-gray-300 rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">Not assessed (PDF)</button>
         </div>
+        <p class="text-xs text-red-600 hidden px-6 pb-4" id="statusDlError" role="alert"></p>
+      </div>
+      <!-- Course Match: is the Preferred Course one of the Best RIASEC Match programs (an assessment result: only with
+           Assessment results access; api/students.php sends "matched" only then). -->
+      <div id="matchCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
+        <div class="pie-head border-b border-gray-200 px-6 py-4">
+          <h2 class="text-lg font-bold text-gray-900">Course Match</h2>
+          <p class="text-xs text-gray-500 mt-1">Students who finished the assessment and the worksheet: is their Preferred Course one of their Best RIASEC Match programs? <span class="scope-note"></span></p>
+        </div>
+        <div class="p-6 flex-1">
+          <div id="matchChartBox" style="position:relative;height:280px"><canvas id="matchChart" aria-label="Matched and mismatched students"></canvas></div>
+          <p id="matchEmpty" class="hidden text-sm text-gray-500 text-center py-10">No finished worksheets in this view yet.</p>
+        </div>
+      </div>
       </div>
 
     </main>
@@ -555,48 +571,96 @@
   let pickedSets = null; // { before }: what a card's strand click replaced (status, assessment), put back when it is undone
   let isPastYear = false;
   let lastTotal = 0;
-  let statusSection = ''; // '' = all sections, otherwise "STRAND|SECTION"
   let statusChart = null;
+  let matchChart = null;
+  let lastSectionRows = []; // every section of the school year (api/students.php "sections"), from the last full load
+  let drawnScope = null;    // the Strand|Section the cards and charts were last drawn for
 
-  // A pie of where the students stand (assessed, pending, not registered) for all sections or the chosen one.
-  function renderStatus(secRows) {
-    document.getElementById('statusCard').classList.toggle('hidden', secRows.length === 0);
-    if (statusSection && !secRows.some(function(s) { return s.strand + '|' + s.section === statusSection; })) statusSection = '';
-    const select = document.getElementById('statusSection');
-    select.innerHTML = '<option value="">All sections</option>' + secRows.map(function(s) {
-      const key = s.strand + '|' + s.section;
-      return '<option value="' + escapeHtml(key) + '"' + (key === statusSection ? ' selected' : '') + '>' + escapeHtml(s.strand) + ' ' + escapeHtml(s.section) + '</option>';
-    }).join('');
+  // The top filters drive the whole page: the cards and charts count the sections of the Strand and Section picked at
+  // the top (the list's other filters, in the Filters panel, are for the list only).
+  function scopeRows() {
+    const section = (state.section || '').toLowerCase();
+    return lastSectionRows.filter(function(s) {
+      return (!state.strand || s.strand === state.strand) && (!section || String(s.section || '').toLowerCase() === section);
+    });
+  }
+  function scopeText() {
+    if (state.section) return 'Showing ' + state.strand + ' ' + state.section + '.';
+    if (state.strand) return 'Showing ' + state.strand + ', all sections.';
+    return 'Showing all strands.';
+  }
 
-    const chosen = secRows.filter(function(s) { return !statusSection || s.strand + '|' + s.section === statusSection; });
-    const sum = function(k) { return chosen.reduce(function(n, s) { return n + s[k]; }, 0); };
-    const counts = [sum('completed'), sum('pending'), sum('notRegistered')];
-    const total = counts[0] + counts[1] + counts[2];
-    if (statusChart) { statusChart.destroy(); statusChart = null; }
-    document.getElementById('statusChartBox').classList.toggle('hidden', total === 0);
-    document.getElementById('statusEmpty').classList.toggle('hidden', total !== 0);
-    if (!total) return;
-    const names = ['Assessed', 'Pending', 'Not registered'];
-    statusChart = new Chart(document.getElementById('statusChart').getContext('2d'), {
+  // One pie, drawn the same way for Student Status and Course Match: labels with count and share, a "n of total" tooltip.
+  function drawPie(chart, canvasId, boxId, emptyId, names, counts, colors) {
+    const total = counts.reduce(function(a, b) { return a + b; }, 0);
+    if (chart) chart.destroy();
+    document.getElementById(boxId).classList.toggle('hidden', total === 0);
+    document.getElementById(emptyId).classList.toggle('hidden', total !== 0);
+    if (!total) return null;
+    return new Chart(document.getElementById(canvasId).getContext('2d'), {
       type: 'pie',
       data: {
         labels: names.map(function(n, i) { return n + ': ' + counts[i] + ' (' + Math.round(counts[i] / total * 100) + '%)'; }),
-        datasets: [{ data: counts, backgroundColor: ['#059669', '#d97706', '#3b82f6'], borderColor: '#ffffff', borderWidth: 2 }]
+        // No white border when one slice is the whole pie (the empty slices would draw a thin line).
+        datasets: [{ data: counts, backgroundColor: colors, borderColor: '#ffffff', borderWidth: counts.filter(function(n) { return n > 0; }).length > 1 ? 2 : 0 }]
       },
       options: {
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'right', labels: { boxWidth: 12, padding: 14, font: { size: 13 } } },
+          legend: { position: 'bottom', labels: { boxWidth: 12, padding: 14, font: { size: 13 } } },
           tooltip: { callbacks: { label: function(ctx) { return ' ' + names[ctx.dataIndex] + ': ' + counts[ctx.dataIndex] + ' of ' + total + ' students'; } } }
         }
       }
     });
   }
-  document.getElementById('statusSection').addEventListener('change', function() {
-    statusSection = this.value;
-    renderStatus(lastSectionRows);
-  });
-  let lastSectionRows = [];
+  const sumOf = function(rows, k) { return rows.reduce(function(n, s) { return n + (s[k] || 0); }, 0); };
+
+  // Where the students stand: assessed, pending, not registered.
+  function renderStatus(rows) {
+    document.getElementById('statusCard').classList.toggle('hidden', lastSectionRows.length === 0);
+    statusChart = drawPie(statusChart, 'statusChart', 'statusChartBox', 'statusEmpty', ['Assessed', 'Pending', 'Not registered'],
+      [sumOf(rows, 'completed'), sumOf(rows, 'pending'), sumOf(rows, 'notRegistered')], ['#059669', '#d97706', '#3b82f6']);
+  }
+
+  // Course Match: matched vs mismatched among the students with a recommendation. Navy = on track; violet = the same
+  // family as the Mismatched card (a reason to visit Guidance, not an error, so not red). Dark vs light slice, so the
+  // two read apart without color too.
+  function renderMatch(rows) {
+    const shown = lastSectionRows.length > 0 && lastSectionRows.some(function(s) { return 'matched' in s; });
+    document.getElementById('matchCard').classList.toggle('hidden', !shown);
+    if (!shown) return;
+    matchChart = drawPie(matchChart, 'matchChart', 'matchChartBox', 'matchEmpty', ['Matched', 'Mismatched'],
+      [sumOf(rows, 'matched'), sumOf(rows, 'mismatched')], ['#0f2a6b', '#8b5cf6']);
+  }
+
+  // The four cards for the sections in view (the same counting as api/students.php: Pending = not assessed yet).
+  function renderCards(rows) {
+    const total = sumOf(rows, 'total');
+    const completed = sumOf(rows, 'completed');
+    const mismatched = sumOf(rows, 'mismatched');
+    document.getElementById('cardTotalStudents').textContent = total.toLocaleString();
+    document.getElementById('cardCompleted').textContent = completed.toLocaleString();
+    document.getElementById('cardPending').textContent = (total - completed).toLocaleString();
+    document.getElementById('cardMismatched').textContent = mismatched.toLocaleString();
+    const pct = (n) => total > 0 ? Math.round((n / total) * 100) + '% of total' : '0% of total';
+    document.getElementById('cardCompletedPct').textContent = pct(completed);
+    document.getElementById('cardPendingPct').textContent = pct(total - completed);
+    // Mismatched is a share of the students who finished the assessment.
+    document.getElementById('cardMismatchedPct').textContent = completed > 0 ? Math.round((mismatched / completed) * 100) + '% of completed' : '0% of completed';
+  }
+
+  // Cards and charts for the Strand and Section at the top. force: after a full load (new numbers).
+  function renderScope(force) {
+    const key = state.strand + '|' + state.section;
+    if (!force && key === drawnScope) return; // a search or page change: nothing to redraw
+    drawnScope = key;
+    const rows = scopeRows();
+    document.querySelectorAll('.scope-note').forEach(function(el) { el.textContent = scopeText(); });
+    if (lastSummary && lastSummary.totalStudents !== undefined) renderCards(rows);
+    renderStatus(rows);
+    renderMatch(rows);
+    renderCompletion(rows);
+  }
 
   // ---- Student progress by section: registered, assessed and still pending, each as a share of the students expected.
   let completionChart = null;
@@ -642,42 +706,24 @@
       }
     });
   }
-  // ---- Downloads: the list as a CSV (names, section, registered, assessed, email) for following up.
-  async function downloadCsv(extra) {
-    const params = new URLSearchParams(Object.assign({ format: 'csv' }, extra));
-    const summary = document.getElementById('paginationSummary');
-    try {
-      const res = await fetch('api/students.php?' + params.toString());
-      if (!res.ok) { summary.textContent = 'Could not download the list. Please try again.'; return; }
-      const match = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = match ? match[1] : 'students.csv';
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
-    } catch (e) {
-      summary.textContent = 'Unable to reach the server. Please try again.';
-    }
-  }
-  // Export PDF: every student matching the search and filters in use (not just this page), with the filters printed on it.
-  const downloadListBtn = document.getElementById('downloadListBtn');
-  const exportError = document.getElementById('exportError');
-  downloadListBtn.addEventListener('click', async function() {
-    const params = new URLSearchParams({ format: 'pdf', search: state.search, strand: state.strand, section: state.section, status: state.status, counseling: state.counseling, registration: state.registration, assessment: state.assessment, account: state.account, academicYear: state.academicYear });
-    const label = document.getElementById('downloadListLabel');
-    exportError.classList.add('hidden');
-    downloadListBtn.disabled = true;
-    downloadListBtn.setAttribute('aria-busy', 'true');
-    label.textContent = 'Preparing…';
+  // ---- PDF downloads (api/students.php format=pdf: names, section, status, with the filters printed on it and written
+  // to the Audit Log). btn shows "Preparing…" meanwhile; errorEl shows what went wrong.
+  async function downloadPdf(filters, btn, errorEl) {
+    const params = new URLSearchParams(Object.assign({ format: 'pdf' }, filters));
+    const labelEl = btn.querySelector('span[id]') || btn;
+    const label = labelEl.textContent;
+    errorEl.classList.add('hidden');
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+    labelEl.textContent = 'Preparing…';
     try {
       const res = await fetch('api/students.php?' + params.toString());
       if (res.status === 401) { window.location.replace('staff-login'); return; }
       if (!res.ok) {
         let message = 'Could not export the PDF. Please try again.';
         try { message = (await res.json()).error || message; } catch (e) {}
-        exportError.textContent = message;
-        exportError.classList.remove('hidden');
+        errorEl.textContent = message;
+        errorEl.classList.remove('hidden');
         return;
       }
       const match = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '');
@@ -691,21 +737,31 @@
       setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
       PP.toast('PDF downloaded.', false);
     } catch (e) {
-      exportError.textContent = 'Unable to reach the server. Please try again.';
-      exportError.classList.remove('hidden');
+      errorEl.textContent = 'Unable to reach the server. Please try again.';
+      errorEl.classList.remove('hidden');
     } finally {
-      label.textContent = 'Export PDF';
-      downloadListBtn.disabled = false;
-      downloadListBtn.removeAttribute('aria-busy');
+      labelEl.textContent = label;
+      btn.disabled = false;
+      btn.removeAttribute('aria-busy');
     }
-  });
-  function pickedSectionParams() {
-    if (!statusSection) return {};
-    const parts = statusSection.split('|');
-    return { strand: parts[0], section: parts[1] };
   }
-  document.getElementById('dlNotRegistered').addEventListener('click', function() { downloadCsv(Object.assign({ registration: 'notRegistered', academicYear: state.academicYear }, pickedSectionParams())); });
-  document.getElementById('dlNotAssessed').addEventListener('click', function() { downloadCsv(Object.assign({ assessment: 'notAssessed', academicYear: state.academicYear }, pickedSectionParams())); });
+  // Export PDF: every student matching the search and filters in use (not just this page).
+  const downloadListBtn = document.getElementById('downloadListBtn');
+  downloadListBtn.addEventListener('click', function() {
+    downloadPdf({ search: state.search, strand: state.strand, section: state.section, status: state.status, counseling: state.counseling,
+      registration: state.registration, assessment: state.assessment, account: state.account, academicYear: state.academicYear },
+      downloadListBtn, document.getElementById('exportError'));
+  });
+  // Student Status: who still has to register or take the assessment, for the School Year, Strand and Section at the top
+  // (All Strands = the whole school). "Not assessed" includes the students not registered yet.
+  ['dlNotRegistered', 'dlNotAssessed'].forEach(function(id) {
+    const btn = document.getElementById(id);
+    btn.addEventListener('click', function() {
+      const which = id === 'dlNotRegistered' ? { registration: 'notRegistered' } : { assessment: 'notAssessed' };
+      downloadPdf(Object.assign({ strand: state.strand, section: state.section, academicYear: state.academicYear }, which),
+        btn, document.getElementById('statusDlError'));
+    });
+  });
 
   // Badge colors by meaning (PP.badge in js/ui-state.js): not taking counseling is not an error, so it is gray.
   const STATUS_TONE = { Completed: 'green', Pending: 'amber', 'Not Registered': 'blue' };
@@ -787,12 +843,13 @@
   }
 
   // Loads one page of students (state.page) with the search and filters in use.
-  // opts.listOnly: a filter, search or page change. The cards and charts count every student in the school year (not the
-  // table's filters), so they stay as they are instead of flashing. opts.focus: the pager button to focus afterwards.
+  // opts.listOnly: a filter, search or page change. The cards and charts are not fetched again: they are redrawn from the
+  // sections already loaded, and only when the Strand or Section at the top changed (renderScope), so they do not flash.
+  // opts.focus: the pager button to focus afterwards.
   async function load(opts = {}) {
     const listOnly = !!opts.listOnly && lastSummary !== null;
     const statIds = ['cardTotalStudents', 'cardCompleted', 'cardPending', 'cardMismatched'];
-    const chartBoxes = ['completionChartBox', 'statusChartBox'];
+    const chartBoxes = ['completionChartBox', 'statusChartBox', 'matchChartBox'];
     listState.save(state);
     PP.showSkeleton(tbody, PP.skeleton.rows(COLS, 6));
     pager.loading();
@@ -801,6 +858,7 @@
       ['cardCompletedPct', 'cardPendingPct', 'cardMismatchedPct'].forEach(function(id) { document.getElementById(id).textContent = ''; });
       if (!completionChart) { document.getElementById('sectionCompletionCard').classList.remove('hidden'); PP.chartLoading('completionChartBox'); }
       if (!statusChart) { document.getElementById('statusCard').classList.remove('hidden'); PP.chartLoading('statusChartBox'); }
+      if (!matchChart && PP.may(currentUser, 'assessmentResults')) { document.getElementById('matchCard').classList.remove('hidden'); PP.chartLoading('matchChartBox'); }
     }
     const params = new URLSearchParams({
       page: state.page, pageSize: state.pageSize, search: state.search, strand: state.strand, section: state.section, status: state.status,
@@ -835,29 +893,17 @@
       ? data.students.map((s, i) => renderRow(s, data.startIndex + i)).join('')
       : '';
     renderEmailButton();
-    if (listOnly) { renderBreakdown(); return; } // a strand picked in a card breakdown may have just been changed
+    // A Strand or Section change at the top: the cards and charts follow it, drawn from the sections already loaded.
+    if (listOnly) { renderBreakdown(); renderScope(false); return; } // a strand picked in a card breakdown may have just been changed
 
     chartBoxes.forEach(PP.chartLoaded);
     renderYearOptions(data);
 
-    if (data.summary) {
-      document.getElementById('cardTotalStudents').textContent = data.summary.totalStudents.toLocaleString();
-      document.getElementById('cardCompleted').textContent = data.summary.completedCount.toLocaleString();
-      document.getElementById('cardPending').textContent = data.summary.pendingCount.toLocaleString();
-      document.getElementById('cardMismatched').textContent = data.summary.mismatchedCount.toLocaleString();
-      const pct = (n) => data.summary.totalStudents > 0 ? Math.round((n / data.summary.totalStudents) * 100) + '% of total' : '0% of total';
-      document.getElementById('cardCompletedPct').textContent = pct(data.summary.completedCount);
-      document.getElementById('cardPendingPct').textContent = pct(data.summary.pendingCount);
-      // Mismatched is a share of the students who finished the assessment.
-      document.getElementById('cardMismatchedPct').textContent = data.summary.completedCount > 0 ? Math.round((data.summary.mismatchedCount / data.summary.completedCount) * 100) + '% of completed' : '0% of completed';
-    }
     lastSummary = data.summary || {}; // no cards for this person: later list changes still reload the list only
     renderBreakdown();
 
-    const secRows = data.sections || [];
-    lastSectionRows = secRows;
-    renderStatus(secRows);
-    renderCompletion(secRows);
+    lastSectionRows = data.sections || [];
+    renderScope(true);
   }
 
   // Staff can email everyone currently listed when the list is Pending or Mismatched students.
@@ -1295,9 +1341,9 @@
       return row;
     }));
     breakdownNote.textContent = !state.strand
-      ? 'Click a strand to show only its students in the table.'
+      ? 'Click a strand to show only its students on this page.'
       : exact
-        ? 'Showing ' + state.strand + ' only in the table. Click it again to show all strands.'
+        ? 'Showing ' + state.strand + ' only. Click it again to show all strands.'
         : state.strand + ' is selected. Click it to show only its ' + info.group + ' students.';
     if (focused) {
       const again = breakdownRows.querySelector('[data-strand="' + CSS.escape(focused) + '"]');
