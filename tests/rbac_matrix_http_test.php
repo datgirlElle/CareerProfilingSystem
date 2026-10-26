@@ -50,7 +50,7 @@ $mkUser('counselor', 'qa_rbac_fac', 'facilitator');
 $mkUser('counselor', 'qa_rbac_cou', 'counselor');
 $mkUser('admin', 'qa_rbac_adm');
 
-// Table 5 of Chapter 4, with the owner's decision of 2026-10-24: the Guidance Facilitator does not decide retake requests or invite. Y = allowed, N = refused, V = "View only" (the page opens, a change is refused).
+// Table 5 of Chapter 4, updated to the permission table agreed on 2026-10-24 (Rbac::DEFAULTS, Rbac::ADMIN_PAGES, Rbac::FACILITATOR_NEVER). Y = allowed, N = refused, V = "View only" (the page opens, a change is refused).
 // Columns: Student, Guidance Facilitator, Guidance Counselor, Administrator.
 // Each probe: [method, path, body, which columns it tests ('view' or 'change' for V cells)].
 $rows = [
@@ -68,19 +68,19 @@ $rows = [
     ['Decide retake requests and invite students to counseling', 'NNYY', [
         ['POST', '/api/retake-requests.php', ['type' => 'decide', 'id' => 0, 'decision' => 'none'], 'staffonly'],
         ['POST', '/api/counseling-invite.php', ['studentId' => 0]]]],
-    ['Review flagged students in Monitoring', 'NYYY', [
-        ['GET', '/api/monitoring.php', null],
-        ['POST', '/api/monitoring-action.php', ['flagId' => 0, 'action' => 'none']]]],
+    ['Review flagged students in Monitoring', 'NVYY', [
+        ['GET', '/api/monitoring.php', null, 'view'],
+        ['POST', '/api/monitoring-action.php', ['flagId' => 0, 'action' => 'none'], 'change']]],
     ['Set assessment schedules and access codes', 'NYYY', [
         ['POST', '/api/exam-schedules.php', ['type' => 'none']]]],
-    ['Upload class rosters', 'NVYY', [
-        ['GET', '/api/sections.php', null, 'staffview'],
+    ['Upload class rosters', 'NNVY', [
+        ['GET', '/api/sections.php?all=1', null, 'view'],
         ['POST', '/api/roster-upload.php', '{}', 'change']]],
     ['Maintain the question bank', 'NYYY', [
         ['POST', '/api/assessment-questions.php', ['type' => 'none']]]],
-    ['View analytics, download student lists, and export the Analytics Report as a PDF', 'NYYY', [
+    ['View analytics, download student lists, and export the Analytics Report as a PDF', 'NNYY', [
         ['GET', '/api/analytics.php', null]]],
-    ['Send the Analytics Report by email', 'NNYY', [
+    ['Send the Analytics Report by email', 'NNNY', [
         ['POST', '/api/analytics-report.php', ['email' => 'not-an-address']]]],
     ['Post announcements', 'NVVY', [
         ['GET', '/api/announcement-templates.php', null, 'view'],
@@ -88,12 +88,12 @@ $rows = [
     ['Maintain the career dataset', 'NVVY', [
         ['GET', '/api/programs.php', null, 'staffview'],
         ['POST', '/api/programs.php', [], 'change']]],
-    ['Approve staff sign-ups', 'NNYY', [
+    ['Approve staff sign-ups', 'NNNY', [
         ['POST', '/api/staff-approvals.php', ['id' => 0, 'action' => 'none']]]],
     ['Set role permissions and security policies', 'NNNY', [
         ['POST', '/api/security-config.php', ['type' => 'rbac', 'changes' => []]],
         ['POST', '/api/security-config.php', ['type' => 'policy']]]],
-    ['View the Audit Log', 'NYYY', [
+    ['View the Audit Log', 'NNNY', [
         ['GET', '/api/audit-log.php', null]]],
 ];
 
@@ -113,8 +113,8 @@ try {
             $cell = $expect[$i];
             foreach ($probes as $p) {
                 $kind = $p[3] ?? 'any';
-                // Students read the section and program lists for registration and their results, so those views and the
-                // staff-only decision probe are not Table 5 cells for the Student column.
+                // Students read the program list for registration and their results, so that view and the staff-only
+                // decision probes are not Table 5 cells for the Student column.
                 if (in_array($kind, ['staffonly', 'staffview'], true) && $label === 'Student') { continue; }
                 $kind = $kind === 'staffview' ? 'view' : $kind;
                 // For a View only cell, the view probe must be allowed and the change probe refused.
