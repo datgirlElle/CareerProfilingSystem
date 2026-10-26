@@ -308,8 +308,13 @@ if (AcademicYear::isPast($viewAy)) {
 }
 $rows = array_values(array_filter($rows, fn($r) => StaffScope::allows($scope, $r['strand'], $r['section'])));
 $mismatchIds = Mismatch::studentIds($pdo); // finished students whose Preferred Course isn't a Best RIASEC Match
+// Students with a recommendation for their latest assessment (assessment + worksheet done), the same rule as
+// Mismatch::studentIds: they are either matched or mismatched. An assessment without a worksheet is neither yet.
+$recommendedIds = array_flip(array_map('intval', $pdo->query(
+    'SELECT DISTINCT student_id FROM recommendations WHERE source_assessment_id IN (SELECT id FROM assessments WHERE is_latest = TRUE)'
+)->fetchAll(PDO::FETCH_COLUMN)));
 
-$students = array_map(function ($r) use ($counseledIds, $mismatchIds) {
+$students = array_map(function ($r) use ($counseledIds, $mismatchIds, $recommendedIds) {
     $hasAssessment = $r['completed_at'] !== null;
     $status = $hasAssessment ? 'Completed' : 'Pending';
     $topTypes = $hasAssessment ? json_decode($r['top_types'], true) : [];
@@ -330,6 +335,8 @@ $students = array_map(function ($r) use ($counseledIds, $mismatchIds) {
         'riasec' => implode(', ', $topTypes),
         'counseling' => $counseling,
         'mismatched' => $hasAssessment && isset($mismatchIds[(int) $r['user_id']]),
+        // For the Course Match chart only (counted per section below, never sent per student).
+        'matched' => $hasAssessment && isset($recommendedIds[(int) $r['user_id']]) && !isset($mismatchIds[(int) $r['user_id']]),
         'registeredAt' => $r['registered_at'],
         'assessmentDate' => $r['completed_at'],
         '_email' => $r['email'], // only for the CSV download; never sent in the list JSON
@@ -363,6 +370,7 @@ if ($currentAy !== '') {
             'riasec' => '',
             'counseling' => '',
             'mismatched' => false,
+            'matched' => false,
             'registeredAt' => null,
             'assessmentDate' => null,
             'rosterId' => (int) $rr['id'],
@@ -400,7 +408,7 @@ foreach ($students as $s) {
     if (!isset($sectionSummary[$key])) {
         // Counts only: no page reads names per section, so they are not sent (fewer names leave the server).
         $sectionSummary[$key] = [
-            'strand' => $s['strand'], 'section' => $s['section'], 'total' => 0, 'completed' => 0, 'pending' => 0, 'notRegistered' => 0, 'mismatched' => 0,
+            'strand' => $s['strand'], 'section' => $s['section'], 'total' => 0, 'completed' => 0, 'pending' => 0, 'notRegistered' => 0, 'mismatched' => 0, 'matched' => 0,
         ];
     }
     $sectionSummary[$key]['total']++;
@@ -413,6 +421,9 @@ foreach ($students as $s) {
     }
     if ($s['mismatched']) {
         $sectionSummary[$key]['mismatched']++;
+    }
+    if ($s['matched']) {
+        $sectionSummary[$key]['matched']++;
     }
 }
 ksort($sectionSummary);
@@ -602,7 +613,7 @@ $pageRows = array_map(function ($s) use ($withName, $seesResults, $seesAccounts)
         $s['isActive'] = null; // the account state belongs to Student account management
         unset($s['locked']);
     }
-    unset($s['_email'], $s['_schoolId']);
+    unset($s['_email'], $s['_schoolId'], $s['matched']); // matched: only as a count per section
     return $s;
 }, array_slice($filtered, $offset, $pageSize));
 // The Announcements picker without Student information gets only what it needs to choose recipients.
@@ -620,7 +631,9 @@ jsonResponse([
     // What this person may see here, so the page shows only the parts that are theirs.
     'seesList' => $seesList,
     'seesCards' => $seesCards,
-    'sections' => $seesCards ? array_values($sectionSummary) : [],
+    // Matched (Course Match chart) is an assessment result: only with Assessment results access.
+    'sections' => !$seesCards ? [] : ($seesResults ? array_values($sectionSummary)
+        : array_map(function ($sec) { unset($sec['matched']); return $sec; }, array_values($sectionSummary))),
     'academicYear' => $viewAy,
     'academicYears' => AcademicYear::available($pdo),
     'isPastYear' => AcademicYear::isPast($viewAy),
