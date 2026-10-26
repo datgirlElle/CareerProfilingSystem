@@ -456,6 +456,9 @@ if ($sectionFilter !== '') {
 }
 if ($statusFilter === 'Mismatched') {
     $filtered = array_values(array_filter($filtered, fn($s) => $s['mismatched']));
+} elseif ($statusFilter === 'Matched') {
+    // Course Match "Matched" (an assessment result): only with Assessment results access, otherwise nobody matches.
+    $filtered = $may('assessmentResults') ? array_values(array_filter($filtered, fn($s) => $s['matched'])) : [];
 } elseif ($statusFilter !== '') {
     $filtered = array_values(array_filter($filtered, fn($s) => $s['status'] === $statusFilter));
 }
@@ -532,10 +535,10 @@ if ($asPdf) {
     $filtered = array_map($withName, $filtered);
     usort($filtered, fn($a, $b) => [$a['strand'], $a['section'], $a['name']] <=> [$b['strand'], $b['section'], $b['name']]);
     $labels = [
-        'status' => ['Completed' => 'Completed', 'Pending' => 'Pending', 'Mismatched' => 'Mismatched', 'Not Registered' => 'Not registered'],
+        'status' => ['Completed' => 'Completed', 'Pending' => 'Pending', 'Mismatched' => 'Mismatched', 'Matched' => 'Matched', 'Not Registered' => 'Not registered'],
         'registration' => ['registered' => 'Registered', 'notRegistered' => 'Not registered'],
         'account' => ['active' => 'Active', 'inactive' => 'Deactivated'],
-        'assessment' => ['assessed' => 'Assessed', 'notAssessed' => 'Not assessed'],
+        'assessment' => ['assessed' => 'Yes', 'notAssessed' => 'No'],
         'counseling' => ['Availed' => 'Availed', 'Did Not Avail' => 'Did not avail'],
     ];
     $applied = array_filter([
@@ -545,7 +548,7 @@ if ($asPdf) {
         $registrationFilter !== '' ? 'Registration: ' . ($labels['registration'][$registrationFilter] ?? $registrationFilter) : '',
         $accountFilter !== '' ? 'Account: ' . ($labels['account'][$accountFilter] ?? $accountFilter) : '',
         $statusFilter !== '' ? 'Assessment status: ' . ($labels['status'][$statusFilter] ?? $statusFilter) : '',
-        $assessmentFilter !== '' ? 'Assessed: ' . ($labels['assessment'][$assessmentFilter] ?? $assessmentFilter) : '',
+        $assessmentFilter !== '' ? 'Assessment taken: ' . ($labels['assessment'][$assessmentFilter] ?? $assessmentFilter) : '',
         $counselingFilter !== '' ? 'Counseling: ' . ($labels['counseling'][$counselingFilter] ?? $counselingFilter) : '',
     ]);
     $filters = $applied ? implode('; ', $applied) : 'None (all students)';
@@ -563,7 +566,8 @@ if ($asPdf) {
             (string) $s['strand'],
             (string) $s['section'],
             !$seesAccounts ? '-' : ($s['userId'] === null ? 'No account' : (!$s['isActive'] ? 'Deactivated' : (!empty($s['locked']) ? 'Locked' : 'Active'))),
-            $s['mismatched'] ? 'Mismatched' : $s['status'],   // a mismatched result is always a completed one
+            // The same words as the page: Completed, Pending, Not registered (a mismatched result is always a completed one).
+            $s['mismatched'] ? 'Mismatched' : ($s['status'] === 'Not Registered' ? 'Not registered' : $s['status']),
             $s['assessmentDate'] ? date('M j, Y', strtotime((string) $s['assessmentDate'])) : '-',
             QuestionBank::hollandCode(array_values(array_filter(explode(', ', (string) ($s['riasec'] ?? ''))))) ?: '-',
             $s['counseling'] !== '' ? $s['counseling'] : 'No request',
