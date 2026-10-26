@@ -27,7 +27,8 @@ $out = [
 
 if ($user['role'] !== 'student') {
     $out['fullName'] = trim((string) $row['full_name']) !== '' ? $row['full_name'] : null;
-    $out['roleLabel'] = $user['role'] === 'admin' ? 'Administrator' : StaffPosition::label($row['staff_position'] ?: null);
+    $out['roleLabel'] = $user['role'] === 'admin' ? 'Administrator'
+        : StaffPosition::label($row['staff_position'] ?: null) . (Rbac::isCoAdmin($user) ? ' (Co-admin)' : '');
     // Accounts made before staff signed up with their email (the administrator and older counselors) sign in with this
     // name, so it is shown; newer staff sign in with their email and never see a login name.
     $out['username'] = $row['staff_position'] === null ? $row['username'] : null;

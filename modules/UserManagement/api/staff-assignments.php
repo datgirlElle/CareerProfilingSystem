@@ -56,10 +56,15 @@ if ($userId === (int) $user['id']) {
     jsonResponse(['success' => false, 'error' => 'You cannot change your own sections. Ask the Head of Guidance.'], 403);
 }
 
-$exists = $pdo->prepare("SELECT 1 FROM users WHERE id = ? AND role = 'counselor'");
+$exists = $pdo->prepare('SELECT ' . (Rbac::hasCoAdminColumn() ? 'is_co_admin' : 'FALSE AS is_co_admin') . " FROM users WHERE id = ? AND role = 'counselor'");
 $exists->execute([$userId]);
-if (!$exists->fetch()) {
+$target = $exists->fetch();
+if (!$target) {
     jsonResponse(['success' => false, 'error' => 'Staff account not found.'], 404);
+}
+// A co-admin's account is the administrator's to change (modules/UserManagement/api/staff-approvals.php).
+if ($target['is_co_admin'] && $user['role'] !== 'admin') {
+    jsonResponse(['success' => false, 'error' => 'Only the administrator can change co-admins.'], 403);
 }
 
 $allowed = [];

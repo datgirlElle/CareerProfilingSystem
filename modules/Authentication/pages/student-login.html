@@ -331,9 +331,9 @@
           return;
         }
         // The server gives one answer for a wrong number, a wrong password, an unverified account and no account at all,
-        // so the hint covers the usual cases without saying which one it was.
+        // so the message stays short and never says which one it was. Students sign in with a Student Number, not a username.
         showError(!data.error || data.error === 'Invalid username or password.'
-          ? 'Wrong Student Number or password. Just signed up? Open the email we sent you first: it has the link to create your password, or says what to fix.'
+          ? 'Wrong Student Number or password.'
           : data.error);
       } catch (err) {
         showError('Unable to reach the server. Please try again.');
