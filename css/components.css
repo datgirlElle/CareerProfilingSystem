@@ -849,3 +849,6 @@ button.breakdown-row.is-picked:not(:disabled):hover {
 .ce-remove:hover { background: #fee2e2; color: #b91c1c; }
 .ce-remove:focus-visible { outline: 2px solid #001c43; outline-offset: 1px; }
 .ce-empty { padding: 10px 8px; font-size: 13px; color: #64748b; }
+/* Strand: a dot in the strand color (js/strand-colors.js) before the strand name. */
+.pp-strand { display: inline-flex; align-items: center; gap: 7px; }
+.pp-strand-dot { width: 10px; height: 10px; border-radius: 9999px; flex: 0 0 auto; }

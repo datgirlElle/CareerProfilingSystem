@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="js/csrf.js"></script><script src="js/ui-state.js"></script>
+<script src="js/csrf.js"></script><script src="js/ui-state.js"></script><script src="js/strand-colors.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <title>Admin Dashboard — Career Profiling System</title>
 <link rel="icon" type="image/png" href="images/brand/favicon-64.png">
@@ -831,7 +831,7 @@
       '<td class="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">' + escapeHtml(s.name) +
         (s.email ? '<span class="block text-xs font-normal text-gray-500">' + escapeHtml(s.email) + '</span>' : '') +
       '</td>' +
-      '<td class="px-6 py-4 text-sm text-gray-500">' + escapeHtml(s.strand) + '</td>' +
+      '<td class="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">' + PP.strandLabel(s.strand) + '</td>' + // strand color dot (js/strand-colors.js)
       '<td class="px-6 py-4 text-sm text-gray-500">' + escapeHtml(s.section) + '</td>' +
       (seesAccounts ? '<td class="px-6 py-4 whitespace-nowrap">' + accountCell + '</td>' : '') +
       '<td class="px-6 py-4 whitespace-nowrap">' + statusCell + '</td>' +
@@ -1319,6 +1319,11 @@
       const name = document.createElement('span');
       name.className = 'breakdown-name';
       name.textContent = b.strand;
+      const dot = document.createElement('span'); // the strand color (js/strand-colors.js); the bar keeps the card's color
+      dot.className = 'pp-strand-dot';
+      dot.style.cssText = 'display:inline-block;margin-right:8px;background:' + PP.strandColor(b.strand);
+      dot.setAttribute('aria-hidden', 'true');
+      name.prepend(dot);
       if (isPicked) {
         const tag = document.createElement('span');
         tag.className = 'breakdown-tag';
